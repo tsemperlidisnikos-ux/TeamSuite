@@ -705,6 +705,7 @@ export function buildDemoShowcaseData(now = new Date()): AppData {
     registrationFee: spec.registrationFee,
     seasonTicketAmount: spec.sport === 'Κολύμβηση' ? 0 : spec.monthlyFee * 9,
     seasonTicketMonths: spec.sport === 'Κολύμβηση' ? [] : [9],
+    customChargeAmount: 0,
     autoGenerate: true,
     createdAt: daysFromToday(-110, now),
   }));

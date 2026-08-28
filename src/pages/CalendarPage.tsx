@@ -167,9 +167,10 @@ export function CalendarPage() {
 
   useEffect(() => {
     if (!clubId) return;
+    const scopedClubId = clubId;
     let cancelled = false;
     async function pullRentals() {
-      const result = await rentalBookingsService.pullRemoteRentalBookings(clubId);
+      const result = await rentalBookingsService.pullRemoteRentalBookings(scopedClubId);
       if (!cancelled && result.merged > 0) refresh();
     }
     void pullRentals();

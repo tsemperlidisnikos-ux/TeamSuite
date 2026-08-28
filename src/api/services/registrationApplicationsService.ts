@@ -6,8 +6,8 @@ import { buildStudentFromRegistrationApplication } from '../../shared/publicJoin
 import type {
   RegistrationApplication,
   RegistrationApplicationKind,
+  Student,
 } from '../../types';
-import { localDateIso } from '../../utils/dates';
 import * as emailService from './emailService';
 
 function clubNameForSession(): string {

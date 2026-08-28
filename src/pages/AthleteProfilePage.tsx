@@ -220,7 +220,6 @@ function toForm(student: Student): StudentInput {
       gallery: false,
       communication: false,
       medical: false,
-      amkaHealthCard: false,
       ...student.gdprItems,
       ...(student.gdprConsent === 'full' || student.gdprConsent === 'locked'
         ? {
