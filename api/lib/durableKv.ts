@@ -325,7 +325,67 @@ export async function kvSetIfAbsent(
   return result === 'OK';
 }
 
-/** Public binary upload for gallery media (returns CDN URL). */
+export function isAllowedClubMediaPath(pathname: string): boolean {
+  const p = pathname.replace(/^\/+/, '').trim();
+  return /^ss360-media\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(p);
+}
+
+export function clubMediaAppUrl(pathname: string): string {
+  const p = pathname.replace(/^\/+/, '').trim();
+  return `/api/club-media?p=${encodeURIComponent(p)}`;
+}
+
+async function streamToBuffer(stream: ReadableStream<Uint8Array>): Promise<Buffer> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) chunks.push(value);
+  }
+  return Buffer.concat(chunks.map((c) => Buffer.from(c)));
+}
+
+/** Read an image from the private Blob store (never expose teamsuite-kv JSON this way). */
+export async function getPrivateMedia(
+  pathname: string,
+): Promise<{ bytes: Buffer; contentType: string } | null> {
+  if (!isAllowedClubMediaPath(pathname)) return null;
+  assertBlobConfigured();
+  const auth = blobAuth();
+  const p = pathname.replace(/^\/+/, '').trim();
+  try {
+    const result = await get(p, {
+      access: 'private',
+      ...auth,
+      useCache: false,
+    });
+    if (result && result.statusCode === 200 && result.stream) {
+      const bytes = await streamToBuffer(result.stream);
+      const contentType =
+        (result as { blob?: { contentType?: string } }).blob?.contentType ||
+        'application/octet-stream';
+      return { bytes, contentType };
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const meta = await head(p, auth);
+    if (!meta?.url) return null;
+    const headers: Record<string, string> = {};
+    if (auth.token) headers.Authorization = `Bearer ${auth.token}`;
+    const res = await fetch(meta.url, { headers, cache: 'no-store' });
+    if (!res.ok) return null;
+    const bytes = Buffer.from(await res.arrayBuffer());
+    const contentType = meta.contentType || res.headers.get('content-type') || 'application/octet-stream';
+    return { bytes, contentType };
+  } catch {
+    return null;
+  }
+}
+
+/** Upload club media into the private Blob store; callers serve it via /api/club-media. */
 export async function putPublicBinary(
   pathname: string,
   body: Buffer,
@@ -333,8 +393,8 @@ export async function putPublicBinary(
   options?: { cacheControlMaxAge?: number },
 ): Promise<string> {
   assertBlobConfigured();
-  const uploaded = await put(pathname, body, {
-    access: 'public',
+  await put(pathname, body, {
+    access: 'private',
     ...blobAuth(),
     contentType,
     addRandomSuffix: false,
@@ -343,5 +403,5 @@ export async function putPublicBinary(
       ? { cacheControlMaxAge: options.cacheControlMaxAge }
       : {}),
   });
-  return uploaded.url;
+  return clubMediaAppUrl(pathname);
 }

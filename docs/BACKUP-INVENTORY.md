@@ -40,6 +40,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `TeamSuite_2026-08-28_15-34-36.zip` | 2026-08-28 | Logo/media σε private Blob + `/api/club-media` (χωρίς public access στο store) |
 | `TeamSuite_2026-08-28_15-26-36.zip` | 2026-08-28 | Συγχρονισμός logo συλλόγου στο cloud (Blob HTTPS) ώστε να εμφανίζεται σε όλους τους browsers μετά το login |
 | `TeamSuite_2026-08-28_14-42-31.zip` | 2026-08-28 | Durable Blob store · restore/login sync (τοπικά δεδομένα δεν σβήνονται) · club mirror push χωρίς Platform Admin account bundle |
 | `SportSuite360_2026-08-28_12-44-33.zip` | 2026-08-28 | TeamSuite ξεχωριστό Vercel project (`teamsuite-seven.vercel.app`) · production URLs εκτός SportSuite360 · πριν το deploy |

@@ -181,9 +181,12 @@ export function parseImageDataUrl(
 
 function withMediaCacheBust(url: string): string {
   try {
-    const parsed = new URL(url);
+    const parsed = url.startsWith('http://') || url.startsWith('https://')
+      ? new URL(url)
+      : new URL(url, 'https://teamsuite.invalid');
     parsed.searchParams.set('v', String(Date.now()));
-    return parsed.toString();
+    if (url.startsWith('http://') || url.startsWith('https://')) return parsed.toString();
+    return `${parsed.pathname}${parsed.search}`;
   } catch {
     return url;
   }
