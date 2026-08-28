@@ -224,15 +224,15 @@ html[data-appearance='graphite-ember'] .login-hero-panel::before,
   display: none;
 }
 
-/* ---- Ocean Slate: graphite + lime / teal color washes (no imagery) ---- */
+/* ---- Ocean Slate: black chrome + teal washes ---- */
 html[data-appearance='ocean-slate'] .login-hero-panel {
-  background: linear-gradient(165deg, #070809 0%, #121418 48%, #0a0c0f 100%);
+  background: #000;
 }
 
 html[data-appearance='ocean-slate'] .login-hero-glow {
   background:
-    radial-gradient(ellipse 70% 55% at 12% 8%, rgba(184, 240, 0, 0.28), transparent 58%),
-    radial-gradient(ellipse 65% 50% at 88% 92%, rgba(45, 212, 191, 0.22), transparent 55%),
+    radial-gradient(ellipse 70% 55% at 12% 8%, rgba(42, 155, 181, 0.22), transparent 58%),
+    radial-gradient(ellipse 65% 50% at 88% 92%, rgba(42, 155, 181, 0.16), transparent 55%),
     radial-gradient(circle at 40% 45%, rgba(255, 255, 255, 0.03), transparent 42%);
 }
 
@@ -242,8 +242,8 @@ html[data-appearance='ocean-slate'] .login-hero-watermark {
 
 html[data-appearance='ocean-slate'] .login-hero-360,
 html[data-appearance='ocean-slate'] .login-hero-accent {
-  color: #b8f000;
-  background-color: #b8f000;
+  color: #2a9bb5;
+  background-color: #2a9bb5;
 }
 
 html[data-appearance='ocean-slate'] .login-hero-360 {

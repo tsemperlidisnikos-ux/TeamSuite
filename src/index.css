@@ -17,16 +17,16 @@
   --shadow: 0 18px 40px rgba(21, 35, 31, 0.08);
   --radius: 18px;
   --sidebar: 280px;
-  --chrome-1: #0f2f2e;
-  --chrome-2: #123c3a;
-  --chrome-3: #0d2928;
+  --chrome-1: #000000;
+  --chrome-2: #000000;
+  --chrome-3: #000000;
   --chrome-fg: #f4faf8;
   --chrome-muted: rgba(244, 250, 248, 0.65);
   --chrome-faint: rgba(244, 250, 248, 0.45);
   --body-glow-1: rgba(13, 115, 119, 0.12);
   --body-glow-2: rgba(232, 168, 56, 0.14);
   --body-top: #f4f8f6;
-  --login-bg: #1a3e38;
+  --login-bg: #000000;
   --login-submit: #1a3e38;
   --login-submit-fg: #ffffff;
   --brand-button-shadow: 0 10px 24px rgba(13, 115, 119, 0.28);
@@ -42,7 +42,7 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* Ocean Slate — cool slate chrome + sky teal, light content */
+/* Ocean Slate — black chrome + sky teal, light content */
 html[data-appearance='ocean-slate'] {
   --bg: #f0f4f8;
   --bg-deep: #e4ebf2;
@@ -61,16 +61,16 @@ html[data-appearance='ocean-slate'] {
   --shadow: 0 14px 32px rgba(28, 43, 58, 0.1);
   --radius: 12px;
   --sidebar: 260px;
-  --chrome-1: #1c2b3a;
-  --chrome-2: #243647;
-  --chrome-3: #162533;
+  --chrome-1: #000000;
+  --chrome-2: #000000;
+  --chrome-3: #000000;
   --chrome-fg: #f0f4f8;
   --chrome-muted: rgba(240, 244, 248, 0.72);
   --chrome-faint: rgba(240, 244, 248, 0.48);
   --body-glow-1: rgba(42, 155, 181, 0.1);
   --body-glow-2: rgba(28, 43, 58, 0.06);
   --body-top: #f5f8fb;
-  --login-bg: #1c2b3a;
+  --login-bg: #000000;
   --login-submit: #2a9bb5;
   --login-submit-fg: #ffffff;
   --brand-button-shadow: 0 10px 22px rgba(42, 155, 181, 0.28);
@@ -300,7 +300,8 @@ strong {
   min-height: 64px;
   padding: 0.65rem 0.9rem;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.06);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   flex-shrink: 0;
 }
 
@@ -344,6 +345,8 @@ strong {
 
 .app-header .icon-btn {
   color: var(--chrome-fg);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .app-shell {
@@ -358,7 +361,7 @@ strong {
   top: var(--app-header-h);
   height: calc(100vh - var(--app-header-h));
   padding: 1.25rem;
-  background: linear-gradient(180deg, var(--chrome-1) 0%, var(--chrome-2) 48%, var(--chrome-3) 100%);
+  background: #000;
   color: var(--chrome-fg);
   display: flex;
   flex-direction: column;

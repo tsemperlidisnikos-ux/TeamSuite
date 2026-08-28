@@ -735,7 +735,7 @@ export function PlatformAdminPage() {
                   const selected =
                     (config.appearanceTheme ?? 'ocean-slate') === theme.id;
                   const swatches: Record<AppearanceTheme, [string, string, string]> = {
-                    'ocean-slate': ['#1c2b3a', '#f0f4f8', '#2a9bb5'],
+                    'ocean-slate': ['#000000', '#f0f4f8', '#2a9bb5'],
                     'graphite-ember': ['#0b0c0e', '#1a1d24', '#e85d2c'],
                   };
                   const [c1, c2, c3] = swatches[theme.id];

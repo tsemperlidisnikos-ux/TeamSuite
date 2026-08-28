@@ -1,5 +1,5 @@
 /**
- * Ocean Slate — cool slate chrome + sky teal accents, light content surfaces.
+ * Ocean Slate — black chrome + sky teal accents, light content surfaces.
  * Applied when html[data-appearance="ocean-slate"].
  */
 
@@ -423,7 +423,7 @@ html[data-appearance='ocean-slate'] .login-page {
 }
 
 html[data-appearance='ocean-slate'] .login-hero-panel {
-  background: linear-gradient(165deg, var(--chrome-1), var(--chrome-3));
+  background: #000;
   color: var(--chrome-fg);
 }
 

@@ -238,7 +238,7 @@ export const APPEARANCE_THEMES: Array<{
   {
     id: 'ocean-slate',
     label: 'Ocean Slate',
-    description: 'Γκρι-μπλε chrome + sky teal accents, φωτεινό content.',
+    description: 'Μαύρο chrome + sky teal accents, φωτεινό content.',
   },
   {
     id: 'graphite-ember',
