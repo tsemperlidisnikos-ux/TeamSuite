@@ -249,7 +249,8 @@ export function ClassProfilePage() {
           <thead>
             <tr>
               <th>Αρ. Μητρώου</th>
-              <th>Αθλητής</th>
+              <th>Επώνυμο</th>
+              <th>Όνομα</th>
               <th>Κατάσταση</th>
               <th>Ηλικία</th>
               <th>Έτος γέννησης</th>
@@ -266,7 +267,7 @@ export function ClassProfilePage() {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={13} className="classes-empty muted">
+                <td colSpan={14} className="classes-empty muted">
                   Δεν υπάρχουν αθλητές στο τμήμα
                 </td>
               </tr>
@@ -284,7 +285,12 @@ export function ClassProfilePage() {
                     <td>{student.registrationNumber || '—'}</td>
                     <td>
                       <Link to={`/athletes/${student.id}`} className="classes-name-link">
-                        {student.lastName} {student.firstName}
+                        {student.lastName}
+                      </Link>
+                    </td>
+                    <td>
+                      <Link to={`/athletes/${student.id}`} className="classes-name-link">
+                        {student.firstName}
                       </Link>
                     </td>
                     <td>
@@ -399,7 +405,8 @@ export function ClassProfilePage() {
             <table className="data-table classes-table">
               <thead>
                 <tr>
-                  <th>Αθλητής</th>
+                  <th>Επώνυμο</th>
+                  <th>Όνομα</th>
                   <th>Φύλο</th>
                   <th>Έτος γέννησης</th>
                   <th>Ηλικία</th>
@@ -409,16 +416,15 @@ export function ClassProfilePage() {
               <tbody>
                 {availableAthletes.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="classes-empty muted">
+                    <td colSpan={6} className="classes-empty muted">
                       Δεν βρέθηκαν διαθέσιμοι αθλητές με τα επιλεγμένα φίλτρα
                     </td>
                   </tr>
                 ) : (
                   availableAthletes.map((student) => (
                     <tr key={student.id}>
-                      <td>
-                        {student.lastName} {student.firstName}
-                      </td>
+                      <td>{student.lastName}</td>
+                      <td>{student.firstName}</td>
                       <td>{studentGenderLabels[student.gender ?? '']}</td>
                       <td>{athleteBirthYear(student.birthDate)}</td>
                       <td>{athleteAge(student.birthDate) ?? '—'}</td>

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { MoreHorizontal, RotateCcw, Search, Send, Users } from 'lucide-react';
+import { Download, MoreHorizontal, Plus, RotateCcw, Search, Send } from 'lucide-react';
 import * as parentsService from '../api/services/parentsService';
 import { getSession } from '../auth/auth';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
+import { PageHeader } from '../components/ui/PageHeader';
 import { useAppData } from '../hooks/useAppData';
 import { getPreviewClubId } from '../platform/platformConfig';
+import { downloadXlsx } from '../utils/xlsxDownload';
 
 const PAGE_SIZE = 10;
 
@@ -14,6 +16,20 @@ const STATUS_LABELS: Record<parentsService.ParentInviteStatus, string> = {
   pending: 'Πρόσκληση εκκρεμεί',
   not_invited: 'Δεν έχει προσκληθεί',
 };
+
+function exportParentsXlsx(rows: parentsService.ParentDirectoryRow[]) {
+  downloadXlsx(
+    'Γονείς',
+    ['Ονοματεπώνυμο', 'Αθλητές', 'Email', 'Κατάσταση'],
+    rows.map((row) => [
+      row.fullName,
+      row.athletes.map((a) => a.label).join(', '),
+      row.email || '',
+      STATUS_LABELS[row.status],
+    ]),
+    `goneis-${new Date().toISOString().slice(0, 10)}.xlsx`,
+  );
+}
 
 function generatePassword(): string {
   return `gon${Math.random().toString(36).slice(2, 8)}`;
@@ -41,6 +57,7 @@ export function ParentsPage() {
   const [saving, setSaving] = useState(false);
   const [loadingRows, setLoadingRows] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [selected, setSelected] = useState<string[]>([]);
 
   const athletes = useMemo(
     () =>
@@ -89,6 +106,18 @@ export function ParentsPage() {
   const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const from = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const to = Math.min(safePage * PAGE_SIZE, filtered.length);
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function toggleAllPage() {
+    const ids = pageRows.map((r) => r.key);
+    const allOn = ids.length > 0 && ids.every((id) => selected.includes(id));
+    setSelected((prev) =>
+      allOn ? prev.filter((id) => !ids.includes(id)) : [...new Set([...prev, ...ids])],
+    );
+  }
 
   function resetFilters() {
     setQuery('');
@@ -161,33 +190,25 @@ export function ParentsPage() {
   }
 
   return (
-    <div className="parents-page">
-      <section className="parents-hero panel">
-        <div className="parents-hero-copy">
-          <span className="parents-hero-icon" aria-hidden>
-            <Users size={22} />
-          </span>
-          <div>
-            <h1>Γονείς</h1>
-            <p>
-              Διαχείριση γονέων και σύνδεση με αθλητές. Προσκαλέστε γονείς για πρόσβαση στην
-              εφαρμογή.
-            </p>
-          </div>
-        </div>
-        <Button type="button" onClick={() => openInvite()}>
-          + Πρόσκληση Γονέα
-        </Button>
-      </section>
+    <div className="parents-page stack-lg">
+      <PageHeader
+        title="Γονείς"
+        subtitle="Διαχείριση γονέων και σύνδεση με αθλητές"
+        actions={
+          <Button type="button" onClick={() => openInvite()}>
+            <Plus size={16} /> Πρόσκληση γονέα
+          </Button>
+        }
+      />
 
       {message ? <p className="settings-success">{message}</p> : null}
 
-      <section className="parents-filters panel">
-        <label className="parents-search">
-          <Search size={16} aria-hidden />
+      <div className="toolbar">
+        <label className="search-field">
+          <Search size={16} />
           <input
             type="search"
-            placeholder="Αναζήτηση γονέα ή email"
+            placeholder="Αναζήτηση γονέα ή email..."
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -195,26 +216,26 @@ export function ParentsPage() {
             }}
           />
         </label>
-
-        <label className="parents-filter-field">
-          <span>Κατάσταση</span>
+        <label className="field">
+          <span className="field-label">Κατάσταση</span>
           <select
+            className="field-input"
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value);
               setPage(1);
             }}
           >
-            <option value="">Όλες</option>
+            <option value="">Όλα</option>
             <option value="active">Ενεργός</option>
             <option value="pending">Πρόσκληση εκκρεμεί</option>
             <option value="not_invited">Δεν έχει προσκληθεί</option>
           </select>
         </label>
-
-        <label className="parents-filter-field">
-          <span>Ομάδα</span>
+        <label className="field">
+          <span className="field-label">Ομάδα</span>
           <select
+            className="field-input"
             value={teamFilter}
             onChange={(e) => {
               setTeamFilter(e.target.value);
@@ -230,11 +251,13 @@ export function ParentsPage() {
             ))}
           </select>
         </label>
-
-        <button type="button" className="parents-reset" onClick={resetFilters}>
-          <RotateCcw size={15} /> Επαναφορά
-        </button>
-      </section>
+        <Button type="button" variant="secondary" onClick={resetFilters}>
+          <RotateCcw size={16} /> Επαναφορά
+        </Button>
+        <Button type="button" variant="secondary" onClick={() => exportParentsXlsx(filtered)}>
+          <Download size={16} /> Εξαγωγή
+        </Button>
+      </div>
 
       <section className="parents-table-card panel">
         {loadingRows ? (
@@ -248,6 +271,16 @@ export function ParentsPage() {
             <table className="parents-table">
               <thead>
                 <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      checked={
+                        pageRows.length > 0 && pageRows.every((r) => selected.includes(r.key))
+                      }
+                      onChange={toggleAllPage}
+                      aria-label="Επιλογή όλων"
+                    />
+                  </th>
                   <th>Ονοματεπώνυμο</th>
                   <th>Συνδεδεμένοι αθλητές</th>
                   <th>Email</th>
@@ -258,6 +291,14 @@ export function ParentsPage() {
               <tbody>
                 {pageRows.map((row) => (
                   <tr key={row.key}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(row.key)}
+                        onChange={() => toggleSelected(row.key)}
+                        aria-label={`Επιλογή ${row.fullName}`}
+                      />
+                    </td>
                     <td>
                       <strong>{row.fullName}</strong>
                     </td>

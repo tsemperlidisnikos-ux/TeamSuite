@@ -476,7 +476,8 @@ export function FeesPage() {
         <table>
           <thead>
             <tr>
-              <th>Αθλητής</th>
+              <th>Επώνυμο</th>
+              <th>Όνομα</th>
               <th>Τμήμα</th>
               <th>Μηνιαία συνδρομή</th>
               <th>Υπόλοιπο</th>
@@ -488,9 +489,10 @@ export function FeesPage() {
             {rows.map(({ athlete, balance, lastPayment, clsNames }) => (
               <tr key={athlete.id}>
                 <td>
-                  <strong>
-                    {athlete.lastName} {athlete.firstName}
-                  </strong>
+                  <strong>{athlete.lastName}</strong>
+                </td>
+                <td>
+                  <strong>{athlete.firstName}</strong>
                   <div className="muted">
                     {formatAmkaForViewer(athlete.amka, canAccessAmka(session?.role))}
                   </div>

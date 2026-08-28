@@ -238,7 +238,7 @@
 
 .att-row {
   display: grid;
-  grid-template-columns: 28px 36px 1fr auto;
+  grid-template-columns: 28px 36px minmax(5.5rem, 1fr) minmax(5.5rem, 1fr) auto;
   gap: 0.65rem;
   align-items: center;
   padding: 0.65rem 0.9rem;
@@ -355,14 +355,25 @@
 }
 
 .att-history-table th:first-child,
-.att-history-table td:first-child {
+.att-history-table td:first-child,
+.att-history-table th:nth-child(2),
+.att-history-table td:nth-child(2) {
   text-align: left;
+}
+
+.att-history-table th:first-child,
+.att-history-table td:first-child {
   padding-left: 0.9rem;
   position: sticky;
   left: 0;
   background: var(--surface);
   z-index: 1;
-  min-width: 9rem;
+  min-width: 7rem;
+}
+
+.att-history-table th:nth-child(2),
+.att-history-table td:nth-child(2) {
+  min-width: 6rem;
 }
 
 .att-history-table thead th {
@@ -457,7 +468,7 @@
   }
 
   .att-row {
-    grid-template-columns: 24px 32px 1fr;
+    grid-template-columns: 24px 32px 1fr 1fr;
     grid-template-rows: auto auto;
   }
 

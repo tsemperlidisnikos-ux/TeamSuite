@@ -11,6 +11,7 @@ import {
   type UserRole,
 } from '../../auth/auth';
 import { createId, getData, mutateData } from '../../data/repository';
+import { composeStaffFullName, staffNameParts } from './staffService';
 import {
   CLUB_ROLE_LABELS,
   CLUB_ROLES,
@@ -203,10 +204,12 @@ export async function listClubDirectory(clubId: string) {
 
     for (const member of data.staff ?? []) {
       if (claimedStaffIds.has(member.id)) continue;
+      const names = staffNameParts(member);
       rows.push({
         id: `staff:${member.id}`,
         kind: 'staff',
-        fullName: member.fullName || 'Προσωπικό',
+        fullName:
+          composeStaffFullName(names.lastName, names.firstName) || member.fullName || 'Προσωπικό',
         email: member.email || '—',
         roleLabel:
           member.role === 'admin'

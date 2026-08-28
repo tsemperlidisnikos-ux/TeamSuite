@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, Plus, Pencil, Trash2, Search, X, HeartPulse } from 'lucide-react';
+import { Check, Download, Plus, Pencil, SquarePen, Trash2, Search, X, HeartPulse } from 'lucide-react';
 import * as publicClubCloudService from '../api/services/publicClubCloudService';
 import * as registrationApplicationsService from '../api/services/registrationApplicationsService';
 import * as studentsService from '../api/services/studentsService';
 import { getSession } from '../auth/auth';
 import { AthletesIcon } from '../components/icons/AthletesIcon';
 import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/ui/PageHeader';
 import { useAppData } from '../hooks/useAppData';
 import { getPreviewClubId } from '../platform/platformConfig';
 import type { StudentInput } from '../schemas';
-import type { RegistrationApplication, RegistrationApplicationKind } from '../types';
+import type { RegistrationApplication, RegistrationApplicationKind, Student, StudentStatus } from '../types';
 import { formatAmkaForViewer } from '../utils/amkaAccess';
 import {
   classIdsOf,
@@ -23,6 +24,7 @@ import { activeClubSportSelectOptions, clubSportsMatch } from '../utils/clubSpor
 import { studentStatusLabels } from '../utils/labels';
 import { studentClassIds } from '../utils/studentClasses';
 import { studentHasSport } from '../utils/studentSports';
+import { downloadXlsx } from '../utils/xlsxDownload';
 
 const draftAthlete: StudentInput = {
   firstName: 'ΝΕΟΣ',
@@ -99,6 +101,45 @@ function toEditDraft(app: RegistrationApplication): EditDraft {
   };
 }
 
+function exportAthletesXlsx(
+  rows: Student[],
+  classes: { id: string; name: string }[],
+  isDoctor: boolean,
+) {
+  downloadXlsx(
+    'Αθλητές',
+    isDoctor
+      ? ['Επώνυμο', 'Όνομα', 'Άθλημα', 'ΑΜΚΑ', 'Γονέας', 'Κατάσταση']
+      : ['Επώνυμο', 'Όνομα', 'Άθλημα', 'Τμήμα', 'Γονέας', 'Email', 'Κατάσταση'],
+    rows.map((s) => {
+      const classNames = studentClassIds(s)
+        .map((id) => classes.find((c) => c.id === id)?.name)
+        .filter(Boolean)
+        .join(', ');
+      if (isDoctor) {
+        return [
+          s.lastName,
+          s.firstName,
+          s.sport || '',
+          s.amka || '',
+          s.guardianName || '',
+          studentStatusLabels[s.status],
+        ];
+      }
+      return [
+        s.lastName,
+        s.firstName,
+        s.sport || '',
+        classNames,
+        s.guardianName || '',
+        s.email || '',
+        studentStatusLabels[s.status],
+      ];
+    }),
+    `athlites-${new Date().toISOString().slice(0, 10)}.xlsx`,
+  );
+}
+
 export function StudentsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -112,6 +153,7 @@ export function StudentsPage() {
   );
   const allowedClassIds = useMemo(() => classIdsOf(visibleClasses), [visibleClasses]);
   const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const sportFilter = (searchParams.get('sport') ?? '').trim();
   const [creating, setCreating] = useState(false);
   const [busyAppId, setBusyAppId] = useState<string | null>(null);
@@ -120,6 +162,10 @@ export function StudentsPage() {
   const [appMessage, setAppMessage] = useState('');
   const [appError, setAppError] = useState('');
   const [healthCardBusyId, setHealthCardBusyId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState<StudentStatus>('inactive');
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   useEffect(() => {
     const clubId = getSession()?.clubId ?? getPreviewClubId();
@@ -134,11 +180,15 @@ export function StudentsPage() {
 
   const pendingApplications = useMemo(
     () =>
-      (data.registrationApplications ?? []).filter((app) => {
-        if (app.status !== 'pending') return false;
-        if (!isCoach) return true;
-        return Boolean(app.classId && allowedClassIds.has(app.classId));
-      }),
+      (data.registrationApplications ?? [])
+        .filter((app) => {
+          if (app.status !== 'pending') return false;
+          if (!isCoach) return true;
+          return Boolean(app.classId && allowedClassIds.has(app.classId));
+        })
+        .sort((a, b) =>
+          `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
+        ),
     [data.registrationApplications, isCoach, allowedClassIds],
   );
 
@@ -155,30 +205,79 @@ export function StudentsPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const scoped = visibleStudentsForSession(data.students, allowedClassIds, session);
-    return scoped.filter((s) => {
-      if (s.status === 'inactive') return false;
-      if (sportFilter) {
-        const classSports = studentClassIds(s).map(
-          (id) => data.classes.find((c) => c.id === id)?.sport,
-        );
-        const inSport =
-          studentHasSport(s, sportFilter) ||
-          classSports.some((classSport) => clubSportsMatch(classSport, sportFilter));
-        if (!inSport) return false;
-      }
-      if (!q) return true;
-      const hay = isDoctor
-        ? `${s.firstName} ${s.lastName} ${s.amka ?? ''} ${s.guardianName}`.toLowerCase()
-        : `${s.firstName} ${s.lastName} ${s.email} ${s.guardianName}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }, [data.students, data.classes, query, sportFilter, isDoctor, allowedClassIds, session]);
+    return scoped
+      .filter((s) => {
+        if (statusFilter) {
+          if (s.status !== statusFilter) return false;
+        } else if (s.status === 'inactive') {
+          return false;
+        }
+        if (sportFilter) {
+          const classSports = studentClassIds(s).map(
+            (id) => data.classes.find((c) => c.id === id)?.sport,
+          );
+          const inSport =
+            studentHasSport(s, sportFilter) ||
+            classSports.some((classSport) => clubSportsMatch(classSport, sportFilter));
+          if (!inSport) return false;
+        }
+        if (!q) return true;
+        const hay = isDoctor
+          ? `${s.firstName} ${s.lastName} ${s.amka ?? ''} ${s.guardianName}`.toLowerCase()
+          : `${s.firstName} ${s.lastName} ${s.email} ${s.guardianName}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .sort((a, b) =>
+        `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
+      );
+  }, [data.students, data.classes, query, sportFilter, statusFilter, isDoctor, allowedClassIds, session]);
 
   function setSportFilter(value: string) {
     const next = new URLSearchParams(searchParams);
     if (value.trim()) next.set('sport', value.trim());
     else next.delete('sport');
     setSearchParams(next, { replace: true });
+  }
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function toggleAllVisible() {
+    const ids = filtered.map((s) => s.id);
+    const allOn = ids.length > 0 && ids.every((id) => selected.includes(id));
+    setSelected((prev) =>
+      allOn ? prev.filter((id) => !ids.includes(id)) : [...new Set([...prev, ...ids])],
+    );
+  }
+
+  function openBulkStatus() {
+    if (selected.length === 0) return;
+    setBulkStatus(statusFilter === 'inactive' ? 'active' : 'inactive');
+    setBulkOpen(true);
+  }
+
+  async function handleBulkStatus() {
+    if (selected.length === 0) return;
+    setBulkSaving(true);
+    for (const id of selected) {
+      const student = data.students.find((s) => s.id === id);
+      if (!student) continue;
+      const { id: _id, enrolledAt: _enrolled, ...rest } = student;
+      const result = await studentsService.updateStudent(id, {
+        ...rest,
+        status: bulkStatus,
+      } as StudentInput);
+      if (!result.success) {
+        setBulkSaving(false);
+        window.alert(result.error ?? 'Αποτυχία μαζικής αλλαγής');
+        return;
+      }
+    }
+    setBulkSaving(false);
+    setBulkOpen(false);
+    setSelected([]);
+    refresh();
   }
 
   async function handleHealthCard(studentId: string) {
@@ -337,22 +436,22 @@ export function StudentsPage() {
                     <div className="registration-app-edit">
                       <div className="public-join-grid">
                         <label className="field">
-                          <span className="field-label">Όνομα</span>
-                          <input
-                            className="field-input"
-                            value={editDraft.firstName}
-                            onChange={(e) =>
-                              setEditDraft({ ...editDraft, firstName: e.target.value })
-                            }
-                          />
-                        </label>
-                        <label className="field">
                           <span className="field-label">Επώνυμο</span>
                           <input
                             className="field-input"
                             value={editDraft.lastName}
                             onChange={(e) =>
                               setEditDraft({ ...editDraft, lastName: e.target.value })
+                            }
+                          />
+                        </label>
+                        <label className="field">
+                          <span className="field-label">Όνομα</span>
+                          <input
+                            className="field-input"
+                            value={editDraft.firstName}
+                            onChange={(e) =>
+                              setEditDraft({ ...editDraft, firstName: e.target.value })
                             }
                           />
                         </label>
@@ -537,13 +636,52 @@ export function StudentsPage() {
             ))}
           </select>
         </label>
+        <label className="field">
+          <span className="field-label">Κατάσταση</span>
+          <select
+            className="field-input"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">Όλα</option>
+            <option value="active">Ενεργός</option>
+            <option value="trial">Δοκιμαστικός</option>
+            <option value="inactive">Ανενεργός</option>
+          </select>
+        </label>
+        {!isDoctor ? (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={selected.length === 0}
+            onClick={openBulkStatus}
+          >
+            <SquarePen size={16} /> Μαζική αλλαγή κατάστασης
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => exportAthletesXlsx(filtered, data.classes, isDoctor)}
+        >
+          <Download size={16} /> Εξαγωγή
+        </Button>
       </div>
 
       <div className="panel table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Αθλητής</th>
+              <th>
+                <input
+                  type="checkbox"
+                  checked={filtered.length > 0 && filtered.every((s) => selected.includes(s.id))}
+                  onChange={toggleAllVisible}
+                  aria-label="Επιλογή όλων"
+                />
+              </th>
+              <th>Επώνυμο</th>
+              <th>Όνομα</th>
               <th>Άθλημα</th>
               <th>{isDoctor ? 'ΑΜΚΑ' : 'Τμήμα'}</th>
               <th>Γονέας</th>
@@ -565,6 +703,17 @@ export function StudentsPage() {
                     isDoctor ? undefined : () => navigate(`/athletes/${student.id}`)
                   }
                 >
+                  <td
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(student.id)}
+                      onChange={() => toggleSelected(student.id)}
+                      aria-label={`Επιλογή ${student.lastName} ${student.firstName}`}
+                    />
+                  </td>
                   <td>
                     <div className="athlete-cell">
                       <span className="athlete-avatar" aria-hidden="true">
@@ -574,25 +723,32 @@ export function StudentsPage() {
                           <AthletesIcon size={22} />
                         )}
                       </span>
-                      <div>
-                        {isDoctor ? (
-                          <strong>
-                            {student.lastName} {student.firstName}
-                          </strong>
-                        ) : (
-                          <Link
-                            to={`/athletes/${student.id}`}
-                            className="athlete-name-link"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <strong>
-                              {student.lastName} {student.firstName}
-                            </strong>
-                          </Link>
-                        )}
-                        {!isDoctor ? <div className="muted">{student.email}</div> : null}
-                      </div>
+                      {isDoctor ? (
+                        <strong>{student.lastName}</strong>
+                      ) : (
+                        <Link
+                          to={`/athletes/${student.id}`}
+                          className="athlete-name-link"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <strong>{student.lastName}</strong>
+                        </Link>
+                      )}
                     </div>
+                  </td>
+                  <td>
+                    {isDoctor ? (
+                      <strong>{student.firstName}</strong>
+                    ) : (
+                      <Link
+                        to={`/athletes/${student.id}`}
+                        className="athlete-name-link"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <strong>{student.firstName}</strong>
+                      </Link>
+                    )}
+                    {!isDoctor ? <div className="muted">{student.email}</div> : null}
                   </td>
                   <td>{student.sport || '—'}</td>
                   <td>
@@ -660,6 +816,42 @@ export function StudentsPage() {
           </tbody>
         </table>
       </div>
+
+      <Modal
+        open={bulkOpen}
+        title="Μαζική αλλαγή κατάστασης"
+        onClose={() => !bulkSaving && setBulkOpen(false)}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={bulkSaving}
+              onClick={() => setBulkOpen(false)}
+            >
+              Άκυρο
+            </Button>
+            <Button type="button" disabled={bulkSaving} onClick={() => void handleBulkStatus()}>
+              {bulkSaving ? 'Εφαρμογή...' : 'Εφαρμογή'}
+            </Button>
+          </>
+        }
+      >
+        <label className="field">
+          <span className="field-label">
+            Νέα κατάσταση για {selected.length} εγγραφές
+          </span>
+          <select
+            className="field-input"
+            value={bulkStatus}
+            onChange={(e) => setBulkStatus(e.target.value as StudentStatus)}
+          >
+            <option value="active">Ενεργός</option>
+            <option value="trial">Δοκιμαστικός</option>
+            <option value="inactive">Ανενεργός</option>
+          </select>
+        </label>
+      </Modal>
     </div>
   );
 }

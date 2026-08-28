@@ -129,7 +129,8 @@ function DoctorDashboard() {
             <table>
               <thead>
                 <tr>
-                  <th>Αθλητής</th>
+                  <th>Επώνυμο</th>
+                  <th>Όνομα</th>
                   <th>ΑΜΚΑ</th>
                   <th>Γονέας</th>
                   <th>Κατάσταση</th>
@@ -140,9 +141,10 @@ function DoctorDashboard() {
                 {athletes.slice(0, 12).map((student) => (
                   <tr key={student.id}>
                     <td>
-                      <strong>
-                        {student.lastName} {student.firstName}
-                      </strong>
+                      <strong>{student.lastName}</strong>
+                    </td>
+                    <td>
+                      <strong>{student.firstName}</strong>
                     </td>
                     <td>{formatAmkaForViewer(student.amka, true)}</td>
                     <td>{student.guardianName || '—'}</td>
@@ -221,10 +223,12 @@ export function DashboardPage() {
   }, [dashboardClasses]);
 
   function classesForSport(sportKey: string | null) {
-    return dashboardClasses.filter((cls) => {
-      if (!sportKey) return true;
-      return matchesSport(cls.sport, sportKey);
-    });
+    return dashboardClasses
+      .filter((cls) => {
+        if (!sportKey) return true;
+        return matchesSport(cls.sport, sportKey);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'el'));
   }
 
   function statsForSport(sportKey: string | null) {
@@ -402,12 +406,15 @@ export function DashboardPage() {
       {sportRows.map((row) => {
         const stats = statsForSport(row.sportKey);
         const classes = classesForSport(row.sportKey);
-        const athletes = data.students
+                const athletes = data.students
           .filter((s) => s.status !== 'inactive')
           .filter((s) => {
             if (!row.sportKey) return true;
             return matchesSport(resolveStudentSport(s, classSportById), row.sportKey);
-          });
+          })
+          .sort((a, b) =>
+            `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
+          );
         const classesScroll = classes.length > 5;
         const athletesScroll = athletes.length > 5;
 
@@ -500,27 +507,42 @@ export function DashboardPage() {
                 {athletes.length === 0 ? (
                   <p className="muted">Δεν υπάρχουν ενεργοί αθλητές.</p>
                 ) : (
-                  <ul className={athletesScroll ? 'feed-list dashboard-preview-scroll' : 'feed-list'}>
-                    {athletes.map((student) => {
-                      const names = studentClassIds(student)
-                        .map((id) => dashboardClassNameById.get(id))
-                        .filter(Boolean);
-                      const clsLabel = names.join(', ') || 'Χωρίς τμήμα';
-                      return (
-                        <li key={student.id}>
-                          <div>
-                            <strong>
-                              {student.firstName} {student.lastName}
-                            </strong>
-                            <span>{clsLabel}</span>
-                          </div>
-                          <span className={`badge badge-${student.status}`}>
-                            {studentStatusLabels[student.status]}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <div className={athletesScroll ? 'table-wrap dashboard-preview-scroll' : 'table-wrap'}>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Επώνυμο</th>
+                          <th>Όνομα</th>
+                          <th>Τμήμα</th>
+                          <th>Κατάσταση</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {athletes.map((student) => {
+                          const names = studentClassIds(student)
+                            .map((id) => dashboardClassNameById.get(id))
+                            .filter(Boolean);
+                          const clsLabel = names.join(', ') || 'Χωρίς τμήμα';
+                          return (
+                            <tr key={student.id}>
+                              <td>
+                                <strong>{student.lastName}</strong>
+                              </td>
+                              <td>
+                                <strong>{student.firstName}</strong>
+                              </td>
+                              <td>{clsLabel}</td>
+                              <td>
+                                <span className={`badge badge-${student.status}`}>
+                                  {studentStatusLabels[student.status]}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
                 <div className="quick-links">
                   <Link to={pathWithSport('/schedule', row.sportKey)}>Πρόγραμμα</Link>

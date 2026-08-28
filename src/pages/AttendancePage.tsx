@@ -290,9 +290,10 @@ export function AttendancePage() {
                       {(student.lastName?.[0] ?? '').toUpperCase()}
                     </div>
                     <div className="att-name">
-                      <strong>
-                        {student.lastName} {student.firstName}
-                      </strong>
+                      <strong>{student.lastName}</strong>
+                    </div>
+                    <div className="att-name">
+                      <strong>{student.firstName}</strong>
                       <span>
                         {st === 'present'
                           ? 'Παρών'
@@ -341,7 +342,8 @@ export function AttendancePage() {
             <table className="att-history-table">
               <thead>
                 <tr>
-                  <th>Αθλητής</th>
+                  <th>Επώνυμο</th>
+                  <th>Όνομα</th>
                   {historyDates.map((day) => (
                     <th
                       key={day}
@@ -355,9 +357,8 @@ export function AttendancePage() {
               <tbody>
                 {students.map((student) => (
                   <tr key={student.id}>
-                    <td>
-                      {student.lastName} {student.firstName}
-                    </td>
+                    <td>{student.lastName}</td>
+                    <td>{student.firstName}</td>
                     {historyDates.map((day) => {
                       const st = statusFor(student.id, day);
                       return (

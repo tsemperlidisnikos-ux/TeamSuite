@@ -37,7 +37,7 @@ export function coachDisplayName(
   if (!coachId) return '—';
   const coach = coaches.find((c) => c.id === coachId);
   if (!coach) return '—';
-  return `${coach.firstName} ${coach.lastName}`.trim();
+  return `${coach.lastName} ${coach.firstName}`.trim();
 }
 
 export function athleteAge(birthDate: string): number | null {

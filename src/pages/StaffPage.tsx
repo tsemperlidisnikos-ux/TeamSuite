@@ -4,14 +4,16 @@ import {
   Pencil,
   Plus,
   Search,
+  SquarePen,
   Trash2,
-  Users,
 } from 'lucide-react';
 import * as staffService from '../api/services/staffService';
-import type { StaffInput } from '../api/services/staffService';
+import { staffNameParts, type StaffInput } from '../api/services/staffService';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
+import { PageHeader } from '../components/ui/PageHeader';
 import { useAppData } from '../hooks/useAppData';
+import { downloadXlsx } from '../utils/xlsxDownload';
 import type { StaffMember } from '../types';
 
 const roleLabels: Record<StaffMember['role'], string> = {
@@ -22,7 +24,8 @@ const roleLabels: Record<StaffMember['role'], string> = {
 };
 
 const emptyForm: StaffInput = {
-  fullName: '',
+  lastName: '',
+  firstName: '',
   email: '',
   phone: '',
   role: 'employee',
@@ -30,6 +33,29 @@ const emptyForm: StaffInput = {
   teamLabel: '',
   photoUrl: null,
 };
+
+function staffDisplayName(member: StaffMember): string {
+  const { lastName, firstName } = staffNameParts(member);
+  return composeDisplay(lastName, firstName) || member.fullName;
+}
+
+function composeDisplay(lastName: string, firstName: string): string {
+  return `${lastName.trim()} ${firstName.trim()}`.trim();
+}
+
+function staffToInput(member: StaffMember): StaffInput {
+  const names = staffNameParts(member);
+  return {
+    lastName: names.lastName,
+    firstName: names.firstName,
+    email: member.email,
+    phone: member.phone,
+    role: member.role,
+    active: member.active,
+    teamLabel: '',
+    photoUrl: member.photoUrl ?? null,
+  };
+}
 
 function initials(name: string): string {
   return name
@@ -40,28 +66,23 @@ function initials(name: string): string {
     .join('');
 }
 
-function exportStaffCsv(rows: StaffMember[]) {
-  const lines = [
-    ['fullName', 'role', 'phone', 'email', 'active'].join(','),
-    ...rows.map((m) =>
-      [
-        m.fullName,
-        roleLabels[m.role],
-        m.phone,
-        m.email,
-        m.active ? 'active' : 'inactive',
-      ]
-        .map((v) => `"${String(v).replaceAll('"', '""')}"`)
-        .join(','),
-    ),
-  ];
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `prosopiko-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+function exportStaffXlsx(rows: StaffMember[]) {
+  downloadXlsx(
+    'Προσωπικό',
+    ['Επώνυμο', 'Όνομα', 'Ρόλος', 'Τηλέφωνο', 'Email', 'Κατάσταση'],
+    rows.map((member) => {
+      const names = staffNameParts(member);
+      return [
+        names.lastName,
+        names.firstName,
+        roleLabels[member.role],
+        member.phone || '',
+        member.email,
+        member.active ? 'Ενεργός' : 'Ανενεργός',
+      ];
+    }),
+    `prosopiko-${new Date().toISOString().slice(0, 10)}.xlsx`,
+  );
 }
 
 export function StaffPage() {
@@ -78,9 +99,17 @@ export function StaffPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [selected, setSelected] = useState<string[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkActive, setBulkActive] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const staff = useMemo(
-    () => [...(data.staff ?? [])].sort((a, b) => a.fullName.localeCompare(b.fullName, 'el')),
+    () =>
+      [...(data.staff ?? [])].sort((a, b) => {
+        const na = staffNameParts(a);
+        const nb = staffNameParts(b);
+        return `${na.lastName} ${na.firstName}`.localeCompare(`${nb.lastName} ${nb.firstName}`, 'el');
+      }),
     [data.staff],
   );
 
@@ -91,7 +120,7 @@ export function StaffPage() {
       if (statusFilter === 'active' && !m.active) return false;
       if (statusFilter === 'inactive' && m.active) return false;
       if (!q) return true;
-      return `${m.fullName} ${m.email} ${m.phone}`.toLowerCase().includes(q);
+      return `${staffDisplayName(m)} ${m.email} ${m.phone}`.toLowerCase().includes(q);
     });
   }, [staff, query, roleFilter, statusFilter]);
 
@@ -110,17 +139,37 @@ export function StaffPage() {
 
   function openEdit(member: StaffMember) {
     setEditing(member);
-    setForm({
-      fullName: member.fullName,
-      email: member.email,
-      phone: member.phone,
-      role: member.role,
-      active: member.active,
-      teamLabel: '',
-      photoUrl: member.photoUrl ?? null,
-    });
+    setForm(staffToInput(member));
     setError('');
     setOpen(true);
+  }
+
+  function openBulkStatus() {
+    if (selected.length === 0) return;
+    setBulkActive(statusFilter === 'inactive');
+    setBulkOpen(true);
+  }
+
+  async function handleBulkStatus() {
+    if (selected.length === 0) return;
+    setBulkSaving(true);
+    for (const id of selected) {
+      const member = staff.find((m) => m.id === id);
+      if (!member) continue;
+      const result = await staffService.updateStaff(id, {
+        ...staffToInput(member),
+        active: bulkActive,
+      });
+      if (!result.success) {
+        setBulkSaving(false);
+        window.alert(result.error ?? 'Αποτυχία μαζικής αλλαγής');
+        return;
+      }
+    }
+    setBulkSaving(false);
+    setBulkOpen(false);
+    setSelected([]);
+    refresh();
   }
 
   async function handleSave() {
@@ -157,25 +206,20 @@ export function StaffPage() {
   }
 
   return (
-    <div className="stf-page">
-      <header className="stf-head">
-        <div className="stf-head-copy">
-          <span className="stf-head-icon" aria-hidden>
-            <Users size={20} />
-          </span>
-          <div>
-            <h1>Προσωπικό</h1>
-            <p>Διαχείριση προσωπικού συλλόγου</p>
-          </div>
-        </div>
-        <Button type="button" onClick={openCreate}>
-          <Plus size={16} /> Νέο μέλος
-        </Button>
-      </header>
+    <div className="stack-lg">
+      <PageHeader
+        title="Προσωπικό"
+        subtitle="Διαχείριση προσωπικού συλλόγου"
+        actions={
+          <Button type="button" onClick={openCreate}>
+            <Plus size={16} /> Νέο μέλος
+          </Button>
+        }
+      />
 
-      <section className="stf-toolbar panel">
-        <label className="stf-search">
-          <Search size={16} aria-hidden />
+      <div className="toolbar">
+        <label className="search-field">
+          <Search size={16} />
           <input
             type="search"
             placeholder="Αναζήτηση μέλους..."
@@ -186,34 +230,50 @@ export function StaffPage() {
             }}
           />
         </label>
-        <select
-          value={roleFilter}
-          onChange={(e) => {
-            setRoleFilter(e.target.value);
-            setPage(1);
-          }}
+        <label className="field">
+          <span className="field-label">Ρόλος</span>
+          <select
+            className="field-input"
+            value={roleFilter}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Όλοι οι ρόλοι</option>
+            <option value="admin">Διαχειριστής</option>
+            <option value="coach">Προπονητής</option>
+            <option value="secretariat">Γραμματεία</option>
+            <option value="employee">Υπάλληλος</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Κατάσταση</span>
+          <select
+            className="field-input"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Όλα</option>
+            <option value="active">Ενεργός</option>
+            <option value="inactive">Ανενεργός</option>
+          </select>
+        </label>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={selected.length === 0}
+          onClick={openBulkStatus}
         >
-          <option value="">Όλοι οι ρόλοι</option>
-          <option value="admin">Διαχειριστής</option>
-          <option value="coach">Προπονητής</option>
-          <option value="secretariat">Γραμματεία</option>
-          <option value="employee">Υπάλληλος</option>
-        </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="">Κατάσταση: Όλα</option>
-          <option value="active">Ενεργός</option>
-          <option value="inactive">Ανενεργός</option>
-        </select>
-        <button type="button" className="stf-export" onClick={() => exportStaffCsv(filtered)}>
-          <Download size={15} /> Εξαγωγή
-        </button>
-      </section>
+          <SquarePen size={16} /> Μαζική αλλαγή κατάστασης
+        </Button>
+        <Button type="button" variant="secondary" onClick={() => exportStaffXlsx(filtered)}>
+          <Download size={16} /> Εξαγωγή
+        </Button>
+      </div>
 
       <section className="stf-table-card panel">
         {pageRows.length === 0 ? (
@@ -236,6 +296,7 @@ export function StaffPage() {
                       aria-label="Επιλογή όλων"
                     />
                   </th>
+                  <th>Επώνυμο</th>
                   <th>Όνομα</th>
                   <th>Ρόλος</th>
                   <th>Τηλέφωνο</th>
@@ -252,7 +313,7 @@ export function StaffPage() {
                         type="checkbox"
                         checked={selected.includes(member.id)}
                         onChange={() => toggleSelected(member.id)}
-                        aria-label={`Επιλογή ${member.fullName}`}
+                        aria-label={`Επιλογή ${staffDisplayName(member)}`}
                       />
                     </td>
                     <td>
@@ -261,11 +322,14 @@ export function StaffPage() {
                           {member.photoUrl ? (
                             <img src={member.photoUrl} alt="" />
                           ) : (
-                            initials(member.fullName)
+                            initials(staffDisplayName(member))
                           )}
                         </span>
-                        <strong>{member.fullName}</strong>
+                        <strong>{staffNameParts(member).lastName || '—'}</strong>
                       </div>
+                    </td>
+                    <td>
+                      <strong>{staffNameParts(member).firstName || '—'}</strong>
                     </td>
                     <td>
                       <span className={`stf-role is-${member.role}`}>
@@ -354,6 +418,41 @@ export function StaffPage() {
       </section>
 
       <Modal
+        open={bulkOpen}
+        title="Μαζική αλλαγή κατάστασης"
+        onClose={() => !bulkSaving && setBulkOpen(false)}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={bulkSaving}
+              onClick={() => setBulkOpen(false)}
+            >
+              Άκυρο
+            </Button>
+            <Button type="button" disabled={bulkSaving} onClick={() => void handleBulkStatus()}>
+              {bulkSaving ? 'Εφαρμογή...' : 'Εφαρμογή'}
+            </Button>
+          </>
+        }
+      >
+        <label className="field">
+          <span className="field-label">
+            Νέα κατάσταση για {selected.length} εγγραφές
+          </span>
+          <select
+            className="field-input"
+            value={bulkActive ? 'active' : 'inactive'}
+            onChange={(e) => setBulkActive(e.target.value === 'active')}
+          >
+            <option value="active">Ενεργός</option>
+            <option value="inactive">Ανενεργός</option>
+          </select>
+        </label>
+      </Modal>
+
+      <Modal
         open={open}
         title={editing ? 'Επεξεργασία μέλους' : 'Νέο μέλος'}
         onClose={() => setOpen(false)}
@@ -369,14 +468,24 @@ export function StaffPage() {
         }
       >
         <div className="stack-md">
-          <label className="field">
-            <span className="field-label">Ονοματεπώνυμο</span>
-            <input
-              className="field-input"
-              value={form.fullName}
-              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-            />
-          </label>
+          <div className="grid-2">
+            <label className="field">
+              <span className="field-label">Επώνυμο</span>
+              <input
+                className="field-input"
+                value={form.lastName}
+                onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Όνομα</span>
+              <input
+                className="field-input"
+                value={form.firstName}
+                onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+              />
+            </label>
+          </div>
           <label className="field">
             <span className="field-label">Email</span>
             <input

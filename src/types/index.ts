@@ -275,6 +275,8 @@ export interface Training {
 export interface StaffMember {
   id: string;
   fullName: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   phone: string;
   role: 'admin' | 'coach' | 'secretariat' | 'employee';

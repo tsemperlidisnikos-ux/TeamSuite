@@ -1168,7 +1168,7 @@ export function AthleteProfilePage() {
           <div className="ap-hero-copy">
             <div className="ap-hero-title-row">
               <h1>
-                {form.firstName} {form.lastName}
+                {form.lastName} {form.firstName}
               </h1>
               <span className={`ap-status-badge ap-status-badge--${form.status}`}>
                 {statusBadgeLabel(form.status)}
@@ -1354,11 +1354,11 @@ export function AthleteProfilePage() {
                       />
                     )}
                   </ApField>
-                  <ApField label="Όνομα">
-                    {textInput(form.firstName, (v) => setField('firstName', v), { upper: true })}
-                  </ApField>
                   <ApField label="Επώνυμο">
                     {textInput(form.lastName, (v) => setField('lastName', v), { upper: true })}
+                  </ApField>
+                  <ApField label="Όνομα">
+                    {textInput(form.firstName, (v) => setField('firstName', v), { upper: true })}
                   </ApField>
                   <ApField label="Ημερομηνία γέννησης">
                     {textInput(form.birthDate, (v) => setField('birthDate', v), { type: 'date' })}

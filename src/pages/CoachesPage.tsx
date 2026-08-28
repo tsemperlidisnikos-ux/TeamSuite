@@ -1,5 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from 'react';
-import { Eye, FileText, Plus, Pencil, Trash2, Upload } from 'lucide-react';
+import { Download, Eye, FileText, Plus, Pencil, Search, SquarePen, Trash2, Upload } from 'lucide-react';
 import * as coachesService from '../api/services/coachesService';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -11,7 +11,8 @@ import type { CoachInput } from '../schemas';
 import type { Coach } from '../types';
 import { formatDate } from '../utils/labels';
 import { localDateIso } from '../utils/dates';
-import { activeClubSportSelectOptions } from '../utils/clubSports';
+import { activeClubSportSelectOptions, clubSportsMatch } from '../utils/clubSports';
+import { downloadXlsx } from '../utils/xlsxDownload';
 
 const MAX_PHOTO_BYTES = 800_000;
 const MAX_DOC_BYTES = 2_500_000;
@@ -104,6 +105,23 @@ function coachToForm(coach: Coach): CoachInput {
   };
 }
 
+function exportCoachesXlsx(rows: Coach[]) {
+  downloadXlsx(
+    'Προπονητές',
+    ['Επώνυμο', 'Όνομα', 'Άθλημα', 'Τηλέφωνο', 'Email', 'Κωδικός Γ.Γ.Α', 'Κατάσταση'],
+    rows.map((coach) => [
+      coach.lastName,
+      coach.firstName,
+      coach.sport || '',
+      coach.phone || '',
+      coach.email,
+      coach.ggaCode || '',
+      coach.active ? 'Ενεργός' : 'Ανενεργός',
+    ]),
+    `proponites-${new Date().toISOString().slice(0, 10)}.xlsx`,
+  );
+}
+
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -125,11 +143,51 @@ export function CoachesPage() {
     title: string;
     fileName?: string | null;
   } | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [query, setQuery] = useState('');
+  const [sportFilter, setSportFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkActive, setBulkActive] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
 
-  const activeCoaches = useMemo(
-    () => data.coaches.filter((coach) => coach.active),
-    [data.coaches],
+  const listSportOptions = useMemo(
+    () =>
+      activeClubSportSelectOptions(data.sports, {
+        includeEmpty: true,
+        emptyLabel: 'Όλα τα αθλήματα',
+        retain: sportFilter ? [sportFilter] : [],
+      }),
+    [data.sports, sportFilter],
   );
+
+  const filteredCoaches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return data.coaches
+      .filter((coach) => {
+        if (statusFilter === 'active' && !coach.active) return false;
+        if (statusFilter === 'inactive' && coach.active) return false;
+        if (sportFilter && !clubSportsMatch(coach.sport, sportFilter)) return false;
+        if (!q) return true;
+        const hay = `${coach.lastName} ${coach.firstName} ${coach.email} ${coach.phone} ${coach.sport ?? ''} ${coach.ggaCode ?? ''}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .sort((a, b) =>
+        `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
+      );
+  }, [data.coaches, query, sportFilter, statusFilter]);
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function toggleAllVisible() {
+    const ids = filteredCoaches.map((c) => c.id);
+    const allOn = ids.length > 0 && ids.every((id) => selected.includes(id));
+    setSelected((prev) =>
+      allOn ? prev.filter((id) => !ids.includes(id)) : [...new Set([...prev, ...ids])],
+    );
+  }
 
   const sportOptions = useMemo(
     () =>
@@ -234,11 +292,40 @@ export function CoachesPage() {
     refresh();
   }
 
+  function openBulkStatus() {
+    if (selected.length === 0) return;
+    setBulkActive(statusFilter === 'inactive');
+    setBulkOpen(true);
+  }
+
+  async function handleBulkStatus() {
+    if (selected.length === 0) return;
+    setBulkSaving(true);
+    for (const id of selected) {
+      const coach = data.coaches.find((c) => c.id === id);
+      if (!coach) continue;
+      const result = await coachesService.updateCoach(id, {
+        ...coachToForm(coach),
+        active: bulkActive,
+      });
+      if (!result.success) {
+        setBulkSaving(false);
+        setError(result.error ?? 'Αποτυχία μαζικής αλλαγής');
+        window.alert(result.error ?? 'Αποτυχία μαζικής αλλαγής');
+        return;
+      }
+    }
+    setBulkSaving(false);
+    setBulkOpen(false);
+    setSelected([]);
+    refresh();
+  }
+
   return (
     <div className="stack-lg">
       <PageHeader
         title="Προπονητές"
-        subtitle="Προσωπικό προπονητών ανά άθλημα."
+        subtitle="Διαχείριση προπονητών συλλόγου"
         actions={
           <Button type="button" onClick={openCreate}>
             <Plus size={16} /> Νέος προπονητής
@@ -246,8 +333,57 @@ export function CoachesPage() {
         }
       />
 
+      <div className="toolbar">
+        <label className="search-field">
+          <Search size={16} />
+          <input
+            type="search"
+            placeholder="Αναζήτηση προπονητή..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span className="field-label">Άθλημα</span>
+          <select
+            className="field-input"
+            value={sportFilter}
+            onChange={(e) => setSportFilter(e.target.value)}
+          >
+            {listSportOptions.map((opt) => (
+              <option key={opt.value || 'all'} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Κατάσταση</span>
+          <select
+            className="field-input"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">Όλα</option>
+            <option value="active">Ενεργός</option>
+            <option value="inactive">Ανενεργός</option>
+          </select>
+        </label>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={selected.length === 0}
+          onClick={openBulkStatus}
+        >
+          <SquarePen size={16} /> Μαζική αλλαγή κατάστασης
+        </Button>
+        <Button type="button" variant="secondary" onClick={() => exportCoachesXlsx(filteredCoaches)}>
+          <Download size={16} /> Εξαγωγή
+        </Button>
+      </div>
+
       <section className="panel table-wrap">
-        {activeCoaches.length === 0 ? (
+        {data.coaches.length === 0 ? (
           <div className="empty-state">
             <h3>Δεν υπάρχουν προπονητές</h3>
             <p>Πάτα «Νέος προπονητής» για να προσθέσεις τον πρώτο.</p>
@@ -255,12 +391,29 @@ export function CoachesPage() {
               <Plus size={16} /> Νέος προπονητής
             </Button>
           </div>
+        ) : filteredCoaches.length === 0 ? (
+          <div className="empty-state">
+            <h3>Δεν βρέθηκαν προπονητές</h3>
+            <p>Δοκίμασε διαφορετικά κριτήρια αναζήτησης.</p>
+          </div>
         ) : (
           <table>
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={
+                      filteredCoaches.length > 0 &&
+                      filteredCoaches.every((c) => selected.includes(c.id))
+                    }
+                    onChange={toggleAllVisible}
+                    aria-label="Επιλογή όλων"
+                  />
+                </th>
                 <th></th>
-                <th>Ονοματεπώνυμο</th>
+                <th>Επώνυμο</th>
+                <th>Όνομα</th>
                 <th>Άθλημα</th>
                 <th>Κωδικός Γ.Γ.Α</th>
                 <th>Άδεια</th>
@@ -274,10 +427,18 @@ export function CoachesPage() {
               </tr>
             </thead>
             <tbody>
-              {activeCoaches.map((coach) => {
+              {filteredCoaches.map((coach) => {
                 const assigned = data.classes.filter((c) => c.coachId === coach.id);
                 return (
                   <tr key={coach.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(coach.id)}
+                        onChange={() => toggleSelected(coach.id)}
+                        aria-label={`Επιλογή ${coach.lastName} ${coach.firstName}`}
+                      />
+                    </td>
                     <td>
                       {coach.photoUrl ? (
                         <img
@@ -290,9 +451,10 @@ export function CoachesPage() {
                       )}
                     </td>
                     <td>
-                      <strong>
-                        {coach.firstName} {coach.lastName}
-                      </strong>
+                      <strong>{coach.lastName}</strong>
+                    </td>
+                    <td>
+                      <strong>{coach.firstName}</strong>
                     </td>
                     <td>{coach.sport || '—'}</td>
                     <td>{coach.ggaCode?.trim() || '—'}</td>
@@ -356,6 +518,41 @@ export function CoachesPage() {
       </section>
 
       <Modal
+        open={bulkOpen}
+        title="Μαζική αλλαγή κατάστασης"
+        onClose={() => !bulkSaving && setBulkOpen(false)}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={bulkSaving}
+              onClick={() => setBulkOpen(false)}
+            >
+              Άκυρο
+            </Button>
+            <Button type="button" disabled={bulkSaving} onClick={() => void handleBulkStatus()}>
+              {bulkSaving ? 'Εφαρμογή...' : 'Εφαρμογή'}
+            </Button>
+          </>
+        }
+      >
+        <label className="field">
+          <span className="field-label">
+            Νέα κατάσταση για {selected.length} εγγραφές
+          </span>
+          <select
+            className="field-input"
+            value={bulkActive ? 'active' : 'inactive'}
+            onChange={(e) => setBulkActive(e.target.value === 'active')}
+          >
+            <option value="active">Ενεργός</option>
+            <option value="inactive">Ανενεργός</option>
+          </select>
+        </label>
+      </Modal>
+
+      <Modal
         open={open}
         title={editing ? 'Επεξεργασία προπονητή' : 'Νέος προπονητής'}
         onClose={() => setOpen(false)}
@@ -409,14 +606,14 @@ export function CoachesPage() {
 
           <div className="form-grid">
             <Input
-              label="Όνομα"
-              value={form.firstName}
-              onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-            />
-            <Input
               label="Επώνυμο"
               value={form.lastName}
               onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+            />
+            <Input
+              label="Όνομα"
+              value={form.firstName}
+              onChange={(e) => setForm({ ...form, firstName: e.target.value })}
             />
             <Input
               label="Email"
