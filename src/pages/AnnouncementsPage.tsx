@@ -952,11 +952,6 @@ export function AnnouncementsPage() {
         {error ? <p className="form-error">{error}</p> : null}
 
         <div className="ann-compose-actions">
-          {editing ? (
-            <button type="button" className="ann-draft-btn" onClick={resetCompose}>
-              Ακύρωση επεξεργασίας
-            </button>
-          ) : null}
           <button
             type="button"
             className="ann-draft-btn"
@@ -965,6 +960,9 @@ export function AnnouncementsPage() {
           >
             Αποθήκευση ως πρόχειρο
           </button>
+          <Button type="button" variant="secondary" disabled={saving} onClick={resetCompose}>
+            Άκυρο
+          </Button>
           <Button type="button" disabled={saving} onClick={() => void persist('published')}>
             <Send size={16} /> {saving ? 'Αποστολή…' : 'Αποστολή'}
           </Button>
