@@ -15,6 +15,7 @@ let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let pushing = false;
 let pulling = false;
 let lastPullAttemptAt = 0;
+let pushQueue: Promise<unknown> = Promise.resolve();
 
 const MIN_PULL_GAP_MS = 15_000;
 
@@ -105,15 +106,31 @@ async function maybePushAccountBundle() {
 
 export async function flushClubMirrorPush(clubId?: string | null) {
   const id = clubId ?? resolveActiveClubId();
-  if (!id || id === '_default' || !isAutoSyncEnabled(id) || pushing) {
+  if (!id || id === '_default' || !isAutoSyncEnabled(id)) {
     return { success: true as const, data: null, error: null };
   }
-  pushing = true;
-  try {
-    return await pushClubAndAccounts(id, getLastSyncAt(id));
-  } finally {
-    pushing = false;
+
+  if (pushTimer) {
+    clearTimeout(pushTimer);
+    pushTimer = null;
   }
+
+  const run = async () => {
+    pushing = true;
+    try {
+      await whenClubMapPersisted();
+      return await pushClubAndAccounts(id, getLastSyncAt(id));
+    } finally {
+      pushing = false;
+    }
+  };
+
+  const queued = pushQueue.then(run, run);
+  pushQueue = queued.then(
+    () => undefined,
+    () => undefined,
+  );
+  return queued;
 }
 
 async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
@@ -183,6 +200,9 @@ function isEmptyCloudOverwrite(local: AppData, cloud: AppData): boolean {
 
 function cloudWouldLoseLocalData(local: AppData, cloud: AppData): boolean {
   if (isEmptyCloudOverwrite(local, cloud)) return true;
+  const cloudTxn = cloud.transactions?.length ?? 0;
+  const localTxn = local.transactions?.length ?? 0;
+  if (cloudTxn > localTxn) return false;
   const localW = appDataWeight(local);
   const cloudW = appDataWeight(cloud);
   return localW > 0 && localW > cloudW;
@@ -288,16 +308,8 @@ export async function persistLocalStateToCloud(opts?: {
 
   for (const id of unique) {
     if (opts?.overwriteCloud) clearLastSyncAt(id);
-    pushing = true;
-    try {
-      const result = await pushClubAndAccounts(
-        id,
-        opts?.overwriteCloud ? null : getLastSyncAt(id),
-      );
-      if (!result.success && result.error) errors.push(`${id}: ${result.error}`);
-    } finally {
-      pushing = false;
-    }
+    const result = await flushClubMirrorPush(id);
+    if (!result.success && result.error) errors.push(`${id}: ${result.error}`);
   }
 
   if (errors.length) {
@@ -318,23 +330,6 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
   if (account.success && account.data && account.data.durable !== false) {
     accountSyncService.applyAccountBundle(account.data, { mergeLocalUsers: true });
     pulledAccount = true;
-    const { getSessionToken, persistClubLogoToCloud } = await import('../api/services/sessionService');
-    const { getClubs, updateClubLogo } = await import('../auth/clubs');
-    if (getSessionToken()) {
-      for (const club of getClubs()) {
-        const cloud = account.data.clubs.find((row) => row.id === club.id);
-        const cloudLogo = (cloud?.logoUrl ?? '').trim();
-        const localLogo = (club.logoUrl ?? '').trim();
-        const cloudNeedsLogo = !cloudLogo || cloudLogo.startsWith('data:');
-        const localIsData = localLogo.startsWith('data:');
-        if (localLogo && (cloudNeedsLogo || localIsData)) {
-          const pushed = await persistClubLogoToCloud(club.id, localLogo);
-          if (pushed.success && pushed.data?.logoUrl && pushed.data.logoUrl !== localLogo) {
-            updateClubLogo(club.id, pushed.data.logoUrl);
-          }
-        }
-      }
-    }
   } else if (!account.success && isMissingAccountError(account.error ?? '')) {
     await maybePushAccountBundle();
   }
@@ -348,7 +343,11 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
     if (result.success && result.data?.payload) {
       if (result.data.durable === false) continue;
       const local = getClubData(id);
-      if (cloudWouldLoseLocalData(local, result.data.payload)) {
+      const neverSyncedHere = !getLastSyncAt(id);
+      if (
+        !neverSyncedHere &&
+        cloudWouldLoseLocalData(local, result.data.payload)
+      ) {
         await flushClubMirrorPush(id);
         continue;
       }
@@ -370,6 +369,26 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
     }
     if (missing && !msg.includes('μόνο στο production')) {
       await flushClubMirrorPush(id);
+    }
+  }
+
+  if (pulledAccount && account.success && account.data) {
+    const { getSessionToken, persistClubLogoToCloud } = await import('../api/services/sessionService');
+    const { getClubs, updateClubLogo } = await import('../auth/clubs');
+    if (getSessionToken()) {
+      for (const club of getClubs()) {
+        const cloud = account.data.clubs.find((row) => row.id === club.id);
+        const cloudLogo = (cloud?.logoUrl ?? '').trim();
+        const localLogo = (club.logoUrl ?? '').trim();
+        const cloudNeedsLogo = !cloudLogo || cloudLogo.startsWith('data:');
+        const localIsData = localLogo.startsWith('data:');
+        if (localLogo && (cloudNeedsLogo || localIsData)) {
+          const pushed = await persistClubLogoToCloud(club.id, localLogo);
+          if (pushed.success && pushed.data?.logoUrl && pushed.data.logoUrl !== localLogo) {
+            updateClubLogo(club.id, pushed.data.logoUrl);
+          }
+        }
+      }
     }
   }
 

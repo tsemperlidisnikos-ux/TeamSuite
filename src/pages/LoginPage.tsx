@@ -198,11 +198,15 @@ export function LoginPage() {
       !isPresentationDemoEmail(result.data?.email)
     ) {
       const { syncClubOnLogin } = await import('../data/clubSync');
-      // Never block login forever on a slow/hung cloud pull.
+      let clubSyncFinished = false;
+      const syncWork = syncClubOnLogin(result.data?.clubId ?? null).then((outcome) => {
+        clubSyncFinished = true;
+        return outcome;
+      });
       await Promise.race([
-        syncClubOnLogin(result.data?.clubId ?? null),
+        syncWork,
         new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 15000);
+          window.setTimeout(resolve, 20000);
         }),
       ]);
       clearDataCache();
@@ -215,23 +219,25 @@ export function LoginPage() {
       } catch {
         /* best-effort role defaults */
       }
-      try {
-        const { runDueFeeGenerations, runDueFeeReminders } = await import(
-          '../api/services/feeChargesService'
-        );
-        await Promise.race([
-          (async () => {
-            await runDueFeeGenerations();
-            if (result.data?.clubId) {
-              await runDueFeeReminders(result.data.clubId);
-            }
-          })(),
-          new Promise<void>((resolve) => {
-            window.setTimeout(resolve, 8000);
-          }),
-        ]);
-      } catch {
-        /* best-effort auto fees / reminders */
+      if (clubSyncFinished) {
+        try {
+          const { runDueFeeGenerations, runDueFeeReminders } = await import(
+            '../api/services/feeChargesService'
+          );
+          await Promise.race([
+            (async () => {
+              await runDueFeeGenerations();
+              if (result.data?.clubId) {
+                await runDueFeeReminders(result.data.clubId);
+              }
+            })(),
+            new Promise<void>((resolve) => {
+              window.setTimeout(resolve, 8000);
+            }),
+          ]);
+        } catch {
+          /* best-effort auto fees / reminders */
+        }
       }
     }
 

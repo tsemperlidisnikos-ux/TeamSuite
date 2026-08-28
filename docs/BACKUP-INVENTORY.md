@@ -40,6 +40,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `TeamSuite_2026-08-28_16-14-20.zip` | 2026-08-28 | Sync συναλλαγών/AppData μεταξύ browsers: mirror πρώτα στο login, ουρά push στο logout |
 | `TeamSuite_2026-08-28_15-40-22.zip` | 2026-08-28 | Αποδοχή `/api/club-media` ως logoUrl στο cloud (διόρθωση σφάλματος HTTPS/data URL) |
 | `TeamSuite_2026-08-28_15-34-36.zip` | 2026-08-28 | Logo/media σε private Blob + `/api/club-media` (χωρίς public access στο store) |
 | `TeamSuite_2026-08-28_15-26-36.zip` | 2026-08-28 | Συγχρονισμός logo συλλόγου στο cloud (Blob HTTPS) ώστε να εμφανίζεται σε όλους τους browsers μετά το login |
