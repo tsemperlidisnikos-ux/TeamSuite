@@ -275,6 +275,8 @@ export type PlatformConfig = {
   registryKinds: string[];
   seasons: string[];
   appLogoUrl?: string | null;
+  /** Λογότυπο εφαρμογής (κεφαλίδα SS) ανά σύλλογο. Override του appLogoUrl. */
+  clubAppLogos?: Record<string, string>;
   appName?: string;
   /** ocean-slate | graphite-ember */
   appearanceTheme?: AppearanceTheme;
@@ -377,6 +379,17 @@ function sanitizeClubRolePermissions(
   return result;
 }
 
+function sanitizeClubAppLogos(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const out: Record<string, string> = {};
+  for (const [id, url] of Object.entries(value as Record<string, unknown>)) {
+    const key = String(id ?? '').trim();
+    const href = typeof url === 'string' ? url.trim() : '';
+    if (key && href) out[key] = href;
+  }
+  return out;
+}
+
 export function defaultPlatformConfig(): PlatformConfig {
   const seed = getFinanceCatalogSeed();
   return {
@@ -391,6 +404,7 @@ export function defaultPlatformConfig(): PlatformConfig {
     registryKinds: ['ΑΘΛΗΤΕΣ', 'ΜΕΛΗ'],
     seasons: ['2025–2026', '2026–2027'],
     appLogoUrl: null,
+    clubAppLogos: {},
     appName: 'TeamSuite',
     appearanceTheme: 'ocean-slate',
     backupSchedules: defaultBackupSchedules(),
@@ -541,6 +555,7 @@ export function loadPlatformConfig(): PlatformConfig {
               : seed.expenseCategories,
           ),
           appLogoUrl: parsed.appLogoUrl ?? base.appLogoUrl,
+          clubAppLogos: sanitizeClubAppLogos(parsed.clubAppLogos),
           appName: parsed.appName ?? base.appName,
           appearanceTheme: sanitizeAppearanceTheme(parsed.appearanceTheme),
           backupSchedules: sanitizeBackupSchedules(parsed.backupSchedules),
@@ -581,6 +596,7 @@ export function loadPlatformConfig(): PlatformConfig {
       ),
       backupSchedules: sanitizeBackupSchedules(parsed.backupSchedules),
       appearanceTheme: sanitizeAppearanceTheme(parsed.appearanceTheme),
+      clubAppLogos: sanitizeClubAppLogos(parsed.clubAppLogos),
       incomeCategories,
       expenseCategories,
       incomeDescriptions: resolveCatalogDescriptions(
@@ -650,6 +666,23 @@ export function getAppName(): string {
 
 export function getAppLogoUrl(): string | null {
   return loadPlatformConfig().appLogoUrl ?? null;
+}
+
+export function getAppLogoUrlForClub(clubId?: string | null): string | null {
+  const config = loadPlatformConfig();
+  const perClub = clubId ? (config.clubAppLogos?.[clubId] ?? '').trim() : '';
+  if (perClub) return perClub;
+  return config.appLogoUrl ?? null;
+}
+
+export function updateClubAppLogo(clubId: string, logoUrl: string | null): PlatformConfig {
+  const current = loadPlatformConfig();
+  const clubAppLogos = { ...(current.clubAppLogos ?? {}) };
+  if (!logoUrl?.trim()) delete clubAppLogos[clubId];
+  else clubAppLogos[clubId] = logoUrl.trim();
+  const next = { ...current, clubAppLogos };
+  savePlatformConfig(next);
+  return next;
 }
 
 export function getAppearanceTheme(): AppearanceTheme {

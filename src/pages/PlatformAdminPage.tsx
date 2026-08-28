@@ -11,7 +11,7 @@ import { AdminZone, PlatformAdminShell } from '../components/layout/PlatformAdmi
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { persistLocalStateToCloud } from '../data/clubSync';
-import { saveClubLogoFromFile } from '../utils/clubLogoFile';
+import { optimizeLogoDataUrl } from '../utils/clubLogoFile';
 import {
   createId,
   getData,
@@ -645,7 +645,7 @@ export function PlatformAdminPage() {
         <AdminZone title="Εμφάνιση">
           <AdminRow
             title="Logo εφαρμογής"
-            description="Ορίζεται από Platform Admin και εμφανίζεται σε όλους τους χρήστες (login, header, έγγραφα) μέσω cloud."
+            description="Καθολικό λογότυπο εφαρμογής (εικονίδιο SS, login, έγγραφα). Αν υπάρχει λογότυπο εφαρμογής ανά σύλλογο, αυτό υπερισχύει στην κεφαλίδα του συλλόγου."
             entry={
               <div className="entry-form admin-entry">
                 <div className="settings-logo-row">
@@ -1375,8 +1375,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
-            title="Λογότυπο ανά σύλλογο"
-            description="Αντικαθιστά το εικονίδιο SS και τον τίτλο TeamSuite στην κεφαλίδα της εφαρμογής του συλλόγου."
+            title="Λογότυπο εφαρμογής ανά σύλλογο"
+            description="Διαφορετικό εικονίδιο SS στην κεφαλίδα για κάθε σύλλογο. Το λογότυπο συλλόγου (αποδείξεις, Ρυθμίσεις) ορίζεται χωριστά από τον σύλλογο."
             entry={
               <div className="entry-form admin-entry">
                 <input
@@ -1389,13 +1389,26 @@ export function PlatformAdminPage() {
                     event.target.value = '';
                     if (!file || !catalogClubId) return;
                     void (async () => {
-                      const result = await saveClubLogoFromFile(catalogClubId, file);
-                      if (!result.success) {
-                        flash(result.error ?? 'Αποτυχία αποθήκευσης λογότυπου.');
-                        return;
+                      try {
+                        flash('Ανέβασμα λογότυπου εφαρμογής στο cloud…');
+                        const dataUrl = await optimizeLogoDataUrl(file);
+                        const { publishClubAppLogo } = await import(
+                          '../api/services/platformBrandingService'
+                        );
+                        const result = await publishClubAppLogo(catalogClubId, dataUrl);
+                        if (!result.success || !result.data) {
+                          flash(result.error ?? 'Αποτυχία αποθήκευσης λογότυπου εφαρμογής.');
+                          return;
+                        }
+                        setConfig(result.data);
+                        flash('Το λογότυπο εφαρμογής αποθηκεύτηκε για τον επιλεγμένο σύλλογο.');
+                      } catch (err) {
+                        flash(
+                          err instanceof Error
+                            ? err.message
+                            : 'Αποτυχία αποθήκευσης λογότυπου εφαρμογής.',
+                        );
                       }
-                      setClubsTick((n) => n + 1);
-                      flash('Το λογότυπο αποθηκεύτηκε για τον επιλεγμένο σύλλογο.');
                     })();
                   }}
                 />
@@ -1419,22 +1432,47 @@ export function PlatformAdminPage() {
                     disabled={!catalogClubId}
                     onClick={() => clubLogoFileRef.current?.click()}
                   >
-                    Ανέβασμα λογότυπου
+                    Ανέβασμα λογότυπου εφαρμογής
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={!catalogClubId || !config.clubAppLogos?.[catalogClubId]}
+                    onClick={() => {
+                      if (!catalogClubId) return;
+                      void (async () => {
+                        const { publishClubAppLogo } = await import(
+                          '../api/services/platformBrandingService'
+                        );
+                        const result = await publishClubAppLogo(catalogClubId, null);
+                        if (!result.success || !result.data) {
+                          flash(result.error ?? 'Αποτυχία αφαίρεσης.');
+                          return;
+                        }
+                        setConfig(result.data);
+                        flash('Επανήλθε το καθολικό λογότυπο εφαρμογής για αυτόν τον σύλλογο.');
+                      })();
+                    }}
+                  >
+                    Αφαίρεση (καθολικό)
                   </Button>
                 </div>
               </div>
             }
             records={
               <RecordsTable>
-                {clubs.map((club) => (
-                  <RecordsRow key={club.id} title={club.name}>
-                    {club.logoUrl ? (
-                      <img className="admin-club-logo-thumb" src={club.logoUrl} alt="" />
-                    ) : (
-                      'Χωρίς λογότυπο (εμφανίζεται SS + TeamSuite)'
-                    )}
-                  </RecordsRow>
-                ))}
+                {clubs.map((club) => {
+                  const perClub = (config.clubAppLogos?.[club.id] ?? '').trim();
+                  return (
+                    <RecordsRow key={club.id} title={club.name}>
+                      {perClub ? (
+                        <img className="admin-club-logo-thumb" src={perClub} alt="" />
+                      ) : (
+                        'Καθολικό logo εφαρμογής / SS'
+                      )}
+                    </RecordsRow>
+                  );
+                })}
               </RecordsTable>
             }
           />

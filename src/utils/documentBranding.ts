@@ -1,4 +1,5 @@
-import { getAppLogoUrl, getAppName } from '../platform/platformConfig';
+import { getSession } from '../auth/auth';
+import { getAppLogoUrlForClub, getAppName, getPreviewClubId } from '../platform/platformConfig';
 
 const FAVICON_LINK_ID = 'app-favicon';
 const DEFAULT_FAVICON = '/favicon.svg';
@@ -22,7 +23,8 @@ export function applyDocumentBranding(): void {
   const appName = getAppName();
   document.title = `${appName} — Διαχείριση`;
 
-  const logoUrl = getAppLogoUrl();
+  const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
+  const logoUrl = getAppLogoUrlForClub(clubId);
   const link = ensureFaviconLink();
   const nextHref = logoUrl?.trim() || DEFAULT_FAVICON;
 

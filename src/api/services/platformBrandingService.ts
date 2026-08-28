@@ -2,6 +2,7 @@ import { apiClient, type ApiResult } from '../apiClient';
 import {
   loadPlatformConfig,
   updateAppLogo,
+  updateClubAppLogo,
   type PlatformConfig,
 } from '../../platform/platformConfig';
 import { pushAccountBundle } from './accountSyncService';
@@ -49,6 +50,49 @@ export async function publishAppLogo(
     }
 
     const config = updateAppLogo(logoUrl);
+    const pushed = await pushAccountBundle();
+    if (!pushed.success) {
+      throw new Error(
+        pushed.error ??
+          'Το logo αποθηκεύτηκε τοπικά, αλλά όχι στο cloud. Κάντε Push από Backup.',
+      );
+    }
+    return config;
+  });
+}
+
+const CLUB_APP_LOGO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+
+/**
+ * Λογότυπο εφαρμογής (εικονίδιο SS) για έναν σύλλογο. Δεν αλλάζει το λογότυπο συλλόγου των Ρυθμίσεων.
+ */
+export async function publishClubAppLogo(
+  clubId: string,
+  dataUrlOrNull: string | null,
+): Promise<ApiResult<PlatformConfig>> {
+  return apiClient(async () => {
+    const id = clubId.trim();
+    if (!id) throw new Error('Απαιτείται σύλλογος.');
+    let logoUrl: string | null = dataUrlOrNull;
+
+    if (dataUrlOrNull && dataUrlOrNull.startsWith('data:')) {
+      const parsed = parseDataUrl(dataUrlOrNull);
+      if (!parsed) throw new Error('Μη έγκυρη εικόνα logo.');
+      if (!CLUB_APP_LOGO_TYPES.includes(parsed.contentType)) {
+        throw new Error('Υποστηρίζονται JPG, PNG, WEBP, GIF ή SVG.');
+      }
+      const uploaded = await uploadClubPhotoBlob({
+        clubId: id,
+        fileName: parsed.contentType === 'image/svg+xml' ? 'app-brand.svg' : 'app-brand.jpg',
+        contentType: parsed.contentType,
+        dataBase64: parsed.dataBase64,
+      });
+      if (uploaded.success && uploaded.data?.url) {
+        logoUrl = uploaded.data.url;
+      }
+    }
+
+    const config = updateClubAppLogo(id, logoUrl);
     const pushed = await pushAccountBundle();
     if (!pushed.success) {
       throw new Error(

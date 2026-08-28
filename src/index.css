@@ -253,34 +253,6 @@ strong {
   padding: 0.2rem;
 }
 
-.app-header-club-brand {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  max-width: min(280px, 52vw);
-  min-height: 48px;
-  cursor: default;
-}
-
-.app-header-club-brand.is-editable {
-  cursor: pointer;
-}
-
-.app-header-club-brand.is-editable:hover img {
-  outline: 2px solid rgba(232, 168, 56, 0.7);
-  outline-offset: 2px;
-}
-
-.app-header-club-brand img {
-  max-height: 52px;
-  max-width: 260px;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-}
-
 .admin-club-logo-thumb {
   max-height: 36px;
   max-width: 120px;
@@ -2664,11 +2636,6 @@ html[data-appearance] .settings-backup-schedule-status {
 
   .app-header-brand strong {
     font-size: 1.2rem;
-  }
-
-  .app-header-club-brand img {
-    max-height: 40px;
-    max-width: 160px;
   }
 
   .app-header-user {

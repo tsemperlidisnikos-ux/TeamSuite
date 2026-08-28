@@ -489,17 +489,23 @@ function sanitizeAppearanceThemeId(value: unknown): (typeof APPEARANCE_THEME_IDS
   return 'ocean-slate';
 }
 
-function publicBranding(platformConfig: unknown) {
+function publicBranding(platformConfig: unknown, clubId?: string | null) {
   const cfg =
     platformConfig && typeof platformConfig === 'object'
       ? (platformConfig as Record<string, unknown>)
       : {};
   const appName = typeof cfg.appName === 'string' ? cfg.appName.trim() : '';
-  const appLogoUrl = typeof cfg.appLogoUrl === 'string' ? cfg.appLogoUrl.trim() : '';
+  const globalLogo = typeof cfg.appLogoUrl === 'string' ? cfg.appLogoUrl.trim() : '';
+  const logos =
+    cfg.clubAppLogos && typeof cfg.clubAppLogos === 'object' && !Array.isArray(cfg.clubAppLogos)
+      ? (cfg.clubAppLogos as Record<string, unknown>)
+      : {};
+  const perClubRaw = clubId ? logos[clubId] : undefined;
+  const perClub = typeof perClubRaw === 'string' ? perClubRaw.trim() : '';
   return {
     appearanceTheme: sanitizeAppearanceThemeId(cfg.appearanceTheme),
     appName: appName || 'TeamSuite',
-    appLogoUrl: appLogoUrl || null,
+    appLogoUrl: perClub || globalLogo || null,
   };
 }
 
@@ -1140,7 +1146,7 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
       ok: true,
       token,
       user: publicUser({ ...user, password: nextPassword }),
-      branding: publicBranding(bundle?.platformConfig),
+      branding: publicBranding(bundle?.platformConfig, user.clubId),
     });
   }
 
@@ -1454,7 +1460,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         durable: isDurableStoreEnabled(),
         users,
         clubs,
-        platformBranding: publicBranding(bundle.platformConfig),
+        platformBranding: publicBranding(bundle.platformConfig, clubId),
       });
     }
     return res.status(200).json({
