@@ -1,6 +1,6 @@
 # Κατάλογος Backup — SportSuite360
 
-Τελευταία ενημέρωση περιεχομένου: **2026-08-27** (Backup μόνο JSON — χωρίς ZIP).
+Τελευταία ενημέρωση περιεχομένου: **2026-08-28** (filesystem ZIP στο `C:\TeamSuite_backup` + deploy).
 
 Αυτό το αρχείο ενημερώνεται κάθε φορά που αλλάζει τι περιλαμβάνει κάποιο backup, ή μετά από **BACKUP + DEPLOY** (νέα γραμμή στο ιστορικό ZIP κώδικα).
 
@@ -18,7 +18,7 @@
 | **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) | Live `AppData` του συλλόγου στο Blob/Redis (ευαίσθητα πεδία κρυπτογραφημένα στο push). **Αυτόματο sync ενεργό από προεπιλογή** για κάθε σύλλογο (opt-out από το checkbox) | Users/clubs/config, ιστορικό εκδόσεων (overwrite), SMTP/Viva στο mirror |
 | **Cloud account bundle** | Platform Admin: Push/Pull λογαριασμοί | `users`, `clubs`, `platformConfig` στο cloud. Pull/push **διατηρεί** υπάρχοντα SMTP/Viva secrets αν το εισερχόμενο έχει κενό/`********` | AppData αθλητών (αυτό είναι στο mirror) |
 | **Server cron snapshot** | Vercel cron `0 2 * * *` → `/api/gdpr?op=backup` | Ημερήσιο αντίγραφο **υπαρχόντων** club mirrors (`ss360:backup-snap:ΗΜΕΡΟΜΗΝΙΑ:clubId`) | Account bundle· συλλόγους χωρίς προηγούμενο mirror push· δεν υπάρχει UI restore στην εφαρμογή |
-| **Filesystem project ZIP** | `scripts/backup-project.ps1` → `C:\SPORTSUITE360_BACKUP\` | Source code του project (χωρίς `node_modules`, `dist`, `.git`, `.env`, credentials) | Δεδομένα αθλητών / localStorage / Redis· δεν είναι data backup |
+| **Filesystem project ZIP** | `scripts/backup-project.ps1` → default `C:\SPORTSUITE360_BACKUP\` · προαιρετικά `-BackupRoot` (π.χ. `C:\TeamSuite_backup`) | Source code του project (χωρίς `node_modules`, `dist`, `.git`, `.env`, credentials) | Δεδομένα αθλητών / localStorage / Redis· δεν είναι data backup |
 | **Git commit «Backup: …»** | Μετά από BACKUP + DEPLOY | Snapshot κώδικα στο git history | Runtime δεδομένα συλλόγων |
 
 ---
@@ -40,6 +40,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `SportSuite360_2026-08-28_11-24-15.zip` | 2026-08-28 | Κώδικας TeamSuite όπως στο GitHub (`main`) · ZIP στο `C:\TeamSuite_backup` · πριν το Vercel production deploy |
 | `SportSuite360_2026-08-27_02-56-41.zip` | 2026-08-27 | Backup μόνο JSON (αφαίρεση ZIP λήψης/επαναφοράς) · διόρθωση verify επαναφοράς |
 | `SportSuite360_2026-08-27_02-41-35.zip` | 2026-08-27 | Dashboard: τμήματα και μετρητές μόνο τρέχουσα ενεργή σεζόν (συνεπές με λίστα Τμήματα) |
 | `SportSuite360_2026-08-27_02-26-51.zip` | 2026-08-27 | Όνομα συλλόγου στο αρχείο club backup (ZIP/JSON, προγραμματισμένα, Platform Admin) · φίλτρο άθλημα στον πίνακα Τμήματα |
