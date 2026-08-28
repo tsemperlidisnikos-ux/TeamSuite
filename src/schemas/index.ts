@@ -32,6 +32,16 @@ export const studentSchema = z.object({
   consentExpires: z.string().optional().default(''),
   uniformReceived: z.boolean().optional(),
   uniformSize: z.string().optional(),
+  joinExtras: z
+    .object({
+      clothingPackage: z.enum(['basic', 'upgraded']),
+      istosProgram: z.enum(['yes', 'no']),
+      preferredPayment: z.enum(['cash', 'card', 'transfer']),
+      healthDeclaration: z.enum(['allow', 'deny']),
+      liabilityAcceptance: z.enum(['accept', 'decline']),
+      mediaConsent: z.enum(['consent', 'decline']),
+    })
+    .optional(),
   registrationFee: z.coerce.number().optional(),
   registrationCharge: z.boolean().optional(),
   monthlyCharge: z.boolean().optional(),

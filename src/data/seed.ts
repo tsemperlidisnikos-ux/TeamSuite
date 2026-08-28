@@ -29,9 +29,9 @@ export const seedData: AppData = {
   progressReports: [],
   registrationApplications: [],
   sizeChart: {
-    kids: ['XS', 'S', 'M', 'L', 'XL'],
-    men: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'],
-    women: ['XS', 'S', 'M', 'L', 'XL'],
+    kids: ['6 y.o', '8 y.o', '10 y.o', '12 y.o', 'Small', 'Medium', 'Large', 'XLarge', 'XXLarge'],
+    men: [],
+    women: [],
   },
   termsOfUseHtml: '',
   dpaHtml: '',

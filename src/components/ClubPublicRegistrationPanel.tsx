@@ -92,6 +92,7 @@ export function ClubPublicRegistrationPanel({ clubId, onOpenGdpr }: Props) {
     }
     setForm(getClubPublicRegistration(clubId));
     const publish = await publicClubCloudService.publishPublicClubCloud(clubId);
+    setForm(getClubPublicRegistration(clubId));
     setSaving(false);
     if (!publish.success) {
       setMessage(

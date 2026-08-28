@@ -1,3 +1,5 @@
+import type { PublicJoinExtras } from '../shared/publicJoinExtras';
+
 export type StudentStatus = 'active' | 'inactive' | 'trial';
 export type PaymentStatus = 'paid' | 'pending' | 'overdue';
 export type ExpenseCategory =
@@ -73,6 +75,8 @@ export interface Student {
   consentExpires?: string;
   uniformReceived?: boolean;
   uniformSize?: string;
+  /** Επιλογές δημόσιας φόρμας (πακέτο, ΙΣΤΟΣ, πληρωμή, δηλώσεις). */
+  joinExtras?: PublicJoinExtras;
   registrationFee?: number;
   registrationCharge?: boolean;
   monthlyCharge?: boolean;
@@ -641,6 +645,7 @@ export interface RegistrationApplication {
   county?: string;
   sport?: string;
   uniformSize?: string;
+  joinExtras?: PublicJoinExtras;
   gdprItems?: Student['gdprItems'];
   amkaConsentAt?: string;
   /** Υπογραφή γονέα/κηδεμόνα (data URL PNG). */

@@ -105,6 +105,14 @@ export type RemoteRegistrationApplication = {
   county?: string;
   sport?: string;
   uniformSize?: string;
+  joinExtras?: {
+    clothingPackage: 'basic' | 'upgraded';
+    istosProgram: 'yes' | 'no';
+    preferredPayment: 'cash' | 'card' | 'transfer';
+    healthDeclaration: 'allow' | 'deny';
+    liabilityAcceptance: 'accept' | 'decline';
+    mediaConsent: 'consent' | 'decline';
+  };
   gdprItems?: {
     personalData: boolean;
     photoUse: boolean;

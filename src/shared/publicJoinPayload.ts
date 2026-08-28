@@ -1,5 +1,11 @@
 import type { AcademyClass, AppData, RegistrationApplication, Student } from '../types';
 import { localDateIso } from '../utils/dates';
+import {
+  parsePublicJoinExtras,
+  validatePublicJoinExtras,
+  EMPTY_PUBLIC_JOIN_EXTRAS,
+  type PublicJoinExtras,
+} from './publicJoinExtras';
 
 export type PublicJoinGdprItems = {
   personalData: boolean;
@@ -41,6 +47,23 @@ export function gdprItemsFromPublicConsent(
   };
 }
 
+export function gdprItemsFromJoinDeclarations(input: {
+  gdprAcknowledged: boolean;
+  mediaConsent: PublicJoinExtras['mediaConsent'] | '';
+  healthDeclaration: PublicJoinExtras['healthDeclaration'] | '';
+  amkaAccepted: boolean;
+}): PublicJoinGdprItems {
+  const photo = input.mediaConsent === 'consent';
+  return {
+    personalData: input.gdprAcknowledged,
+    photoUse: photo,
+    gallery: photo,
+    communication: input.gdprAcknowledged,
+    medical: input.healthDeclaration === 'allow',
+    amkaHealthCard: input.amkaAccepted,
+  };
+}
+
 export function gdprConsentStatusFromItems(items: PublicJoinGdprItems): Student['gdprConsent'] {
   const coreOn =
     items.personalData &&
@@ -72,6 +95,7 @@ export type PublicJoinRequiredInput = {
   sport?: string;
   uniformSize?: string;
   notes?: string;
+  joinExtras?: PublicJoinExtras | typeof EMPTY_PUBLIC_JOIN_EXTRAS;
 };
 
 function trimField(value: string | undefined): string {
@@ -102,6 +126,8 @@ export function validatePublicJoinRequiredFields(input: PublicJoinRequiredInput)
   if (!trimField(input.county)) return 'Συμπληρώστε νομό.';
   if (!trimField(input.sport)) return 'Επιλέξτε άθλημα.';
   if (!trimField(input.uniformSize)) return 'Επιλέξτε μέγεθος στολής.';
+  const extrasError = validatePublicJoinExtras(input.joinExtras ?? EMPTY_PUBLIC_JOIN_EXTRAS);
+  if (extrasError) return extrasError;
   return null;
 }
 
@@ -152,6 +178,7 @@ export function buildStudentFromRegistrationApplication(
     city: app.city || '',
     county: app.county || '',
     uniformSize: app.uniformSize || '',
+    joinExtras: app.joinExtras,
   };
 }
 
@@ -181,6 +208,7 @@ export function registrationApplicationFromPublicJoin(
     county?: string;
     sport?: string;
     uniformSize?: string;
+    joinExtras?: PublicJoinExtras;
     gdprItems?: PublicJoinGdprItems;
     amkaConsentAt?: string;
     guardianSignature?: string;
@@ -216,6 +244,7 @@ export function registrationApplicationFromPublicJoin(
     county: input.county?.trim() || '',
     sport: input.sport?.trim() || '',
     uniformSize: input.uniformSize?.trim() || '',
+    joinExtras: parsePublicJoinExtras(input.joinExtras),
     gdprItems: input.gdprItems,
     amkaConsentAt: input.amkaConsentAt || '',
     guardianSignature: input.guardianSignature || '',

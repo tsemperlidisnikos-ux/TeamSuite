@@ -1466,9 +1466,9 @@ export function buildDemoShowcaseData(now = new Date()): AppData {
     ],
     registrationApplications: [],
     sizeChart: {
-      kids: ['XS', 'S', 'M', 'L', 'XL'],
-      men: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'],
-      women: ['XS', 'S', 'M', 'L', 'XL'],
+      kids: ['6 y.o', '8 y.o', '10 y.o', '12 y.o', 'Small', 'Medium', 'Large', 'XLarge', 'XXLarge'],
+      men: [],
+      women: [],
     },
     termsOfUseHtml: `<h2>Όροι χρήσης (DEMO)</h2><p>Τα δεδομένα του συλλόγου DEMO είναι πλασματικά.</p>${DEFAULT_TERMS_OF_USE_HTML}`,
   };

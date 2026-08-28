@@ -5724,7 +5724,22 @@ html[data-appearance] .settings-backup-schedule-status {
 
 .public-join-card h1,
 .public-join-card h2 {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.35rem;
+}
+
+.public-join-submit-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.public-join-now {
+  font-size: 0.92rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
 }
 
 .public-join-grid {
@@ -5822,6 +5837,65 @@ html[data-appearance] .settings-backup-schedule-status {
 .public-join-kind label {
   display: flex;
   gap: 0.45rem;
+}
+
+.public-join-choice-stack {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+.public-join-choice-card {
+  margin: 0;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.public-join-choice-card legend {
+  padding: 0 0.2rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--muted);
+}
+
+.public-join-req {
+  color: #dc2626;
+}
+
+.public-join-choice-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  font-style: italic;
+  color: #64748b;
+}
+
+.public-join-choice-body {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #334155;
+}
+
+.public-join-choice-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.public-join-choice-option input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
   align-items: center;
 }
 

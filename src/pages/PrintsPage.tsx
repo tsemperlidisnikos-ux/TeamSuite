@@ -523,8 +523,8 @@ function AthleteRegistrySection() {
   const [showResults, setShowResults] = useState(false);
   const [filtered, setFiltered] = useState<Student[]>([]);
 
-  const uniformSizeGroups = useMemo(
-    () => sizeChartOptGroups(data.sizeChart),
+  const uniformSizeOptions = useMemo(
+    () => sizeChartOptGroups(data.sizeChart).flatMap((g) => g.sizes),
     [data.sizeChart],
   );
 
@@ -712,14 +712,10 @@ function AthleteRegistrySection() {
           onChange={(e) => setFilter('uniformSize', e.target.value)}
         >
           <option value="">Όλα</option>
-          {uniformSizeGroups.map((group) => (
-            <optgroup key={group.category} label={group.label}>
-              {group.sizes.map((size) => (
-                <option key={`${group.category}-${size}`} value={size}>
-                  {size}
-                </option>
-              ))}
-            </optgroup>
+          {uniformSizeOptions.map((size) => (
+            <option key={size} value={size}>
+              {size}
+            </option>
           ))}
         </select>
       </FilterRow>

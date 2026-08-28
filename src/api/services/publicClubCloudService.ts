@@ -5,10 +5,12 @@ import {
   getClubById,
   getClubPublicRegistration,
   getClubSmtp,
+  updateClubPublicRegistration,
 } from '../../auth/clubs';
 import { getClubData, mutateClubData } from '../../data/repository';
 import { collectClubSportOptions } from '../../shared/publicJoinPayload';
 import type { RegistrationApplication, SizeChart } from '../../types';
+import { parseImageDataUrl, uploadClubPhotoBlob } from './sessionService';
 
 export type RemotePublicClub = {
   clubId: string;
@@ -27,10 +29,56 @@ export type RemotePublicClub = {
   termsHtml: string;
 };
 
-function trimMedia(value: string | null | undefined): string | null {
+function mediaUrlForPublish(value: string | null | undefined): string | null {
   if (!value) return null;
-  if (value.length > 180_000) return null;
+  // Data URLs (~700KB photos) blow the public-club JSON body and get dropped.
+  // Blob / https / /api/club-media URLs stay as-is.
+  if (value.startsWith('data:')) return null;
   return value;
+}
+
+async function persistDataUrlAsClubMedia(
+  clubId: string,
+  value: string | null | undefined,
+  fileName: string,
+): Promise<string | null> {
+  const raw = value?.trim() || null;
+  if (!raw) return null;
+  if (!raw.startsWith('data:')) return raw;
+
+  const parsed = parseImageDataUrl(raw);
+  if (!parsed) throw new Error('Μη έγκυρη εικόνα.');
+  const type = parsed.contentType === 'image/jpg' ? 'image/jpeg' : parsed.contentType;
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(type)) {
+    throw new Error('Υποστηρίζονται JPG, PNG ή WEBP.');
+  }
+
+  const uploaded = await uploadClubPhotoBlob({
+    clubId,
+    fileName,
+    contentType: type,
+    dataBase64: parsed.dataBase64,
+  });
+  if (!uploaded.success || !uploaded.data?.url) {
+    throw new Error(uploaded.error ?? 'Αποτυχία αποθήκευσης φωτογραφίας στο cloud.');
+  }
+  return uploaded.data.url;
+}
+
+async function readResponseJson<T extends Record<string, unknown>>(response: Response): Promise<T> {
+  const text = await response.text();
+  if (!text.trim()) {
+    throw new Error(
+      response.status === 404
+        ? 'Το cloud API είναι διαθέσιμο μόνο στο production (Vercel).'
+        : `Κενή απάντηση από τον διακομιστή (HTTP ${response.status}).`,
+    );
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Μη έγκυρη απάντηση από τον διακομιστή (HTTP ${response.status}).`);
+  }
 }
 
 /** Publish public join + SMTP notify config to the server (Redis when configured). */
@@ -51,6 +99,19 @@ export async function publishPublicClubCloud(clubId: string) {
     const data = getClubData(clubId);
     const adminEmail = getUserById(club.adminUserId)?.email?.trim() || '';
 
+    const heroImageUrl = await persistDataUrlAsClubMedia(
+      clubId,
+      settings.heroImageUrl ?? null,
+      'join-hero.jpg',
+    );
+    const logoUrl = await persistDataUrlAsClubMedia(clubId, club.logoUrl ?? null, 'club-logo.jpg');
+    if (heroImageUrl !== (settings.heroImageUrl ?? null)) {
+      updateClubPublicRegistration(clubId, {
+        ...settings,
+        heroImageUrl,
+      });
+    }
+
     const response = await fetch('/api/public-club', {
       method: 'POST',
       headers: syncAuthHeaders(),
@@ -60,8 +121,8 @@ export async function publishPublicClubCloud(clubId: string) {
           slug: settings.slug,
           name: club.name,
           city: club.city || '',
-          logoUrl: trimMedia(club.logoUrl ?? null),
-          heroImageUrl: trimMedia(settings.heroImageUrl ?? null),
+          logoUrl: mediaUrlForPublish(logoUrl),
+          heroImageUrl: mediaUrlForPublish(heroImageUrl),
           enabled: settings.enabled,
           autoApprove: settings.autoApprove,
           allowTrial: settings.allowTrial,
@@ -96,15 +157,15 @@ export async function publishPublicClubCloud(clubId: string) {
       }),
     });
 
-    const json = (await response.json()) as {
+    const json = await readResponseJson<{
       ok?: boolean;
       error?: string;
       durable?: boolean;
       slug?: string;
-    };
+    }>(response);
     if (!response.ok || !json.ok) {
       throw new Error(
-        json.error ||
+        (typeof json.error === 'string' && json.error) ||
           (response.status === 404
             ? 'Το cloud API είναι διαθέσιμο μόνο στο production (Vercel).'
             : `Publish HTTP ${response.status}`),
@@ -160,6 +221,14 @@ export type RemotePublicJoinInput = {
   county?: string;
   sport?: string;
   uniformSize?: string;
+  joinExtras?: {
+    clothingPackage: 'basic' | 'upgraded';
+    istosProgram: 'yes' | 'no';
+    preferredPayment: 'cash' | 'card' | 'transfer';
+    healthDeclaration: 'allow' | 'deny';
+    liabilityAcceptance: 'accept' | 'decline';
+    mediaConsent: 'consent' | 'decline';
+  };
   gdprItems?: {
     personalData: boolean;
     photoUse: boolean;
@@ -247,6 +316,24 @@ export async function pullRemoteRegistrationApplications(clubId: string) {
           notes: a.notes || '',
           createdAt: a.createdAt || '',
           athleteId: a.athleteId ?? null,
+          amka: a.amka,
+          phone: a.phone,
+          athleteEmail: a.athleteEmail,
+          fatherFirstName: a.fatherFirstName,
+          motherFirstName: a.motherFirstName,
+          fatherEmail: a.fatherEmail,
+          motherEmail: a.motherEmail,
+          motherPhone: a.motherPhone,
+          address: a.address,
+          postalCode: a.postalCode,
+          city: a.city,
+          county: a.county,
+          sport: a.sport,
+          uniformSize: a.uniformSize,
+          joinExtras: a.joinExtras,
+          gdprItems: a.gdprItems,
+          amkaConsentAt: a.amkaConsentAt,
+          guardianSignature: a.guardianSignature,
         }));
       merged = incoming.length;
       if (incoming.length) {

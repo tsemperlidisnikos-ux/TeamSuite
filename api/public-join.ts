@@ -42,6 +42,14 @@ type Body = {
   county?: string;
   sport?: string;
   uniformSize?: string;
+  joinExtras?: {
+    clothingPackage?: string;
+    istosProgram?: string;
+    preferredPayment?: string;
+    healthDeclaration?: string;
+    liabilityAcceptance?: string;
+    mediaConsent?: string;
+  };
   gdprItems?: {
     personalData?: boolean;
     photoUse?: boolean;
@@ -122,6 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const county = String(body.county ?? '').trim();
   const sport = String(body.sport ?? '').trim();
   const uniformSize = String(body.uniformSize ?? '').trim();
+  const joinExtras = parseJoinExtras(body.joinExtras);
   const guardianSignature = String(body.guardianSignature ?? '').trim();
   const amkaConsentAt = String(body.amkaConsentAt ?? '').trim();
   const gdprItems = {
@@ -162,6 +171,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
   if (requiredError) {
     return res.status(400).json({ ok: false, error: requiredError });
+  }
+  if (!joinExtras) {
+    return res.status(400).json({ ok: false, error: 'Συμπληρώστε πακέτο ρουχισμού, ΙΣΤΟΣ, πληρωμή και δηλώσεις.' });
   }
   if (!guardianName) {
     return res.status(400).json({ ok: false, error: 'Συμπληρώστε πατρώνυμο.' });
@@ -254,6 +266,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       city,
       county,
       uniformSize,
+      joinExtras,
     };
     payload.students = [athlete, ...(payload.students as unknown[])];
   }
@@ -287,6 +300,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     county,
     sport,
     uniformSize,
+    joinExtras,
     gdprItems,
     amkaConsentAt: amkaConsentAt || (amka ? createdAt : ''),
     guardianSignature,
@@ -321,6 +335,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           `Τύπος: ${kindLabel}`,
           `Τηλ. κηδεμόνα: ${guardianPhone}`,
           email ? `Email: ${email}` : '',
+          joinExtras
+            ? [
+                `Πακέτο: ${joinExtras.clothingPackage}`,
+                `ΙΣΤΟΣ: ${joinExtras.istosProgram}`,
+                `Πληρωμή: ${joinExtras.preferredPayment}`,
+              ].join('\n')
+            : '',
           '',
           'Άνοιξε Αθλητές για έγκριση ή απόρριψη.',
         ]
@@ -367,6 +388,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ? 'Η αίτηση μπήκε στη λίστα αναμονής.'
           : 'Η αίτηση υποβλήθηκε και εκκρεμεί έγκριση.',
   });
+}
+
+function parseJoinExtras(raw: Body['joinExtras']): {
+  clothingPackage: 'basic' | 'upgraded';
+  istosProgram: 'yes' | 'no';
+  preferredPayment: 'cash' | 'card' | 'transfer';
+  healthDeclaration: 'allow' | 'deny';
+  liabilityAcceptance: 'accept' | 'decline';
+  mediaConsent: 'consent' | 'decline';
+} | null {
+  if (!raw) return null;
+  const clothingPackage = raw.clothingPackage;
+  const istosProgram = raw.istosProgram;
+  const preferredPayment = raw.preferredPayment;
+  const healthDeclaration = raw.healthDeclaration;
+  const liabilityAcceptance = raw.liabilityAcceptance;
+  const mediaConsent = raw.mediaConsent;
+  if (clothingPackage !== 'basic' && clothingPackage !== 'upgraded') return null;
+  if (istosProgram !== 'yes' && istosProgram !== 'no') return null;
+  if (preferredPayment !== 'cash' && preferredPayment !== 'card' && preferredPayment !== 'transfer') {
+    return null;
+  }
+  if (healthDeclaration !== 'allow' && healthDeclaration !== 'deny') return null;
+  if (liabilityAcceptance !== 'accept' && liabilityAcceptance !== 'decline') return null;
+  if (mediaConsent !== 'consent' && mediaConsent !== 'decline') return null;
+  return {
+    clothingPackage,
+    istosProgram,
+    preferredPayment,
+    healthDeclaration,
+    liabilityAcceptance,
+    mediaConsent,
+  };
 }
 
 function validateRemotePublicJoinFields(input: {

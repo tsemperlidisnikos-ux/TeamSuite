@@ -13,6 +13,7 @@ import { useAppData } from '../hooks/useAppData';
 import { getPreviewClubId } from '../platform/platformConfig';
 import type { StudentInput } from '../schemas';
 import type { RegistrationApplication, RegistrationApplicationKind, Student, StudentStatus } from '../types';
+import { formatJoinExtrasText } from '../shared/publicJoinExtras';
 import { formatAmkaForViewer } from '../utils/amkaAccess';
 import {
   classIdsOf,
@@ -559,6 +560,11 @@ export function StudentsPage() {
                           </strong>
                           {app.email ? <div className="muted">{app.email}</div> : null}
                           {app.notes ? <div className="muted">{app.notes}</div> : null}
+                          {app.joinExtras ? (
+                            <div className="muted" style={{ whiteSpace: 'pre-line' }}>
+                              {formatJoinExtrasText(app.joinExtras)}
+                            </div>
+                          ) : null}
                         </div>
                         <div>
                           <span className="muted">Γονέας</span>

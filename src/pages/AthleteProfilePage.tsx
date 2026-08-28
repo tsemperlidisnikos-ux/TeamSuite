@@ -27,6 +27,7 @@ import { AppPopupLayer } from '../components/ui/AppPopupLayer';
 import { useAppData } from '../hooks/useAppData';
 import type { StudentInput } from '../schemas';
 import type { Gender, Student } from '../types';
+import { formatJoinExtrasText } from '../shared/publicJoinExtras';
 import { buildHealthCardPdf } from '../utils/healthCardPdf';
 import { sizeChartOptGroups } from '../utils/sizeChartOptions';
 import { formatDate } from '../utils/labels';
@@ -203,6 +204,7 @@ function toForm(student: Student): StudentInput {
     consentExpires: student.consentExpires ?? '',
     uniformReceived: student.uniformReceived ?? false,
     uniformSize: student.uniformSize ?? '',
+    joinExtras: student.joinExtras,
     registrationFee: student.registrationFee ?? 0,
     registrationCharge: student.registrationCharge ?? (student.registrationFee ?? 0) > 0,
     monthlyCharge: student.monthlyCharge ?? true,
@@ -411,13 +413,13 @@ export function AthleteProfilePage() {
   const amkaViewLoggedRef = useRef<string | null>(null);
 
   const uniformSizeOptions = useMemo(() => {
-    const groups = sizeChartOptGroups(data.sizeChart);
-    const all = new Set(groups.flatMap((g) => g.sizes.map((s) => s.toUpperCase())));
+    const sizes = sizeChartOptGroups(data.sizeChart).flatMap((g) => g.sizes);
+    const all = new Set(sizes.map((s) => s.toUpperCase()));
     const current = (form?.uniformSize ?? student?.uniformSize ?? '').trim();
     if (current && !all.has(current.toUpperCase())) {
-      return [...groups, { category: 'custom' as const, label: 'Τρέχον', sizes: [current] }];
+      return [...sizes, current];
     }
-    return groups;
+    return sizes;
   }, [data.sizeChart, form?.uniformSize, student?.uniformSize]);
 
   const athleteIds = useMemo(
@@ -1435,6 +1437,13 @@ export function AthleteProfilePage() {
                   placeholder="Γενικές παρατηρήσεις…"
                 />
               </ApCard>
+              {form.joinExtras ? (
+                <ApCard title="Επιλογές δημόσιας εγγραφής">
+                  <p className="muted" style={{ whiteSpace: 'pre-line', margin: 0 }}>
+                    {formatJoinExtrasText(form.joinExtras)}
+                  </p>
+                </ApCard>
+              ) : null}
             </div>
 
             <div className="ap-col">
@@ -1578,14 +1587,10 @@ export function AthleteProfilePage() {
                       onChange={(e) => setField('uniformSize', e.target.value)}
                     >
                       <option value="">—</option>
-                      {uniformSizeOptions.map((group) => (
-                        <optgroup key={group.category} label={group.label}>
-                          {group.sizes.map((size) => (
-                            <option key={`${group.category}-${size}`} value={size}>
-                              {size}
-                            </option>
-                          ))}
-                        </optgroup>
+                      {uniformSizeOptions.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
                       ))}
                     </select>
                   </ApField>

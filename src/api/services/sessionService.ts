@@ -204,13 +204,22 @@ export async function uploadClubPhotoBlob(input: {
       headers: syncAuthHeaders(),
       body: JSON.stringify(input),
     });
-    const json = (await response.json()) as {
-      ok?: boolean;
-      error?: string;
-      url?: string;
-    };
+    let json: { ok?: boolean; error?: string; url?: string } = {};
+    const text = await response.text();
+    if (text.trim()) {
+      try {
+        json = JSON.parse(text) as typeof json;
+      } catch {
+        throw new Error(`Media upload: μη έγκυρη απάντηση (HTTP ${response.status}).`);
+      }
+    }
     if (!response.ok || !json.ok || !json.url) {
-      throw new Error(json.error || `Media upload HTTP ${response.status}`);
+      throw new Error(
+        json.error ||
+          (text.trim()
+            ? `Media upload HTTP ${response.status}`
+            : `Κενή απάντηση στο ανέβασμα φωτογραφίας (HTTP ${response.status}).`),
+      );
     }
     return { url: json.url };
   });

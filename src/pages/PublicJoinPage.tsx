@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import * as publicClubCloudService from '../api/services/publicClubCloudService';
 import * as publicJoinService from '../api/services/publicJoinService';
@@ -12,15 +12,21 @@ import { SignaturePad } from '../components/SignaturePad';
 import { Button } from '../components/ui/Button';
 import { getClubData } from '../data/repository';
 import {
-  AMKA_CONSENT_CHECKBOX,
-  DEFAULT_TERMS_OF_USE_HTML,
-} from '../shared/termsDefaults';
-import {
   collectClubSportOptions,
-  gdprItemsFromPublicConsent,
+  gdprItemsFromJoinDeclarations,
   validatePublicJoinRequiredFields,
 } from '../shared/publicJoinPayload';
-import type { RegistrationApplicationKind, SizeChart } from '../types';
+import {
+  CLOTHING_PACKAGE_OPTIONS,
+  EMPTY_PUBLIC_JOIN_EXTRAS,
+  HEALTH_OPTIONS,
+  ISTOS_OPTIONS,
+  LIABILITY_OPTIONS,
+  MEDIA_OPTIONS,
+  PAYMENT_OPTIONS,
+  parsePublicJoinExtras,
+} from '../shared/publicJoinExtras';
+import type { SizeChart } from '../types';
 import { sizeChartOptGroups } from '../utils/sizeChartOptions';
 
 type JoinClubView = {
@@ -32,22 +38,10 @@ type JoinClubView = {
   logoUrl: string | null;
   heroImageUrl: string | null;
   enabled: boolean;
-  allowTrial: boolean;
-  allowWaitlist: boolean;
   classes: Array<{ id: string; name: string; sport?: string }>;
   sports: string[];
   sizeChart: SizeChart;
-  termsHtml: string;
 };
-
-function defaultPublicJoinKind(
-  allowTrial: boolean,
-  allowWaitlist: boolean,
-): RegistrationApplicationKind {
-  if (allowTrial) return 'trial';
-  if (allowWaitlist) return 'waitlist';
-  return 'full';
-}
 
 function fromRemote(club: RemotePublicClub): JoinClubView {
   return {
@@ -59,12 +53,9 @@ function fromRemote(club: RemotePublicClub): JoinClubView {
     logoUrl: club.logoUrl,
     heroImageUrl: club.heroImageUrl,
     enabled: club.enabled,
-    allowTrial: club.allowTrial,
-    allowWaitlist: club.allowWaitlist,
     classes: club.classes ?? [],
     sports: club.sports ?? [],
     sizeChart: club.sizeChart ?? { kids: [], men: [], women: [] },
-    termsHtml: club.termsHtml?.trim() || DEFAULT_TERMS_OF_USE_HTML,
   };
 }
 
@@ -95,7 +86,7 @@ export function PublicJoinPage() {
   const [county, setCounty] = useState('');
   const [sport, setSport] = useState('');
   const [uniformSize, setUniformSize] = useState('');
-  const [kind, setKind] = useState<RegistrationApplicationKind>('trial');
+  const [joinExtras, setJoinExtras] = useState(EMPTY_PUBLIC_JOIN_EXTRAS);
   const [notes, setNotes] = useState('');
   const [acceptedPersonalData, setAcceptedPersonalData] = useState(false);
   const [acceptedAmka, setAcceptedAmka] = useState(false);
@@ -103,6 +94,7 @@ export function PublicJoinPage() {
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
   const [saving, setSaving] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     let cancelled = false;
@@ -127,12 +119,9 @@ export function PublicJoinPage() {
             logoUrl: local.logoUrl ?? null,
             heroImageUrl: settings.heroImageUrl ?? null,
             enabled: settings.enabled,
-            allowTrial: settings.allowTrial,
-            allowWaitlist: settings.allowWaitlist,
             classes: (data.classes ?? []).filter((c) => c.name),
             sports: collectClubSportOptions(data),
             sizeChart: data.sizeChart ?? EMPTY_SIZE_CHART,
-            termsHtml: data.termsOfUseHtml?.trim() || DEFAULT_TERMS_OF_USE_HTML,
           });
           setLoading(false);
         }
@@ -157,17 +146,17 @@ export function PublicJoinPage() {
   }, [slug]);
 
   useEffect(() => {
-    if (!club) return;
-    setKind(defaultPublicJoinKind(club.allowTrial, club.allowWaitlist));
-  }, [club?.allowTrial, club?.allowWaitlist, club?.clubId]);
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const hero = useMemo(
     () => club?.heroImageUrl || club?.logoUrl || null,
     [club?.heroImageUrl, club?.logoUrl],
   );
 
-  const uniformSizeGroups = useMemo(
-    () => sizeChartOptGroups(club?.sizeChart ?? EMPTY_SIZE_CHART),
+  const uniformSizeOptions = useMemo(
+    () => sizeChartOptGroups(club?.sizeChart ?? EMPTY_SIZE_CHART).flatMap((g) => g.sizes),
     [club?.sizeChart],
   );
 
@@ -191,13 +180,11 @@ export function PublicJoinPage() {
     setCounty('');
     setSport('');
     setUniformSize('');
+    setJoinExtras(EMPTY_PUBLIC_JOIN_EXTRAS);
     setNotes('');
     setAcceptedPersonalData(false);
     setAcceptedAmka(false);
     setGuardianSignature('');
-    if (club) {
-      setKind(defaultPublicJoinKind(club.allowTrial, club.allowWaitlist));
-    }
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -205,7 +192,7 @@ export function PublicJoinPage() {
     if (!club || !club.enabled) return;
 
     if (!acceptedPersonalData) {
-      setError('Πρέπει να αποδεχτείτε τη συγκατάθεση επεξεργασίας προσωπικών δεδομένων.');
+      setError('Απαιτείται «ΕΛΑΒΑ ΓΝΩΣΗ» για την προστασία προσωπικών δεδομένων.');
       return;
     }
     if (!acceptedAmka) {
@@ -238,9 +225,15 @@ export function PublicJoinPage() {
       sport,
       uniformSize,
       notes,
+      joinExtras,
     });
     if (fieldError) {
       setError(fieldError);
+      return;
+    }
+    const extras = parsePublicJoinExtras(joinExtras);
+    if (!extras) {
+      setError('Συμπληρώστε πακέτο ρουχισμού, ΙΣΤΟΣ, πληρωμή και δηλώσεις.');
       return;
     }
 
@@ -250,7 +243,12 @@ export function PublicJoinPage() {
 
     const guardianName = fatherFirstName.trim();
     const amkaTrim = amka.trim();
-    const gdprItems = gdprItemsFromPublicConsent(acceptedPersonalData, acceptedAmka);
+    const gdprItems = gdprItemsFromJoinDeclarations({
+      gdprAcknowledged: acceptedPersonalData,
+      mediaConsent: joinExtras.mediaConsent,
+      healthDeclaration: joinExtras.healthDeclaration,
+      amkaAccepted: acceptedAmka,
+    });
     const amkaConsentAt = acceptedAmka ? new Date().toISOString().slice(0, 10) : '';
 
     const payload = {
@@ -262,7 +260,7 @@ export function PublicJoinPage() {
       guardianPhone,
       email: fatherEmail.trim(),
       classId: null,
-      kind,
+      kind: 'full' as const,
       notes,
       acceptedTerms: acceptedPersonalData,
       amka: amkaTrim,
@@ -279,6 +277,7 @@ export function PublicJoinPage() {
       county: county.trim(),
       sport: sport.trim(),
       uniformSize: uniformSize.trim(),
+      joinExtras: extras,
       gdprItems,
       amkaConsentAt,
       guardianSignature,
@@ -578,46 +577,83 @@ export function PublicJoinPage() {
                 required
               >
                 <option value="" disabled>Επιλογή…</option>
-                {uniformSizeGroups.map((group) => (
-                  <optgroup key={group.category} label={group.label}>
-                    {group.sizes.map((size) => (
-                      <option key={`${group.category}-${size}`} value={size}>
-                        {size}
-                      </option>
-                    ))}
-                  </optgroup>
+                {uniformSizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field public-join-span-2">
+              <span className="field-label">Πακέτο ρουχισμού *</span>
+              <select
+                className="field-input"
+                value={joinExtras.clothingPackage}
+                onChange={(e) =>
+                  setJoinExtras((prev) => ({
+                    ...prev,
+                    clothingPackage: e.target.value as typeof prev.clothingPackage,
+                  }))
+                }
+                required
+              >
+                <option value="" disabled>
+                  Επιλογή…
+                </option>
+                {CLOTHING_PACKAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">Συμμετοχή στο πρόγραμμα «ΙΣΤΟΣ» *</span>
+              <select
+                className="field-input"
+                value={joinExtras.istosProgram}
+                onChange={(e) =>
+                  setJoinExtras((prev) => ({
+                    ...prev,
+                    istosProgram: e.target.value as typeof prev.istosProgram,
+                  }))
+                }
+                required
+              >
+                <option value="" disabled>
+                  Επιλογή…
+                </option>
+                {ISTOS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">Προτιμώμενη μέθοδος πληρωμής *</span>
+              <select
+                className="field-input"
+                value={joinExtras.preferredPayment}
+                onChange={(e) =>
+                  setJoinExtras((prev) => ({
+                    ...prev,
+                    preferredPayment: e.target.value as typeof prev.preferredPayment,
+                  }))
+                }
+                required
+              >
+                <option value="" disabled>
+                  Επιλέξτε τον προτιμώμενο τρόπο πληρωμής
+                </option>
+                {PAYMENT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
               </select>
             </label>
           </div>
-
-          {club.allowTrial || club.allowWaitlist ? (
-            <fieldset className="public-join-kind">
-              <legend>Τύπος αίτησης</legend>
-              {club.allowTrial ? (
-                <label>
-                  <input
-                    type="radio"
-                    name="kind"
-                    checked={kind === 'trial'}
-                    onChange={() => setKind('trial')}
-                  />
-                  Δοκιμαστική προπόνηση
-                </label>
-              ) : null}
-              {club.allowWaitlist ? (
-                <label>
-                  <input
-                    type="radio"
-                    name="kind"
-                    checked={kind === 'waitlist'}
-                    onChange={() => setKind('waitlist')}
-                  />
-                  Λίστα αναμονής
-                </label>
-              ) : null}
-            </fieldset>
-          ) : null}
 
           <label className="field">
             <span className="field-label">Σχόλια</span>
@@ -629,29 +665,109 @@ export function PublicJoinPage() {
             />
           </label>
 
-          {club.termsHtml ? (
-            <div className="public-join-terms">
-              <details className="public-join-terms-details">
-                <summary>Επιπλέον όροι χρήσης / πολιτική απορρήτου</summary>
-                <div
-                  className="public-join-terms-body"
-                  dangerouslySetInnerHTML={{ __html: club.termsHtml }}
-                />
-              </details>
-            </div>
-          ) : null}
+          <div className="public-join-choice-stack">
+            <ChoiceCard title="Υπεύθυνη δήλωση υγείας">
+              <p className="public-join-choice-body">
+                Με την υποβολή της παρούσας αίτησης, ο υπογράφων γονέας/κηδεμόνας δηλώνω υπεύθυνα
+                ότι:
+              </p>
+              <p className="public-join-choice-body">
+                Ο συμμετέχων/ουσα είναι <strong>υγιής</strong> και του/της επιτρέπεται η πλήρης
+                συμμετοχή σε αθλητικές δραστηριότητες.
+              </p>
+              {HEALTH_OPTIONS.map((option) => (
+                <label key={option.value} className="public-join-choice-option">
+                  <input
+                    type="radio"
+                    name="healthDeclaration"
+                    checked={joinExtras.healthDeclaration === option.value}
+                    onChange={() =>
+                      setJoinExtras((prev) => ({ ...prev, healthDeclaration: option.value }))
+                    }
+                    required
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </ChoiceCard>
 
-          <div className="public-join-signature">
-            <div className="public-join-consent-checks">
-              <label className="public-reg-check">
+            <ChoiceCard title="Ευθύνη και ιατρική περίθαλψη">
+              <p className="public-join-choice-body">
+                Με την υποβολή της παρούσας αίτησης, ο υπογράφων γονέας/κηδεμόνας δηλώνω υπεύθυνα
+                ότι:
+              </p>
+              <p className="public-join-choice-body">
+                Ο Σύλλογος και οι προπονητές <strong>δεν φέρουν ευθύνη</strong> για τυχόν τραυματισμό
+                που μπορεί να προκύψει κατά τη διάρκεια της προπόνησης, ο οποίος οφείλεται σε τυχαίο
+                γεγονός ή σε μη συμμόρφωση του αθλητή / της αθλήτριας με τις υποδείξεις των
+                υπευθύνων.
+              </p>
+              <p className="public-join-choice-body">
+                Σε περίπτωση έκτακτου ιατρικού περιστατικού, παρέχω την άδεια στους υπεύθυνους να
+                προβούν στις απαραίτητες ενέργειες για την παροχή πρώτων βοηθειών ή τη μεταφορά σε
+                νοσοκομείο, εάν κριθεί απαραίτητο.
+              </p>
+              {LIABILITY_OPTIONS.map((option) => (
+                <label key={option.value} className="public-join-choice-option">
+                  <input
+                    type="radio"
+                    name="liabilityAcceptance"
+                    checked={joinExtras.liabilityAcceptance === option.value}
+                    onChange={() =>
+                      setJoinExtras((prev) => ({ ...prev, liabilityAcceptance: option.value }))
+                    }
+                    required
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </ChoiceCard>
+
+            <ChoiceCard title="Φωτογράφιση / βιντεοσκόπηση">
+              <p className="public-join-choice-body">
+                Συναινώ στη φωτογράφιση ή βιντεοσκόπηση του ΑΘΛΗΤΗ / ΑΘΛΗΤΡΙΑΣ κατά τη διάρκεια της
+                προπονητικής περιόδου, με σκοπό την προβολή στα social media και την ιστοσελίδα του{' '}
+                {club.name}.
+              </p>
+              {MEDIA_OPTIONS.map((option) => (
+                <label key={option.value} className="public-join-choice-option">
+                  <input
+                    type="radio"
+                    name="mediaConsent"
+                    checked={joinExtras.mediaConsent === option.value}
+                    onChange={() =>
+                      setJoinExtras((prev) => ({ ...prev, mediaConsent: option.value }))
+                    }
+                    required
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </ChoiceCard>
+
+            <ChoiceCard title="Προστασία προσωπικών δεδομένων (GDPR)">
+              <p className="public-join-choice-body">
+                Τα προσωπικά δεδομένα που συλλέγονται μέσω αυτής της φόρμας (ΑΜΚΑ, ονοματεπώνυμο,
+                τηλέφωνα επικοινωνίας, ιατρικές πληροφορίες) θα χρησιμοποιηθούν αποκλειστικά για τις
+                ανάγκες λειτουργίας και επικοινωνίας του {club.name} και την ασφάλεια των
+                συμμετεχόντων. Ο Σύλλογος δεσμεύεται για την εμπιστευτικότητα των στοιχείων και τη
+                μη κοινοποίησή τους σε τρίτους, σύμφωνα με τον Γενικό Κανονισμό Προστασίας
+                Δεδομένων (ΕΕ 2016/679).
+              </p>
+              <label className="public-join-choice-option">
                 <input
                   type="checkbox"
                   checked={acceptedPersonalData}
                   onChange={(e) => setAcceptedPersonalData(e.target.checked)}
                   required
                 />
-                <span>Συναινώ *</span>
+                <span>ΕΛΑΒΑ ΓΝΩΣΗ</span>
               </label>
+            </ChoiceCard>
+          </div>
+
+          <div className="public-join-signature">
+            <div className="public-join-consent-checks">
               <label className="public-reg-check">
                 <input
                   type="checkbox"
@@ -659,9 +775,7 @@ export function PublicJoinPage() {
                   onChange={(e) => setAcceptedAmka(e.target.checked)}
                   required
                 />
-                <span>
-                  {AMKA_CONSENT_CHECKBOX} — συγκατάθεση ΑΜΚΑ <em>(γονέας)</em> *
-                </span>
+                <span>Συγκατάθεση γονέα / κηδεμόνα *</span>
               </label>
             </div>
             <span className="field-label">Υπογραφή γονέα / κηδεμόνα *</span>
@@ -676,11 +790,47 @@ export function PublicJoinPage() {
           {error ? <p className="form-error">{error}</p> : null}
           {done ? <p className="settings-success">{done}</p> : null}
 
-          <Button type="submit" disabled={saving}>
-            {saving ? 'Υποβολή…' : 'Υποβολή αίτησης'}
-          </Button>
+          <div className="public-join-submit-row">
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Υποβολή…' : 'Υποβολή αίτησης'}
+            </Button>
+            <time className="public-join-now" dateTime={now.toISOString()}>
+              {now.toLocaleString('el-GR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+              })}
+            </time>
+          </div>
         </form>
       </div>
     </div>
+  );
+}
+
+function ChoiceCard({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <fieldset className="public-join-choice-card">
+      <legend>
+        {title}{' '}
+        <span className="public-join-req" aria-hidden>
+          *
+        </span>
+      </legend>
+      {hint ? <p className="public-join-choice-hint">{hint}</p> : null}
+      {children}
+    </fieldset>
   );
 }

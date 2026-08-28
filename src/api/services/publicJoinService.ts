@@ -11,6 +11,7 @@ import {
 import { localDateIso } from '../../utils/dates';
 import { studentInClass } from '../../utils/studentClasses';
 import type { RegistrationApplicationKind } from '../../types';
+import type { PublicJoinExtras } from '../../shared/publicJoinExtras';
 import * as emailService from './emailService';
 import { notifyClubNewRegistration } from './registrationApplicationsService';
 
@@ -41,6 +42,7 @@ export type PublicJoinInput = {
   county?: string;
   sport?: string;
   uniformSize?: string;
+  joinExtras?: PublicJoinExtras;
   gdprItems?: PublicJoinGdprItems;
   amkaConsentAt?: string;
   guardianSignature?: string;
@@ -85,6 +87,7 @@ export async function submitPublicJoin(input: PublicJoinInput) {
       sport: input.sport,
       uniformSize: input.uniformSize,
       notes: input.notes,
+      joinExtras: input.joinExtras,
     });
     if (requiredError) throw new Error(requiredError);
 

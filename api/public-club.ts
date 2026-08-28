@@ -98,7 +98,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 function trimMedia(value: string | null | undefined): string | null {
   if (!value) return null;
-  // Keep account/public-club payloads bounded while allowing optimized logos.
-  if (value.length > 180_000) return null;
+  // Drop leftover data URLs; keep Blob / https / /api/club-media paths.
+  if (value.startsWith('data:') && value.length > 8_000) return null;
+  if (value.length > 8_000) return null;
   return value;
 }

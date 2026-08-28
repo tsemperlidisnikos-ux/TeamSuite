@@ -2,6 +2,18 @@ import type { SizeChart, SizeChartCategory } from '../types';
 
 export type SizeChartGroupId = 'kids' | 'adult';
 
+export const DEFAULT_SIZE_CHART_SIZES = [
+  '6 y.o',
+  '8 y.o',
+  '10 y.o',
+  '12 y.o',
+  'Small',
+  'Medium',
+  'Large',
+  'XLarge',
+  'XXLarge',
+];
+
 export const SIZE_CHART_GROUP_LABELS: Record<SizeChartGroupId, string> = {
   kids: 'ΠΑΙΔΙΚΟ',
   adult: 'ΑΝΔΡΙΚΟ / ΓΥΝΑΙΚΕΙΟ',
@@ -13,6 +25,10 @@ export const SIZE_CHART_CATEGORY_LABELS: Record<SizeChartCategory, string> = {
   men: 'ΑΝΔΡΙΚΟ / ΓΥΝΑΙΚΕΙΟ',
   women: 'ΑΝΔΡΙΚΟ / ΓΥΝΑΙΚΕΙΟ',
 };
+
+export function defaultSizeChart(): SizeChart {
+  return { kids: [...DEFAULT_SIZE_CHART_SIZES], men: [], women: [] };
+}
 
 export function resolvedSizeChartGroupLabels(
   chart?: SizeChart | null,
@@ -55,22 +71,31 @@ export function flattenSizeChart(chart: SizeChart | undefined | null): string[] 
   return result;
 }
 
-/** Optgroups: Παιδικό + Ανδρικό/Γυναικείο. */
+function csvUpper(values: string[] | undefined): string {
+  return (values ?? []).map((s) => s.trim().toUpperCase()).filter(Boolean).join(',');
+}
+
+export function isLegacyDefaultSizeChart(chart: SizeChart | undefined | null): boolean {
+  if (!chart) return true;
+  const kids = csvUpper(chart.kids);
+  const men = csvUpper(chart.men);
+  const women = csvUpper(chart.women);
+  const legacyKids = kids === '' || kids === 'XS,S,M,L,XL';
+  const legacyMen = men === '' || men === 'XS,S,M,L,XL,XXL,XXXL' || men === 'XS,S,M,L,XL';
+  const legacyWomen = women === '' || women === 'XS,S,M,L,XL';
+  return legacyKids && legacyMen && legacyWomen;
+}
+
+export function normalizeSizeChart(chart: SizeChart | undefined | null): SizeChart {
+  if (isLegacyDefaultSizeChart(chart)) return defaultSizeChart();
+  return { kids: flattenSizeChart(chart), men: [], women: [] };
+}
+
+/** Single unlabeled list for selects. */
 export function sizeChartOptGroups(chart: SizeChart | undefined | null) {
-  if (!chart) return [];
-  const labels = resolvedSizeChartGroupLabels(chart);
-  return [
-    {
-      category: 'kids' as const,
-      label: labels.kids,
-      sizes: (chart.kids ?? []).map((s) => s.trim()).filter(Boolean),
-    },
-    {
-      category: 'adult' as const,
-      label: labels.adult,
-      sizes: adultSizesFromChart(chart),
-    },
-  ].filter((group) => group.sizes.length > 0);
+  const sizes = flattenSizeChart(chart);
+  if (sizes.length === 0) return [];
+  return [{ category: 'kids' as const, label: '', sizes }];
 }
 
 export function sizeGroupLabel(
@@ -87,11 +112,9 @@ export function sizeGroupLabel(
 
 export function formatProductSize(
   size: string | undefined | null,
-  sizeGroup?: string | null,
-  chart?: SizeChart | null,
+  _sizeGroup?: string | null,
+  _chart?: SizeChart | null,
 ): string {
   const value = (size ?? '').trim();
-  if (!value) return '—';
-  const group = sizeGroupLabel(sizeGroup, chart);
-  return group ? `${value} · ${group}` : value;
+  return value || '—';
 }

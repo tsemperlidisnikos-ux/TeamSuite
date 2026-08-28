@@ -20,12 +20,11 @@ import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { useAppData } from '../hooks/useAppData';
 import { PRODUCT_CATEGORIES, type WarehouseProductInput } from '../schemas';
-import type { ProductSizeGroup, WarehouseProduct } from '../types';
+import type { WarehouseProduct } from '../types';
 import { formatCurrency } from '../utils/labels';
 import {
   formatProductSize,
   sizeChartOptGroups,
-  type SizeChartGroupId,
 } from '../utils/sizeChartOptions';
 
 const emptyForm: WarehouseProductInput = {
@@ -44,22 +43,6 @@ const emptyForm: WarehouseProductInput = {
   minStock: 5,
   imageUrl: null,
 };
-
-function encodeSizeValue(group: SizeChartGroupId, size: string): string {
-  return `${group}::${size}`;
-}
-
-function parseSizeValue(value: string): { sizeGroup: ProductSizeGroup | ''; size: string } {
-  if (!value) return { sizeGroup: '', size: '' };
-  const sep = value.indexOf('::');
-  if (sep === -1) return { sizeGroup: '', size: value };
-  const group = value.slice(0, sep);
-  const size = value.slice(sep + 2);
-  if (group === 'kids' || group === 'adult') {
-    return { sizeGroup: group, size };
-  }
-  return { sizeGroup: '', size };
-}
 
 function minStockOf(product: WarehouseProduct): number {
   return product.minStock ?? 5;
@@ -208,43 +191,16 @@ export function WarehousePage() {
   const to = Math.min(safePage * pageSize, filtered.length);
 
   const sizeOptions = useMemo(() => {
-    const groups = sizeChartOptGroups(data.sizeChart);
-    const keys = new Set(
-      groups.flatMap((g) => g.sizes.map((s) => encodeSizeValue(g.category, s).toUpperCase())),
-    );
+    const sizes = sizeChartOptGroups(data.sizeChart).flatMap((g) => g.sizes);
+    const keys = new Set(sizes.map((s) => s.toUpperCase()));
     const currentSize = form.size.trim();
-    const currentGroup = (form.sizeGroup || '') as SizeChartGroupId | '';
-    if (currentSize && currentGroup) {
-      const key = encodeSizeValue(currentGroup, currentSize).toUpperCase();
-      if (!keys.has(key)) {
-        return [...groups, { category: currentGroup, label: 'Τρέχον', sizes: [currentSize] }];
-      }
-    } else if (currentSize) {
-      const inChart = groups.some((g) =>
-        g.sizes.some((s) => s.toUpperCase() === currentSize.toUpperCase()),
-      );
-      if (!inChart) {
-        return [...groups, { category: 'adult' as const, label: 'Τρέχον', sizes: [currentSize] }];
-      }
+    if (currentSize && !keys.has(currentSize.toUpperCase())) {
+      return [...sizes, currentSize];
     }
-    return groups;
-  }, [data.sizeChart, form.size, form.sizeGroup]);
+    return sizes;
+  }, [data.sizeChart, form.size]);
 
-  const selectedSizeValue = useMemo(() => {
-    if (!form.size) return '';
-    if (form.sizeGroup === 'kids' || form.sizeGroup === 'adult') {
-      return encodeSizeValue(form.sizeGroup, form.size);
-    }
-    const match = sizeOptions.find((g) =>
-      g.sizes.some((s) => s.toUpperCase() === form.size.trim().toUpperCase()),
-    );
-    if (match) {
-      const size =
-        match.sizes.find((s) => s.toUpperCase() === form.size.trim().toUpperCase()) ?? form.size;
-      return encodeSizeValue(match.category, size);
-    }
-    return form.size;
-  }, [form.size, form.sizeGroup, sizeOptions]);
+  const selectedSizeValue = form.size.trim();
 
   function openCreate() {
     setEditing(null);
@@ -797,26 +753,18 @@ export function WarehousePage() {
                 className="field-input"
                 value={selectedSizeValue}
                 onChange={(e) => {
-                  const parsed = parseSizeValue(e.target.value);
                   setForm({
                     ...form,
-                    size: parsed.size,
-                    sizeGroup: parsed.sizeGroup,
+                    size: e.target.value,
+                    sizeGroup: '',
                   });
                 }}
               >
                 <option value="">—</option>
-                {sizeOptions.map((group) => (
-                  <optgroup key={group.category} label={group.label}>
-                    {group.sizes.map((size) => (
-                      <option
-                        key={`${group.category}-${size}`}
-                        value={encodeSizeValue(group.category, size)}
-                      >
-                        {size}
-                      </option>
-                    ))}
-                  </optgroup>
+                {sizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
                 ))}
               </select>
             </label>

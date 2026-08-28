@@ -23,6 +23,7 @@ import { ensureAmkaPrivacySection } from '../shared/termsDefaults';
 import { resolveCatalogSportName } from '../shared/sportsCatalog';
 import { pruneAmkaAccessLogs } from '../utils/amkaAccess';
 import { clearExpiredSeasonEnrollments } from '../utils/clubSeasons';
+import { normalizeSizeChart } from '../utils/sizeChartOptions';
 
 let cache: AppData | null = null;
 let cacheClubId: string | null = null;
@@ -123,7 +124,19 @@ function ensureCollections(data: AppData): boolean {
   if (!data.registrationApplications) {
     data.registrationApplications = structuredClone(seedData.registrationApplications ?? []);
   }
-  if (!data.sizeChart) data.sizeChart = structuredClone(seedData.sizeChart);
+  if (!data.sizeChart) {
+    data.sizeChart = structuredClone(seedData.sizeChart);
+    changed = true;
+  } else {
+    const nextChart = normalizeSizeChart(data.sizeChart);
+    const sameKids = JSON.stringify(nextChart.kids) === JSON.stringify(data.sizeChart.kids ?? []);
+    const sameMen = JSON.stringify(nextChart.men) === JSON.stringify(data.sizeChart.men ?? []);
+    const sameWomen = JSON.stringify(nextChart.women) === JSON.stringify(data.sizeChart.women ?? []);
+    if (!sameKids || !sameMen || !sameWomen) {
+      data.sizeChart = nextChart;
+      changed = true;
+    }
+  }
   if (data.termsOfUseHtml === undefined) data.termsOfUseHtml = seedData.termsOfUseHtml ?? '';
   if (data.dpaHtml === undefined) data.dpaHtml = seedData.dpaHtml ?? '';
   if (data.retentionPolicyHtml === undefined) {
