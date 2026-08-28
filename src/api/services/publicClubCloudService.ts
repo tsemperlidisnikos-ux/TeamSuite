@@ -108,6 +108,7 @@ export async function publishPublicClubCloud(clubId: string) {
     if (heroImageUrl !== (settings.heroImageUrl ?? null)) {
       updateClubPublicRegistration(clubId, {
         ...settings,
+        notifyEmail: settings.notifyEmail ?? '',
         heroImageUrl,
       });
     }
