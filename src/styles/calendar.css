@@ -199,11 +199,11 @@ a.cal-new-btn:active {
 }
 
 .cal-event.is-match i {
-  background: var(--accent, #e0b13a);
+  background: #dc2626;
 }
 
 .cal-event.is-rental i {
-  background: #0d7377;
+  background: #2563eb;
 }
 
 .cal-event.is-other i {
@@ -335,11 +335,11 @@ a.cal-new-btn:active {
 }
 
 .cal-legend i.is-match {
-  background: var(--accent, #e0b13a);
+  background: #dc2626;
 }
 
 .cal-legend i.is-rental {
-  background: #0d7377;
+  background: #2563eb;
 }
 
 .cal-legend i.is-other {
@@ -452,11 +452,11 @@ a.cal-new-btn:active {
 }
 
 .cal-agenda-item.is-match i {
-  background: var(--accent, #e0b13a);
+  background: #dc2626;
 }
 
 .cal-agenda-item.is-rental i {
-  background: #0d7377;
+  background: #2563eb;
 }
 
 .cal-agenda-item div {
@@ -607,12 +607,12 @@ a.cal-new-btn:active {
 }
 
 .cal-facility-event.is-match {
-  background: color-mix(in srgb, #c2410c 20%, transparent);
+  background: color-mix(in srgb, #dc2626 22%, transparent);
   color: var(--ink);
 }
 
 .cal-facility-event.is-rental {
-  background: color-mix(in srgb, #0d7377 22%, transparent);
+  background: color-mix(in srgb, #2563eb 22%, transparent);
   color: var(--ink);
 }
 
@@ -765,12 +765,12 @@ a.cal-new-btn:active {
 }
 
 .cal-block.is-match {
-  background: #ead9b2;
-  color: #1a1a1a;
+  background: #dc2626;
+  color: #fff;
 }
 
 .cal-block.is-rental {
-  background: #0d7377;
+  background: #2563eb;
   color: #fff;
 }
 
@@ -809,11 +809,11 @@ a.cal-new-btn:active {
 }
 
 .cal-agenda-legend i.is-match {
-  background: #ead9b2;
+  background: #dc2626;
 }
 
 .cal-agenda-legend i.is-rental {
-  background: #0d7377;
+  background: #2563eb;
 }
 
 .cal-agenda-foot p {

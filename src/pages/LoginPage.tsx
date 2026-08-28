@@ -318,13 +318,7 @@ export function LoginPage() {
     >
       <aside className="login-hero-panel">
         <div className="login-hero-glow" aria-hidden />
-        <div className="login-hero-watermark" aria-hidden>
-          360
-        </div>
         <div className="login-hero-brand">
-          {appLogoUrl ? (
-            <img className="login-hero-logo" src={appLogoUrl} alt="" />
-          ) : null}
           <div className="login-hero-title">
             <span className="login-hero-name">{brand.title}</span>
             <span className="login-hero-360">{brand.accent}</span>

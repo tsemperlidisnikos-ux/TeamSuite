@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { CalendarPlus, ChevronLeft, ChevronRight, Info, Link2 } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import * as rentalBookingsService from '../api/services/rentalBookingsService';
 import { getSession } from '../auth/auth';
@@ -758,13 +758,6 @@ export function CalendarPage() {
                 <i className="is-other" /> Άλλο
               </li>
             </ul>
-          </div>
-
-          <div className="cal-side-block cal-sync">
-            <h3>Συγχρονισμός</h3>
-            <Link to="/schedule" className="cal-sync-link">
-              <Link2 size={16} /> Σύνδεση Ημερολογίου
-            </Link>
           </div>
         </aside>
         )}

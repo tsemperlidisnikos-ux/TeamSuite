@@ -185,8 +185,9 @@
 }
 
 .prog-block.is-match {
-  background: #f3e2b8;
-  border: 1px solid #d9c087;
+  background: #dc2626;
+  border: 1px solid #b91c1c;
+  color: #fff;
 }
 
 .prog-block-time,
@@ -247,8 +248,15 @@
 }
 
 .prog-legend i.is-match {
-  background: #f3e2b8;
-  border: 1px solid #d9c087;
+  background: #dc2626;
+  border: 0;
+}
+
+.prog-block.is-match .prog-block-time,
+.prog-block.is-match .prog-block-loc,
+.prog-block.is-match .prog-block-title,
+.prog-block.is-match .prog-block-edit {
+  color: #fff;
 }
 
 .prog-hint {

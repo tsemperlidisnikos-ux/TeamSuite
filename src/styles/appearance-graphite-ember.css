@@ -2353,9 +2353,9 @@ html[data-appearance='graphite-ember'] .prog-block.is-training {
 }
 
 html[data-appearance='graphite-ember'] .prog-block.is-match {
-  background: #f0d9a0;
-  border-color: #c9a85a;
-  color: #140c08;
+  background: #dc2626;
+  border-color: #b91c1c;
+  color: #fff;
 }
 
 html[data-appearance='graphite-ember'] .prog-block-time,
@@ -2363,6 +2363,13 @@ html[data-appearance='graphite-ember'] .prog-block-loc,
 html[data-appearance='graphite-ember'] .prog-block-title,
 html[data-appearance='graphite-ember'] .prog-block-edit {
   color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .prog-block.is-match .prog-block-time,
+html[data-appearance='graphite-ember'] .prog-block.is-match .prog-block-loc,
+html[data-appearance='graphite-ember'] .prog-block.is-match .prog-block-title,
+html[data-appearance='graphite-ember'] .prog-block.is-match .prog-block-edit {
+  color: #fff;
 }
 
 /* Warehouse / ??????? */
