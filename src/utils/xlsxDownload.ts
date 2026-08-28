@@ -98,7 +98,10 @@ function zipStore(files: Array<{ name: string; text: string }>): Blob {
     u16(0),
   ]);
 
-  return new Blob([concat([...locals, centralDir, end])], {
+  const packed = concat([...locals, centralDir, end]);
+  const copy = new Uint8Array(packed.byteLength);
+  copy.set(packed);
+  return new Blob([copy.buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
 }
