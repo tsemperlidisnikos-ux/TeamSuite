@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { pushAccountBundle } from '../api/services/accountSyncService';
 import { getUsers, saveUsers } from '../auth/auth';
@@ -11,6 +11,7 @@ import { AdminZone, PlatformAdminShell } from '../components/layout/PlatformAdmi
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { persistLocalStateToCloud } from '../data/clubSync';
+import { saveClubLogoFromFile } from '../utils/clubLogoFile';
 import {
   createId,
   getData,
@@ -200,6 +201,7 @@ export function PlatformAdminPage() {
     structuredClone(loadPlatformConfig().clubRolePermissions),
   );
   const [catalogClubId, setCatalogClubId] = useState(() => getClubs()[0]?.id ?? '');
+  const clubLogoFileRef = useRef<HTMLInputElement>(null);
   const [clubRole, setClubRole] = useState<ClubRole>('admin');
   const [message, setMessage] = useState('');
   const [newIncomeCategory, setNewIncomeCategory] = useState('');
@@ -1368,6 +1370,71 @@ export function PlatformAdminPage() {
                     ? `Ενεργό preview: ${clubs.find((c) => c.id === previewClubId)?.name ?? previewClubId}`
                     : 'Δεν υπάρχει ενεργό preview.'}
                 </RecordsRow>
+              </RecordsTable>
+            }
+          />
+
+          <AdminRow
+            title="Λογότυπο ανά σύλλογο"
+            description="Αντικαθιστά το εικονίδιο SS και τον τίτλο TeamSuite στην κεφαλίδα της εφαρμογής του συλλόγου."
+            entry={
+              <div className="entry-form admin-entry">
+                <input
+                  ref={clubLogoFileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                  hidden
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = '';
+                    if (!file || !catalogClubId) return;
+                    void (async () => {
+                      const result = await saveClubLogoFromFile(catalogClubId, file);
+                      if (!result.success) {
+                        flash(result.error ?? 'Αποτυχία αποθήκευσης λογότυπου.');
+                        return;
+                      }
+                      setClubsTick((n) => n + 1);
+                      flash('Το λογότυπο αποθηκεύτηκε για τον επιλεγμένο σύλλογο.');
+                    })();
+                  }}
+                />
+                <label className="field">
+                  <span>Σύλλογος</span>
+                  <select
+                    value={catalogClubId}
+                    onChange={(e) => setCatalogClubId(e.target.value)}
+                  >
+                    <option value="">Επιλέξτε…</option>
+                    {clubs.map((club) => (
+                      <option key={club.id} value={club.id}>
+                        {club.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="admin-entry-actions">
+                  <Button
+                    type="button"
+                    disabled={!catalogClubId}
+                    onClick={() => clubLogoFileRef.current?.click()}
+                  >
+                    Ανέβασμα λογότυπου
+                  </Button>
+                </div>
+              </div>
+            }
+            records={
+              <RecordsTable>
+                {clubs.map((club) => (
+                  <RecordsRow key={club.id} title={club.name}>
+                    {club.logoUrl ? (
+                      <img className="admin-club-logo-thumb" src={club.logoUrl} alt="" />
+                    ) : (
+                      'Χωρίς λογότυπο (εμφανίζεται SS + TeamSuite)'
+                    )}
+                  </RecordsRow>
+                ))}
               </RecordsTable>
             }
           />

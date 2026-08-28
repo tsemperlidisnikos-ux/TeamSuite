@@ -34,7 +34,8 @@ import {
 } from '../auth/licensePackages';
 import * as emailService from '../api/services/emailService';
 import * as publicClubCloudService from '../api/services/publicClubCloudService';
-import { getSessionToken, persistClubLogoToCloud, updateCloudClubLogo } from '../api/services/sessionService';
+import { getSessionToken, updateCloudClubLogo } from '../api/services/sessionService';
+import { saveClubLogoFromFile } from '../utils/clubLogoFile';
 import { BackupPanel } from '../components/BackupPanel';
 import { ChangePasswordPanel } from '../components/ChangePasswordPanel';
 import { ClubEmailPanel } from '../components/ClubEmailPanel';
@@ -52,9 +53,6 @@ import { FacilitiesPage } from './FacilitiesPage';
 import { SeasonsPage } from './SeasonsPage';
 import { SportsPage } from './SportsPage';
 import { TermsOfUsePanel } from './TermsOfUsePanel';
-
-const MAX_LOGO_BYTES = 2_000_000;
-const MAX_LOGO_DATA_URL_LENGTH = 180_000;
 
 type SettingsTab =
   | 'club'
@@ -83,41 +81,6 @@ type ClubForm = {
   email: string;
   customChargeLabel: string;
 };
-
-async function optimizeLogoDataUrl(file: File): Promise<string> {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Αποτυχία ανάγνωσης αρχείου.'));
-    reader.onload = () => resolve(String(reader.result ?? ''));
-    reader.readAsDataURL(file);
-  });
-
-  if (file.type === 'image/svg+xml' || dataUrl.length <= MAX_LOGO_DATA_URL_LENGTH) {
-    if (dataUrl.length > MAX_LOGO_DATA_URL_LENGTH) {
-      throw new Error('Το SVG λογότυπο είναι υπερβολικά μεγάλο. Χρησιμοποιήστε μικρότερο αρχείο.');
-    }
-    return dataUrl;
-  }
-
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const element = new Image();
-    element.onload = () => resolve(element);
-    element.onerror = () => reject(new Error('Αποτυχία επεξεργασίας λογοτύπου.'));
-    element.src = dataUrl;
-  });
-  const scale = Math.min(1, 512 / Math.max(image.naturalWidth, image.naturalHeight));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-  const context = canvas.getContext('2d');
-  if (!context) throw new Error('Αδυναμία επεξεργασίας λογοτύπου.');
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  const optimized = canvas.toDataURL('image/jpeg', 0.82);
-  if (optimized.length > MAX_LOGO_DATA_URL_LENGTH) {
-    throw new Error('Το λογότυπο παραμένει υπερβολικά μεγάλο. Χρησιμοποιήστε μικρότερο αρχείο.');
-  }
-  return optimized;
-}
 
 const PRIMARY_TABS: Array<{ id: SettingsTab; label: string }> = [
   { id: 'club', label: 'Σύλλογος' },
@@ -209,26 +172,12 @@ export function SettingsPage() {
 
   async function readLogoFile(file: File) {
     if (!clubId) return;
-    if (!file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
-      setError('Επιλέξτε εικόνα (PNG, JPG ή SVG).');
-      return;
-    }
-    if (file.size > MAX_LOGO_BYTES) {
-      setError('Η εικόνα πρέπει να είναι έως 2MB.');
-      return;
-    }
     setSaving(true);
     setError('');
     setMessage('');
     try {
-      let logoUrl = await optimizeLogoDataUrl(file);
-      if (getSessionToken()) {
-        const cloud = await persistClubLogoToCloud(clubId, logoUrl);
-        if (!cloud.success) throw new Error(cloud.error ?? 'Αποτυχία cloud αποθήκευσης λογοτύπου.');
-        logoUrl = cloud.data?.logoUrl ?? logoUrl;
-      }
-      const result = updateClubLogo(clubId, logoUrl);
-      if (!result.success) throw new Error(result.error ?? 'Σφάλμα αποθήκευσης');
+      const cloud = await saveClubLogoFromFile(clubId, file);
+      if (!cloud.success) throw new Error(cloud.error ?? 'Αποτυχία αποθήκευσης λογοτύπου.');
       setMessage(getSessionToken() ? 'Το λογότυπο αποθηκεύτηκε στο cloud.' : 'Το λογότυπο αποθηκεύτηκε τοπικά.');
       refreshClub();
     } catch (err) {

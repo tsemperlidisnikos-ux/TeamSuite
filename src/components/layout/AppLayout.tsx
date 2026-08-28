@@ -50,7 +50,7 @@ import {
 } from '../../platform/platformConfig';
 import { useAppData } from '../../hooks/useAppData';
 import { useCloudMirrorAutoPull } from '../../hooks/useCloudMirrorAutoPull';
-import * as publicClubCloudService from '../../api/services/publicClubCloudService';
+import { saveClubLogoFromFile } from '../../utils/clubLogoFile';
 
 type NavIcon = LucideIcon | ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;
 
@@ -98,8 +98,6 @@ const analysisItems: Array<{
   { id: 'finance', to: '/finance', label: 'Οικονομικά', icon: Wallet },
 ];
 
-const MAX_APP_LOGO_BYTES = 500_000;
-
 export function AppLayout() {
   const [open, setOpen] = useState(false);
   const [clubTick, setClubTick] = useState(0);
@@ -114,9 +112,10 @@ export function AppLayout() {
     return ensureSessionClub(session) ?? getClubById(clubId);
   }, [clubId, clubTick, previewClubId, session]);
   const appName = getAppName();
+  const clubLogoUrl = club?.logoUrl?.trim() || '';
   const appLogoUrl = useMemo(() => getAppLogoUrl(), [platformTick]);
-  const appLogoInputRef = useRef<HTMLInputElement>(null);
-  const canUploadAppLogo = isPlatformAdmin();
+  const headerLogoInputRef = useRef<HTMLInputElement>(null);
+  const canUploadClubHeaderLogo = Boolean(isPlatformAdmin() && clubId);
 
   const [usersTick, setUsersTick] = useState(0);
   const { data: appData } = useAppData();
@@ -234,32 +233,17 @@ export function AppLayout() {
     navigate('/login', { replace: true });
   }
 
-  function handleAppLogoChange(event: ChangeEvent<HTMLInputElement>) {
+  async function handleHeaderLogoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file || !canUploadAppLogo) return;
-    if (!file.type.startsWith('image/')) {
-      setLogoError('Επιλέξτε εικόνα (JPG, PNG, WEBP).');
-      return;
-    }
-    if (file.size > MAX_APP_LOGO_BYTES) {
-      setLogoError('Η εικόνα πρέπει να είναι έως ~500KB.');
-      return;
-    }
+    if (!file || !canUploadClubHeaderLogo || !clubId) return;
     setLogoError('');
-    const reader = new FileReader();
-    reader.onload = () => {
-      void (async () => {
-        const { publishAppLogo } = await import('../../api/services/platformBrandingService');
-        const result = await publishAppLogo(String(reader.result ?? ''));
-        if (!result.success) {
-          setLogoError(result.error ?? 'Αποτυχία αποθήκευσης logo στο cloud.');
-          return;
-        }
-        setPlatformTick((n) => n + 1);
-      })();
-    };
-    reader.readAsDataURL(file);
+    const result = await saveClubLogoFromFile(clubId, file);
+    if (!result.success) {
+      setLogoError(result.error ?? 'Αποτυχία αποθήκευσης λογοτύπου.');
+      return;
+    }
+    setClubTick((n) => n + 1);
   }
 
   return (
@@ -276,43 +260,65 @@ export function AppLayout() {
           </button>
 
           <input
-            ref={appLogoInputRef}
+            ref={headerLogoInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
+            accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
             hidden
-            onChange={handleAppLogoChange}
+            onChange={(e) => void handleHeaderLogoChange(e)}
           />
-          <button
-            type="button"
-            className={`app-logo-btn ${canUploadAppLogo ? 'is-editable' : ''}`}
-            onClick={() => {
-              if (canUploadAppLogo) appLogoInputRef.current?.click();
-            }}
-            aria-label={
-              canUploadAppLogo ? 'Ανέβασμα logo εφαρμογής' : appName
-            }
-            title={
-              canUploadAppLogo
-                ? 'Platform Admin: κλικ για ανέβασμα logo εφαρμογής'
-                : appName
-            }
-          >
-            {appLogoUrl ? (
-              <img src={appLogoUrl} alt="" />
-            ) : (
-              <span className="brand-mark">SS</span>
-            )}
-          </button>
-
-          <div>
-            <strong>{appName}</strong>
-            {session?.role === 'athlete' ? (
-              <span className="app-header-portal">ATHLETE PORTAL</span>
-            ) : session?.role === 'coach' ? (
-              <span className="app-header-portal">COACH PORTAL</span>
-            ) : null}
-            {logoError ? <em className="app-logo-error">{logoError}</em> : null}
-          </div>
+          {clubLogoUrl ? (
+            <button
+              type="button"
+              className={`app-header-club-brand ${canUploadClubHeaderLogo ? 'is-editable' : ''}`}
+              onClick={() => {
+                if (canUploadClubHeaderLogo) headerLogoInputRef.current?.click();
+              }}
+              aria-label={
+                canUploadClubHeaderLogo
+                  ? `Ανέβασμα λογότυπου συλλόγου ${club?.name ?? ''}`
+                  : club?.name ?? appName
+              }
+              title={
+                canUploadClubHeaderLogo
+                  ? 'Platform Admin: κλικ για διαφορετικό λογότυπο αυτού του συλλόγου'
+                  : club?.name ?? appName
+              }
+            >
+              <img src={clubLogoUrl} alt={club?.name ?? ''} />
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={`app-logo-btn ${canUploadClubHeaderLogo ? 'is-editable' : ''}`}
+                onClick={() => {
+                  if (canUploadClubHeaderLogo) headerLogoInputRef.current?.click();
+                }}
+                aria-label={
+                  canUploadClubHeaderLogo
+                    ? 'Ανέβασμα λογότυπου συλλόγου'
+                    : appName
+                }
+                title={
+                  canUploadClubHeaderLogo
+                    ? 'Platform Admin: κλικ για λογότυπο συλλόγου (αντικαθιστά το SS και τον τίτλο)'
+                    : appName
+                }
+              >
+                {appLogoUrl ? <img src={appLogoUrl} alt="" /> : <span className="brand-mark">SS</span>}
+              </button>
+              <div>
+                <strong>{appName}</strong>
+                {session?.role === 'athlete' ? (
+                  <span className="app-header-portal">ATHLETE PORTAL</span>
+                ) : session?.role === 'coach' ? (
+                  <span className="app-header-portal">COACH PORTAL</span>
+                ) : null}
+                {logoError ? <em className="app-logo-error">{logoError}</em> : null}
+              </div>
+            </>
+          )}
+          {clubLogoUrl && logoError ? <em className="app-logo-error">{logoError}</em> : null}
         </div>
 
         {headerGreeting ? <p className="app-header-greeting">{headerGreeting}</p> : null}
@@ -358,11 +364,6 @@ export function AppLayout() {
           </div>
 
           <nav className="side-nav">
-            {club?.logoUrl && session?.role !== 'doctor' ? (
-              <div className="sidebar-club-logo">
-                <img src={club.logoUrl} alt={club.name} />
-              </div>
-            ) : null}
             <p className="nav-section">
               {session?.role === 'athlete' ||
               session?.role === 'coach' ||
