@@ -1,0 +1,319 @@
+/**
+ * Split login — shared shell plus per-theme atmospheres.
+ * Abstract color atmospheres only (no stadium / photo backgrounds).
+ */
+
+/* ---- Shared split shell ---- */
+html[data-appearance='ocean-slate'] .login-page,
+html[data-appearance='graphite-ember'] .login-page,
+.login-page--split {
+  place-items: stretch;
+  padding: 0;
+  grid-template-columns: minmax(280px, 1.05fr) minmax(320px, 0.95fr);
+  align-items: stretch;
+  background: #f4f6f8;
+}
+
+html[data-appearance='ocean-slate'] .login-hero-panel,
+html[data-appearance='graphite-ember'] .login-hero-panel,
+.login-page--split .login-hero-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 3.25rem 3rem;
+  overflow: hidden;
+  color: #f4f7fb;
+}
+
+html[data-appearance='ocean-slate'] .login-hero-glow,
+html[data-appearance='graphite-ember'] .login-hero-glow,
+.login-page--split .login-hero-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+html[data-appearance='ocean-slate'] .login-hero-watermark,
+html[data-appearance='graphite-ember'] .login-hero-watermark,
+.login-page--split .login-hero-watermark {
+  position: absolute;
+  right: -0.4rem;
+  top: 42%;
+  transform: translateY(-50%);
+  font-size: clamp(8rem, 22vw, 14rem);
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+html[data-appearance='ocean-slate'] .login-hero-brand,
+html[data-appearance='graphite-ember'] .login-hero-brand,
+.login-page--split .login-hero-brand {
+  position: relative;
+  z-index: 1;
+  max-width: 34rem;
+}
+
+html[data-appearance='ocean-slate'] .login-hero-logo,
+html[data-appearance='graphite-ember'] .login-hero-logo,
+.login-page--split .login-hero-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.3rem;
+  margin-bottom: 1.15rem;
+}
+
+html[data-appearance='ocean-slate'] .login-hero-title,
+html[data-appearance='graphite-ember'] .login-hero-title,
+.login-page--split .login-hero-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.45rem 0.55rem;
+}
+
+html[data-appearance='ocean-slate'] .login-hero-name,
+html[data-appearance='graphite-ember'] .login-hero-name,
+.login-page--split .login-hero-name {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3.1rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: #ffffff;
+}
+
+html[data-appearance='ocean-slate'] .login-hero-360,
+html[data-appearance='graphite-ember'] .login-hero-360,
+.login-page--split .login-hero-360 {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3.1rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--accent);
+}
+
+html[data-appearance='ocean-slate'] .login-hero-accent,
+html[data-appearance='graphite-ember'] .login-hero-accent,
+.login-page--split .login-hero-accent {
+  width: 3.25rem;
+  height: 4px;
+  margin: 0.85rem 0 0.9rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+html[data-appearance='ocean-slate'] .login-hero-tagline,
+html[data-appearance='graphite-ember'] .login-hero-tagline,
+.login-page--split .login-hero-tagline {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: rgba(244, 247, 251, 0.82);
+  font-weight: 500;
+}
+
+html[data-appearance='ocean-slate'] .login-form-panel,
+html[data-appearance='graphite-ember'] .login-form-panel,
+.login-page--split .login-form-panel {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 2rem 1.5rem;
+  background: #f4f6f8;
+}
+
+html[data-appearance='ocean-slate'] .login-card,
+html[data-appearance='graphite-ember'] .login-card,
+.login-page--split .login-card {
+  width: min(420px, 100%);
+  background: #ffffff;
+  color: #0f1b2d;
+  border: 1px solid rgba(15, 27, 45, 0.08);
+  border-radius: 22px;
+  box-shadow: 0 18px 48px rgba(15, 27, 45, 0.1);
+  padding: 1.75rem 1.6rem 1.45rem;
+}
+
+html[data-appearance='ocean-slate'] .login-card-head h1,
+html[data-appearance='graphite-ember'] .login-card-head h1,
+.login-page--split .login-card-head h1 {
+  color: #0f1b2d;
+  font-size: 1.85rem;
+}
+
+html[data-appearance='ocean-slate'] .login-card-head p,
+html[data-appearance='graphite-ember'] .login-card-head p,
+.login-page--split .login-card-head p {
+  color: #5b6b7c;
+}
+
+html[data-appearance='ocean-slate'] .login-field > span,
+html[data-appearance='graphite-ember'] .login-field > span,
+.login-page--split .login-field > span,
+html[data-appearance='ocean-slate'] .login-remember,
+html[data-appearance='graphite-ember'] .login-remember,
+.login-page--split .login-remember {
+  color: #1a2433;
+}
+
+html[data-appearance='ocean-slate'] .login-input-wrap input,
+html[data-appearance='graphite-ember'] .login-input-wrap input,
+.login-page--split .login-input-wrap input {
+  background: #ffffff;
+  color: #0f1b2d;
+  border-color: #d7dee8;
+}
+
+html[data-appearance='ocean-slate'] .login-input-wrap input:focus,
+html[data-appearance='graphite-ember'] .login-input-wrap input:focus,
+.login-page--split .login-input-wrap input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-color: var(--accent);
+}
+
+html[data-appearance='ocean-slate'] .login-submit:not(.login-submit-secondary),
+html[data-appearance='graphite-ember'] .login-submit:not(.login-submit-secondary),
+.login-page--split .login-submit:not(.login-submit-secondary) {
+  background: var(--login-submit);
+  color: var(--login-submit-fg);
+  border: 0;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+html[data-appearance='ocean-slate'] .login-submit-secondary,
+html[data-appearance='graphite-ember'] .login-submit-secondary,
+.login-page--split .login-submit-secondary {
+  background: #ffffff;
+  color: #1a2433;
+  border: 1px solid #d7dee8;
+}
+
+html[data-appearance='ocean-slate'] .login-text-link,
+html[data-appearance='graphite-ember'] .login-text-link,
+.login-page--split .login-text-link,
+html[data-appearance='ocean-slate'] .login-footer-link a,
+html[data-appearance='graphite-ember'] .login-footer-link a,
+.login-page--split .login-footer-link a {
+  color: var(--brand-dark, var(--accent));
+}
+
+html[data-appearance='ocean-slate'] .login-demo-hint,
+html[data-appearance='graphite-ember'] .login-demo-hint,
+.login-page--split .login-demo-hint {
+  color: #5b6b7c;
+}
+
+html[data-appearance='ocean-slate'] .login-hero-panel::before,
+html[data-appearance='graphite-ember'] .login-hero-panel::before,
+.login-page--split .login-hero-panel::before {
+  content: none;
+  display: none;
+}
+
+/* ---- Ocean Slate: graphite + lime / teal color washes (no imagery) ---- */
+html[data-appearance='ocean-slate'] .login-hero-panel {
+  background: linear-gradient(165deg, #070809 0%, #121418 48%, #0a0c0f 100%);
+}
+
+html[data-appearance='ocean-slate'] .login-hero-glow {
+  background:
+    radial-gradient(ellipse 70% 55% at 12% 8%, rgba(184, 240, 0, 0.28), transparent 58%),
+    radial-gradient(ellipse 65% 50% at 88% 92%, rgba(45, 212, 191, 0.22), transparent 55%),
+    radial-gradient(circle at 40% 45%, rgba(255, 255, 255, 0.03), transparent 42%);
+}
+
+html[data-appearance='ocean-slate'] .login-hero-watermark {
+  color: rgba(255, 255, 255, 0.025);
+}
+
+html[data-appearance='ocean-slate'] .login-hero-360,
+html[data-appearance='ocean-slate'] .login-hero-accent {
+  color: #b8f000;
+  background-color: #b8f000;
+}
+
+html[data-appearance='ocean-slate'] .login-hero-360 {
+  background: none;
+}
+
+html[data-appearance='ocean-slate'] .login-form-panel {
+  background: #f0f4f8;
+}
+
+html[data-appearance='ocean-slate'] .login-text-link,
+html[data-appearance='ocean-slate'] .login-footer-link a {
+  color: #1e7a8f;
+}
+
+/* ---- Graphite Ember: graphite + lime / teal washes (login hero) ---- */
+html[data-appearance='graphite-ember'] .login-hero-panel {
+  background: linear-gradient(165deg, #070809 0%, #121418 48%, #0a0c0f 100%);
+}
+
+html[data-appearance='graphite-ember'] .login-hero-glow {
+  background:
+    radial-gradient(ellipse 70% 55% at 12% 8%, rgba(184, 240, 0, 0.28), transparent 58%),
+    radial-gradient(ellipse 65% 50% at 88% 92%, rgba(45, 212, 191, 0.22), transparent 55%),
+    radial-gradient(circle at 40% 45%, rgba(255, 255, 255, 0.03), transparent 42%);
+}
+
+html[data-appearance='graphite-ember'] .login-hero-watermark {
+  color: rgba(255, 255, 255, 0.025);
+}
+
+html[data-appearance='graphite-ember'] .login-hero-360 {
+  color: #b8f000;
+}
+
+html[data-appearance='graphite-ember'] .login-hero-accent {
+  background: #b8f000;
+}
+
+html[data-appearance='graphite-ember'] .login-form-panel {
+  background: #f4eee8;
+}
+
+html[data-appearance='graphite-ember'] .login-text-link,
+html[data-appearance='graphite-ember'] .login-footer-link a {
+  color: #c44a20;
+}
+
+html[data-appearance='graphite-ember'] .login-submit:not(.login-submit-secondary) {
+  background: #e85d2c;
+  color: #140c08;
+}
+
+@media (max-width: 900px) {
+  html[data-appearance='ocean-slate'] .login-page,
+  html[data-appearance='graphite-ember'] .login-page,
+  .login-page--split {
+    grid-template-columns: 1fr;
+  }
+
+  html[data-appearance='ocean-slate'] .login-hero-panel,
+  html[data-appearance='graphite-ember'] .login-hero-panel,
+  .login-page--split .login-hero-panel {
+    padding: 2.25rem 1.5rem 1.75rem;
+    min-height: auto;
+  }
+
+  html[data-appearance='ocean-slate'] .login-form-panel,
+  html[data-appearance='graphite-ember'] .login-form-panel,
+  .login-page--split .login-form-panel {
+    min-height: auto;
+  }
+}

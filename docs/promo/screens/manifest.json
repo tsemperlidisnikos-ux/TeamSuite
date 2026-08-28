@@ -1,0 +1,359 @@
+[
+  {
+    "id": "00-login",
+    "path": "/login",
+    "title": "Σύνδεση",
+    "desc": "Οθόνη εισόδου με brand panel και φόρμα σύνδεσης.",
+    "role": "public",
+    "file": "00-login.png"
+  },
+  {
+    "id": "00-register",
+    "path": "/register",
+    "title": "Εγγραφή συλλόγου",
+    "desc": "Δημόσια αίτηση νέου συλλόγου (λίστα αναμονής).",
+    "role": "public",
+    "file": "00-register.png"
+  },
+  {
+    "id": "01-dashboard",
+    "path": "/",
+    "title": "Επισκόπηση (Dashboard)",
+    "desc": "KPIs, ταμείο, οφειλές, τμήματα και κατάσταση αθλητών.",
+    "role": "admin",
+    "file": "01-dashboard.png"
+  },
+  {
+    "id": "02-calendar",
+    "path": "/calendar",
+    "title": "Ημερολόγιο",
+    "desc": "Ημερήσια / εβδομαδιαία εικόνα προπονήσεων και αγώνων.",
+    "role": "admin",
+    "file": "02-calendar.png"
+  },
+  {
+    "id": "03-athletes",
+    "path": "/athletes",
+    "title": "Αθλητές",
+    "desc": "Λίστα αθλητών, φίλτρα, αιτήσεις εγγραφής και προφίλ.",
+    "role": "admin",
+    "file": "03-athletes.png"
+  },
+  {
+    "id": "04-staff",
+    "path": "/staff",
+    "title": "Προσωπικό",
+    "desc": "Διαχείριση στελεχών συλλόγου.",
+    "role": "admin",
+    "file": "04-staff.png"
+  },
+  {
+    "id": "05-coaches",
+    "path": "/coaches",
+    "title": "Προπονητές",
+    "desc": "Κατάλογος προπονητών και σύνδεση με τμήματα.",
+    "role": "admin",
+    "file": "05-coaches.png"
+  },
+  {
+    "id": "06-classes",
+    "path": "/classes",
+    "title": "Τμήματα",
+    "desc": "Ομάδες / ηλικιακές κατηγορίες ανά άθλημα.",
+    "role": "admin",
+    "file": "06-classes.png"
+  },
+  {
+    "id": "07-parents",
+    "path": "/parents",
+    "title": "Γονείς",
+    "desc": "Σύνδεση γονέων με αθλητές και λογαριασμοί.",
+    "role": "admin",
+    "file": "07-parents.png"
+  },
+  {
+    "id": "08-trainings",
+    "path": "/trainings",
+    "title": "Προπονήσεις",
+    "desc": "Καταχώρηση και πρόγραμμα προπονήσεων.",
+    "role": "admin",
+    "file": "08-trainings.png"
+  },
+  {
+    "id": "09-matches",
+    "path": "/matches",
+    "title": "Αγώνες",
+    "desc": "Αγώνες, αποτελέσματα και βαθμολογίες.",
+    "role": "admin",
+    "file": "09-matches.png"
+  },
+  {
+    "id": "10-schedule",
+    "path": "/schedule",
+    "title": "Πρόγραμμα",
+    "desc": "Εβδομαδιαίο πρόγραμμα τμημάτων.",
+    "role": "admin",
+    "file": "10-schedule.png"
+  },
+  {
+    "id": "11-attendance",
+    "path": "/attendance",
+    "title": "Παρουσίες",
+    "desc": "Καταγραφή παρουσίας / απουσίας ανά προπόνηση.",
+    "role": "admin",
+    "file": "11-attendance.png"
+  },
+  {
+    "id": "12-associations",
+    "path": "/associations",
+    "title": "Σωματείο",
+    "desc": "Στοιχεία σωματείου και ενώσεις.",
+    "role": "admin",
+    "file": "12-associations.png"
+  },
+  {
+    "id": "13-sports",
+    "path": "/sports",
+    "title": "Άθλημα",
+    "desc": "Ενεργά αθλήματα συλλόγου.",
+    "role": "admin",
+    "file": "13-sports.png"
+  },
+  {
+    "id": "14-announcements",
+    "path": "/announcements",
+    "title": "Ανακοινώσεις",
+    "desc": "Ανακοινώσεις προς γονείς / αθλητές / προπονητές.",
+    "role": "admin",
+    "file": "14-announcements.png"
+  },
+  {
+    "id": "15-prints",
+    "path": "/prints",
+    "title": "Εκτυπώσεις",
+    "desc": "Εκτυπώσιμα έγγραφα και κάρτες.",
+    "role": "admin",
+    "file": "15-prints.png"
+  },
+  {
+    "id": "16-photos",
+    "path": "/photos",
+    "title": "Φωτογραφίες",
+    "desc": "Γκαλερί φωτογραφιών συλλόγου.",
+    "role": "admin",
+    "file": "16-photos.png"
+  },
+  {
+    "id": "17-warehouse",
+    "path": "/warehouse",
+    "title": "Αποθήκη",
+    "desc": "Είδη στολής / εξοπλισμού και κινήσεις.",
+    "role": "admin",
+    "file": "17-warehouse.png"
+  },
+  {
+    "id": "18-fees",
+    "path": "/fees",
+    "title": "Συνδρομές / Πληρωμές",
+    "desc": "Χρεώσεις, οφειλές και online πληρωμές.",
+    "role": "admin",
+    "file": "18-fees.png"
+  },
+  {
+    "id": "19-transactions",
+    "path": "/transactions",
+    "title": "Συναλλαγές",
+    "desc": "Ιστορικό χρεώσεων και εισπράξεων αθλητών.",
+    "role": "admin",
+    "file": "19-transactions.png"
+  },
+  {
+    "id": "20-partners",
+    "path": "/partner-businesses",
+    "title": "Συμβεβλημένες επιχειρήσεις",
+    "desc": "Συνεργαζόμενες επιχειρήσεις συλλόγου.",
+    "role": "admin",
+    "file": "20-partners.png"
+  },
+  {
+    "id": "21-finance",
+    "path": "/finance",
+    "title": "Οικονομικά",
+    "desc": "Έσοδα, έξοδα, ταμεία, προϋπολογισμός και ανάλυση.",
+    "role": "admin",
+    "file": "21-finance.png"
+  },
+  {
+    "id": "22-settings",
+    "path": "/settings",
+    "title": "Ρυθμίσεις",
+    "desc": "Προφίλ συλλόγου, SMTP, Viva, backup, δημόσια εγγραφή.",
+    "role": "admin",
+    "file": "22-settings.png"
+  },
+  {
+    "id": "03b-athlete-profile",
+    "path": "/athletes/demo_ath_f1",
+    "title": "Προφίλ αθλητή",
+    "desc": "Καρτέλες προσωπικών, γονέων, συνδρομών, υγείας και GDPR.",
+    "role": "admin",
+    "file": "03b-athlete-profile.png"
+  },
+  {
+    "id": "21a-finance-analysis",
+    "label": "Ανάλυση",
+    "title": "Οικονομικά — Ανάλυση",
+    "desc": "Σύνολα εσόδων/εξόδων και γραφήματα.",
+    "path": "/finance",
+    "role": "admin",
+    "file": "21a-finance-analysis.png"
+  },
+  {
+    "id": "21b-finance-revenues",
+    "label": "Έσοδα",
+    "title": "Οικονομικά — Έσοδα",
+    "desc": "Καταχώρηση εσόδων ανά κατηγορία.",
+    "path": "/finance",
+    "role": "admin",
+    "file": "21b-finance-revenues.png"
+  },
+  {
+    "id": "21c-finance-expenses",
+    "label": "Έξοδα",
+    "title": "Οικονομικά — Έξοδα",
+    "desc": "Καταχώρηση εξόδων και εξόδων αγώνα.",
+    "path": "/finance",
+    "role": "admin",
+    "file": "21c-finance-expenses.png"
+  },
+  {
+    "id": "21d-finance-accounts",
+    "label": "Ταμεία",
+    "title": "Οικονομικά — Ταμεία",
+    "desc": "Μετρητά / τράπεζα και κλείσιμο μήνα.",
+    "path": "/finance",
+    "role": "admin",
+    "file": "21d-finance-accounts.png"
+  },
+  {
+    "id": "21e-finance-budget",
+    "label": "Προϋπολογισμός",
+    "title": "Οικονομικά — Προϋπολογισμός",
+    "desc": "Προϋπ. vs πραγματικά ανά σεζόν.",
+    "path": "/finance",
+    "role": "admin",
+    "file": "21e-finance-budget.png"
+  },
+  {
+    "id": "21f-finance-reports",
+    "label": "Αναφορές",
+    "title": "Οικονομικά — Αναφορές",
+    "desc": "Προεπισκόπηση, Excel, PDF, εκτύπωση.",
+    "path": "/finance",
+    "role": "admin",
+    "file": "21f-finance-reports.png"
+  },
+  {
+    "id": "22a-settings-club",
+    "label": "Σύλλογος",
+    "title": "Ρυθμίσεις — Σύλλογος",
+    "desc": "Λογότυπο, στοιχεία συλλόγου, SMTP και Viva.",
+    "path": "/settings",
+    "role": "admin",
+    "file": "22a-settings-club.png"
+  },
+  {
+    "id": "22b-settings-users",
+    "label": "Χρήστες",
+    "title": "Ρυθμίσεις — Χρήστες",
+    "desc": "Λογαριασμοί και δικαιώματα καρτελών ανά ρόλο.",
+    "path": "/settings",
+    "role": "admin",
+    "file": "22b-settings-users.png"
+  },
+  {
+    "id": "22c-settings-email",
+    "label": "Email",
+    "title": "Ρυθμίσεις — Email",
+    "desc": "Gmail/SMTP συλλόγου και δοκιμή αποστολής.",
+    "path": "/settings",
+    "role": "admin",
+    "file": "22c-settings-email.png"
+  },
+  {
+    "id": "22d-settings-viva",
+    "label": "Viva",
+    "title": "Ρυθμίσεις — Viva",
+    "desc": "Online πληρωμές Viva Wallet.",
+    "path": "/settings",
+    "role": "admin",
+    "file": "22d-settings-viva.png"
+  },
+  {
+    "id": "22e-settings-register",
+    "label": "Εγγραφή",
+    "title": "Ρυθμίσεις — Δημόσια εγγραφή",
+    "desc": "Φόρμα /join, QR και τύποι αίτησης.",
+    "path": "/settings",
+    "role": "admin",
+    "file": "22e-settings-register.png"
+  },
+  {
+    "id": "22f-settings-gdpr",
+    "label": "GDPR",
+    "title": "Ρυθμίσεις — GDPR",
+    "desc": "DPA, ΑΜΚΑ, DSAR και πολιτική διατήρησης.",
+    "path": "/settings",
+    "role": "admin",
+    "file": "22f-settings-gdpr.png"
+  },
+  {
+    "id": "22g-settings-backup",
+    "label": "Backup",
+    "title": "Ρυθμίσεις — Backup",
+    "desc": "ZIP/JSON, cloud sync και επαναφορά DEMO.",
+    "path": "/settings",
+    "role": "admin",
+    "file": "22g-settings-backup.png"
+  },
+  {
+    "id": "30-parent-overview",
+    "path": "/?tab=overview",
+    "title": "Περιοχή γονέα — Αρχική",
+    "desc": "Tabs: αρχική, πρόγραμμα, πληρωμές, έγγραφα.",
+    "role": "parent",
+    "file": "30-parent-overview.png"
+  },
+  {
+    "id": "31-parent-schedule",
+    "path": "/?tab=schedule",
+    "title": "Περιοχή γονέα — Πρόγραμμα",
+    "desc": "Επόμενες προπονήσεις και λήψη .ics.",
+    "role": "parent",
+    "file": "31-parent-schedule.png"
+  },
+  {
+    "id": "32-parent-payments",
+    "path": "/?tab=payments",
+    "title": "Περιοχή γονέα — Πληρωμές",
+    "desc": "Υπόλοιπα, Viva και ιστορικό πληρωμών.",
+    "role": "parent",
+    "file": "32-parent-payments.png"
+  },
+  {
+    "id": "33-parent-documents",
+    "path": "/?tab=documents",
+    "title": "Περιοχή γονέα — Έγγραφα",
+    "desc": "Ιατρική κάρτα, GDPR και συναίνεση.",
+    "role": "parent",
+    "file": "33-parent-documents.png"
+  },
+  {
+    "id": "40-coach-portal",
+    "path": "/",
+    "title": "Περιοχή προπονητή",
+    "desc": "Προπονήσεις, τμήματα και παρουσίες προπονητή.",
+    "role": "coach",
+    "file": "40-coach-portal.png"
+  }
+]

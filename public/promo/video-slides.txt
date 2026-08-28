@@ -1,0 +1,17 @@
+file 'screens/video-01-dashboard.png'
+duration 3
+file 'screens/video-02-athletes.png'
+duration 3
+file 'screens/video-03-profile.png'
+duration 3
+file 'screens/video-04-schedule.png'
+duration 3
+file 'screens/video-05-attendance.png'
+duration 3
+file 'screens/video-06-fees.png'
+duration 3
+file 'screens/video-07-finance.png'
+duration 3
+file 'screens/video-08-sports.png'
+duration 3
+file 'screens/video-08-sports.png'

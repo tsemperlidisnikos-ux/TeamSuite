@@ -1,0 +1,329 @@
+/* Parents page — mockup layout + readable contrast */
+.parents-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  color: var(--ink);
+}
+
+.parents-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem;
+}
+
+.parents-hero-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.parents-hero-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent, #e0b13a) 22%, transparent);
+  color: var(--accent, #e0b13a);
+  flex-shrink: 0;
+}
+
+.parents-hero h1 {
+  margin: 0;
+  font-size: 1.45rem;
+  color: var(--ink);
+}
+
+.parents-hero p {
+  margin: 0.35rem 0 0;
+  max-width: 42rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.parents-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+}
+
+.parents-search {
+  flex: 1 1 220px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 42px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field-bg, var(--surface));
+  color: var(--ink);
+}
+
+.parents-search svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.parents-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+
+.parents-search input::placeholder {
+  color: color-mix(in srgb, var(--muted) 88%, var(--ink));
+  opacity: 1;
+}
+
+.parents-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 150px;
+}
+
+.parents-filter-field > span {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.parents-filter-field select {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field-bg, var(--surface));
+  color: var(--ink);
+  font: inherit;
+  padding: 0.45rem 0.7rem;
+}
+
+.parents-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  padding: 0 0.85rem;
+  cursor: pointer;
+}
+
+.parents-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.parents-table-wrap {
+  margin: 0;
+}
+
+.parents-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.parents-table th,
+.parents-table td {
+  padding: 0.85rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  color: var(--ink);
+}
+
+.parents-table th {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--bg) 65%, var(--surface));
+}
+
+.parents-table tbody tr:hover td {
+  background: var(--table-row-hover, color-mix(in srgb, var(--accent) 8%, transparent));
+}
+
+.parents-athletes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.parents-muted {
+  color: var(--muted);
+}
+
+.parents-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.parents-status--active {
+  background: rgba(6, 118, 71, 0.16);
+  color: var(--positive, #05603a);
+}
+
+.parents-status--pending {
+  background: rgba(184, 112, 0, 0.16);
+  color: var(--warn, #8a5200);
+}
+
+.parents-status--not_invited {
+  background: rgba(21, 35, 31, 0.1);
+  color: var(--muted, #3d4a57);
+}
+
+.parents-actions {
+  position: relative;
+  white-space: nowrap;
+}
+
+.parents-invite-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent, #e0b13a);
+  color: #0b1f3a;
+  font: inherit;
+  font-weight: 750;
+  font-size: 0.82rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+.parents-invite-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.parents-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.parents-menu-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.parents-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 5;
+  min-width: 160px;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  display: grid;
+}
+
+.parents-menu button {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  font-weight: 650;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.parents-menu button:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.parents-empty {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  color: var(--muted);
+}
+
+.parents-pager {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.parents-pager-btns {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.parents-pager-btns button {
+  min-width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.parents-pager-btns button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.parents-pager-btns button.is-active {
+  background: var(--brand-dark, #0b1f3a);
+  border-color: var(--brand-dark, #0b1f3a);
+  color: #fff;
+}
+
+@media (max-width: 860px) {
+  .parents-filter-field {
+    flex: 1 1 140px;
+  }
+
+  .parents-table th:nth-child(2),
+  .parents-table td:nth-child(2) {
+    display: none;
+  }
+}

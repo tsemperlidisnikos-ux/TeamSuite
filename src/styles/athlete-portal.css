@@ -1,0 +1,268 @@
+/* Athlete portal dashboard */
+.aport {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  color: var(--ink);
+}
+
+.aport-welcome h1 {
+  margin: 0;
+  font-size: clamp(1.25rem, 2vw, 1.55rem);
+  color: var(--ink);
+}
+
+.aport-class {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.aport-profile-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--accent, #c9a227);
+  text-decoration: none;
+}
+
+.aport-profile-link:hover {
+  text-decoration: underline;
+}
+
+.aport-top {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.85fr) minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.aport-balance {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1.1rem 1.15rem;
+  border-radius: 14px;
+  background: var(--accent, #e0b13a);
+  color: #0b1f3a;
+  box-shadow: var(--shadow);
+}
+
+.aport-balance-label {
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.aport-balance-value {
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.aport-balance em,
+.aport-balance-hint {
+  font-style: normal;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
+.aport-balance .btn-primary {
+  background: #0b1f3a;
+  color: #fff;
+  margin-top: 0.35rem;
+}
+
+.aport-history-link {
+  color: #0b1f3a;
+  font-weight: 750;
+  font-size: 0.88rem;
+  text-decoration: none;
+  border: 1px solid rgba(11, 31, 58, 0.25);
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.aport-card {
+  padding: 1rem 1.05rem;
+}
+
+.aport-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.aport-card-head h2 {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+}
+
+.aport-card-head a {
+  color: var(--accent, #c9971a);
+  font-weight: 750;
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+
+.aport-trainings,
+.aport-att-list,
+.aport-ann-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.aport-trainings li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.aport-day-badge {
+  min-width: 64px;
+  padding: 0.35rem 0.4rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 70%, var(--surface));
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.aport-trainings strong {
+  display: block;
+  color: var(--ink);
+}
+
+.aport-trainings span,
+.aport-trainings em {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-style: normal;
+}
+
+.aport-pill {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, #fff);
+  color: var(--ink, #152033);
+  font-size: 0.72rem;
+  font-weight: 750;
+  padding: 0.25rem 0.55rem;
+  white-space: nowrap;
+}
+
+.aport-att-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+
+.aport-att-stats div {
+  padding: 0.55rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 55%, var(--surface));
+  text-align: center;
+}
+
+.aport-att-stats strong {
+  display: block;
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+
+.aport-att-stats span {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.aport-att-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.88rem;
+}
+
+.aport-att-type {
+  color: var(--muted);
+}
+
+.aport-att-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 750;
+  font-size: 0.8rem;
+}
+
+.aport-att-status.is-ok {
+  color: #1f9d63;
+}
+
+.aport-att-status.is-bad {
+  color: #e15b5b;
+}
+
+.aport-ann-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.aport-ann-list i {
+  width: 8px;
+  height: 8px;
+  margin-top: 0.45rem;
+  border-radius: 999px;
+  background: var(--accent, #e0b13a);
+}
+
+.aport-ann-list strong {
+  display: block;
+  color: var(--ink);
+}
+
+.aport-ann-list span {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.aport-ann-list em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .aport-top {
+    grid-template-columns: 1fr;
+  }
+}

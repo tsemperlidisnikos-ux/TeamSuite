@@ -1,0 +1,3023 @@
+/**
+ * Graphite Ember - charcoal shell + ember orange accents.
+ * Applied when html[data-appearance="graphite-ember"].
+ */
+
+html[data-appearance='graphite-ember'] {
+  --chip-bg: rgba(232, 93, 44, 0.14);
+  --ember-ink: #140c08;
+}
+
+/* ---- Typography & density ---- */
+html[data-appearance='graphite-ember'] .page-header h1,
+html[data-appearance='graphite-ember'] .topbar h1,
+html[data-appearance='graphite-ember'] h1 {
+  letter-spacing: -0.02em;
+}
+
+html[data-appearance='graphite-ember'] .page-header p,
+html[data-appearance='graphite-ember'] .lede {
+  color: #d0dae8;
+}
+
+html[data-appearance='graphite-ember'] .eyebrow {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ---- Tables (all modules) ---- */
+html[data-appearance='graphite-ember'] .table-wrap,
+html[data-appearance='graphite-ember'] .panel .table-wrap {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+html[data-appearance='graphite-ember'] .panel .table-wrap.dashboard-preview-scroll {
+  overflow: auto;
+}
+
+html[data-appearance='graphite-ember'] table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+html[data-appearance='graphite-ember'] thead th {
+  background: var(--table-head-bg);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--line);
+  padding: 0.7rem 0.85rem;
+}
+
+html[data-appearance='graphite-ember'] tbody td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.7rem 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-appearance='graphite-ember'] tbody tr:hover {
+  background: var(--table-row-hover);
+}
+
+html[data-appearance='graphite-ember'] tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* ---- Forms / fields ---- */
+html[data-appearance='graphite-ember'] select,
+html[data-appearance='graphite-ember'] .field-input,
+html[data-appearance='graphite-ember'] .field select,
+html[data-appearance='graphite-ember'] input[type='text'],
+html[data-appearance='graphite-ember'] input[type='email'],
+html[data-appearance='graphite-ember'] input[type='number'],
+html[data-appearance='graphite-ember'] input[type='password'],
+html[data-appearance='graphite-ember'] input[type='date'],
+html[data-appearance='graphite-ember'] input[type='time'],
+html[data-appearance='graphite-ember'] input[type='search'],
+html[data-appearance='graphite-ember'] input[type='tel'],
+html[data-appearance='graphite-ember'] input[type='url'],
+html[data-appearance='graphite-ember'] textarea {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field-bg);
+  color: var(--ink);
+}
+
+/* Native dropdown popup: force readable option colors (OS popup is often light). */
+html[data-appearance='graphite-ember'] select option,
+html[data-appearance='graphite-ember'] select optgroup {
+  background: #ffffff;
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .field-input:focus,
+html[data-appearance='graphite-ember'] input:focus,
+html[data-appearance='graphite-ember'] select:focus,
+html[data-appearance='graphite-ember'] textarea:focus {
+  outline: 2px solid rgba(232, 93, 44, 0.35);
+  border-color: var(--accent);
+  background: var(--field-bg);
+  color: var(--ink);
+}
+
+/* Attendance custom select: no nested border from global select rules */
+html[data-appearance='graphite-ember'] .att-select select,
+html[data-appearance='graphite-ember'] .att-select select:focus {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: #f4f7fb !important;
+  padding: 0.7rem 0 !important;
+}
+
+html[data-appearance='graphite-ember'] .att-select--date input[type='date'],
+html[data-appearance='graphite-ember'] .att-select--date input[type='date']:focus {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+html[data-appearance='graphite-ember'] .att-select {
+  background: #16181c;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+html[data-appearance='graphite-ember'] .att-select:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(232, 93, 44, 0.22);
+}
+
+html[data-appearance='graphite-ember'] .field-label,
+html[data-appearance='graphite-ember'] label > span {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* White / light cards: re-scope tokens so labels & fields stay readable */
+html[data-appearance='graphite-ember'] .login-card,
+html[data-appearance='graphite-ember'] .ssr-card,
+html[data-appearance='graphite-ember'] .training-modal,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal),
+html[data-appearance='graphite-ember'] .modal-panel,
+html[data-appearance='graphite-ember'] .modal-card,
+html[data-appearance='graphite-ember'] .ui-modal,
+html[data-appearance='graphite-ember'] .ann-modal,
+html[data-appearance='graphite-ember'] .photos-modal,
+html[data-appearance='graphite-ember'] .public-join-card,
+html[data-appearance='graphite-ember'] .join-form {
+  --ink: #140c08;
+  --muted: #445064;
+  --line: rgba(11, 31, 58, 0.18);
+  --field-bg: #ffffff;
+  --surface: #ffffff;
+  --bg: #eef2f7;
+  --bg-deep: #e2e8f0;
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal {
+  --ink: #f4f7fb;
+  --muted: #b6c3d6;
+  --line: rgba(255, 255, 255, 0.12);
+  --field-bg: #16181c;
+  --surface: #1a1d24;
+  background: #111318;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .modal-header,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .modal-footer {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .modal-header h2,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal #modal-title {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .field-label,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal label > span,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .field > span,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .settings-hint,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .muted,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-month-chip span,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-charge-section h3 {
+  color: #e8eef7 !important;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .settings-hint,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .muted {
+  color: #b6c3d6 !important;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-month-chip {
+  background: #252830 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #f4f7fb !important;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-month-chip span {
+  color: #f4f7fb !important;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-month-chip:has(input:checked),
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-month-chip.is-active {
+  background: rgba(232, 93, 44, 0.22) !important;
+  border-color: var(--accent) !important;
+}
+
+html[data-appearance='graphite-ember'] .login-card label,
+html[data-appearance='graphite-ember'] .login-card label > span,
+html[data-appearance='graphite-ember'] .ssr-card label,
+html[data-appearance='graphite-ember'] .ssr-card label > span,
+html[data-appearance='graphite-ember'] .ssr-card .ssr-label,
+html[data-appearance='graphite-ember'] .ssr-card .ssr-check,
+html[data-appearance='graphite-ember'] .ssr-card .ssr-check span,
+html[data-appearance='graphite-ember'] .ssr-card .ssr-terms,
+html[data-appearance='graphite-ember'] .ssr-card .ssr-terms > span,
+html[data-appearance='graphite-ember'] .ssr-card legend,
+html[data-appearance='graphite-ember'] .ssr-card h2,
+html[data-appearance='graphite-ember'] .training-modal label,
+html[data-appearance='graphite-ember'] .training-modal label > span,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) label,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) label > span,
+html[data-appearance='graphite-ember'] .public-join-card label,
+html[data-appearance='graphite-ember'] .public-join-card label > span,
+html[data-appearance='graphite-ember'] .join-form label,
+html[data-appearance='graphite-ember'] .join-form label > span {
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .ssr-card .ssr-terms {
+  color: #445064;
+}
+
+html[data-appearance='graphite-ember'] .ssr-card .ssr-secure {
+  color: #8b95a7;
+}
+
+html[data-appearance='graphite-ember'] .ssr-card .ssr-link {
+  color: #c44a20;
+}
+
+html[data-appearance='graphite-ember'] .login-card input,
+html[data-appearance='graphite-ember'] .login-card select,
+html[data-appearance='graphite-ember'] .login-card textarea,
+html[data-appearance='graphite-ember'] .ssr-card input,
+html[data-appearance='graphite-ember'] .ssr-card select,
+html[data-appearance='graphite-ember'] .ssr-card textarea,
+html[data-appearance='graphite-ember'] .training-modal input,
+html[data-appearance='graphite-ember'] .training-modal select,
+html[data-appearance='graphite-ember'] .training-modal textarea,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) input,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) select,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) textarea,
+html[data-appearance='graphite-ember'] .photos-modal input,
+html[data-appearance='graphite-ember'] .photos-modal select,
+html[data-appearance='graphite-ember'] .photos-modal textarea,
+html[data-appearance='graphite-ember'] .public-join-card input,
+html[data-appearance='graphite-ember'] .public-join-card select,
+html[data-appearance='graphite-ember'] .public-join-card textarea,
+html[data-appearance='graphite-ember'] .join-form input,
+html[data-appearance='graphite-ember'] .join-form select,
+html[data-appearance='graphite-ember'] .join-form textarea {
+  background: #ffffff;
+  color: #140c08;
+  border-color: #d7dee8;
+}
+
+html[data-appearance='graphite-ember'] .login-card input:focus,
+html[data-appearance='graphite-ember'] .login-card select:focus,
+html[data-appearance='graphite-ember'] .login-card textarea:focus,
+html[data-appearance='graphite-ember'] .ssr-card input:focus,
+html[data-appearance='graphite-ember'] .ssr-card select:focus,
+html[data-appearance='graphite-ember'] .ssr-card textarea:focus,
+html[data-appearance='graphite-ember'] .training-modal input:focus,
+html[data-appearance='graphite-ember'] .training-modal select:focus,
+html[data-appearance='graphite-ember'] .training-modal textarea:focus,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) input:focus,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) select:focus,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) textarea:focus,
+html[data-appearance='graphite-ember'] .public-join-card input:focus,
+html[data-appearance='graphite-ember'] .public-join-card select:focus,
+html[data-appearance='graphite-ember'] .public-join-card textarea:focus,
+html[data-appearance='graphite-ember'] .join-form input:focus,
+html[data-appearance='graphite-ember'] .join-form select:focus,
+html[data-appearance='graphite-ember'] .join-form textarea:focus {
+  background: #ffffff;
+  color: #140c08;
+  border-color: var(--accent);
+}
+
+/* ---- Buttons & links ---- */
+html[data-appearance='graphite-ember'] .btn-primary,
+html[data-appearance='graphite-ember'] .login-submit:not(.login-submit-secondary) {
+  background: var(--accent);
+  color: var(--ember-ink);
+  box-shadow: none;
+  font-weight: 800;
+}
+
+html[data-appearance='graphite-ember'] .btn-primary:hover {
+  filter: brightness(0.96);
+}
+
+html[data-appearance='graphite-ember'] .btn-secondary {
+  background: #140c08;
+  color: #f4f7fb;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+html[data-appearance='graphite-ember'] .btn-secondary:hover {
+  background: #1a1d24;
+  color: #ffffff;
+}
+
+html[data-appearance='graphite-ember'] .panel,
+html[data-appearance='graphite-ember'] .stat-card,
+html[data-appearance='graphite-ember'] .entity-card {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .login-form-panel,
+html[data-appearance='graphite-ember'] .login-page--navy .login-form-panel {
+  background: #f7f8fa;
+}
+
+html[data-appearance='graphite-ember'] .login-card,
+html[data-appearance='graphite-ember'] .login-page--navy .login-card {
+  background: #fff;
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .login-card-head h1,
+html[data-appearance='graphite-ember'] .login-field > span,
+html[data-appearance='graphite-ember'] .login-remember {
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .login-card-head p,
+html[data-appearance='graphite-ember'] .login-demo-hint {
+  color: #5b6b7c;
+}
+
+html[data-appearance='graphite-ember'] .tx-panel,
+html[data-appearance='graphite-ember'] .tx-table-wrap,
+html[data-appearance='graphite-ember'] .tx-form {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .tx-table th {
+  background: var(--table-head-bg);
+  color: var(--muted);
+}
+
+html[data-appearance='graphite-ember'] .badge {
+  border: 1px solid transparent;
+}
+
+html[data-appearance='graphite-ember'] .text-link,
+html[data-appearance='graphite-ember'] a.text-link {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+/* Light surfaces keep ember links */
+html[data-appearance='graphite-ember'] .login-card .text-link,
+html[data-appearance='graphite-ember'] .ssr-card .text-link,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) .text-link,
+html[data-appearance='graphite-ember'] .public-join-card .text-link,
+html[data-appearance='graphite-ember'] .join-form .text-link {
+  color: #e85d2c;
+}
+
+html[data-appearance='graphite-ember'] .login-submit {
+  background: var(--accent);
+  color: var(--ember-ink);
+}
+
+/* ---- Badges / chips ---- */
+html[data-appearance='graphite-ember'] .badge {
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+html[data-appearance='graphite-ember'] .badge-active,
+html[data-appearance='graphite-ember'] .badge-paid {
+  background: rgba(6, 118, 71, 0.12);
+  color: var(--positive);
+}
+
+html[data-appearance='graphite-ember'] .badge-overdue,
+html[data-appearance='graphite-ember'] .badge-inactive {
+  background: rgba(180, 35, 24, 0.1);
+  color: var(--danger);
+}
+
+html[data-appearance='graphite-ember'] .badge-pending,
+html[data-appearance='graphite-ember'] .badge-trial {
+  background: rgba(232, 93, 44, 0.22);
+  color: #ffc4a8;
+}
+
+/* ---- Panels / cards / toolbar ---- */
+html[data-appearance='graphite-ember'] .panel-head h2,
+html[data-appearance='graphite-ember'] .dashboard-sport-title {
+  font-size: 1.05rem;
+  font-weight: 750;
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .toolbar,
+html[data-appearance='graphite-ember'] .filters {
+  gap: 0.65rem;
+}
+
+html[data-appearance='graphite-ember'] .stats-grid .stat-card {
+  border-left: 3px solid var(--brand);
+}
+
+html[data-appearance='graphite-ember'] .stats-grid .stat-card.tone-positive,
+html[data-appearance='graphite-ember'] .tone-positive.stat-card {
+  border-left-color: var(--positive);
+}
+
+html[data-appearance='graphite-ember'] .money-strip-item {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+html[data-appearance='graphite-ember'] .money-strip-item:first-child {
+  border-top: 3px solid var(--brand);
+}
+
+html[data-appearance='graphite-ember'] .money-strip-item.is-accent {
+  border-top: 3px solid var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .money-strip-item.is-warn {
+  border-top: 3px solid var(--danger);
+}
+
+html[data-appearance='graphite-ember'] .feed-list li {
+  border-color: var(--line);
+}
+
+html[data-appearance='graphite-ember'] .quick-links a {
+  color: var(--amber-ink, #140c08);
+  font-weight: 800;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  background: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .quick-links a:hover {
+  color: var(--amber-ink, #140c08);
+  filter: brightness(1.06);
+}
+
+/* ---- Modal ---- */
+html[data-appearance='graphite-ember'] .modal,
+html[data-appearance='graphite-ember'] .modal-card,
+html[data-appearance='graphite-ember'] [class*='modal'] .panel {
+  border-radius: var(--radius);
+  border-color: var(--line);
+}
+
+/* ---- Finance module ---- */
+html[data-appearance='graphite-ember'] .finance-page,
+html[data-appearance='graphite-ember'] .finance-shell,
+html[data-appearance='graphite-ember'] .scf-page {
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .finance-tabs button,
+html[data-appearance='graphite-ember'] .tabs button,
+html[data-appearance='graphite-ember'] .segmented button {
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+html[data-appearance='graphite-ember'] .finance-tabs button.active,
+html[data-appearance='graphite-ember'] .tabs button.active,
+html[data-appearance='graphite-ember'] .segmented button.active {
+  background: var(--brand);
+  color: #fff;
+}
+
+html[data-appearance='graphite-ember'] .fi-card,
+html[data-appearance='graphite-ember'] .finance-summary-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+/* ---- Athlete profile ---- */
+html[data-appearance='graphite-ember'] .athlete-profile-page {
+  --ap-header: #140c08;
+  --ap-header-end: #2a1812;
+  --ap-field-border: #d7dee8;
+  --ap-soft: #eef2f7;
+}
+
+html[data-appearance='graphite-ember'] .athlete-profile-page .ap-header,
+html[data-appearance='graphite-ember'] .ap-header {
+  background: linear-gradient(90deg, var(--ap-header), var(--ap-header-end));
+}
+
+/* ---- Portals (parent / coach / athlete) ---- */
+html[data-appearance='graphite-ember'] .parent-portal .panel {
+  border-radius: 8px;
+}
+
+html[data-appearance='graphite-ember'] .parent-portal-section h2 {
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+
+html[data-appearance='graphite-ember'] .parent-portal-list li {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+/* ---- Platform admin & platform pages ---- */
+html[data-appearance='graphite-ember'] .platform-page,
+html[data-appearance='graphite-ember'] .platform-admin-page {
+  background: transparent;
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .platform-topbar,
+html[data-appearance='graphite-ember'] .platform-admin-header {
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .platform-topbar {
+  background: linear-gradient(90deg, var(--chrome-1), var(--chrome-2));
+  color: var(--chrome-fg);
+  border-radius: 0;
+  padding: 0.85rem 1.25rem;
+}
+
+html[data-appearance='graphite-ember'] .platform-brand strong,
+html[data-appearance='graphite-ember'] .platform-topbar strong {
+  color: var(--chrome-fg);
+}
+
+html[data-appearance='graphite-ember'] .platform-logout {
+  background: rgba(180, 35, 24, 0.9);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-banner,
+html[data-appearance='graphite-ember'] .platform-flash-ok {
+  background: rgba(232, 93, 44, 0.16);
+  color: #f4f7fb;
+  border: 1px solid rgba(232, 93, 44, 0.35);
+}
+
+html[data-appearance='graphite-ember'] .admin-section-label {
+  color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-header h1 {
+  font-family: var(--font-display);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-header .lede,
+html[data-appearance='graphite-ember'] .platform-admin-user {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .platform-packages-btn,
+html[data-appearance='graphite-ember'] .platform-admin-page .btn-primary {
+  background: var(--accent);
+  color: var(--ember-ink);
+  border: 0;
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-page .btn-secondary {
+  background: #252830;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #f4f7fb;
+}
+
+/* Admin board: full dark navy (no light title column) */
+html[data-appearance='graphite-ember'] .admin-board {
+  background: #1a1d24;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .admin-board-header {
+  background: #140c08;
+  color: #e8eef7;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+html[data-appearance='graphite-ember'] .admin-board-header > div,
+html[data-appearance='graphite-ember'] .admin-board-title,
+html[data-appearance='graphite-ember'] .admin-board-entry,
+html[data-appearance='graphite-ember'] .admin-board-records {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html[data-appearance='graphite-ember'] .admin-board-row {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #1a1d24;
+}
+
+html[data-appearance='graphite-ember'] .admin-board-title {
+  background: #16181c;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .admin-board-title h3 {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .admin-board-title p {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .admin-zone,
+html[data-appearance='graphite-ember'] .admin-workspace-tabs {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .admin-zone-title,
+html[data-appearance='graphite-ember'] .admin-workspace-tab.is-active {
+  background: #140c08;
+  color: #e8eef7;
+}
+
+html[data-appearance='graphite-ember'] .admin-workspace-tab {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .admin-zone-card,
+html[data-appearance='graphite-ember'] .admin-zone-card-status {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #1a1d24;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .admin-zone-card-head {
+  background: #16181c;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .admin-zone-card-head h3 {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .admin-zone-card-head p {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .admin-board-entry,
+html[data-appearance='graphite-ember'] .admin-board-records {
+  background: #1a1d24;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .admin-entry,
+html[data-appearance='graphite-ember'] .admin-entry .field,
+html[data-appearance='graphite-ember'] .admin-entry-note,
+html[data-appearance='graphite-ember'] .admin-check,
+html[data-appearance='graphite-ember'] .admin-check span,
+html[data-appearance='graphite-ember'] .admin-record-line {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .admin-entry .field span,
+html[data-appearance='graphite-ember'] .admin-entry-note {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .admin-entry input,
+html[data-appearance='graphite-ember'] .admin-entry select,
+html[data-appearance='graphite-ember'] .admin-entry textarea,
+html[data-appearance='graphite-ember'] .admin-record-input,
+html[data-appearance='graphite-ember'] .platform-admin-page .entry-form input,
+html[data-appearance='graphite-ember'] .platform-admin-page .entry-form select,
+html[data-appearance='graphite-ember'] .platform-admin-page .entry-form textarea {
+  background: #16181c;
+  color: #f4f7fb;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+html[data-appearance='graphite-ember'] .admin-entry input::placeholder,
+html[data-appearance='graphite-ember'] .platform-admin-page .entry-form input::placeholder {
+  color: #c5d0e0;
+  opacity: 1;
+}
+
+html[data-appearance='graphite-ember'] .admin-entry input:focus,
+html[data-appearance='graphite-ember'] .admin-entry select:focus,
+html[data-appearance='graphite-ember'] .admin-entry textarea:focus,
+html[data-appearance='graphite-ember'] .admin-record-input:focus {
+  background: #16181c;
+  color: #f4f7fb;
+  border-color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .admin-entry option,
+html[data-appearance='graphite-ember'] .platform-admin-page option {
+  background: #1a1d24;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-page .ta-table {
+  background: #16181c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .login-activity-scroll {
+  background: #16181c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+html[data-appearance='graphite-ember'] .login-activity-scroll thead th {
+  background: #1a1d24;
+  color: #f4f7fb;
+  border-bottom-color: rgba(244, 247, 251, 0.16);
+}
+
+html[data-appearance='graphite-ember'] .login-activity-scroll tbody td {
+  color: #f4f7fb;
+  border-bottom-color: rgba(244, 247, 251, 0.1);
+}
+
+html[data-appearance='graphite-ember'] .login-activity-email {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .club-waitlist-created {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-page .ta-header {
+  background: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-page .ta-header .ta-title,
+html[data-appearance='graphite-ember'] .platform-admin-page .ta-header .ta-analysis {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-page .ta-title {
+  background: #252830;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-page .ta-analysis {
+  background: #16181c;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-page .ta-row {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-page a,
+html[data-appearance='graphite-ember'] .platform-admin-page .text-link,
+html[data-appearance='graphite-ember'] .platform-admin-page .btn-ghost {
+  color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-page .btn-danger,
+html[data-appearance='graphite-ember'] .platform-admin-page .btn-red {
+  color: #fca5a5;
+}
+
+html[data-appearance='graphite-ember'] .preview-banner {
+  background: #140c08;
+  color: #f4f7fb;
+  border-bottom: 1px solid rgba(232, 93, 44, 0.35);
+}
+
+html[data-appearance='graphite-ember'] .appearance-theme-option {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .appearance-theme-option strong {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .appearance-theme-option span {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .appearance-theme-option.is-selected {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgba(232, 93, 44, 0.45);
+  background: rgba(232, 93, 44, 0.12);
+}
+
+html[data-appearance='graphite-ember'] .admin-role-tabs button {
+  background: #16181c;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .admin-role-tabs button.active,
+html[data-appearance='graphite-ember'] .admin-role-tabs button[aria-pressed='true'] {
+  background: var(--accent);
+  color: #140c08;
+  border-color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .diag-card {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .diag-cat,
+html[data-appearance='graphite-ember'] .diag-detail,
+html[data-appearance='graphite-ember'] .diag-fix {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .diag-sev--critical {
+  background: rgba(240, 113, 103, 0.18);
+  color: #ff8f8f;
+}
+
+html[data-appearance='graphite-ember'] .diag-sev--warning {
+  background: rgba(232, 93, 44, 0.2);
+  color: #ffc4a8;
+}
+
+html[data-appearance='graphite-ember'] .diag-sev--info {
+  background: rgba(99, 120, 220, 0.2);
+  color: #b8c4ff;
+}
+
+html[data-appearance='graphite-ember'] .diag-sev--ok {
+  background: rgba(61, 207, 142, 0.16);
+  color: #7dffc0;
+}
+
+html[data-appearance='graphite-ember'] .platform-diagnostic .diag-progress {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+html[data-appearance='graphite-ember'] .platform-diagnostic .diag-progress-bar {
+  background: var(--accent);
+}
+
+/* ---- Pricing / packages ---- */
+html[data-appearance='graphite-ember'] .pricing-plans-grid {
+  background: var(--bg-deep);
+}
+
+html[data-appearance='graphite-ember'] .pricing-plan-card {
+  border-radius: 10px;
+  box-shadow: none;
+  border-color: var(--line);
+}
+
+html[data-appearance='graphite-ember'] .pricing-plan-card.is-popular {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .pricing-plan-badge {
+  background: var(--accent);
+  color: var(--ember-ink);
+}
+
+html[data-appearance='graphite-ember'] .pricing-plan-cta {
+  background: var(--accent);
+  color: var(--ember-ink);
+  border-radius: 8px;
+}
+
+html[data-appearance='graphite-ember'] .pricing-plan-cta:hover {
+  filter: brightness(0.96);
+}
+
+html[data-appearance='graphite-ember'] .pricing-plan-check {
+  color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .pricing-plan-name-input,
+html[data-appearance='graphite-ember'] .pricing-plan-price-display,
+html[data-appearance='graphite-ember'] .pricing-plan-currency {
+  color: var(--ink);
+}
+
+/* ---- Announcements / photos / warehouse / prints ---- */
+html[data-appearance='graphite-ember'] .announcement-card,
+html[data-appearance='graphite-ember'] .photo-card,
+html[data-appearance='graphite-ember'] .print-tile,
+html[data-appearance='graphite-ember'] .prints-grid > *,
+html[data-appearance='graphite-ember'] .entity-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: none;
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .ann-field input,
+html[data-appearance='graphite-ember'] .ann-field textarea,
+html[data-appearance='graphite-ember'] .ann-field select,
+html[data-appearance='graphite-ember'] .ann-form--compose .ann-field input,
+html[data-appearance='graphite-ember'] .ann-form--compose .ann-field select,
+html[data-appearance='graphite-ember'] .ann-form--compose .ann-field textarea {
+  background: var(--field-bg);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-appearance='graphite-ember'] .ann-editor,
+html[data-appearance='graphite-ember'] .ann-editor-toolbar {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .ann-label,
+html[data-appearance='graphite-ember'] .ann-field > span,
+html[data-appearance='graphite-ember'] .announcements-page h2,
+html[data-appearance='graphite-ember'] .announcements-page .page-header h1 {
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .ann-page-head h1,
+html[data-appearance='graphite-ember'] .ann-compose h2,
+html[data-appearance='graphite-ember'] .ann-list-head h2,
+html[data-appearance='graphite-ember'] .ann-audience-btn,
+html[data-appearance='graphite-ember'] .ann-priority-btn,
+html[data-appearance='graphite-ember'] .ann-draft-btn,
+html[data-appearance='graphite-ember'] .ann-table td,
+html[data-appearance='graphite-ember'] .ann-title-cell strong {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .ann-page-head p,
+html[data-appearance='graphite-ember'] .ann-hint,
+html[data-appearance='graphite-ember'] .ann-title-cell span,
+html[data-appearance='graphite-ember'] .ann-table th,
+html[data-appearance='graphite-ember'] .ann-pager,
+html[data-appearance='graphite-ember'] .ann-empty {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .ann-compose,
+html[data-appearance='graphite-ember'] .ann-list {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-appearance='graphite-ember'] .ann-field input,
+html[data-appearance='graphite-ember'] .ann-field textarea,
+html[data-appearance='graphite-ember'] .ann-field select,
+html[data-appearance='graphite-ember'] .ann-schedule-datetime,
+html[data-appearance='graphite-ember'] .ann-schedule-select,
+html[data-appearance='graphite-ember'] .ann-list-filters select,
+html[data-appearance='graphite-ember'] .ann-search,
+html[data-appearance='graphite-ember'] .ann-audience-btn,
+html[data-appearance='graphite-ember'] .ann-priority-btn,
+html[data-appearance='graphite-ember'] .ann-menu-btn,
+html[data-appearance='graphite-ember'] .ann-pager-btns button {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .ann-field input::placeholder,
+html[data-appearance='graphite-ember'] .ann-message-textarea::placeholder,
+html[data-appearance='graphite-ember'] .ann-search input::placeholder {
+  color: #9aa8bc;
+  opacity: 1;
+}
+
+html[data-appearance='graphite-ember'] .ann-editor,
+html[data-appearance='graphite-ember'] .ann-editor-toolbar {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .ann-editor-toolbar {
+  background: #252830;
+}
+
+html[data-appearance='graphite-ember'] .ann-editor-toolbar button {
+  color: #e8eef7;
+}
+
+html[data-appearance='graphite-ember'] .ann-audience-btn.is-active,
+html[data-appearance='graphite-ember'] .ann-priority-btn.is-active {
+  border-color: var(--accent);
+  background: rgba(232, 93, 44, 0.16);
+}
+
+html[data-appearance='graphite-ember'] .ann-table th {
+  background: #22252c;
+}
+
+html[data-appearance='graphite-ember'] .ann-role-pill.is-parents {
+  background: #3b6fd9;
+  color: #fff;
+}
+
+html[data-appearance='graphite-ember'] .ann-role-pill.is-athletes {
+  background: #1f9d63;
+  color: #fff;
+}
+
+html[data-appearance='graphite-ember'] .ann-role-pill.is-coaches {
+  background: #7a4fd4;
+  color: #fff;
+}
+
+html[data-appearance='graphite-ember'] .ann-role-pill.is-classes {
+  background: var(--accent);
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .ann-audience-picker {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-appearance='graphite-ember'] .ann-audience-search,
+html[data-appearance='graphite-ember'] .ann-pick-row {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .ann-audience-search {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+html[data-appearance='graphite-ember'] .ann-pick-row em,
+html[data-appearance='graphite-ember'] .ann-audience-btn-label em {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .ann-audience-btn.is-active .ann-audience-btn-label em {
+  color: #ffc4a8;
+}
+
+html[data-appearance='graphite-ember'] .ann-menu {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-appearance='graphite-ember'] .ann-menu button {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .ann-pager-btns button.is-active {
+  background: #e85d2c;
+  border-color: #e85d2c;
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .ann-priority-label.is-normal {
+  color: #f0d078;
+}
+
+html[data-appearance='graphite-ember'] .ann-priority-label.is-high {
+  color: #f0a86a;
+}
+
+html[data-appearance='graphite-ember'] .ann-priority-label.is-urgent {
+  color: #ff8f8f;
+}
+
+html[data-appearance='graphite-ember'] .ann-priority-label.is-low {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .ann-priority-btn.is-low {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .ann-priority-btn.is-normal {
+  color: #ffc4a8;
+}
+
+html[data-appearance='graphite-ember'] .ann-priority-btn.is-high {
+  color: #f0a86a;
+}
+
+html[data-appearance='graphite-ember'] .ann-priority-btn.is-urgent {
+  color: #ff8f8f;
+}
+
+html[data-appearance='graphite-ember'] .print-tile:hover,
+html[data-appearance='graphite-ember'] .entity-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+
+/* ---- Calendar / schedule ---- */
+html[data-appearance='graphite-ember'] .schedule-day,
+html[data-appearance='graphite-ember'] .cal-cell,
+html[data-appearance='graphite-ember'] .calendar-cell {
+  border-radius: 8px;
+}
+
+html[data-appearance='graphite-ember'] .cal-event,
+html[data-appearance='graphite-ember'] .calendar-event,
+html[data-appearance='graphite-ember'] .schedule-slot {
+  background: rgba(232, 93, 44, 0.12);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .cal-main,
+html[data-appearance='graphite-ember'] .cal-sidebar,
+html[data-appearance='graphite-ember'] .cal-mini,
+html[data-appearance='graphite-ember'] .cal-side-block {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .cal-weekday,
+html[data-appearance='graphite-ember'] .cal-more,
+html[data-appearance='graphite-ember'] .cal-mini-weekdays span {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .cal-cell.is-out,
+html[data-appearance='graphite-ember'] .cal-mini-day.is-out {
+  color: #6b7c90;
+}
+
+html[data-appearance='graphite-ember'] .cal-view-toggle button.is-active,
+html[data-appearance='graphite-ember'] .cal-today-btn,
+html[data-appearance='graphite-ember'] .cal-new-btn,
+html[data-appearance='graphite-ember'] a.cal-new-btn:link,
+html[data-appearance='graphite-ember'] a.cal-new-btn:visited,
+html[data-appearance='graphite-ember'] a.cal-new-btn:hover {
+  background: var(--accent);
+  color: #140c08;
+  border-color: var(--accent);
+}
+
+/* ---- Register / public join ---- */
+html[data-appearance='graphite-ember'] .register-page,
+html[data-appearance='graphite-ember'] .public-join-page,
+html[data-appearance='graphite-ember'] .join-page {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .register-page .login-card,
+html[data-appearance='graphite-ember'] .public-join-page .login-card,
+html[data-appearance='graphite-ember'] .join-form,
+html[data-appearance='graphite-ember'] .public-join-card {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  background: var(--surface);
+}
+
+html[data-appearance='graphite-ember'] .public-join-hero,
+html[data-appearance='graphite-ember'] .join-hero {
+  background: #64748b;
+  color: #fff;
+}
+
+html[data-appearance='graphite-ember'] .public-join-hero-copy {
+  background: #64748b;
+}
+
+html[data-appearance='graphite-ember'] .public-join-hero-img {
+  background: #556070;
+}
+
+html[data-appearance='graphite-ember'] .public-join-hero-fallback {
+  background: linear-gradient(135deg, #7b8798, #556070);
+  color: #fff;
+}
+
+html[data-appearance='graphite-ember'] .public-join-hero h1,
+html[data-appearance='graphite-ember'] .public-join-hero-copy h1,
+html[data-appearance='graphite-ember'] .public-join-hero-copy,
+html[data-appearance='graphite-ember'] .public-join-eyebrow,
+html[data-appearance='graphite-ember'] .public-join-hero-copy .muted {
+  color: #fff;
+  text-align: center;
+}
+
+/* ---- Settings ---- */
+html[data-appearance='graphite-ember'] .settings-tabs button.active,
+html[data-appearance='graphite-ember'] .settings-nav button.active {
+  background: var(--brand);
+  color: #fff;
+}
+
+html[data-appearance='graphite-ember'] .settings-logo-preview {
+  border-color: var(--line);
+  background: var(--bg);
+}
+
+html[data-appearance='graphite-ember'] .set-page-head h1,
+html[data-appearance='graphite-ember'] .set-card h2,
+html[data-appearance='graphite-ember'] .set-field > span,
+html[data-appearance='graphite-ember'] .set-tabs > button.is-active,
+html[data-appearance='graphite-ember'] .set-embed-head h2 {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .set-tabs > button,
+html[data-appearance='graphite-ember'] .set-tabs-more > button,
+html[data-appearance='graphite-ember'] .set-card-lede {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .set-tabs {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-appearance='graphite-ember'] .set-tabs > button.is-active,
+html[data-appearance='graphite-ember'] .set-tabs-more > button.is-active {
+  color: #f4f7fb;
+  border-bottom-color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .set-card {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-appearance='graphite-ember'] .set-logo-drop {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .set-logo-drop span {
+  color: #9aa8bc;
+}
+
+html[data-appearance='graphite-ember'] .set-field input,
+html[data-appearance='graphite-ember'] .set-field select {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .set-eye {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .set-test-btn {
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .set-test-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .set-save-bar .btn-primary {
+  background: var(--accent);
+  color: #140c08;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+/* Partners + Staff */
+html[data-appearance='graphite-ember'] .pb-head h1,
+html[data-appearance='graphite-ember'] .pb-card-meta strong,
+html[data-appearance='graphite-ember'] .pb-offer strong,
+html[data-appearance='graphite-ember'] .stf-head h1,
+html[data-appearance='graphite-ember'] .stf-table td,
+html[data-appearance='graphite-ember'] .stf-name-cell strong {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .pb-head p,
+html[data-appearance='graphite-ember'] .pb-tabs button,
+html[data-appearance='graphite-ember'] .pb-cat,
+html[data-appearance='graphite-ember'] .pb-addr,
+html[data-appearance='graphite-ember'] .pb-offer span,
+html[data-appearance='graphite-ember'] .pb-pager,
+html[data-appearance='graphite-ember'] .stf-head p,
+html[data-appearance='graphite-ember'] .stf-table th,
+html[data-appearance='graphite-ember'] .stf-muted,
+html[data-appearance='graphite-ember'] .stf-pager {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .pb-tabs button.is-active {
+  color: #f4f7fb;
+  border-bottom-color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .pb-card,
+html[data-appearance='graphite-ember'] .stf-toolbar,
+html[data-appearance='graphite-ember'] .stf-table-card {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-appearance='graphite-ember'] .pb-category,
+html[data-appearance='graphite-ember'] .pb-pager-btns button,
+html[data-appearance='graphite-ember'] .stf-search,
+html[data-appearance='graphite-ember'] .stf-toolbar select,
+html[data-appearance='graphite-ember'] .stf-export,
+html[data-appearance='graphite-ember'] .stf-page-size select,
+html[data-appearance='graphite-ember'] .stf-pager-btns button {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .pb-logo {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .pb-offer {
+  background: rgba(232, 93, 44, 0.16);
+}
+
+html[data-appearance='graphite-ember'] .pb-link {
+  color: #f0d078;
+}
+
+html[data-appearance='graphite-ember'] .stf-table th {
+  background: #22252c;
+}
+
+html[data-appearance='graphite-ember'] .stf-head-icon {
+  background: rgba(232, 93, 44, 0.2);
+  color: #f0d078;
+}
+
+html[data-appearance='graphite-ember'] .stf-avatar {
+  background: rgba(232, 93, 44, 0.18);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .stf-role.is-coach {
+  border-color: var(--accent);
+  color: #f0d078;
+}
+
+html[data-appearance='graphite-ember'] .stf-role.is-admin {
+  border-color: #6b93f5;
+  color: #9bb6ff;
+}
+
+html[data-appearance='graphite-ember'] .stf-role.is-secretariat {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .stf-status.is-active {
+  background: rgba(61, 207, 142, 0.16);
+  color: #7dffc0;
+  border-color: rgba(61, 207, 142, 0.4);
+}
+
+html[data-appearance='graphite-ember'] .stf-status.is-inactive {
+  background: rgba(255, 255, 255, 0.08);
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .pb-pager-btns button.is-active,
+html[data-appearance='graphite-ember'] .stf-pager-btns button.is-active {
+  background: #e85d2c;
+  border-color: #e85d2c;
+  color: #140c08;
+}
+
+/* ---- Misc chrome leftovers ---- */
+html[data-appearance='graphite-ember'] .brand-mark {
+  background: linear-gradient(135deg, var(--accent), #ff7a45);
+  color: var(--ember-ink);
+  border-radius: 10px;
+}
+
+html[data-appearance='graphite-ember'] .mobile-nav,
+html[data-appearance='graphite-ember'] .sidebar-backdrop {
+  background: rgba(11, 12, 14, 0.45);
+}
+
+html[data-appearance='graphite-ember'] .form-error {
+  color: var(--danger);
+}
+
+html[data-appearance='graphite-ember'] .settings-success,
+html[data-appearance='graphite-ember'] .platform-flash.platform-flash-ok {
+  background: rgba(6, 118, 71, 0.1);
+  color: var(--positive);
+  border-radius: 8px;
+}
+
+/* Dense page rhythm */
+html[data-appearance='graphite-ember'] .stack-lg {
+  gap: 1rem;
+}
+
+html[data-appearance='graphite-ember'] .grid-2,
+html[data-appearance='graphite-ember'] .stats-grid {
+  gap: 0.85rem;
+}
+
+html[data-appearance='graphite-ember'] .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+html[data-appearance='graphite-ember'] .page-header h1 {
+  margin: 0;
+  font-size: 1.45rem;
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .page-header p {
+  margin: 0.3rem 0 0;
+}
+
+html[data-appearance='graphite-ember'] .page-header-actions .btn-primary {
+  background: var(--accent);
+  color: var(--ember-ink);
+}
+
+html[data-appearance='graphite-ember'] .login-page--navy .login-card-wide,
+html[data-appearance='graphite-ember'] .login-card-wide {
+  width: min(520px, 100%);
+}
+
+/* Platform users / packages pages that use .platform-page */
+html[data-appearance='graphite-ember'] .platform-header h1 {
+  font-family: var(--font-display);
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .platform-packages-btn {
+  background: var(--accent) !important;
+  color: var(--ember-ink) !important;
+  border: 0 !important;
+  border-radius: 8px;
+}
+
+html[data-appearance='graphite-ember'] .packages-save,
+html[data-appearance='graphite-ember'] .login-submit.packages-save {
+  background: var(--accent);
+  color: var(--ember-ink);
+  border-radius: 8px;
+}
+
+/* Transactions - amber primary actions */
+html[data-appearance='graphite-ember'] .tx-save-btn {
+  background: var(--accent);
+  color: var(--ember-ink);
+  border-radius: 8px;
+}
+
+html[data-appearance='graphite-ember'] .tx-save-btn:hover:not(:disabled) {
+  filter: brightness(0.96);
+  background: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .tx-cancel-btn,
+html[data-appearance='graphite-ember'] .tx-panel {
+  border-radius: 8px;
+}
+
+html[data-appearance='graphite-ember'] .tx-panel {
+  box-shadow: none;
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .tx-page-header h1 {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .tx-page-header p {
+  color: #d0dae8;
+}
+
+html[data-appearance='graphite-ember'] .tx-panel-header {
+  background: linear-gradient(135deg, #0a1628 0%, #12233d 55%, #1a3050 100%);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .tx-panel-header h2 {
+  color: #ffffff;
+}
+
+html[data-appearance='graphite-ember'] .tx-filters {
+  background: color-mix(in srgb, var(--surface) 82%, #000 18%);
+  border-bottom-color: var(--line);
+}
+
+html[data-appearance='graphite-ember'] .tx-filter-field > span {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .tx-filter-field select {
+  background: var(--field-bg, #16181c);
+  border-color: var(--line);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .tx-table-wrap {
+  background: var(--surface);
+}
+
+html[data-appearance='graphite-ember'] .tx-table {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .tx-table th,
+html[data-appearance='graphite-ember'] .tx-table td {
+  border-bottom-color: var(--line);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .tx-table th,
+html[data-appearance='graphite-ember'] .tx-table-wrap--athletes thead th,
+html[data-appearance='graphite-ember'] .tx-table-wrap--movements thead th {
+  background: var(--table-head-bg, #18263d);
+  color: #dce5f2;
+}
+
+html[data-appearance='graphite-ember'] .tx-table tbody tr:hover {
+  background: rgba(232, 93, 44, 0.1);
+}
+
+html[data-appearance='graphite-ember'] .tx-table tbody tr.is-selected {
+  background: rgba(232, 93, 44, 0.18);
+}
+
+html[data-appearance='graphite-ember'] .tx-balance-cell,
+html[data-appearance='graphite-ember'] .tx-balance-col {
+  background: rgba(232, 93, 44, 0.2) !important;
+  color: #ffc4a8;
+}
+
+html[data-appearance='graphite-ember'] .tx-total-row td {
+  background: color-mix(in srgb, var(--surface) 70%, #000 30%);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .tx-panel-footer {
+  background: color-mix(in srgb, var(--surface) 78%, #000 22%);
+  border-top-color: var(--line);
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .tx-search {
+  background: var(--field-bg, #16181c);
+  border-color: var(--line);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .tx-search::placeholder {
+  color: #8fa0b8;
+}
+
+html[data-appearance='graphite-ember'] .tx-form {
+  background: var(--surface);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .tx-field span,
+html[data-appearance='graphite-ember'] .tx-field-col span {
+  color: #dce5f2;
+}
+
+html[data-appearance='graphite-ember'] .tx-form input,
+html[data-appearance='graphite-ember'] .tx-form select,
+html[data-appearance='graphite-ember'] .tx-form textarea {
+  background: var(--field-bg, #16181c);
+  border-color: var(--line);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .tx-form input:disabled {
+  background: #1a2740;
+  color: #9aabbf;
+}
+
+html[data-appearance='graphite-ember'] .tx-form input::placeholder,
+html[data-appearance='graphite-ember'] .tx-form textarea::placeholder {
+  color: #8fa0b8;
+}
+
+html[data-appearance='graphite-ember'] .tx-cancel-btn {
+  background: #1a2740;
+  border-color: var(--line);
+  color: #e8eef7;
+}
+
+html[data-appearance='graphite-ember'] .tx-cancel-btn:hover {
+  background: #243552;
+  color: #ffffff;
+}
+
+html[data-appearance='graphite-ember'] .tx-icon-btn {
+  border-color: var(--line);
+  background: #1a2740;
+  color: #e8eef7;
+}
+
+html[data-appearance='graphite-ember'] .tx-icon-btn:hover {
+  color: var(--accent);
+  border-color: rgba(232, 93, 44, 0.55);
+}
+
+html[data-appearance='graphite-ember'] .tx-icon-btn--danger:hover {
+  color: #ff8f8f;
+  border-color: rgba(240, 113, 103, 0.55);
+}
+
+html[data-appearance='graphite-ember'] .tx-empty-info,
+html[data-appearance='graphite-ember'] .tx-hint,
+html[data-appearance='graphite-ember'] .tx-empty-info p {
+  color: #c5d0e0;
+}
+
+/* Fees / ????????? - list + toolbar contrast */
+html[data-appearance='graphite-ember'] .toolbar .tx-search {
+  background: var(--field-bg, #16181c);
+  border-color: var(--line);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .toolbar .tx-search::placeholder {
+  color: #8fa0b8;
+}
+
+html[data-appearance='graphite-ember'] .panel.table-wrap,
+html[data-appearance='graphite-ember'] .panel.table-wrap table,
+html[data-appearance='graphite-ember'] .panel.table-wrap strong {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .panel.table-wrap .muted {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .panel.table-wrap thead th {
+  color: #dce5f2;
+  background: var(--table-head-bg, #18263d);
+}
+
+html[data-appearance='graphite-ember'] .panel.table-wrap tbody td {
+  color: #e8eef7;
+}
+
+html[data-appearance='graphite-ember'] .badge-paid {
+  background: rgba(6, 180, 110, 0.2);
+  color: #7dffc0;
+}
+
+html[data-appearance='graphite-ember'] .badge-overdue {
+  background: rgba(240, 113, 103, 0.2);
+  color: #ff9b9b;
+}
+
+html[data-appearance='graphite-ember'] .fees-actions .btn-secondary,
+html[data-appearance='graphite-ember'] .toolbar .btn-secondary,
+html[data-appearance='graphite-ember'] .panel.table-wrap .btn-secondary {
+  background: #1a2740;
+  border-color: var(--line);
+  color: #e8eef7;
+}
+
+html[data-appearance='graphite-ember'] .fees-actions .btn-secondary:hover,
+html[data-appearance='graphite-ember'] .toolbar .btn-secondary:hover,
+html[data-appearance='graphite-ember'] .panel.table-wrap .btn-secondary:hover {
+  background: #243552;
+  color: #ffffff;
+}
+
+html[data-appearance='graphite-ember'] .stat-card .stat-label,
+html[data-appearance='graphite-ember'] .stat-card .stat-hint {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .stat-card .stat-value {
+  color: #f4f7fb;
+}
+
+/* Finance income/expense/budget/reports denser navy headers */
+html[data-appearance='graphite-ember'] .income-entry-heading h2,
+html[data-appearance='graphite-ember'] .report-meta h3 {
+  font-family: var(--font-display);
+}
+
+html[data-appearance='graphite-ember'] .income-entry-heading .eyebrow {
+  color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .stat-pill,
+html[data-appearance='graphite-ember'] .summary-card {
+  border-radius: 10px;
+}
+
+html[data-appearance='graphite-ember'] .budget-progress-bar.is-ok {
+  background: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .budget-status.is-good {
+  background: rgba(232, 93, 44, 0.22);
+  color: #ffc4a8;
+}
+
+html[data-appearance='graphite-ember'] .budget-status.is-bad {
+  background: rgba(240, 113, 103, 0.16);
+  color: #ff8f8f;
+}
+
+html[data-appearance='graphite-ember'] .report-table .amount.expense {
+  color: var(--danger);
+}
+
+html[data-appearance='graphite-ember'] .report-chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .report-chip:hover {
+  color: #ffc4a8;
+}
+
+html[data-appearance='graphite-ember'] .prints-nav-item.active {
+  background: rgba(232, 93, 44, 0.18);
+  color: #f4f7fb;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .prints-page .page-panel,
+html[data-appearance='graphite-ember'] .prints-main,
+html[data-appearance='graphite-ember'] .prints-nav {
+  background: #1a1d24;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: none;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .prints-page {
+  --color-surface: #1a1d24;
+  --color-bg-subtle: #16181c;
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-field-border: rgba(255, 255, 255, 0.14);
+  --color-text: #f4f7fb;
+  --color-text-muted: #b6c3d6;
+  --color-title: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .prints-nav {
+  background: #16181c;
+}
+
+html[data-appearance='graphite-ember'] .prints-nav-item {
+  color: #c5d0e0;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+html[data-appearance='graphite-ember'] .prints-nav-item:hover {
+  background: rgba(232, 93, 44, 0.1);
+  color: #fff;
+}
+
+html[data-appearance='graphite-ember'] .prints-registry-section h2,
+html[data-appearance='graphite-ember'] .prints-filter-label {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .prints-registry-desc,
+html[data-appearance='graphite-ember'] .prints-placeholder-note {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .prints-results-modal-count {
+  color: #5b6b7c;
+}
+
+html[data-appearance='graphite-ember'] .modal.prints-results-modal {
+  background: #fff;
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .modal.prints-results-modal .modal-header h2,
+html[data-appearance='graphite-ember'] .modal.prints-results-modal #modal-title {
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .modal.prints-results-modal .prints-results-table th {
+  background: #f1f5f9;
+  color: #140c08;
+  border-color: #d7dee8;
+}
+
+html[data-appearance='graphite-ember'] .modal.prints-results-modal .prints-results-table td {
+  background: #fff;
+  color: #140c08;
+  border-color: #d7dee8;
+}
+
+html[data-appearance='graphite-ember'] .modal.prints-results-modal .prints-results-table tfoot td {
+  background: #e8eef6;
+  color: #140c08;
+  font-weight: 700;
+}
+
+html[data-appearance='graphite-ember'] .modal.prints-results-modal .prints-results-empty {
+  color: #5b6b7c;
+}
+
+html[data-appearance='graphite-ember'] .prints-placeholder-note {
+  background: #16181c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+html[data-appearance='graphite-ember'] .prints-filter-actions {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-appearance='graphite-ember'] .prints-filter-input,
+html[data-appearance='graphite-ember'] .prints-main input,
+html[data-appearance='graphite-ember'] .prints-main select,
+html[data-appearance='graphite-ember'] .prints-main textarea {
+  background: #16181c;
+  color: #f4f7fb;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+html[data-appearance='graphite-ember'] .prints-filter-input:focus,
+html[data-appearance='graphite-ember'] .prints-main input:focus,
+html[data-appearance='graphite-ember'] .prints-main select:focus {
+  background: #16181c;
+  color: #f4f7fb;
+  border-color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .prints-main option {
+  background: #1a1d24;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .prints-page .page-table th {
+  background: #252830;
+  color: #c5d0e0;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html[data-appearance='graphite-ember'] .prints-page .page-table td {
+  background: #16181c;
+  color: #f4f7fb;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Finance forms: never light text on white fields */
+html[data-appearance='graphite-ember'] .finance-page,
+html[data-appearance='graphite-ember'] .income-entry-panel,
+html[data-appearance='graphite-ember'] .entry-form,
+html[data-appearance='graphite-ember'] .ta-table,
+html[data-appearance='graphite-ember'] .report-sheet,
+html[data-appearance='graphite-ember'] .income-entry-list .data-table {
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .ta-analysis input,
+html[data-appearance='graphite-ember'] .ta-analysis select,
+html[data-appearance='graphite-ember'] .ta-analysis textarea,
+html[data-appearance='graphite-ember'] .entry-form input,
+html[data-appearance='graphite-ember'] .entry-form select,
+html[data-appearance='graphite-ember'] .entry-form textarea,
+html[data-appearance='graphite-ember'] .finance-page input,
+html[data-appearance='graphite-ember'] .finance-page select,
+html[data-appearance='graphite-ember'] .finance-page textarea {
+  background: var(--field-bg) !important;
+  color: var(--ink) !important;
+  border-color: var(--line);
+}
+
+html[data-appearance='graphite-ember'] .ta-analysis option,
+html[data-appearance='graphite-ember'] .entry-form option,
+html[data-appearance='graphite-ember'] .finance-page option {
+  background: #1a1d24;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .ta-title {
+  background: var(--bg-deep);
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .income-entry-list .data-table td,
+html[data-appearance='graphite-ember'] .income-entry-list .data-table th,
+html[data-appearance='graphite-ember'] .report-table td,
+html[data-appearance='graphite-ember'] .report-table th {
+  color: var(--ink);
+  background: transparent;
+}
+
+html[data-appearance='graphite-ember'] .tabs {
+  background: #16181c;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+html[data-appearance='graphite-ember'] .tabs .tab,
+html[data-appearance='graphite-ember'] .finance-page .tab {
+  color: #e8eef7;
+  background: transparent;
+  border: 0;
+  opacity: 1;
+}
+
+html[data-appearance='graphite-ember'] .tabs .tab:hover,
+html[data-appearance='graphite-ember'] .finance-page .tab:hover {
+  color: #fff;
+  background: rgba(232, 93, 44, 0.14);
+}
+
+html[data-appearance='graphite-ember'] .tabs .tab.active,
+html[data-appearance='graphite-ember'] .finance-page .tab.active {
+  background: var(--accent);
+  color: #140c08;
+  border-color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .report-templates {
+  background: #16181c;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .report-templates-header h3 {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .report-templates-header p,
+html[data-appearance='graphite-ember'] .report-templates-header .muted-text,
+html[data-appearance='graphite-ember'] .report-templates .muted,
+html[data-appearance='graphite-ember'] .report-templates .muted-text {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .income-entry-heading h2,
+html[data-appearance='graphite-ember'] .budget-results-title,
+html[data-appearance='graphite-ember'] .ta-hint {
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .ta-hint {
+  color: var(--muted);
+}
+
+html[data-appearance='graphite-ember'] .prints-page .btn-primary,
+html[data-appearance='graphite-ember'] .prints-main .btn-primary {
+  background: var(--accent);
+  color: var(--ember-ink);
+}
+
+/* Athlete profile (???? ??????? / ???????????) */
+html[data-appearance='graphite-ember'] .athlete-profile-page {
+  --club-header: #140c08;
+  --color-text-inverse: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .athlete-profile-page .page-panel {
+  box-shadow: none;
+  border-radius: 10px;
+  border-color: var(--line);
+}
+
+html[data-appearance='graphite-ember'] .athlete-finance-header {
+  background: linear-gradient(135deg, #0b0c0e 0%, #140c08 55%, #2a1812 100%);
+  border-radius: 10px 10px 0 0;
+}
+
+html[data-appearance='graphite-ember'] .ap-page-header h1 {
+  font-family: var(--font-display);
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+html[data-appearance='graphite-ember'] .ap-page-actions .btn-primary,
+html[data-appearance='graphite-ember'] .athlete-profile-page .btn-primary {
+  background: var(--accent);
+  color: var(--ember-ink);
+  box-shadow: none;
+  border-radius: 8px;
+}
+
+html[data-appearance='graphite-ember'] .athlete-profile-page .profile-row-input,
+html[data-appearance='graphite-ember'] .athlete-profile-page input,
+html[data-appearance='graphite-ember'] .athlete-profile-page select,
+html[data-appearance='graphite-ember'] .athlete-profile-page textarea {
+  border-radius: 8px;
+}
+
+html[data-appearance='graphite-ember'] .athlete-profile-page .profile-health-card-preview-btn {
+  background: var(--accent);
+  color: var(--ember-ink);
+  border-radius: 8px;
+}
+
+html[data-appearance='graphite-ember'] .athlete-profile-page .text-link {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+html[data-appearance='graphite-ember'] .ap-hero,
+html[data-appearance='graphite-ember'] .ap-card,
+html[data-appearance='graphite-ember'] .ap-reg-footer {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-appearance='graphite-ember'] .ap-finance-wrap,
+html[data-appearance='graphite-ember'] .ap-announcements-body {
+  background: #16181c;
+  border-radius: 10px;
+}
+
+html[data-appearance='graphite-ember'] .ap-finance-table th,
+html[data-appearance='graphite-ember'] .ap-announcements-table th {
+  background: #252830;
+  color: #c5d0e0;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html[data-appearance='graphite-ember'] .ap-finance-table td,
+html[data-appearance='graphite-ember'] .ap-announcements-table td {
+  background: #16181c;
+  color: #f4f7fb;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html[data-appearance='graphite-ember'] .ap-finance-table td:first-child,
+html[data-appearance='graphite-ember'] .ap-finance-table thead tr:first-child th:first-child {
+  background: #16181c;
+}
+
+html[data-appearance='graphite-ember'] .ap-finance-table thead tr:first-child th:first-child {
+  background: #252830;
+}
+
+html[data-appearance='graphite-ember'] .ap-balance-col {
+  background: rgba(232, 93, 44, 0.12) !important;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .ap-total-row td {
+  background: #252830;
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .ap-empty-msg {
+  color: #9aa8bc;
+}
+
+html[data-appearance='graphite-ember'] .ap-tabs {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-appearance='graphite-ember'] .ap-tab {
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .ap-tab:hover {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .ap-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .ap-input,
+html[data-appearance='graphite-ember'] .athlete-profile-page .ap-input {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .ap-actions-btn,
+html[data-appearance='graphite-ember'] .ap-pager-btn,
+html[data-appearance='graphite-ember'] .ap-actions-dropdown {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .ap-footer-actions {
+  background: linear-gradient(to top, #0b0c0e 60%, transparent);
+}
+
+html[data-appearance='graphite-ember'] .ap-footer-actions .btn-secondary {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .ap-footer-actions .btn-primary {
+  background: var(--accent);
+  color: var(--ember-ink);
+}
+
+/* Staff / coaches / classes modals (??? ????? ?????????? ?.??.) */
+html[data-appearance='graphite-ember'] .training-modal {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 40px rgba(11, 31, 58, 0.18);
+}
+
+html[data-appearance='graphite-ember'] .training-modal h2 {
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+html[data-appearance='graphite-ember'] .training-modal-fields input:focus,
+html[data-appearance='graphite-ember'] .training-modal-fields select:focus,
+html[data-appearance='graphite-ember'] .training-modal-fields textarea:focus {
+  outline: 2px solid rgba(232, 93, 44, 0.35);
+  border-color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .training-btn-save,
+html[data-appearance='graphite-ember'] .trn-btn-primary {
+  background: var(--accent);
+  color: var(--ember-ink);
+  border-radius: 8px;
+}
+
+html[data-appearance='graphite-ember'] .training-btn-save:hover:not(:disabled),
+html[data-appearance='graphite-ember'] .trn-btn-primary:hover {
+  background: var(--accent);
+  filter: brightness(0.96);
+}
+
+html[data-appearance='graphite-ember'] .training-btn-cancel {
+  border-radius: 8px;
+  background: #140c08;
+  color: #f4f7fb;
+  border: 1px solid #140c08;
+}
+
+html[data-appearance='graphite-ember'] .training-btn-cancel:hover {
+  background: #1a1d24;
+  border-color: #1a1d24;
+  color: #ffffff;
+}
+
+html[data-appearance='graphite-ember'] .training-modal .class-modal-hint,
+html[data-appearance='graphite-ember'] .training-modal .muted,
+html[data-appearance='graphite-ember'] .training-modal .settings-hint {
+  color: #445064;
+}
+
+html[data-appearance='graphite-ember'] .training-modal-fields input,
+html[data-appearance='graphite-ember'] .training-modal-fields select,
+html[data-appearance='graphite-ember'] .training-modal-fields textarea {
+  border-color: rgba(11, 31, 58, 0.28);
+  background: #ffffff;
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .training-modal-backdrop {
+  background: rgba(11, 12, 14, 0.55);
+}
+
+/* Parents page - dark surfaces, readable filters/status */
+html[data-appearance='graphite-ember'] .parents-hero,
+html[data-appearance='graphite-ember'] .parents-filters,
+html[data-appearance='graphite-ember'] .parents-table-card {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .parents-hero p,
+html[data-appearance='graphite-ember'] .parents-empty,
+html[data-appearance='graphite-ember'] .parents-pager,
+html[data-appearance='graphite-ember'] .parents-muted,
+html[data-appearance='graphite-ember'] .parents-table th {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .parents-hero-icon {
+  background: rgba(232, 93, 44, 0.2);
+  color: #f0d078;
+}
+
+html[data-appearance='graphite-ember'] .parents-search,
+html[data-appearance='graphite-ember'] .parents-filter-field select,
+html[data-appearance='graphite-ember'] .parents-reset,
+html[data-appearance='graphite-ember'] .parents-menu-btn,
+html[data-appearance='graphite-ember'] .parents-pager-btns button {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .parents-search input,
+html[data-appearance='graphite-ember'] .parents-filter-field > span {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .parents-search input::placeholder {
+  color: #9aa8bc;
+  opacity: 1;
+}
+
+html[data-appearance='graphite-ember'] .parents-table th {
+  background: #22252c;
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .parents-table td {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .parents-status--active {
+  background: rgba(61, 207, 142, 0.18);
+  color: #7dffc0;
+}
+
+html[data-appearance='graphite-ember'] .parents-status--pending {
+  background: rgba(232, 93, 44, 0.2);
+  color: #ffc4a8;
+}
+
+html[data-appearance='graphite-ember'] .parents-status--not_invited {
+  background: rgba(255, 255, 255, 0.1);
+  color: #d7dee8;
+}
+
+html[data-appearance='graphite-ember'] .parents-invite-btn {
+  background: var(--accent);
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .parents-menu {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-appearance='graphite-ember'] .parents-menu button {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .parents-pager-btns button.is-active {
+  background: #e85d2c;
+  border-color: #e85d2c;
+  color: #140c08;
+}
+
+/* Schedule / ????????? - readable filters on dark theme */
+html[data-appearance='graphite-ember'] .prog-toolbar,
+html[data-appearance='graphite-ember'] .prog-board {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+html[data-appearance='graphite-ember'] .prog-field > span,
+html[data-appearance='graphite-ember'] .prog-week-nav strong,
+html[data-appearance='graphite-ember'] .prog-legend li {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .prog-hint {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .prog-field select,
+html[data-appearance='graphite-ember'] .prog-week-nav,
+html[data-appearance='graphite-ember'] .prog-today-btn {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .prog-week-nav button {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .prog-day-head,
+html[data-appearance='graphite-ember'] .prog-time-gutter {
+  background: #140c08;
+  color: #fff;
+}
+
+html[data-appearance='graphite-ember'] .prog-time-col {
+  background: #101b2e;
+}
+
+html[data-appearance='graphite-ember'] .prog-hour-label {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .prog-day-col {
+  background: #1a1d24;
+}
+
+html[data-appearance='graphite-ember'] .prog-hour-line {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+html[data-appearance='graphite-ember'] .prog-block.is-training {
+  background: #e85d2c;
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .prog-block.is-match {
+  background: #f0d9a0;
+  border-color: #c9a85a;
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .prog-block-time,
+html[data-appearance='graphite-ember'] .prog-block-loc,
+html[data-appearance='graphite-ember'] .prog-block-title,
+html[data-appearance='graphite-ember'] .prog-block-edit {
+  color: #140c08;
+}
+
+/* Warehouse / ??????? */
+html[data-appearance='graphite-ember'] .wh-page-head h1,
+html[data-appearance='graphite-ember'] .wh-stat strong,
+html[data-appearance='graphite-ember'] .wh-table td,
+html[data-appearance='graphite-ember'] .wh-name-cell strong {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .wh-breadcrumb,
+html[data-appearance='graphite-ember'] .wh-stat span,
+html[data-appearance='graphite-ember'] .wh-stat em,
+html[data-appearance='graphite-ember'] .wh-table th,
+html[data-appearance='graphite-ember'] .wh-name-cell span,
+html[data-appearance='graphite-ember'] .wh-pager,
+html[data-appearance='graphite-ember'] .wh-empty {
+  color: #c5d0e0;
+}
+
+html[data-appearance='graphite-ember'] .wh-stat,
+html[data-appearance='graphite-ember'] .wh-toolbar,
+html[data-appearance='graphite-ember'] .wh-table-card {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-appearance='graphite-ember'] .wh-search,
+html[data-appearance='graphite-ember'] .wh-toolbar select,
+html[data-appearance='graphite-ember'] .wh-io-btn,
+html[data-appearance='graphite-ember'] .wh-menu-btn,
+html[data-appearance='graphite-ember'] .wh-page-size select,
+html[data-appearance='graphite-ember'] .wh-pager-btns button {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .wh-search input::placeholder {
+  color: #9aa8bc;
+  opacity: 1;
+}
+
+html[data-appearance='graphite-ember'] .wh-table th {
+  background: #22252c;
+}
+
+html[data-appearance='graphite-ember'] .wh-thumb {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #b6c3d6;
+}
+
+html[data-appearance='graphite-ember'] .wh-num.is-ok {
+  color: #7dffc0;
+}
+
+html[data-appearance='graphite-ember'] .wh-num.is-low {
+  color: #ff8f8f;
+}
+
+html[data-appearance='graphite-ember'] .wh-edit-btn {
+  background: rgba(232, 93, 44, 0.22);
+  color: #f0d078;
+}
+
+html[data-appearance='graphite-ember'] .wh-menu {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-appearance='graphite-ember'] .wh-menu button {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .wh-pager-btns button.is-active {
+  background: #e85d2c;
+  border-color: #e85d2c;
+  color: #140c08;
+}
+
+/* Fee charge modal - keep labels/months readable on dark body (must beat white-modal label rules) */
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .field-label,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal label > span,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .field > span,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-month-chip,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-month-chip span,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .admin-check,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .admin-check span,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .check-row,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .check-row span {
+  color: #e8eef7 !important;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .settings-hint,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .muted,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-charge-note {
+  color: #b6c3d6 !important;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-charge-section h3 {
+  color: #f4f7fb !important;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-month-chip {
+  background: #252830 !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-month-chip:has(input:checked),
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-month-chip.is-active {
+  background: rgba(232, 93, 44, 0.24) !important;
+  border-color: var(--accent) !important;
+  color: #f4f7fb !important;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .field-input,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal select.field-input,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal input.field-input {
+  background: #16181c !important;
+  color: #f4f7fb !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-charge-hero .field-input,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-charge-hero select,
+html[data-appearance='graphite-ember'] .modal.fee-charge-modal .fee-charge-hero input:not([type='checkbox']) {
+  background: #ffffff !important;
+  color: #140c08 !important;
+  border-color: #d7dee8 !important;
+}
+
+/* ========================================================================== */
+/* Contrast safety net (loaded last via main.tsx)                              */
+/* ========================================================================== */
+
+html[data-appearance='graphite-ember'] .muted,
+html[data-appearance='graphite-ember'] .stat-hint,
+html[data-appearance='graphite-ember'] .stat-label {
+  color: #d0dae8;
+}
+
+html[data-appearance='graphite-ember'] .page-header p,
+html[data-appearance='graphite-ember'] .lede {
+  color: #d0dae8;
+}
+
+html[data-appearance='graphite-ember'] thead th {
+  color: #e2e8f0;
+}
+
+html[data-appearance='graphite-ember'] .btn-secondary {
+  background: #140c08;
+  color: #f4f7fb;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+html[data-appearance='graphite-ember'] .btn-secondary:hover {
+  background: #1a1d24;
+  color: #ffffff;
+}
+
+/* Secondary buttons inside light modals/cards */
+html[data-appearance='graphite-ember'] .login-card .btn-secondary,
+html[data-appearance='graphite-ember'] .ssr-card .btn-secondary,
+html[data-appearance='graphite-ember'] .training-modal .btn-secondary,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) .btn-secondary,
+html[data-appearance='graphite-ember'] .public-join-card .btn-secondary,
+html[data-appearance='graphite-ember'] .join-form .btn-secondary {
+  background: #140c08;
+  color: #f4f7fb;
+  border-color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .stat-icon {
+  background: rgba(232, 93, 44, 0.16);
+  color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .tone-positive .stat-icon {
+  background: rgba(61, 207, 142, 0.14);
+  color: var(--positive);
+}
+
+html[data-appearance='graphite-ember'] .tone-danger .stat-icon,
+html[data-appearance='graphite-ember'] .tone-negative .stat-icon {
+  background: rgba(240, 113, 103, 0.14);
+  color: var(--danger);
+}
+
+html[data-appearance='graphite-ember'] .chip {
+  background: var(--field-bg);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-appearance='graphite-ember'] .chip-on {
+  background: rgba(61, 207, 142, 0.16);
+  border-color: rgba(61, 207, 142, 0.35);
+  color: #7dffc0;
+}
+
+html[data-appearance='graphite-ember'] .chip-off {
+  background: rgba(240, 113, 103, 0.14);
+  border-color: rgba(240, 113, 103, 0.3);
+  color: #ff8f8f;
+}
+
+html[data-appearance='graphite-ember'] .athlete-avatar {
+  background: rgba(232, 93, 44, 0.18);
+  border-color: rgba(232, 93, 44, 0.35);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] input::placeholder,
+html[data-appearance='graphite-ember'] textarea::placeholder {
+  color: #9aa8bc;
+  opacity: 1;
+}
+
+html[data-appearance='graphite-ember'] .att-select--date input[type='date'],
+html[data-appearance='graphite-ember'] .att-select--date input[type='date']:focus {
+  color: #f4f7fb !important;
+}
+
+html[data-appearance='graphite-ember'] .aport-pill,
+html[data-appearance='graphite-ember'] .cport-role-pill,
+html[data-appearance='graphite-ember'] .cport-toggle.is-on {
+  color: #6b2a12;
+}
+
+html[data-appearance='graphite-ember'] .cport-role-pill,
+html[data-appearance='graphite-ember'] .aport-pill {
+  background: #ffe8dc;
+  border-color: #c24a1c;
+}
+
+html[data-appearance='graphite-ember'] .athlete-profile-page .page-panel,
+html[data-appearance='graphite-ember'] .athlete-profile-page .ap-panel {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f4f7fb;
+  --ink: #f4f7fb;
+  --muted: #b6c3d6;
+  --field-bg: #16181c;
+  --line: rgba(255, 255, 255, 0.12);
+}
+
+html[data-appearance='graphite-ember'] .ap-status-badge {
+  background: rgba(232, 93, 44, 0.22);
+  color: #ffc4a8;
+}
+
+html[data-appearance='graphite-ember'] .login-card .muted,
+html[data-appearance='graphite-ember'] .ssr-card .muted,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) .muted,
+html[data-appearance='graphite-ember'] .public-join-card .muted,
+html[data-appearance='graphite-ember'] .join-form .muted,
+html[data-appearance='graphite-ember'] .training-modal .class-modal-hint {
+  color: #445064;
+}
+
+html[data-appearance='graphite-ember'] .login-card input::placeholder,
+html[data-appearance='graphite-ember'] .ssr-card input::placeholder,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) input::placeholder,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) textarea::placeholder {
+  color: #8b95a7;
+  opacity: 1;
+}
+
+/* ---- Size chart (???????????) ---- */
+html[data-appearance='graphite-ember'] .size-chart-panel {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .size-chart-header h3,
+html[data-appearance='graphite-ember'] .size-chart-header h2 {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .size-chart-header p,
+html[data-appearance='graphite-ember'] .size-chart-empty {
+  color: #d0dae8;
+}
+
+html[data-appearance='graphite-ember'] .size-chart-panel .settings-form-row-label,
+html[data-appearance='graphite-ember'] .size-chart-group-title {
+  color: #f0d078;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+html[data-appearance='graphite-ember'] .size-chart-group-title:hover,
+html[data-appearance='graphite-ember'] .size-chart-group-title:focus {
+  border-color: rgba(240, 208, 120, 0.45);
+  background: #16181c;
+  color: #f0d078;
+}
+
+html[data-appearance='graphite-ember'] .size-chart-link,
+html[data-appearance='graphite-ember'] .size-chart-add-inline {
+  color: #ffc4a8;
+}
+
+html[data-appearance='graphite-ember'] .size-chart-link:hover,
+html[data-appearance='graphite-ember'] .size-chart-add-inline:hover {
+  color: #ffffff;
+}
+
+html[data-appearance='graphite-ember'] .size-chart-inline-list li {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .size-chart-inline-list li > span {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .size-chart-delete {
+  background: rgba(240, 113, 103, 0.2);
+  color: #ff8f8f;
+}
+
+html[data-appearance='graphite-ember'] .size-chart-add-row {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .club-users-panel-head h3,
+html[data-appearance='graphite-ember'] .club-users-panel h4 {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .club-users-panel .lede {
+  color: #d0dae8;
+}
+
+/* Dark-on-dark leftovers: --brand/--brand-dark are navy in this theme */
+html[data-appearance='graphite-ember'] .btn-ghost {
+  color: #d0dae8;
+}
+
+html[data-appearance='graphite-ember'] .btn-ghost:hover {
+  color: #ffffff;
+}
+
+html[data-appearance='graphite-ember'] .athlete-name-link,
+html[data-appearance='graphite-ember'] .athlete-name-link strong {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .athlete-name-link:hover strong {
+  color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .athlete-avatar,
+html[data-appearance='graphite-ember'] .tx-page-icon,
+html[data-appearance='graphite-ember'] .stat-icon {
+  color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .settings-success {
+  color: #7dffc0;
+}
+
+html[data-appearance='graphite-ember'] .ann-chip.is-active,
+html[data-appearance='graphite-ember'] .ann-chip.is-on {
+  color: #ffc4a8;
+  background: rgba(232, 93, 44, 0.16);
+  border-color: rgba(232, 93, 44, 0.45);
+}
+
+html[data-appearance='graphite-ember'] .platform-admin-banner {
+  color: #f4f7fb;
+  background: rgba(232, 93, 44, 0.16);
+}
+
+html[data-appearance='graphite-ember'] .ta-total,
+html[data-appearance='graphite-ember'] .calendar-event-time {
+  color: var(--accent);
+}
+
+html[data-appearance='graphite-ember'] .empty-state p,
+html[data-appearance='graphite-ember'] .empty-state h3 {
+  color: #d0dae8;
+}
+
+html[data-appearance='graphite-ember'] .panel-head h2,
+html[data-appearance='graphite-ember'] .dashboard-sport-title {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .feed-list strong {
+  color: #f4f7fb;
+}
+
+html[data-appearance='graphite-ember'] .feed-list span {
+  color: #d0dae8;
+}
+
+/* Public join card is white - instructional text must stay dark */
+html[data-appearance='graphite-ember'] .public-join-page {
+  color: #1a1d24;
+}
+
+html[data-appearance='graphite-ember'] .public-join-hero,
+html[data-appearance='graphite-ember'] .public-join-hero h1,
+html[data-appearance='graphite-ember'] .public-join-hero .public-join-eyebrow,
+html[data-appearance='graphite-ember'] .public-join-hero .public-join-hero-copy,
+html[data-appearance='graphite-ember'] .public-join-hero .muted {
+  color: #fff;
+}
+
+html[data-appearance='graphite-ember'] .public-join-card,
+html[data-appearance='graphite-ember'] .public-join-card h2,
+html[data-appearance='graphite-ember'] .public-join-kind,
+html[data-appearance='graphite-ember'] .public-join-kind legend,
+html[data-appearance='graphite-ember'] .public-join-terms,
+html[data-appearance='graphite-ember'] .public-join-terms summary,
+html[data-appearance='graphite-ember'] .public-join-terms span,
+html[data-appearance='graphite-ember'] .public-join-terms-body {
+  color: #1a1d24;
+}
+
+html[data-appearance='graphite-ember'] .public-join-card .lede,
+html[data-appearance='graphite-ember'] .public-join-card .muted,
+html[data-appearance='graphite-ember'] .public-join-card .field-label {
+  color: #3a4f68;
+}
+
+/* ========================================================================== */
+/* Midnight Ice - extra contrast pass                                          */
+/* ========================================================================== */
+
+html[data-appearance='graphite-ember'] .fee-charge-hero {
+  background: linear-gradient(135deg, #0b0c0e 0%, #16181c 50%, #123048 100%);
+  color: #f4eee8;
+  border-color: rgba(232, 93, 44, 0.35);
+}
+
+html[data-appearance='graphite-ember'] .fee-charge-hero .field-label,
+html[data-appearance='graphite-ember'] .fee-charge-hero label > span,
+html[data-appearance='graphite-ember'] .fee-charge-hero .field > span,
+html[data-appearance='graphite-ember'] .fee-charge-hero .check-row,
+html[data-appearance='graphite-ember'] .fee-charge-hero .check-row span,
+html[data-appearance='graphite-ember'] .fee-charge-hero .admin-check,
+html[data-appearance='graphite-ember'] .fee-charge-hero .admin-check span {
+  color: #dceaf4 !important;
+}
+
+html[data-appearance='graphite-ember'] .fee-charge-note {
+  color: rgba(232, 244, 252, 0.82) !important;
+}
+
+html[data-appearance='graphite-ember'] .fee-charge-hero .field-input,
+html[data-appearance='graphite-ember'] .fee-charge-hero select,
+html[data-appearance='graphite-ember'] .fee-charge-hero input:not([type='checkbox']) {
+  background: #ffffff !important;
+  color: #140c08 !important;
+  border: 1px solid #c5d0dc !important;
+}
+
+html[data-appearance='graphite-ember'] .att-select select option,
+html[data-appearance='graphite-ember'] .att-select select optgroup,
+html[data-appearance='graphite-ember'] select option,
+html[data-appearance='graphite-ember'] select optgroup {
+  background: #1a1d24;
+  color: #f4eee8;
+}
+
+html[data-appearance='graphite-ember'] .login-card select option,
+html[data-appearance='graphite-ember'] .ssr-card select option,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) select option,
+html[data-appearance='graphite-ember'] .public-join-card select option {
+  background: #ffffff;
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .tx-table th,
+html[data-appearance='graphite-ember'] .tx-table-wrap--athletes thead th,
+html[data-appearance='graphite-ember'] .tx-table-wrap--movements thead th {
+  color: #dceaf4 !important;
+  background: #22252c !important;
+}
+
+html[data-appearance='graphite-ember'] .tx-table td,
+html[data-appearance='graphite-ember'] .tx-balance-cell,
+html[data-appearance='graphite-ember'] .tx-balance-col {
+  color: #f4eee8;
+}
+
+html[data-appearance='graphite-ember'] .tx-filter-field > span,
+html[data-appearance='graphite-ember'] .tx-hint,
+html[data-appearance='graphite-ember'] .tx-empty-info,
+html[data-appearance='graphite-ember'] .tx-empty-info p {
+  color: #b7c9d8 !important;
+}
+
+html[data-appearance='graphite-ember'] .tx-filter-field select,
+html[data-appearance='graphite-ember'] .tx-search,
+html[data-appearance='graphite-ember'] .toolbar .tx-search {
+  background: #16181c !important;
+  color: #f4eee8 !important;
+  border-color: rgba(232, 244, 252, 0.16) !important;
+}
+
+html[data-appearance='graphite-ember'] .tx-search::placeholder,
+html[data-appearance='graphite-ember'] .toolbar .tx-search::placeholder {
+  color: #8fa8ba !important;
+}
+
+html[data-appearance='graphite-ember'] .field-label,
+html[data-appearance='graphite-ember'] label > span,
+html[data-appearance='graphite-ember'] .panel-head h2,
+html[data-appearance='graphite-ember'] .page-header h1,
+html[data-appearance='graphite-ember'] .money-strip-item strong,
+html[data-appearance='graphite-ember'] .stat-card .stat-value,
+html[data-appearance='graphite-ember'] .stat-card strong {
+  color: #f4eee8;
+}
+
+html[data-appearance='graphite-ember'] .money-strip-item span,
+html[data-appearance='graphite-ember'] .stat-card span,
+html[data-appearance='graphite-ember'] .stat-card .stat-label,
+html[data-appearance='graphite-ember'] .stat-card .stat-hint,
+html[data-appearance='graphite-ember'] .muted,
+html[data-appearance='graphite-ember'] .settings-hint {
+  color: #b7c9d8;
+}
+
+html[data-appearance='graphite-ember'] .admin-board-header,
+html[data-appearance='graphite-ember'] .preview-banner {
+  background: #16181c;
+  color: #f4eee8;
+}
+
+html[data-appearance='graphite-ember'] .admin-board {
+  background: #1a1d24;
+  color: #f4eee8;
+}
+
+html[data-appearance='graphite-ember'] .admin-board-row,
+html[data-appearance='graphite-ember'] .admin-board-title,
+html[data-appearance='graphite-ember'] .admin-board-entry,
+html[data-appearance='graphite-ember'] .admin-board-records {
+  color: #f4eee8;
+  background: #1a1d24;
+}
+
+html[data-appearance='graphite-ember'] .appearance-theme-option {
+  background: #1a1d24;
+  border-color: rgba(232, 244, 252, 0.14);
+  color: #f4eee8;
+}
+
+html[data-appearance='graphite-ember'] .appearance-theme-option span {
+  color: #b7c9d8;
+}
+
+html[data-appearance='graphite-ember'] .appearance-theme-option.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(232, 93, 44, 0.35);
+}
+
+html[data-appearance='graphite-ember'] .ann-pager-btns button.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #140c08;
+}
+
+html[data-appearance='graphite-ember'] .status-pill,
+html[data-appearance='graphite-ember'] .badge,
+html[data-appearance='graphite-ember'] .chip {
+  color: #dceaf4;
+}
+
+html[data-appearance='graphite-ember'] .badge-paid,
+html[data-appearance='graphite-ember'] .status-pill.is-paid {
+  background: rgba(61, 207, 142, 0.2);
+  color: #7dffc0;
+}
+
+html[data-appearance='graphite-ember'] .badge-overdue,
+html[data-appearance='graphite-ember'] .status-pill.is-overdue {
+  background: rgba(240, 113, 103, 0.2);
+  color: #ff9b9b;
+}
+
+html[data-appearance='graphite-ember'] .status-pill.is-due,
+html[data-appearance='graphite-ember'] .status-pill.is-pending {
+  background: rgba(232, 93, 44, 0.18);
+  color: #ffc4a8;
+}
+
+html[data-appearance='graphite-ember'] .empty-state,
+html[data-appearance='graphite-ember'] .empty-state p,
+html[data-appearance='graphite-ember'] .placeholder {
+  color: #b7c9d8;
+}
+
+/* Light islands keep dark text */
+html[data-appearance='graphite-ember'] .login-card .muted,
+html[data-appearance='graphite-ember'] .ssr-card .muted,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) .muted,
+html[data-appearance='graphite-ember'] .public-join-card .muted,
+html[data-appearance='graphite-ember'] .join-form .muted,
+html[data-appearance='graphite-ember'] .login-card .field-label,
+html[data-appearance='graphite-ember'] .ssr-card .field-label,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) .field-label {
+  color: #445064 !important;
+}
+
+html[data-appearance='graphite-ember'] .login-card h1,
+html[data-appearance='graphite-ember'] .login-card h2,
+html[data-appearance='graphite-ember'] .ssr-card h2,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) h2,
+html[data-appearance='graphite-ember'] .modal:not(.fee-charge-modal) #modal-title {
+  color: #140c08 !important;
+}
+
+html[data-appearance='graphite-ember'] .settings-backup-block,
+html[data-appearance='graphite-ember'] .settings-backup-copy,
+html[data-appearance='graphite-ember'] .settings-backup-copy strong,
+html[data-appearance='graphite-ember'] .settings-backup-block .admin-check,
+html[data-appearance='graphite-ember'] .settings-backup-block .admin-check span,
+html[data-appearance='graphite-ember'] .settings-backup-file-btn {
+  color: #f4eee8;
+}
+
+html[data-appearance='graphite-ember'] .settings-backup-copy p,
+html[data-appearance='graphite-ember'] .settings-backup-file-name,
+html[data-appearance='graphite-ember'] .settings-backup .settings-hint,
+html[data-appearance='graphite-ember'] .settings-backup-schedule-status {
+  color: #c4b8b0;
+}
+
+html[data-appearance='graphite-ember'] .settings-backup-schedule-fields .field span {
+  color: #f4eee8;
+}
+
+html[data-appearance='graphite-ember'] .settings-backup-schedule-fields .field input,
+html[data-appearance='graphite-ember'] .settings-backup-schedule-fields .field select {
+  background: #16181c;
+  border-color: rgba(244, 238, 232, 0.16);
+  color: #f4eee8;
+}
+
+html[data-appearance='graphite-ember'] .settings-backup-file-btn {
+  background: #16181c;
+  border-color: rgba(244, 238, 232, 0.16);
+}
+
+
+

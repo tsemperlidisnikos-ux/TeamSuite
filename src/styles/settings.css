@@ -1,0 +1,383 @@
+/* Settings page — mockup horizontal tabs + club dashboard */
+.set-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  color: var(--ink);
+  padding-bottom: 4.5rem;
+}
+
+.set-page-head h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2vw, 1.9rem);
+  color: var(--ink);
+}
+
+.set-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0;
+}
+
+.set-tabs > button,
+.set-tabs-more > button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 750;
+  font-size: 0.92rem;
+  padding: 0.7rem 0.95rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.set-tabs > button.is-active,
+.set-tabs-more > button.is-active {
+  color: var(--ink);
+  border-bottom-color: var(--accent, #e0b13a);
+}
+
+.set-tabs-more {
+  display: flex;
+  flex-wrap: wrap;
+  margin-left: auto;
+  gap: 0.1rem;
+}
+
+.set-tabs-more > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.set-club-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.set-card {
+  padding: 1.15rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.set-card h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.set-card-lede {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.set-license-card {
+  grid-column: 1 / -1;
+}
+
+.set-license-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.set-license-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg) 70%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+}
+
+.set-license-stat span {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.set-license-stat strong {
+  font-size: 1.15rem;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.set-license-stat em {
+  font-style: normal;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.set-license-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 70%, var(--bg));
+  overflow: hidden;
+}
+
+.set-license-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent, #2563eb) 85%, #0f172a);
+}
+
+.set-logo-drop {
+  display: grid;
+  place-items: center;
+  gap: 0.45rem;
+  min-height: 180px;
+  padding: 1.25rem;
+  border: 1.5px dashed color-mix(in srgb, var(--muted) 55%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg) 55%, var(--surface));
+  color: var(--ink);
+  text-align: center;
+  cursor: pointer;
+}
+
+.set-logo-drop.is-drag {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+.set-logo-drop strong {
+  font-size: 0.92rem;
+  max-width: 22rem;
+}
+
+.set-logo-drop span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.set-logo-current {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.set-logo-current img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.set-logo-current-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.set-grid-1,
+.set-grid-2 {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.set-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.set-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.set-field--full {
+  grid-column: 1 / -1;
+}
+
+.set-field > span {
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: var(--ink);
+}
+
+.set-field input,
+.set-field select {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field-bg, var(--surface));
+  color: var(--ink);
+  font: inherit;
+  padding: 0.45rem 0.7rem;
+}
+
+.set-pass-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.set-pass-wrap input {
+  width: 100%;
+  padding-right: 2.4rem;
+}
+
+.set-eye {
+  position: absolute;
+  right: 0.45rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.set-test-btn {
+  align-self: flex-start;
+  min-height: 40px;
+  border: 1px solid var(--ink);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 750;
+  padding: 0 0.95rem;
+  cursor: pointer;
+}
+
+.set-save-bar {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 20;
+}
+
+.set-embed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.set-embed-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.set-embed-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.set-card-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.set-card-head-row h2 {
+  margin: 0 0 0.35rem;
+}
+
+.smtp-setup-guide {
+  display: grid;
+  gap: 1.1rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.smtp-setup-guide-lede {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+}
+
+.smtp-setup-guide section h4 {
+  margin: 0 0 0.45rem;
+  font-size: 0.98rem;
+  color: var(--ink);
+}
+
+.smtp-setup-guide section p,
+.smtp-setup-guide section ol,
+.smtp-setup-guide section ul {
+  margin: 0.35rem 0 0;
+}
+
+.smtp-setup-guide section ol,
+.smtp-setup-guide section ul {
+  padding-left: 1.25rem;
+}
+
+.smtp-setup-guide-note {
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warn, #f59e0b) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warn, #f59e0b) 35%, var(--line));
+}
+
+.smtp-setup-guide-table {
+  width: 100%;
+  font-size: 0.86rem;
+}
+
+.smtp-setup-guide-table th,
+.smtp-setup-guide-table td {
+  vertical-align: top;
+  padding: 0.45rem 0.55rem;
+}
+
+.smtp-setup-guide-checklist ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.smtp-setup-guide-checklist li::before {
+  content: '☐ ';
+}
+
+@media (max-width: 980px) {
+  .set-club-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .set-tabs-more {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .set-grid-2,
+  .set-license-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .set-field--full {
+    grid-column: auto;
+  }
+}

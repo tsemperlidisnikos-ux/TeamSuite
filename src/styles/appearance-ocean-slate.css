@@ -1,0 +1,622 @@
+/**
+ * Ocean Slate — cool slate chrome + sky teal accents, light content surfaces.
+ * Applied when html[data-appearance="ocean-slate"].
+ */
+
+html[data-appearance='ocean-slate'] {
+  --chip-bg: rgba(42, 155, 181, 0.12);
+  --ocean-ink: #152033;
+  --ocean-muted: #4a5d70;
+}
+
+/* ---- Typography ---- */
+html[data-appearance='ocean-slate'] .page-header h1,
+html[data-appearance='ocean-slate'] .topbar h1,
+html[data-appearance='ocean-slate'] h1 {
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+html[data-appearance='ocean-slate'] .page-header p,
+html[data-appearance='ocean-slate'] .lede,
+html[data-appearance='ocean-slate'] .muted {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ocean-slate'] .eyebrow {
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+
+html[data-appearance='ocean-slate'] .panel-head h2,
+html[data-appearance='ocean-slate'] .dashboard-sport-title,
+html[data-appearance='ocean-slate'] .feed-list strong {
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .feed-list span {
+  color: var(--ocean-muted);
+}
+
+/* ---- Tables ---- */
+html[data-appearance='ocean-slate'] .table-wrap,
+html[data-appearance='ocean-slate'] .panel .table-wrap {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+html[data-appearance='ocean-slate'] .panel .table-wrap.dashboard-preview-scroll {
+  overflow: auto;
+}
+
+html[data-appearance='ocean-slate'] table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] thead th {
+  background: var(--table-head-bg);
+  color: #243647;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--line);
+  padding: 0.7rem 0.85rem;
+}
+
+html[data-appearance='ocean-slate'] tbody td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.7rem 0.85rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-appearance='ocean-slate'] tbody tr:hover {
+  background: var(--table-row-hover);
+}
+
+html[data-appearance='ocean-slate'] tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+html[data-appearance='ocean-slate'] .panel.table-wrap,
+html[data-appearance='ocean-slate'] .panel.table-wrap table,
+html[data-appearance='ocean-slate'] .panel.table-wrap strong {
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .panel.table-wrap .muted {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ocean-slate'] .panel.table-wrap thead th {
+  color: #243647;
+}
+
+html[data-appearance='ocean-slate'] .panel.table-wrap tbody td {
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .panel.table-wrap .btn-secondary {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-appearance='ocean-slate'] .panel.table-wrap .btn-secondary:hover {
+  background: var(--brand-soft);
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
+}
+
+/* ---- Forms / fields ---- */
+html[data-appearance='ocean-slate'] select,
+html[data-appearance='ocean-slate'] .field-input,
+html[data-appearance='ocean-slate'] .field select,
+html[data-appearance='ocean-slate'] input[type='text'],
+html[data-appearance='ocean-slate'] input[type='email'],
+html[data-appearance='ocean-slate'] input[type='number'],
+html[data-appearance='ocean-slate'] input[type='password'],
+html[data-appearance='ocean-slate'] input[type='date'],
+html[data-appearance='ocean-slate'] input[type='time'],
+html[data-appearance='ocean-slate'] input[type='search'],
+html[data-appearance='ocean-slate'] input[type='tel'],
+html[data-appearance='ocean-slate'] input[type='url'],
+html[data-appearance='ocean-slate'] textarea {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field-bg);
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] select option,
+html[data-appearance='ocean-slate'] select optgroup {
+  background: #ffffff;
+  color: #152033;
+}
+
+html[data-appearance='ocean-slate'] .field-input:focus,
+html[data-appearance='ocean-slate'] input:focus,
+html[data-appearance='ocean-slate'] select:focus,
+html[data-appearance='ocean-slate'] textarea:focus {
+  outline: 2px solid rgba(42, 155, 181, 0.35);
+  border-color: var(--brand);
+}
+
+html[data-appearance='ocean-slate'] .field-label,
+html[data-appearance='ocean-slate'] label > span {
+  color: #314556;
+  font-weight: 650;
+}
+
+html[data-appearance='ocean-slate'] .settings-hint,
+html[data-appearance='ocean-slate'] .field .hint {
+  color: var(--ocean-muted);
+}
+
+/* ---- Panels / cards / stats ---- */
+html[data-appearance='ocean-slate'] .panel,
+html[data-appearance='ocean-slate'] .stat-card,
+html[data-appearance='ocean-slate'] .entity-card,
+html[data-appearance='ocean-slate'] .schedule-day,
+html[data-appearance='ocean-slate'] .money-strip-item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+html[data-appearance='ocean-slate'] .stat-card strong,
+html[data-appearance='ocean-slate'] .stat-card .stat-value,
+html[data-appearance='ocean-slate'] .money-strip-item strong {
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .stat-card span,
+html[data-appearance='ocean-slate'] .money-strip-item span {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ocean-slate'] .money-strip-item.is-accent strong {
+  color: var(--brand-dark);
+}
+
+/* ---- Buttons ---- */
+html[data-appearance='ocean-slate'] .btn-primary {
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #ffffff;
+  box-shadow: var(--brand-button-shadow);
+}
+
+html[data-appearance='ocean-slate'] .btn-secondary {
+  background: #ffffff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+html[data-appearance='ocean-slate'] .btn-secondary:hover {
+  background: var(--brand-soft);
+}
+
+html[data-appearance='ocean-slate'] .btn-ghost {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ocean-slate'] .btn-danger,
+html[data-appearance='ocean-slate'] .btn-danger-outline {
+  color: var(--danger);
+}
+
+html[data-appearance='ocean-slate'] .page-header-actions .btn-primary {
+  color: #ffffff;
+}
+
+/* ---- Modals / cards ---- */
+html[data-appearance='ocean-slate'] .login-card,
+html[data-appearance='ocean-slate'] .ssr-card,
+html[data-appearance='ocean-slate'] .training-modal,
+html[data-appearance='ocean-slate'] .modal,
+html[data-appearance='ocean-slate'] .modal-panel,
+html[data-appearance='ocean-slate'] .modal-card,
+html[data-appearance='ocean-slate'] .ui-modal,
+html[data-appearance='ocean-slate'] .ann-modal,
+html[data-appearance='ocean-slate'] .photos-modal,
+html[data-appearance='ocean-slate'] .public-join-card,
+html[data-appearance='ocean-slate'] .join-form {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+html[data-appearance='ocean-slate'] .login-card label,
+html[data-appearance='ocean-slate'] .login-card label > span,
+html[data-appearance='ocean-slate'] .ssr-card label,
+html[data-appearance='ocean-slate'] .ssr-card label > span,
+html[data-appearance='ocean-slate'] .ssr-card .ssr-label,
+html[data-appearance='ocean-slate'] .ssr-card .ssr-check,
+html[data-appearance='ocean-slate'] .ssr-card .ssr-check span,
+html[data-appearance='ocean-slate'] .ssr-card .ssr-terms,
+html[data-appearance='ocean-slate'] .ssr-card .ssr-terms > span,
+html[data-appearance='ocean-slate'] .ssr-card legend,
+html[data-appearance='ocean-slate'] .ssr-card h2,
+html[data-appearance='ocean-slate'] .training-modal label,
+html[data-appearance='ocean-slate'] .training-modal label > span,
+html[data-appearance='ocean-slate'] .modal label,
+html[data-appearance='ocean-slate'] .modal label > span,
+html[data-appearance='ocean-slate'] .modal h2,
+html[data-appearance='ocean-slate'] .modal #modal-title,
+html[data-appearance='ocean-slate'] .public-join-card label,
+html[data-appearance='ocean-slate'] .public-join-card label > span,
+html[data-appearance='ocean-slate'] .join-form label,
+html[data-appearance='ocean-slate'] .join-form label > span {
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .ssr-card .ssr-terms,
+html[data-appearance='ocean-slate'] .ssr-card .ssr-secure,
+html[data-appearance='ocean-slate'] .modal .muted,
+html[data-appearance='ocean-slate'] .modal .settings-hint {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ocean-slate'] .ssr-card .ssr-link {
+  color: var(--brand-dark);
+}
+
+/* Fee charge modal — light surfaces, dark text */
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .modal-header,
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .modal-footer {
+  background: #f5f8fb;
+  border-color: var(--line);
+}
+
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .modal-header h2,
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal #modal-title,
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .fee-charge-section h3,
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .fee-charge-form {
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .field-label,
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal label > span,
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .field > span,
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .fee-month-chip span {
+  color: #314556;
+}
+
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .settings-hint,
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .muted,
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .fee-charge-section .muted,
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .fee-charge-form .muted {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .fee-month-chip {
+  background: #f0f4f8;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .fee-month-chip:has(input:checked),
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .fee-month-chip.is-active {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+  color: var(--brand-dark);
+}
+
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .field-input,
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .fee-charge-section select,
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal .fee-charge-section input:not([type='checkbox']) {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+/* ---- Fees / transactions contrast ---- */
+html[data-appearance='ocean-slate'] .fees-page,
+html[data-appearance='ocean-slate'] .transactions-page,
+html[data-appearance='ocean-slate'] .tx-page,
+html[data-appearance='ocean-slate'] .fees-table,
+html[data-appearance='ocean-slate'] .tx-table {
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .fees-page .muted,
+html[data-appearance='ocean-slate'] .transactions-page .muted,
+html[data-appearance='ocean-slate'] .tx-page .muted,
+html[data-appearance='ocean-slate'] .status-pill,
+html[data-appearance='ocean-slate'] .badge,
+html[data-appearance='ocean-slate'] .chip {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ocean-slate'] .status-pill.is-paid,
+html[data-appearance='ocean-slate'] .badge.is-positive,
+html[data-appearance='ocean-slate'] .chip.is-success {
+  color: #067647;
+  background: rgba(6, 118, 71, 0.1);
+}
+
+html[data-appearance='ocean-slate'] .status-pill.is-due,
+html[data-appearance='ocean-slate'] .status-pill.is-pending,
+html[data-appearance='ocean-slate'] .badge.is-warn {
+  color: #9a3412;
+  background: rgba(181, 71, 8, 0.12);
+}
+
+html[data-appearance='ocean-slate'] .status-pill.is-overdue,
+html[data-appearance='ocean-slate'] .badge.is-danger {
+  color: #b42318;
+  background: rgba(180, 35, 24, 0.1);
+}
+
+/* ---- Announcements ---- */
+html[data-appearance='ocean-slate'] .announcements-page .page-header h1,
+html[data-appearance='ocean-slate'] .ann-card,
+html[data-appearance='ocean-slate'] .ann-card h3,
+html[data-appearance='ocean-slate'] .ann-card strong {
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .ann-card,
+html[data-appearance='ocean-slate'] .ann-list-item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+html[data-appearance='ocean-slate'] .ann-card .muted,
+html[data-appearance='ocean-slate'] .ann-meta,
+html[data-appearance='ocean-slate'] .ann-audience {
+  color: var(--ocean-muted);
+}
+
+/* ---- Portals ---- */
+html[data-appearance='ocean-slate'] .athlete-portal,
+html[data-appearance='ocean-slate'] .coach-portal,
+html[data-appearance='ocean-slate'] .parent-portal,
+html[data-appearance='ocean-slate'] .parent-portal .panel {
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .athlete-portal .muted,
+html[data-appearance='ocean-slate'] .coach-portal .muted,
+html[data-appearance='ocean-slate'] .parent-portal .muted {
+  color: var(--ocean-muted);
+}
+
+/* ---- Attendance ---- */
+html[data-appearance='ocean-slate'] .att-select select,
+html[data-appearance='ocean-slate'] .att-select select:focus {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-appearance='ocean-slate'] .att-select--date input[type='date'],
+html[data-appearance='ocean-slate'] .att-select--date input[type='date']:focus {
+  background: #fff;
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .att-select {
+  background: #fff;
+  border-color: var(--line);
+}
+
+html[data-appearance='ocean-slate'] .att-select:focus-within {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(42, 155, 181, 0.2);
+}
+
+/* ---- Login (light card on slate hero) ---- */
+html[data-appearance='ocean-slate'] .login-page {
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .login-hero-panel {
+  background: linear-gradient(165deg, var(--chrome-1), var(--chrome-3));
+  color: var(--chrome-fg);
+}
+
+html[data-appearance='ocean-slate'] .login-hero-title,
+html[data-appearance='ocean-slate'] .login-hero-name,
+html[data-appearance='ocean-slate'] .login-hero-features li {
+  color: var(--chrome-fg);
+}
+
+html[data-appearance='ocean-slate'] .login-hero-features li span,
+html[data-appearance='ocean-slate'] .login-hero-copy {
+  color: var(--chrome-muted);
+}
+
+html[data-appearance='ocean-slate'] .login-card {
+  background: #ffffff;
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .login-card input,
+html[data-appearance='ocean-slate'] .login-card select,
+html[data-appearance='ocean-slate'] .login-card textarea {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-appearance='ocean-slate'] .login-submit,
+html[data-appearance='ocean-slate'] .login-card .btn-primary {
+  background: var(--login-submit);
+  color: var(--login-submit-fg);
+}
+
+/* ---- Public join ---- */
+html[data-appearance='ocean-slate'] .public-join-page,
+html[data-appearance='ocean-slate'] .public-join-card,
+html[data-appearance='ocean-slate'] .public-join-card h2,
+html[data-appearance='ocean-slate'] .public-join-kind,
+html[data-appearance='ocean-slate'] .public-join-kind legend,
+html[data-appearance='ocean-slate'] .public-join-terms,
+html[data-appearance='ocean-slate'] .public-join-terms summary,
+html[data-appearance='ocean-slate'] .public-join-terms span,
+html[data-appearance='ocean-slate'] .public-join-terms-body {
+  color: var(--ink);
+}
+
+html[data-appearance='ocean-slate'] .public-join-card .lede,
+html[data-appearance='ocean-slate'] .public-join-card .muted,
+html[data-appearance='ocean-slate'] .public-join-card .field-label {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ocean-slate'] .public-join-page .btn-primary {
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #ffffff;
+}
+
+/* ---- Shell density ---- */
+html[data-appearance='ocean-slate'] .sidebar {
+  padding: 0.95rem 0.9rem;
+  gap: 1rem;
+}
+
+html[data-appearance='ocean-slate'] .nav-link {
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.92rem;
+}
+
+html[data-appearance='ocean-slate'] .page {
+  padding: 0.75rem 1.35rem 1.85rem;
+}
+
+html[data-appearance='ocean-slate'] .page-header {
+  margin-bottom: 0.85rem;
+}
+
+html[data-appearance='ocean-slate'] .btn {
+  border-radius: 8px;
+}
+
+/* ---- Tabs / filters ---- */
+html[data-appearance='ocean-slate'] .tabs button,
+html[data-appearance='ocean-slate'] .segmented button,
+html[data-appearance='ocean-slate'] .filter-chip {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ocean-slate'] .tabs button.is-active,
+html[data-appearance='ocean-slate'] .tabs button[aria-selected='true'],
+html[data-appearance='ocean-slate'] .segmented button.is-active,
+html[data-appearance='ocean-slate'] .filter-chip.is-active {
+  color: var(--brand-dark);
+  background: var(--brand-soft);
+}
+
+/* ---- Links on content ---- */
+html[data-appearance='ocean-slate'] .main-area a.text-link,
+html[data-appearance='ocean-slate'] .page a:not(.btn):not(.nav-link):not([class*='-btn']):not(.cal-block):not(.ssr-submit) {
+  color: var(--brand-dark);
+}
+
+html[data-appearance='ocean-slate'] .cal-new-btn,
+html[data-appearance='ocean-slate'] a.cal-new-btn:link,
+html[data-appearance='ocean-slate'] a.cal-new-btn:visited,
+html[data-appearance='ocean-slate'] a.cal-new-btn:hover,
+html[data-appearance='ocean-slate'] a.cal-new-btn:active {
+  background: var(--brand-dark);
+  color: #ffffff;
+}
+
+html[data-appearance='ocean-slate'] .att-select select option,
+html[data-appearance='ocean-slate'] .att-select select optgroup {
+  background: #ffffff;
+  color: #152033;
+}
+
+/* Fee charge hero — slate + teal instead of navy/amber */
+html[data-appearance='ocean-slate'] .fee-charge-hero {
+  background: linear-gradient(135deg, #1c2b3a 0%, #243647 55%, #1e7a8f 100%);
+  color: #f0f4f8;
+  border-color: rgba(42, 155, 181, 0.35);
+}
+
+html[data-appearance='ocean-slate'] .fee-charge-hero .field-label,
+html[data-appearance='ocean-slate'] .fee-charge-hero label > span,
+html[data-appearance='ocean-slate'] .fee-charge-hero .field > span,
+html[data-appearance='ocean-slate'] .fee-charge-hero .check-row,
+html[data-appearance='ocean-slate'] .fee-charge-hero .check-row span,
+html[data-appearance='ocean-slate'] .fee-charge-hero .admin-check,
+html[data-appearance='ocean-slate'] .fee-charge-hero .admin-check span {
+  color: #e8eef4 !important;
+}
+
+html[data-appearance='ocean-slate'] .fee-charge-hero .field-input,
+html[data-appearance='ocean-slate'] .fee-charge-hero select,
+html[data-appearance='ocean-slate'] .fee-charge-hero input:not([type='checkbox']) {
+  background: #ffffff !important;
+  color: #152033 !important;
+  border: 1px solid #cfd8e3 !important;
+}
+
+html[data-appearance='ocean-slate'] .fee-charge-note {
+  color: rgba(240, 244, 248, 0.82) !important;
+}
+
+html[data-appearance='ocean-slate'] .modal.fee-charge-modal.modal--fullscreen .modal-body {
+  background: #f0f4f8;
+}
+
+html[data-appearance='ocean-slate'] .ssr-page {
+  --ssr-navy: #162533;
+  --ssr-navy-2: #1c2b3a;
+  --ssr-amber: #2a9bb5;
+  --ssr-amber-hot: #38b0c9;
+  --ssr-ink: #152033;
+  --ssr-muted: #4a5d70;
+  background: #1c2b3a;
+  color: #f0f4f8;
+}
+
+html[data-appearance='ocean-slate'] .ssr-card {
+  background: #ffffff;
+  color: var(--ssr-ink);
+}
+
+html[data-appearance='ocean-slate'] .ssr-card-icon {
+  background: #1c2b3a;
+  border-color: #2a9bb5;
+  box-shadow: 0 0 0 3px rgba(42, 155, 181, 0.18);
+  color: #fff;
+}
+
+/* ---- Empty / placeholder ---- */
+html[data-appearance='ocean-slate'] .empty-state,
+html[data-appearance='ocean-slate'] .empty-state p,
+html[data-appearance='ocean-slate'] .placeholder {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ocean-slate'] .admin-zone-title,
+html[data-appearance='ocean-slate'] .admin-workspace-tab.is-active {
+  background: #1c2b3a;
+  color: #e8eef4;
+}
+
+html[data-appearance='ocean-slate'] .admin-zone-card-head {
+  background: #eef3f7;
+}
+
+html[data-appearance='ocean-slate'] .cport-role-pill,
+html[data-appearance='ocean-slate'] .aport-pill {
+  color: var(--ocean-ink);
+  background: rgba(42, 155, 181, 0.16);
+  border: 1px solid #2a9bb5;
+}

@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SportSuite 360 | Εγχειρίδιο χρήσης</title>
+  <style>
+    @page { size: A4; margin: 16mm 15mm 18mm; }
+    :root { --ink:#17283a; --muted:#5f7384; --teal:#238da5; --pale:#eaf3f6; --line:#d7e1e6; --gold:#e6cf87; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); font-family:"Segoe UI", Arial, sans-serif; font-size:10.5pt; line-height:1.5; background:#fff; }
+    h1,h2,h3 { color:var(--ink); line-height:1.15; margin:0 0 8px; }
+    h1 { font-size:30pt; letter-spacing:.02em; }
+    h2 { font-size:19pt; margin-top:22px; padding-bottom:6px; border-bottom:2px solid var(--teal); }
+    h3 { font-size:13pt; margin-top:15px; color:#206f85; }
+    p { margin:6px 0 9px; }
+    ul,ol { margin-top:5px; padding-left:21px; }
+    li { margin:3px 0; }
+    .cover { min-height:245mm; display:flex; flex-direction:column; justify-content:space-between; padding:18mm 13mm; background:linear-gradient(145deg,#edf6f7 0%,#fff 62%,#f4ecd1 100%); border:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:14px; font-weight:800; font-size:18pt; }
+    .mark { width:58px; height:58px; border-radius:18px; display:grid; place-items:center; color:white; font-size:22pt; background:linear-gradient(145deg,#2996aa,#e8ce76); }
+    .cover h1 { max-width:500px; margin-top:70px; }
+    .lead { max-width:490px; color:var(--muted); font-size:15pt; }
+    .cover-meta { color:var(--muted); border-top:1px solid var(--line); padding-top:12px; }
+    .toc, .note, .step, .role { border:1px solid var(--line); border-radius:9px; padding:11px 13px; margin:10px 0; }
+    .note { background:var(--pale); border-left:5px solid var(--teal); }
+    .step { background:#fbfcfd; }
+    .step strong { color:var(--teal); }
+    .role { display:grid; grid-template-columns:130px 1fr; gap:12px; }
+    .role b { color:var(--teal); }
+    table { width:100%; border-collapse:collapse; margin:10px 0 14px; }
+    th,td { border:1px solid var(--line); padding:7px 8px; text-align:left; vertical-align:top; }
+    th { background:#e8f0f4; color:#385368; }
+    .shot { margin:13px 0 17px; page-break-inside:avoid; }
+    .shot img { width:100%; max-height:143mm; object-fit:contain; object-position:top; border:1px solid var(--line); border-radius:7px; display:block; }
+    .shot figcaption { color:var(--muted); font-size:8.5pt; margin-top:5px; }
+    .page-break { page-break-before:always; }
+    .small { color:var(--muted); font-size:9pt; }
+    .checklist { list-style:none; padding-left:0; }
+    .checklist li::before { content:"□"; color:var(--teal); font-size:14pt; margin-right:7px; }
+    code { font-family:Consolas, monospace; background:#f1f4f6; padding:1px 4px; border-radius:3px; }
+    .footer { margin-top:24px; padding-top:8px; border-top:1px solid var(--line); color:var(--muted); font-size:8.5pt; }
+    @media print { .cover { page-break-after:always; } h2 { page-break-after:avoid; } }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div>
+      <div class="brand"><span class="mark">SS</span><span>SPORTSUITE 360</span></div>
+      <h1>Εγχειρίδιο χρήσης</h1>
+      <p class="lead">Πρακτικός οδηγός για την καθημερινή διαχείριση αθλητικής ακαδημίας, των αθλητών, των τμημάτων, του προγράμματος και των οικονομικών.</p>
+    </div>
+    <div class="cover-meta">
+      <p><strong>Έκδοση:</strong> Demo / 17 Αυγούστου 2026</p>
+      <p><strong>Περιβάλλον:</strong> SportSuite 360 · <strong>Demo σύλλογος:</strong> DEMO, Αθήνα</p>
+      <p class="small">Οι εικόνες του οδηγού προέρχονται από την πραγματική demo εφαρμογή.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Περιεχόμενα</h2>
+    <div class="toc">
+      <ol>
+        <li>Τι είναι το SportSuite 360</li>
+        <li>Σύνδεση και ασφάλεια</li>
+        <li>Ρόλοι και δικαιώματα</li>
+        <li>Επισκόπηση και καθημερινή πλοήγηση</li>
+        <li>Αθλητές και προφίλ</li>
+        <li>Αθλήματα, τμήματα και προπονητές</li>
+        <li>Πρόγραμμα, προπονήσεις και αγώνες</li>
+        <li>Παρουσίες</li>
+        <li>Συνδρομές, πληρωμές και οικονομικά</li>
+        <li>Ανακοινώσεις, φωτογραφίες και αποθήκη</li>
+        <li>Εκτυπώσεις, ρυθμίσεις και backup</li>
+        <li>Προτεινόμενες καθημερινές ροές</li>
+        <li>Γρήγορη αντιμετώπιση προβλημάτων</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2>1. Τι είναι το SportSuite 360</h2>
+    <p>Το SportSuite 360 συγκεντρώνει σε ένα περιβάλλον τις λειτουργίες μιας αθλητικής ακαδημίας: μητρώο αθλητών, γονείς, τμήματα, προπονητές, πρόγραμμα, παρουσίες, αγώνες, συνδρομές, εισπράξεις, έξοδα, αναφορές και επικοινωνία.</p>
+    <div class="note"><strong>Βασική αρχή:</strong> ξεκινήστε από το προφίλ του αθλητή και συνδέστε τον με άθλημα, τμήμα, γονέα και οικονομικές υποχρεώσεις. Έτσι τα στοιχεία επαναχρησιμοποιούνται αυτόματα στις υπόλοιπες οθόνες.</div>
+    <h3>Κύρια μενού</h3>
+    <p>Η πλαϊνή πλοήγηση οδηγεί σε Επισκόπηση, Αθλητές, Τμήματα, Προπονητές, Πρόγραμμα, Ημερολόγιο, Παρουσίες, Συνδρομές, Οικονομικά, Ανακοινώσεις, Φωτογραφίες, Εκτυπώσεις, Αποθήκη και Ρυθμίσεις. Η ορατότητα εξαρτάται από τον ρόλο και τα ενεργά modules του συλλόγου.</p>
+    <figure class="shot"><img src="screens/01-dashboard.png" alt="Επισκόπηση SportSuite 360"><figcaption>Εικόνα 1. Η Επισκόπηση συγκεντρώνει βασικούς δείκτες και γρήγορες συνδέσεις ανά άθλημα.</figcaption></figure>
+  </section>
+
+  <section class="page-break">
+    <h2>2. Σύνδεση και ασφάλεια</h2>
+    <ol>
+      <li>Ανοίξτε την εφαρμογή και επιλέξτε <strong>Σύνδεση</strong>.</li>
+      <li>Πληκτρολογήστε email και κωδικό πρόσβασης.</li>
+      <li>Για δοκιμή, χρησιμοποιήστε <strong>Είσοδος DEMO παρουσίασης</strong>.</li>
+      <li>Ενεργοποιήστε το «Να με θυμάσαι» μόνο σε προσωπική, ασφαλή συσκευή.</li>
+      <li>Αποσυνδεθείτε από το εικονίδιο εξόδου όταν ολοκληρώσετε.</li>
+    </ol>
+    <div class="note"><strong>Προσωπικά δεδομένα:</strong> στοιχεία υγείας, ΑΜΚΑ, τηλέφωνα και οικονομικές πληροφορίες εμφανίζονται μόνο στους ρόλους που έχουν σχετική πρόσβαση. Μην κοινοποιείτε screenshots με πραγματικά προσωπικά δεδομένα.</div>
+    <h3>Demo λογαριασμοί</h3>
+    <table><tr><th>Ρόλος</th><th>Email</th><th>Κωδικός</th></tr><tr><td>Διαχειριστής</td><td>demo@sportsuite360.app</td><td>demo1234</td></tr><tr><td>Προπονητής</td><td>coach@sportsuite360.app</td><td>demo1234</td></tr><tr><td>Γονέας</td><td>parent@sportsuite360.app</td><td>demo1234</td></tr></table>
+  </section>
+
+  <section>
+    <h2>3. Ρόλοι και δικαιώματα</h2>
+    <div class="role"><b>Platform Admin</b><span>Διαχειρίζεται πλατφόρμα, συλλόγους, χρήστες πλατφόρμας, πακέτα, permissions, backup και preview συλλόγων.</span></div>
+    <div class="role"><b>Admin συλλόγου</b><span>Έχει πλήρη λειτουργική εικόνα του συλλόγου, με βάση τα ενεργά modules.</span></div>
+    <div class="role"><b>Coach</b><span>Εστιάζει στα δικά του τμήματα, προπονήσεις, αγώνες, παρουσίες, αθλητές και ανακοινώσεις.</span></div>
+    <div class="role"><b>Doctor</b><span>Βλέπει αθλητές και λειτουργίες υγείας, όπως κάρτα υγείας και ιατρικά στοιχεία.</span></div>
+    <div class="role"><b>Parent / Athlete</b><span>Βλέπει προσωπικό portal, συνδεδεμένους αθλητές, πρόγραμμα, παρουσίες, ανακοινώσεις και οικονομικά.</span></div>
+    <p class="small">Όταν ένα κουμπί ή module δεν εμφανίζεται, ελέγξτε πρώτα τον ρόλο, τα permissions και τα ενεργά modules του συλλόγου.</p>
+  </section>
+
+  <section>
+    <h2>4. Επισκόπηση και πλοήγηση</h2>
+    <p>Η Επισκόπηση δείχνει συνολικά ταμείο, οφειλές, εισπράξεις, ενεργούς αθλητές, προπονητές, τμήματα και ημερήσιες εισπράξεις ανά άθλημα. Τα links «Διαχείριση», «Πρόγραμμα», «Παρουσίες» και «Τμήματα» οδηγούν κατευθείαν στη σχετική εργασία.</p>
+    <div class="step"><strong>Για γρήγορο έλεγχο:</strong> ανοίξτε την Επισκόπηση στην αρχή της ημέρας, ελέγξτε τις οφειλές και τις σημερινές προπονήσεις, και μετά μεταβείτε στις Παρουσίες.</div>
+    <figure class="shot"><img src="screens/02-athletes.png" alt="Μητρώο αθλητών"><figcaption>Εικόνα 2. Το μητρώο αθλητών διαθέτει αναζήτηση, άθλημα, τμήμα, γονέα και κατάσταση.</figcaption></figure>
+  </section>
+
+  <section class="page-break">
+    <h2>5. Αθλητές και προφίλ</h2>
+    <h3>Νέος αθλητής</h3>
+    <ol><li>Ανοίξτε <strong>Αθλητές</strong> και επιλέξτε <strong>Νέος αθλητής</strong>.</li><li>Συμπληρώστε ονοματεπώνυμο, email, τηλέφωνο, ημερομηνία γέννησης και άθλημα.</li><li>Προσθέστε γονέα/κηδεμόνα και συνδέστε τον αθλητή με ένα ή περισσότερα τμήματα.</li><li>Αποθηκεύστε και ανοίξτε το προφίλ για τις υπόλοιπες ενότητες.</li></ol>
+    <h3>Τι περιλαμβάνει το προφίλ</h3>
+    <ul><li>Βασικά στοιχεία και στοιχεία επικοινωνίας.</li><li>Άθλημα, τμήμα και προπονητή.</li><li>Στοιχεία γονέα/κηδεμόνα.</li><li>Υγεία, ιατρική κατάσταση, ΑΜΚΑ και κάρτα υγείας, ανά permission.</li><li>Παρουσίες και ιστορικό.</li><li>Συνδρομές, χρεώσεις και πληρωμές.</li><li>GDPR συγκαταθέσεις και σημειώσεις.</li></ul>
+    <div class="note"><strong>Αναζήτηση:</strong> χρησιμοποιήστε ονοματεπώνυμο ή γονέα από το πεδίο αναζήτησης. Για γρήγορη αλλαγή, ανοίξτε το προφίλ από το όνομα του αθλητή.</div>
+    <figure class="shot"><img src="screens/03-athlete-profile.png" alt="Προφίλ αθλητή"><figcaption>Εικόνα 3. Το προφίλ συγκεντρώνει τις πληροφορίες και τις εργασίες που αφορούν έναν αθλητή.</figcaption></figure>
+  </section>
+
+  <section>
+    <h2>6. Αθλήματα, τμήματα και προπονητές</h2>
+    <h3>Αθλήματα</h3>
+    <p>Από τις Ρυθμίσεις → Άθλημα ενεργοποιείτε αθλήματα από τον κατάλογο ή δημιουργείτε custom άθλημα. Για custom άθλημα επιλέξτε όνομα, κατηγορία όπως <code>team</code> ή <code>individual</code> και κατάσταση. Η δημιουργία νέου αθλήματος επιτρέπεται μόνο στον Platform Admin.</p>
+    <h3>Τμήματα</h3>
+    <ol><li>Ανοίξτε <strong>Τμήματα</strong> και δημιουργήστε τμήμα.</li><li>Ορίστε άθλημα, ονομασία/ηλικιακή κατηγορία, προπονητή και χωρητικότητα.</li><li>Συνδέστε αθλητές και ελέγξτε τη λίστα μελών.</li><li>Χρησιμοποιήστε τις συντομεύσεις για πρόγραμμα και παρουσίες.</li></ol>
+    <h3>Προπονητές</h3><p>Καταχωρίστε στοιχεία προπονητή, αθλήματα και τμήματα ευθύνης. Ο ρόλος Coach θα βλέπει το περιορισμένο, σχετικό workspace του.</p>
+    <figure class="shot"><img src="screens/08-sports.png" alt="Οθόνη αθλημάτων"><figcaption>Εικόνα 4. Ο κατάλογος αθλημάτων και οι ενεργές επιλογές του συλλόγου.</figcaption></figure>
+  </section>
+
+  <section class="page-break">
+    <h2>7. Πρόγραμμα, προπονήσεις και αγώνες</h2>
+    <p>Το <strong>Πρόγραμμα</strong> ορίζει επαναλαμβανόμενες ημέρες/ώρες, εγκαταστάσεις και τμήματα. Το <strong>Ημερολόγιο</strong> ενοποιεί προπονήσεις, αγώνες και δραστηριότητες.</p>
+    <div class="step"><strong>Ροή δημιουργίας:</strong> Τμήμα → Προπονητής → Ημέρα/ώρα → Εγκατάσταση → Σημειώσεις → Αποθήκευση.</div>
+    <p>Στους <strong>Αγώνες</strong> καταχωρίστε αντίπαλο, ημερομηνία, χώρο και κατάσταση. Μετά τον αγώνα συμπληρώστε αποτέλεσμα και σκορ όπου απαιτείται.</p>
+    <figure class="shot"><img src="screens/04-schedule.png" alt="Πρόγραμμα"><figcaption>Εικόνα 5. Το πρόγραμμα παρουσιάζει τις δραστηριότητες και τις ώρες ανά ημέρα.</figcaption></figure>
+  </section>
+
+  <section>
+    <h2>8. Παρουσίες</h2>
+    <ol><li>Ανοίξτε <strong>Παρουσίες</strong>.</li><li>Επιλέξτε τμήμα και ημερομηνία.</li><li>Σημειώστε παρών, απών ή δοκιμαστικό για κάθε αθλητή.</li><li>Προσθέστε σημείωση όπου χρειάζεται, π.χ. καθυστερημένη άφιξη ή τραυματισμός.</li><li>Αποθηκεύστε πριν αλλάξετε ημερομηνία ή τμήμα.</li></ol>
+    <div class="note"><strong>Καλή πρακτική:</strong> ενημερώνετε τις παρουσίες αμέσως μετά την προπόνηση. Έτσι ενημερώνονται σωστά οι αναφορές, το ιστορικό αθλητή και η εικόνα του προπονητή.</div>
+    <figure class="shot"><img src="screens/05-attendance.png" alt="Παρουσίες"><figcaption>Εικόνα 6. Καταχώριση παρουσιών ανά τμήμα και ημερομηνία.</figcaption></figure>
+  </section>
+
+  <section class="page-break">
+    <h2>9. Συνδρομές, πληρωμές και οικονομικά</h2>
+    <h3>Συνδρομές</h3><p>Στις <strong>Συνδρομές</strong> βλέπετε εκκρεμείς και εξοφλημένες χρεώσεις, δημιουργείτε χρέωση, καταχωρίζετε πληρωμή και στέλνετε υπενθύμιση οφειλής.</p>
+    <ol><li>Επιλέξτε αθλητή ή τμήμα.</li><li>Διαλέξτε πρότυπο χρέωσης ή καταχωρίστε ποσό και περίοδο.</li><li>Αποθηκεύστε τη χρέωση.</li><li>Όταν γίνει πληρωμή, καταχωρίστε τρόπο και ημερομηνία.</li></ol>
+    <h3>Οικονομικά</h3><p>Η οθόνη <strong>Οικονομικά</strong> συγκρίνει έσοδα και έξοδα, δείχνει καθαρό αποτέλεσμα, ταμείο, προϋπολογισμό και αναφορές. Χρησιμοποιήστε τις καρτέλες Ανάλυση, Έσοδα, Έξοδα, Ταμεία, Προϋπολογισμός και Αναφορές.</p>
+    <figure class="shot"><img src="screens/06-fees.png" alt="Συνδρομές"><figcaption>Εικόνα 7. Η εικόνα των συνδρομών και των οφειλών.</figcaption></figure>
+    <figure class="shot"><img src="screens/07-finance.png" alt="Οικονομικά"><figcaption>Εικόνα 8. Ανάλυση εσόδων, εξόδων και καθαρού αποτελέσματος.</figcaption></figure>
+  </section>
+
+  <section>
+    <h2>10. Ανακοινώσεις, φωτογραφίες και αποθήκη</h2>
+    <h3>Ανακοινώσεις</h3><p>Δημιουργήστε ανακοίνωση, ορίστε κοινό/ρόλο, προτεραιότητα και περίοδο προβολής. Χρησιμοποιήστε υψηλή προτεραιότητα μόνο για πραγματικά επείγοντα μηνύματα.</p>
+    <h3>Φωτογραφίες</h3><p>Οργανώστε εικόνες σε συλλογές, ανεβάστε αρχεία και επιλέξτε προβολή grid ή list. Ελέγξτε τις συγκαταθέσεις πριν δημοσιεύσετε φωτογραφία αθλητή.</p>
+    <h3>Αποθήκη</h3><p>Καταχωρίστε προϊόντα, μεγέθη, διαθέσιμο stock και κινήσεις εξοπλισμού. Ελέγχετε τα χαμηλά αποθέματα πριν από εκδηλώσεις ή νέα περίοδο.</p>
+  </section>
+
+  <section>
+    <h2>11. Εκτυπώσεις, ρυθμίσεις και backup</h2>
+    <h3>Εκτυπώσεις</h3><p>Από τις <strong>Εκτυπώσεις</strong> παράγετε λίστες αθλητών, παρουσιολόγια, υπόλοιπα, οφειλέτες, εισπράξεις, ιατρικές λήξεις, πρόγραμμα και αναφορές προόδου. Επιλέξτε πρώτα φίλτρα και περίοδο και μετά την κατάλληλη αναφορά.</p>
+    <h3>Ρυθμίσεις</h3><p>Διαχειριστείτε στοιχεία ακαδημίας, χρήστη, λειτουργικές παραμέτρους, αθλήματα και permissions όπου επιτρέπεται από τον ρόλο σας.</p>
+    <h3>Backup</h3><p>Ο Platform Admin εκτελεί backup από το περιβάλλον πλατφόρμας. Κρατήστε τα αρχεία backup σε ασφαλές σημείο, μην τα ανεβάζετε δημόσια και ελέγχετε ότι δεν περιέχουν εκτεθειμένα μυστικά ή ευαίσθητα δεδομένα.</p>
+    <ul class="checklist"><li>Έλεγχος νέων αθλητών και συγκαταθέσεων</li><li>Έλεγχος σημερινών προπονήσεων</li><li>Καταχώριση παρουσιών</li><li>Έλεγχος νέων πληρωμών και οφειλών</li><li>Backup σύμφωνα με την πολιτική του οργανισμού</li></ul>
+  </section>
+
+  <section class="page-break">
+    <h2>12. Προτεινόμενες καθημερινές ροές</h2>
+    <h3>Νέα εγγραφή αθλητή</h3><p>Αθλητές → Νέος αθλητής → Γονέας → Άθλημα → Τμήμα → Έλεγχος υγείας/GDPR → Χρέωση εγγραφής → Επιβεβαίωση.</p>
+    <h3>Πριν από την προπόνηση</h3><p>Επισκόπηση → Πρόγραμμα/Ημερολόγιο → Έλεγχος τμήματος → Επικοινωνία με ανακοίνωση αν χρειάζεται.</p>
+    <h3>Μετά την προπόνηση</h3><p>Παρουσίες → Σημειώσεις → Έλεγχος αθλητών με επαναλαμβανόμενες απουσίες → Ενημέρωση γονέα όπου απαιτείται.</p>
+    <h3>Τέλος μήνα</h3><p>Συνδρομές → Οφειλές/πληρωμές → Οικονομικά → Αναφορές → Backup.</p>
+    <h3>Προτεινόμενη ροή promo/demo</h3><ol><li>Είσοδος DEMO.</li><li>Επισκόπηση με τα βασικά KPIs.</li><li>Μητρώο και προφίλ αθλητή.</li><li>Πρόγραμμα και παρουσίες.</li><li>Συνδρομές και οικονομικά.</li><li>Ανακοινώσεις, εκτυπώσεις και ρόλοι.</li></ol>
+  </section>
+
+  <section>
+    <h2>13. Γρήγορη αντιμετώπιση προβλημάτων</h2>
+    <table><tr><th>Σύμπτωμα</th><th>Έλεγχος</th></tr><tr><td>Δεν εμφανίζεται menu ή κουμπί</td><td>Ελέγξτε ρόλο χρήστη, permission και ενεργό module.</td></tr><tr><td>Δεν εμφανίζεται αθλητής σε τμήμα</td><td>Ελέγξτε άθλημα, τμήμα, κατάσταση αθλητή και ενεργή περίοδο.</td></tr><tr><td>Λάθος ποσό στην Επισκόπηση</td><td>Ελέγξτε αν η χρέωση είναι πληρωμένη, την περίοδο και το ταμείο.</td></tr><tr><td>Δεν αποθηκεύεται αλλαγή</td><td>Ελέγξτε υποχρεωτικά πεδία, δικαιώματα και επαναφορτώστε μία φορά.</td></tr><tr><td>Λάθος στοιχεία σε εκτύπωση</td><td>Ελέγξτε τα φίλτρα και την ημερομηνία πριν δημιουργήσετε την αναφορά.</td></tr></table>
+    <div class="note"><strong>Σημείωση υποστήριξης:</strong> καταγράψτε route, ρόλο χρήστη, βήματα που προηγήθηκαν και ακριβές μήνυμα σφάλματος. Μην αποστέλλετε κωδικούς πρόσβασης ή πλήρη προσωπικά δεδομένα.</div>
+    <div class="footer">SportSuite 360 · Εγχειρίδιο χρήσης · Οι διαθέσιμες λειτουργίες μπορεί να διαφέρουν ανά ρόλο, πακέτο και ενεργά modules.</div>
+  </section>
+</body>
+</html>

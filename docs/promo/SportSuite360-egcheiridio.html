@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SportSuite 360 — Εγχειρίδιο παρουσίασης</title>
+  <style>
+    :root {
+      --ink: #12202c;
+      --muted: #5b6b78;
+      --line: #d5dde4;
+      --paper: #f4f7f8;
+      --card: #fff;
+      --accent: #1f8a8a;
+      --accent-2: #c6e04a;
+      --navy: #0b1220;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.55;
+    }
+    .hero {
+      background: radial-gradient(1200px 500px at 10% -10%, #1a3a2a 0%, transparent 55%),
+                  linear-gradient(160deg, #0b1220 0%, #163044 55%, #0f1c28 100%);
+      color: #f6f8f4;
+      padding: 72px 40px 56px;
+    }
+    .hero .brand { font-size: 42px; font-weight: 800; letter-spacing: .02em; margin: 0; }
+    .hero .brand span { color: var(--accent-2); }
+    .hero .tag { margin: 12px 0 0; max-width: 42rem; color: #c9d4cc; font-size: 18px; }
+    .hero .meta-row { margin-top: 22px; display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: #9eaea8; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 0 28px 80px; }
+    nav.toc {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 22px 28px;
+      margin: -28px auto 40px;
+      max-width: 1100px;
+    }
+    nav.toc h2 { margin: 0 0 10px; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    nav.toc ol { margin: 0; padding-left: 22px; columns: 2; }
+    nav.toc a { color: var(--ink); text-decoration: none; }
+    nav.toc a:hover { color: var(--accent); }
+    section { margin: 48px 0 16px; }
+    section > h2 {
+      font-size: 28px;
+      margin: 0 0 8px;
+      padding-bottom: 8px;
+      border-bottom: 3px solid var(--accent-2);
+      display: inline-block;
+    }
+    .lead { color: var(--muted); max-width: 46rem; }
+    .block {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 22px 24px 8px;
+      margin: 22px 0;
+    }
+    .block h3 { margin: 0; font-size: 22px; }
+    .meta { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 10px; }
+    .path, .role {
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #eef3f4;
+      color: var(--muted);
+    }
+    .path { font-family: ui-monospace, Consolas, monospace; }
+    .what { margin: 0 0 14px; }
+    .block h4 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 8px 0; }
+    .opts { margin: 0 0 18px; padding-left: 18px; }
+    .opts li { margin: 6px 0; }
+    figure.shot { margin: 0 0 16px; }
+    figure.shot img {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      display: block;
+      background: #111;
+    }
+    figcaption { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .note {
+      background: #f3f7e8;
+      border-left: 4px solid var(--accent-2);
+      padding: 14px 18px;
+      border-radius: 0 10px 10px 0;
+      margin: 24px 0;
+    }
+    footer {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 28px 0 8px;
+      border-top: 1px solid var(--line);
+    }
+    @media (max-width: 800px) {
+      nav.toc ol { columns: 1; }
+      .hero { padding: 48px 22px 40px; }
+      .hero .brand { font-size: 30px; }
+    }
+    @media print {
+      .hero { padding: 28px 0; background: #0b1220 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      nav.toc { margin-top: 16px; }
+      .block { break-inside: avoid; }
+      figure.shot img { max-height: 420px; object-fit: contain; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <p class="brand">SPORTSUITE <span>360</span></p>
+    <p class="tag">Αναλυτικό εγχειρίδιο λειτουργιών — με πραγματικές οθόνες από το DEMO παρουσίασης.</p>
+    <div class="meta-row">
+      <span>Για παρουσίαση σε συλλόγους</span>
+      <span>Demo: demo@sportsuite360.app / demo1234</span>
+      <span>https://sportsuite360.vercel.app</span>
+    </div>
+  </header>
+  <div class="wrap">
+    <nav class="toc">
+      <h2>Περιεχόμενα</h2>
+      <ol><li><a href="#public">Δημόσιες οθόνες</a></li><li><a href="#admin-core">Διαχείριση ακαδημίας</a></li><li><a href="#ops">Προπονήσεις, αγώνες και παρουσίες</a></li><li><a href="#club-setup">Σωματείο, άθλημα, εκτυπώσεις, αποθήκη</a></li><li><a href="#money">Συνδρομές, συναλλαγές και οικονομικά</a></li><li><a href="#settings">Ρυθμίσεις συλλόγου</a></li><li><a href="#portals">Περιοχή γονέα και προπονητή</a></li></ol>
+    </nav>
+    <div class="note">
+      Οι φωτογραφίες είναι πραγματικά στιγμιότυπα της εφαρμογής (σύλλογος DEMO).
+      Τα δικαιώματα καρτελών μπορεί να διαφέρουν ανά ρόλο· ο διαχειριστής τα ρυθμίζει από <strong>Ρυθμίσεις → Χρήστες</strong>.
+    </div>
+    
+      <section id="public">
+        <h2>Δημόσιες οθόνες</h2>
+        <p class="lead">Χωρίς σύνδεση: είσοδος στο σύστημα, εγγραφή νέου συλλόγου και νομικά έγγραφα.</p>
+        
+        <article class="block">
+          <header>
+            <h3>Σύνδεση</h3>
+            <p class="meta"><span class="path">/login</span><span class="role">Δημόσιο</span></p>
+          </header>
+          <p class="what">Είσοδος διαχειριστή, προπονητή, γονέα, αθλητή ή διαχειριστή πλατφόρμας. Από εδώ ξεκινά και η DEMO παρουσίαση.</p>
+          <figure class="shot"><img src="screens/00-login.png" alt="Σύνδεση" /><figcaption>Σύνδεση</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Email</strong> — λογαριασμός χρήστη.</li><li><strong>Κωδικός πρόσβασης</strong> — με Εμφάνιση / Απόκρυψη κωδικού.</li><li><strong>Να με θυμάσαι</strong> — διατήρηση συνεδρίας στη συσκευή.</li><li><strong>Ξέχασα τον κωδικό μου</strong> — αποστολή συνδέσμου επαναφοράς.</li><li><strong>Σύνδεση</strong> — είσοδος στο portal του ρόλου σας.</li><li><strong>Είσοδος DEMO παρουσίασης</strong> — φορτώνει σύλλογο DEMO με πλήρη δείγματα (τοπικά στο browser).</li><li><strong>Εγγραφή συλλόγου</strong> — μετάβαση στη λίστα αναμονής νέας ακαδημίας.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Εγγραφή συλλόγου (λίστα αναμονής)</h3>
+            <p class="meta"><span class="path">/register</span><span class="role">Δημόσιο</span></p>
+          </header>
+          <p class="what">Αίτημα ένταξης για δωρεάν δοκιμή. Δεν δημιουργεί άμεσα λογαριασμό — ειδοποιείται ο διαχειριστής πλατφόρμας.</p>
+          <figure class="shot"><img src="screens/00-register.png" alt="Εγγραφή συλλόγου (λίστα αναμονής)" /><figcaption>Εγγραφή συλλόγου (λίστα αναμονής)</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Όνομα ακαδημίας</strong>, <strong>Ονοματεπώνυμο υπευθύνου</strong>, <strong>Email</strong>, <strong>Τηλέφωνο</strong>.</li><li><strong>Άθλημα</strong> — Ποδόσφαιρο, Μπάσκετ, Βόλεϊ, Χάντμπολ, Κολύμβηση, Τένις, Άλλο.</li><li><strong>Επίπεδο τμημάτων</strong> — Ακαδημίες / Προαγωνιστικό / Αγωνιστικό.</li><li>Αποδοχή <strong>Όρων Χρήσης</strong> και <strong>Πολιτικής Απορρήτου</strong>.</li><li>Μετά την υποβολή: «Είσαι στη λίστα!» και σύνδεσμος επιστροφής στη σύνδεση.</li></ul>
+        </article>
+      </section>
+      <section id="admin-core">
+        <h2>Διαχείριση ακαδημίας</h2>
+        <p class="lead">Μετά τη σύνδεση ως διαχειριστής συλλόγου βλέπετε το μενού ΑΚΑΔΗΜΙΑ. Κάθε καρτέλα είναι ένα module.</p>
+        
+        <article class="block">
+          <header>
+            <h3>Επισκόπηση</h3>
+            <p class="meta"><span class="path">/</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Μία οθόνη για την υγεία του συλλόγου: αθλητές, παρουσίες, οφειλές, ιατρικές και αιτήσεις.</p>
+          <figure class="shot"><img src="screens/01-dashboard.png" alt="Επισκόπηση" /><figcaption>Επισκόπηση</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>KPI: <strong>Ενεργοί αθλητές</strong>, <strong>Παρουσία μήνα</strong>, <strong>Εκκρεμείς οφειλές</strong>, <strong>Ληγμένες ιατρικές</strong>, <strong>Αιτήσεις εγγραφής</strong>.</li><li>Λωρίδα ταμείου: <strong>Ταμείο</strong>, <strong>Οφειλές</strong>, <strong>Εισπράξεις μήνα</strong>.</li><li>Σύνοψη ανά άθλημα με συνδέσμους προς τμήματα και αθλητές.</li><li>Επάνω δεξιά: όνομα χρήστη, ρόλος, <strong>Αποσύνδεση</strong>.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Ημερολόγιο</h3>
+            <p class="meta"><span class="path">/calendar</span><span class="role">Διαχειριστής · Γραμματεία · Προπονητής</span></p>
+          </header>
+          <p class="what">Προπονήσεις και αγώνες σε ημερολόγιο, με φίλτρα ομάδας και γηπέδου.</p>
+          <figure class="shot"><img src="screens/02-calendar.png" alt="Ημερολόγιο" /><figcaption>Ημερολόγιο</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Προηγούμενο / Επόμενο / Σήμερα</strong> — πλοήγηση περιόδου.</li><li>Προβολές: <strong>Μήνας</strong>, <strong>Εβδομάδα</strong>, <strong>Ημέρα</strong>, <strong>Γήπεδα</strong>.</li><li><strong>Νέο Γεγονός</strong> — καταχώρηση προπόνησης.</li><li>Φίλτρα: κατηγορία (Προπόνηση / Αγώνας), ομάδα, γήπεδο.</li><li><strong>Σύνδεση Ημερολογίου</strong> — συγχρονισμός με το πρόγραμμα.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Αθλητές</h3>
+            <p class="meta"><span class="path">/athletes</span><span class="role">Διαχειριστής · Γραμματεία · Προπονητής · Ιατρός</span></p>
+          </header>
+          <p class="what">Μητρώο αθλητών, σύνδεση με γονείς και τμήματα. Ο ιατρός βλέπει υγεία / ΑΜΚΑ.</p>
+          <figure class="shot"><img src="screens/03-athletes.png" alt="Αθλητές" /><figcaption>Αθλητές</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>+ Νέος αθλητής</strong> — νέα καρτέλα μητρώου.</li><li><strong>Αναζήτηση αθλητή ή γονέα</strong>.</li><li>Πίνακας: Αθλητής, Άθλημα, Τμήμα, Γονέας, Κατάσταση.</li><li>Εκκρεμείς αιτήσεις δημόσιας εγγραφής: <strong>Επεξεργασία</strong>, <strong>Έγκριση</strong>, <strong>Απόρριψη</strong>.</li><li>Κλικ σε γραμμή → προφίλ αθλητή.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Προφίλ αθλητή</h3>
+            <p class="meta"><span class="path">/athletes/:id</span><span class="role">Όποιος έχει Αθλητές</span></p>
+          </header>
+          <p class="what">Πλήρης φάκελος ενός αθλητή: στοιχεία, γονείς, οικονομικά, υγεία, GDPR, πρόοδος.</p>
+          <figure class="shot"><img src="screens/03b-athlete-profile.png" alt="Προφίλ αθλητή" /><figcaption>Προφίλ αθλητή</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Προσωπικά Στοιχεία</strong> — ταυτότητα, διεύθυνση, άθλημα, μεγέθη, εκπτώσεις.</li><li><strong>Γονείς</strong> — σύνδεση κηδεμόνων.</li><li><strong>AMKA & Ταυτοποίηση</strong>.</li><li><strong>Συνδρομές / Οφειλές</strong>.</li><li><strong>Κάρτα Υγείας</strong> — προεπισκόπηση / εκτύπωση.</li><li><strong>Συγκαταθέσεις (GDPR)</strong>.</li><li><strong>Πρόοδος</strong> και <strong>Ιστορικό</strong> παρουσιών.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Προσωπικό</h3>
+            <p class="meta"><span class="path">/staff</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Διοικητικό και άλλο προσωπικό του συλλόγου.</p>
+          <figure class="shot"><img src="screens/04-staff.png" alt="Προσωπικό" /><figcaption>Προσωπικό</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Νέο μέλος</strong> / επεξεργασία: ονοματεπώνυμο, email, τηλέφωνο, ρόλος, τμήμα, κατάσταση.</li><li>Αναζήτηση μέλους · διαγραφή.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Προπονητές</h3>
+            <p class="meta"><span class="path">/coaches</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Κατάλογος προπονητών, άδειες και σύνδεση με τμήματα.</p>
+          <figure class="shot"><img src="screens/05-coaches.png" alt="Προπονητές" /><figcaption>Προπονητές</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Νέος προπονητής</strong> — φωτογραφία, άδεια, πρώτες βοήθειες, πρόσληψη.</li><li>Πίνακας: άθλημα, email, τηλέφωνο, κατάσταση, τμήματα.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Τμήματα</h3>
+            <p class="meta"><span class="path">/classes</span><span class="role">Διαχειριστής · Γραμματεία · Προπονητής</span></p>
+          </header>
+          <p class="what">Ομάδες / ηλικιακές κατηγορίες ανά άθλημα.</p>
+          <figure class="shot"><img src="screens/06-classes.png" alt="Τμήματα" /><figcaption>Τμήματα</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Νέο τμήμα</strong> — όνομα, άθλημα, κατηγορία (π.χ. U12), ημερομηνίες ή «Πάντα ενεργό».</li><li>Πίνακας αθλητών ανά τμήμα · επεξεργασία / διαγραφή.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Γονείς</h3>
+            <p class="meta"><span class="path">/parents</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Σύνδεση γονέων με αθλητές και πρόσκληση λογαριασμού για το parent portal.</p>
+          <figure class="shot"><img src="screens/07-parents.png" alt="Γονείς" /><figcaption>Γονείς</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Πρόσκληση γονέα</strong> — ονοματεπώνυμο, email, κωδικός, προαιρετικός αθλητής.</li><li>Σύνδεση / αποσύνδεση αθλητή από γονέα.</li><li>Αναζήτηση γονέα ή email.</li></ul>
+        </article>
+      </section>
+      <section id="ops">
+        <h2>Προπονήσεις, αγώνες και παρουσίες</h2>
+        <p class="lead">Καθημερινή λειτουργία γηπέδου: καταχώρηση προπονήσεων, αγώνων, εβδομαδιαίου προγράμματος και παρουσιολογίου.</p>
+        
+        <article class="block">
+          <header>
+            <h3>Προπονήσεις</h3>
+            <p class="meta"><span class="path">/trainings</span><span class="role">Διαχειριστής · Προπονητής</span></p>
+          </header>
+          <p class="what">Μεμονωμένες και επαναλαμβανόμενες προπονήσεις.</p>
+          <figure class="shot"><img src="screens/08-trainings.png" alt="Προπονήσεις" /><figcaption>Προπονήσεις</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Νέα προπόνηση</strong> — ημερομηνία, ώρα έναρξης/λήξης, τοποθεσία, τμήμα, σημειώσεις.</li><li><strong>Επαναλαμβανόμενες προπονήσεις</strong> — ημέρα εβδομάδας και περίοδος.</li><li><strong>Μαζική διαγραφή</strong>.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Αγώνες</h3>
+            <p class="meta"><span class="path">/matches</span><span class="role">Διαχειριστής · Προπονητής</span></p>
+          </header>
+          <p class="what">Προγραμματισμός αγώνων, έδρα και αποτέλεσμα.</p>
+          <figure class="shot"><img src="screens/09-matches.png" alt="Αγώνες" /><figcaption>Αγώνες</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Έδρα: <strong>Εντός / Εκτός / Ουδέτερο</strong>.</li><li>Κατάσταση: <strong>Προγραμματισμένος / Ολοκληρώθηκε / Ακυρώθηκε</strong>.</li><li>Καταχώρηση σκορ · διαγραφή αγώνα.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Πρόγραμμα</h3>
+            <p class="meta"><span class="path">/schedule</span><span class="role">Διαχειριστής · Προπονητής · Αθλητής</span></p>
+          </header>
+          <p class="what">Εβδομαδιαίο πλέγμα ωρών ανά τμήμα.</p>
+          <figure class="shot"><img src="screens/10-schedule.png" alt="Πρόγραμμα" /><figcaption>Πρόγραμμα</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Πλοήγηση εβδομάδας.</li><li><strong>Νέα ώρα προγράμματος</strong> — τμήμα, ημέρα, ώρες, τοποθεσία.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Παρουσίες</h3>
+            <p class="meta"><span class="path">/attendance</span><span class="role">Διαχειριστής · Προπονητής · Αθλητής</span></p>
+          </header>
+          <p class="what">Καταγραφή παρών/απών ανά τμήμα και ημερομηνία.</p>
+          <figure class="shot"><img src="screens/11-attendance.png" alt="Παρουσίες" /><figcaption>Παρουσίες</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Φίλτρα <strong>Ομάδα / Τμήμα</strong> και <strong>Ημερομηνία</strong>.</li><li>Toggle <strong>Παρουσία / Απουσία</strong> ανά αθλητή.</li><li><strong>Email σε απουσία</strong> · <strong>Αποθήκευση</strong> · <strong>Εξαγωγή CSV</strong>.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Ανακοινώσεις</h3>
+            <p class="meta"><span class="path">/announcements</span><span class="role">Όλοι οι ρόλοι (ανά κοινό)</span></p>
+          </header>
+          <p class="what">Ενημερώσεις προς γονείς, προπονητές, αθλητές ή προσωπικό — με προαιρετικό email.</p>
+          <figure class="shot"><img src="screens/14-announcements.png" alt="Ανακοινώσεις" /><figcaption>Ανακοινώσεις</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Νέα Ανακοίνωση</strong> — τίτλος, περιεχόμενο (μορφοποίηση), εικόνα.</li><li>Ακροατήριο: Γονείς / Προπονητές / Αθλητές / Προσωπικό, φίλτρο αθλήματος και τμημάτων.</li><li>Ημερομηνίες εμφάνισης, προτεραιότητα.</li><li><strong>Αποστολή και με email</strong>.</li></ul>
+        </article>
+      </section>
+      <section id="club-setup">
+        <h2>Σωματείο, άθλημα, εκτυπώσεις, αποθήκη</h2>
+        <p class="lead">Υποδομή συλλόγου και βοηθητικά εργαλεία.</p>
+        
+        <article class="block">
+          <header>
+            <h3>Σωματείο</h3>
+            <p class="meta"><span class="path">/associations</span><span class="role">Ρυθμίσεις</span></p>
+          </header>
+          <p class="what">Ενώσεις / σωματεία που συνδέονται με οικονομικά και μητρώο.</p>
+          <figure class="shot"><img src="screens/12-associations.png" alt="Σωματείο" /><figcaption>Σωματείο</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Προσθήκη, επεξεργασία, διαγραφή ονόματος σωματείου.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Άθλημα</h3>
+            <p class="meta"><span class="path">/sports</span><span class="role">Ρυθμίσεις</span></p>
+          </header>
+          <p class="what">Ενεργά αθλήματα του συλλόγου.</p>
+          <figure class="shot"><img src="screens/13-sports.png" alt="Άθλημα" /><figcaption>Άθλημα</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Επιλογή από κατάλογο · ενεργοποίηση / απενεργοποίηση.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Εκτυπώσεις</h3>
+            <p class="meta"><span class="path">/prints</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Έτοιμες αναφορές για εκτύπωση ή προεπισκόπηση.</p>
+          <figure class="shot"><img src="screens/15-prints.png" alt="Εκτυπώσεις" /><figcaption>Εκτυπώσεις</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Λίστα αθλητών · Υπόλοιπα · Παρουσιολόγιο · Παρουσιολόγιο προπόνησης.</li><li>Αιτήσεις εγγραφής · Λήξεις ιατρικών · Εισπράξεις περιόδου · Οφειλέτες.</li><li>Νομικά έντυπα · Αναφορά προόδου · Κατάλογος τμημάτων · Ιατρικά στοιχεία.</li><li>Οικονομική αναφορά · Χρεώσεις/πληρωμές · Πρόγραμμα προπονήσεων.</li><li>Κάθε αναφορά έχει φίλτρα και <strong>Εκτύπωση</strong>.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Φωτογραφίες</h3>
+            <p class="meta"><span class="path">/photos</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Άλμπουμ συλλόγου με συναίνεση χρήσης φωτογραφίας.</p>
+          <figure class="shot"><img src="screens/16-photos.png" alt="Φωτογραφίες" /><figcaption>Φωτογραφίες</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Αναζήτηση · ταξινόμηση νεότερα/παλαιότερα/όνομα.</li><li>Ανέβασμα με λεζάντα, συλλογή και σύνδεση αθλητών.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Αποθήκη</h3>
+            <p class="meta"><span class="path">/warehouse</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Στολές, εξοπλισμός και κινήσεις αποθέματος.</p>
+          <figure class="shot"><img src="screens/17-warehouse.png" alt="Αποθήκη" /><figcaption>Αποθήκη</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Νέο προϊόν</strong> — όνομα, κατηγορία, SKU, barcode, μάρκα, τιμή, κόστος, απόθεμα, μέγεθος, χρώμα.</li><li>Κίνηση αποθέματος: τύπος, ποσότητα, σημείωση.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Συμβεβλημένες επιχειρήσεις</h3>
+            <p class="meta"><span class="path">/partner-businesses</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Συνεργάτες και προσφορές προς μέλη.</p>
+          <figure class="shot"><img src="screens/20-partners.png" alt="Συμβεβλημένες επιχειρήσεις" /><figcaption>Συμβεβλημένες επιχειρήσεις</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Καρτέλες: όλες / προσφορές / πρόσφατες.</li><li><strong>Νέα επιχείρηση</strong> · <strong>Νέα προσφορά</strong> (έκπτωση, όροι).</li></ul>
+        </article>
+      </section>
+      <section id="money">
+        <h2>Συνδρομές, συναλλαγές και οικονομικά</h2>
+        <p class="lead">Από την οφειλή του αθλητή μέχρι ταμεία, προϋπολογισμό και αναφορές σεζόν.</p>
+        
+        <article class="block">
+          <header>
+            <h3>Συνδρομές / Πληρωμές</h3>
+            <p class="meta"><span class="path">/fees</span><span class="role">Διαχειριστής · Γραμματεία · Γονέας · Αθλητής</span></p>
+          </header>
+          <p class="what">Υπόλοιπα συνδρομών, μαζικές χρεώσεις, υπενθυμίσεις και πληρωμή Viva.</p>
+          <figure class="shot"><img src="screens/18-fees.png" alt="Συνδρομές / Πληρωμές" /><figcaption>Συνδρομές / Πληρωμές</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Δημιουργία χρεώσεων</strong> · <strong>Υπενθύμιση οφειλών</strong> · <strong>Νέα χρέωση</strong>.</li><li>KPI: οφειλές, πιστωτικά, ενεργοί αθλητές.</li><li>Ανά αθλητή: μηνιαία συνδρομή, υπόλοιπο, τελευταία πληρωμή, <strong>Viva</strong>, <strong>Προφίλ</strong>.</li><li>Πρότυπο χρέωσης: σεζόν, άθλημα, σε ποιους ισχύει, ποσό/μήνες.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Συναλλαγές</h3>
+            <p class="meta"><span class="path">/transactions</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Αναλυτικό καθολικό χρεώσεων και εισπράξεων ανά αθλητή και σεζόν.</p>
+          <figure class="shot"><img src="screens/19-transactions.png" alt="Συναλλαγές" /><figcaption>Συναλλαγές</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Φίλτρα σεζόν / άθλημα · αναζήτηση αθλητή.</li><li><strong>Νέα κίνηση</strong> — χρέωση ή πληρωμή, μήνας, ποσό, τρόπος, σχόλια.</li><li>Μηνιαίος πίνακας χρεώσεων / πληρωμών / παρουσιών.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Οικονομικά — Ανάλυση</h3>
+            <p class="meta"><span class="path">/finance</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Συνολική εικόνα εσόδων, εξόδων και καθαρού αποτελέσματος.</p>
+          <figure class="shot"><img src="screens/21a-finance-analysis.png" alt="Οικονομικά — Ανάλυση" /><figcaption>Οικονομικά — Ανάλυση</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>KPI: <strong>Συνολικά έσοδα</strong>, <strong>Συνολικά έξοδα</strong>, <strong>Καθαρό αποτέλεσμα</strong>.</li><li>Γραφήματα μηνιαίας σύγκρισης και πίτες ανά κατηγορία.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Οικονομικά — Έσοδα</h3>
+            <p class="meta"><span class="path">/finance</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Χειροκίνητη καταχώρηση εσόδων (οι πληρωμές αθλητών έρχονται αυτόματα από συνδρομές/Viva).</p>
+          <figure class="shot"><img src="screens/21b-finance-revenues.png" alt="Οικονομικά — Έσοδα" /><figcaption>Οικονομικά — Έσοδα</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Υποκατηγορία από κατάλογο πλατφόρμας.</li><li>Σωματείο, άθλημα, μητρώο, ποσό, ημερομηνία, ταμείο, συνημμένα.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Οικονομικά — Έξοδα</h3>
+            <p class="meta"><span class="path">/finance</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Έξοδα λειτουργίας και ειδική φόρμα εξόδων αγώνα.</p>
+          <figure class="shot"><img src="screens/21c-finance-expenses.png" alt="Οικονομικά — Έξοδα" /><figcaption>Οικονομικά — Έξοδα</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Υποκατηγορία · ποσό · σωματείο · συνημμένα.</li><li>Έξοδα αγώνα: αντίπαλοι, μεταφορά (Λεωφορείο / Αεροπλάνο / Πλοίο / Άλλο).</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Οικονομικά — Ταμεία</h3>
+            <p class="meta"><span class="path">/finance</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Λογαριασμοί μετρητών / τράπεζας και κλείσιμο μήνα.</p>
+          <figure class="shot"><img src="screens/21d-finance-accounts.png" alt="Οικονομικά — Ταμεία" /><figcaption>Οικονομικά — Ταμεία</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Νέο ταμείο</strong> — όνομα, τύπος (Μετρητά / Τράπεζα / Άλλο), αρχικό υπόλοιπο.</li><li><strong>Κλείσιμο μήνα</strong> — κλείδωμα περιόδου.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Οικονομικά — Προϋπολογισμός</h3>
+            <p class="meta"><span class="path">/finance</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Προϋπολογισμένα vs πραγματικά έσοδα/έξοδα σεζόν.</p>
+          <figure class="shot"><img src="screens/21e-finance-budget.png" alt="Οικονομικά — Προϋπολογισμός" /><figcaption>Οικονομικά — Προϋπολογισμός</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Τύπος Έσοδο/Έξοδο, υποκατηγορία, ποσό σεζόν.</li><li>Σύνολα και <strong>Αποτέλεσμα σεζόν</strong>.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Οικονομικά — Αναφορές</h3>
+            <p class="meta"><span class="path">/finance</span><span class="role">Διαχειριστής · Γραμματεία</span></p>
+          </header>
+          <p class="what">Εξαγωγή οικονομικών για παρουσίαση ή λογιστήριο.</p>
+          <figure class="shot"><img src="screens/21f-finance-reports.png" alt="Οικονομικά — Αναφορές" /><figcaption>Οικονομικά — Αναφορές</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Προεπισκόπηση</strong> · <strong>Excel</strong> · <strong>PDF</strong> · <strong>Εκτύπωση</strong>.</li><li>Περίοδος: σεζόν / μήνας / ημέρα · φίλτρα σωματείου και αθλήματος.</li></ul>
+        </article>
+      </section>
+      <section id="settings">
+        <h2>Ρυθμίσεις συλλόγου</h2>
+        <p class="lead">Όλες οι επιλογές παραμετροποίησης. Η καρτέλα Χρήστες εμφανίζεται μόνο στον διαχειριστή.</p>
+        
+        <article class="block">
+          <header>
+            <h3>Σύλλογος</h3>
+            <p class="meta"><span class="path">/settings</span><span class="role">Διαχειριστής</span></p>
+          </header>
+          <p class="what">Ταυτότητα συλλόγου, άδειες αθλητών, λογότυπο και σύντομες ρυθμίσεις SMTP/Viva.</p>
+          <figure class="shot"><img src="screens/22a-settings-club.png" alt="Σύλλογος" /><figcaption>Σύλλογος</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Συνδρομή & άδειες αθλητών</strong> — πακέτο, τιμή +ΦΠΑ, λήξη, χρήση αδειών.</li><li><strong>Λογότυπο</strong> — ανέβασμα / αλλαγή / αφαίρεση (PNG, JPG, SVG έως 2MB).</li><li>Στοιχεία: όνομα, Α.Φ.Μ., Δ.Ο.Υ., έδρα, έτος ίδρυσης, ιστότοπος, τηλέφωνο, email.</li><li><strong>Αποθήκευση</strong>.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Χρήστες</h3>
+            <p class="meta"><span class="path">/settings</span><span class="role">Διαχειριστής συλλόγου</span></p>
+          </header>
+          <p class="what">Λογαριασμοί εισόδου και ποια modules βλέπει ο καθένας.</p>
+          <figure class="shot"><img src="screens/22b-settings-users.png" alt="Χρήστες" /><figcaption>Χρήστες</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Νέος χρήστης</strong> — επώνυμο, όνομα, email, κωδικός, ρόλος.</li><li>Ρόλοι: Διαχειριστής συλλόγου, Ιατρός, Προπονητής, Γραμματεία, Προσωπικό, Αθλητής, Γονέας.</li><li>Checkboxes δικαιωμάτων καρτελών · ενεργοποίηση / απενεργοποίηση / διαγραφή.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Email (SMTP)</h3>
+            <p class="meta"><span class="path">/settings</span><span class="role">Διαχειριστής</span></p>
+          </header>
+          <p class="what">Αποστολή ανακοινώσεων, υπενθυμίσεων οφειλών και δοκιμαστικών μηνυμάτων από τον σύλλογο.</p>
+          <figure class="shot"><img src="screens/22c-settings-email.png" alt="Email (SMTP)" /><figcaption>Email (SMTP)</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Πάροχος: <strong>Gmail</strong> ή προσαρμοσμένο SMTP.</li><li>Host, Port, username, App Password, Από (From).</li><li><strong>Δοκιμή αποστολής</strong> · <strong>Ιστορικό αποστολών</strong> · οδηγός SMTP.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Viva Wallet</h3>
+            <p class="meta"><span class="path">/settings</span><span class="role">Διαχειριστής</span></p>
+          </header>
+          <p class="what">Online πληρωμή συνδρομών από γονείς / αθλητές.</p>
+          <figure class="shot"><img src="screens/22d-settings-viva.png" alt="Viva Wallet" /><figcaption>Viva Wallet</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Ενεργές online πληρωμές</strong>.</li><li>Client ID, Client Secret, Merchant ID, Source Code (4 ψηφία).</li><li>Περιβάλλον: Demo / Live. Εμφάνιση Webhook URL και Success URL.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Δημόσια εγγραφή</h3>
+            <p class="meta"><span class="path">/settings</span><span class="role">Διαχειριστής</span></p>
+          </header>
+          <p class="what">Φόρμα /join για γονείς: πλήρης εγγραφή, δοκιμαστική ή λίστα αναμονής.</p>
+          <figure class="shot"><img src="screens/22e-settings-register.png" alt="Δημόσια εγγραφή" /><figcaption>Δημόσια εγγραφή</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Ενεργή δημόσια εγγραφή</strong> (απαιτεί DPA στο GDPR).</li><li>Άμεση εμφάνιση στη λίστα αθλητών · δοκιμαστική προπόνηση · λίστα αναμονής.</li><li>Slug συνδέσμου, <strong>Αντιγραφή</strong>, προεπισκόπηση, <strong>QR PNG</strong>, εκτύπωση.</li><li>Email ειδοποίησης νέας αίτησης · φωτογραφία φόρμας.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>GDPR / ΑΜΚΑ</h3>
+            <p class="meta"><span class="path">/settings</span><span class="role">Διαχειριστής</span></p>
+          </header>
+          <p class="what">Συμμόρφωση: DPA, διατήρηση δεδομένων, πρόσβαση ΑΜΚΑ και αιτήματα υποκειμένου.</p>
+          <figure class="shot"><img src="screens/22f-settings-gdpr.png" alt="GDPR / ΑΜΚΑ" /><figcaption>GDPR / ΑΜΚΑ</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Αποδοχή DPA · μήνες διατήρησης · checklist.</li><li>Αρχείο πρόσβασης ΑΜΚΑ · αίτημα DSAR ανά αθλητή.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Backup</h3>
+            <p class="meta"><span class="path">/settings</span><span class="role">Διαχειριστής</span></p>
+          </header>
+          <p class="what">Αντίγραφα μόνο του ενεργού συλλόγου και συγχρονισμός cloud.</p>
+          <figure class="shot"><img src="screens/22g-settings-backup.png" alt="Backup" /><figcaption>Backup</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Λήψη ZIP</strong> · <strong>Λήψη JSON</strong> · επαναφορά από αρχείο.</li><li>Cloud: αυτόματο sync, Push / Pull mirror συλλόγου.</li><li>Στο DEMO: <strong>Επαναφόρτωση DEMO δεδομένων</strong>.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Άλλες καρτέλες ρυθμίσεων</h3>
+            <p class="meta"><span class="path">/settings</span><span class="role">Ανά δικαίωμα</span></p>
+          </header>
+          <p class="what">Δευτερεύουσες επιλογές στο ίδιο μενού.</p>
+          <figure class="shot"><img src="screens/22-settings.png" alt="Άλλες καρτέλες ρυθμίσεων" /><figcaption>Άλλες καρτέλες ρυθμίσεων</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li><strong>Γήπεδο</strong> — εγκαταστάσεις, διάταξη ωρών, ενεργό/ανενεργό.</li><li><strong>Κωδικός</strong> — αλλαγή κωδικού εισόδου.</li><li><strong>Μεγεθολόγιο</strong> — μεγέθη παιδιών / ενηλίκων για αποθήκη και προφίλ.</li><li><strong>Όροι</strong> — κείμενο όρων που εμφανίζεται στη δημόσια εγγραφή.</li></ul>
+        </article>
+      </section>
+      <section id="portals">
+        <h2>Περιοχή γονέα και προπονητή</h2>
+        <p class="lead">Ο ίδιος σύνδεσμος (/) ανοίγει διαφορετικό portal ανά ρόλο.</p>
+        
+        <article class="block">
+          <header>
+            <h3>Γονέας — Αρχική</h3>
+            <p class="meta"><span class="path">/?tab=overview</span><span class="role">Γονέας</span></p>
+          </header>
+          <p class="what">Σύνοψη των συνδεδεμένων παιδιών: οφειλές, επόμενη προπόνηση, ανακοινώσεις.</p>
+          <figure class="shot"><img src="screens/30-parent-overview.png" alt="Γονέας — Αρχική" /><figcaption>Γονέας — Αρχική</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Καρτέλες: <strong>Αρχική</strong>, <strong>Πρόγραμμα</strong>, <strong>Πληρωμές</strong>, <strong>Έγγραφα</strong>.</li><li>KPI: συνδεδεμένοι αθλητές, συνολικές οφειλές, επόμενη προπόνηση, ανακοινώσεις.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Γονέας — Πρόγραμμα</h3>
+            <p class="meta"><span class="path">/?tab=schedule</span><span class="role">Γονέας</span></p>
+          </header>
+          <p class="what">Επόμενες προπονήσεις και πρόσφατες παρουσίες.</p>
+          <figure class="shot"><img src="screens/31-parent-schedule.png" alt="Γονέας — Πρόγραμμα" /><figcaption>Γονέας — Πρόγραμμα</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Ημερομηνία, ώρα, τμήμα, τοποθεσία.</li><li><strong>Λήψη ημερολογίου (.ics)</strong> για Google / Apple Calendar.</li><li>Πίνακας παρουσιών: παρών / απών.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Γονέας — Πληρωμές</h3>
+            <p class="meta"><span class="path">/?tab=payments</span><span class="role">Γονέας</span></p>
+          </header>
+          <p class="what">Υπόλοιπα, ανοιχτές χρεώσεις και ιστορικό. Online πληρωμή αν είναι ενεργό το Viva.</p>
+          <figure class="shot"><img src="screens/32-parent-payments.png" alt="Γονέας — Πληρωμές" /><figcaption>Γονέας — Πληρωμές</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Υπόλοιπα ανά αθλητή · κουμπί <strong>Πληρωμή Viva</strong>.</li><li>Ανοιχτές χρεώσεις ανά περίοδο · ιστορικό πληρωμών.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Γονέας — Έγγραφα</h3>
+            <p class="meta"><span class="path">/?tab=documents</span><span class="role">Γονέας</span></p>
+          </header>
+          <p class="what">Κατάσταση ιατρικής κάρτας, GDPR και συναίνεσης ιατρικών στοιχείων.</p>
+          <figure class="shot"><img src="screens/33-parent-documents.png" alt="Γονέας — Έγγραφα" /><figcaption>Γονέας — Έγγραφα</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>Ιατρική / κάρτα υγείας (έγκυρη, λήγει, ληγμένη).</li><li>GDPR: Πλήρης / Εκκρεμεί / Κλειδωμένη.</li><li>Συναίνεση ιατρικών και ένδειξη ΑΜΚΑ.</li></ul>
+        </article>
+        <article class="block">
+          <header>
+            <h3>Περιοχή προπονητή</h3>
+            <p class="meta"><span class="path">/</span><span class="role">Προπονητής</span></p>
+          </header>
+          <p class="what">Γρήγορη καταγραφή παρουσιών στα δικά του τμήματα, χωρίς οικονομικά.</p>
+          <figure class="shot"><img src="screens/40-coach-portal.png" alt="Περιοχή προπονητή" /><figcaption>Περιοχή προπονητή</figcaption></figure>
+          <h4>Επιλογές & ενέργειες</h4>
+          <ul class="opts"><li>KPI: τα τμήματά μου, επόμενη προπόνηση, ανακοινώσεις, αθλητές.</li><li>Φίλτρο τμήματος και ημερομηνίας · toggle Παρουσία / Απουσία · <strong>Αποθήκευση Παρουσιών</strong>.</li><li>Πλαϊνή στήλη: προσεχείς προπονήσεις και ανακοινώσεις.</li><li>Μενού: Ημερολόγιο, Αθλητές, Τμήματα, Προπονήσεις, Αγώνες, Πρόγραμμα, Παρουσίες, Ανακοινώσεις, Ρυθμίσεις.</li></ul>
+        </article>
+      </section>
+    <section id="cookies">
+      <h2>Cookies</h2>
+      <p class="lead">Στην πρώτη επίσκεψη εμφανίζεται banner συγκατάθεσης: Αποδοχή όλων, Απόρριψη προαιρετικών, Προσαρμογή (Essential / Analytics / Marketing).</p>
+    </section>
+    <footer>
+      SportSuite 360 · εγχειρίδιο παρουσίασης · οι οθόνες ενημερώνονται με <code>npm run promo:capture</code> και <code>npm run promo:build</code>.
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Sync / session secrets — SERVER ONLY (never VITE_* in the browser bundle)
+# Vercel Production:
+#   SS360_SYNC_SECRET=<secret>          # cron / ops sync key (x-ss360-sync-key)
+#   SS360_SESSION_SECRET=<secret>       # JWT signing (falls back to SS360_SYNC_SECRET)
+#   CRON_SECRET=<secret>                # for /api/backup/scheduled
+#
+# Browser clients authenticate with Bearer JWT from login — do NOT set
+# VITE_SS360_SYNC_SECRET (removed; embedding it exposed full platform access).
+
+SS360_SYNC_SECRET=
+SS360_SESSION_SECRET=
+CRON_SECRET=
+
+# Platform SMTP for password-reset emails and new-club registration alerts.
+# Fallback for password reset: enabled club SMTP from cloud account bundle.
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM_NAME=SPORTSUITE 360
+# Where to notify when someone submits /register (club waitlist). Default below if unset.
+PLATFORM_ADMIN_NOTIFY_EMAIL=tsemperlidis.nikos@gmail.com
+APP_URL=https://sportsuite360.vercel.app
+
+# Local/dev ONLY — never set these on Vercel production builds
+# (VITE_ vars are embedded in the client bundle).
+# Used once to create the first platform_admin when localStorage is empty.
+VITE_BOOTSTRAP_PLATFORM_ADMIN_EMAIL=
+VITE_BOOTSTRAP_PLATFORM_ADMIN_PASSWORD=
+VITE_BOOTSTRAP_PLATFORM_ADMIN_NAME=Platform Admin

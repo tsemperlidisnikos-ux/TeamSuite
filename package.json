@@ -1,0 +1,40 @@
+{
+  "name": "academyhub",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "test:security": "node scripts/security-regression-check.mjs",
+    "preview": "vite preview",
+    "promo:capture": "node scripts/capture-promo-screens.mjs",
+    "promo:build": "node scripts/build-promo-pack.mjs"
+  },
+  "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "@upstash/redis": "^1.38.2",
+    "@vercel/blob": "^2.8.0",
+    "@vercel/node": "^5.9.9",
+    "lucide-react": "^1.30.0",
+    "nodemailer": "^9.0.5",
+    "pdf-lib": "^1.17.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2",
+    "recharts": "^3.10.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "oxlint": "^1.75.0",
+    "playwright": "^1.62.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0"
+  }
+}

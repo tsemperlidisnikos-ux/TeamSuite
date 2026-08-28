@@ -1,0 +1,34 @@
+:root {
+  --z-app-popup-backdrop: 8500;
+  --z-app-popup-panel: 8510;
+  --z-modal-backdrop: 9000;
+  --z-modal: 9010;
+  --z-training-modal-backdrop: 9020;
+  --z-photos-modal-backdrop: 9030;
+}
+
+.app-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-app-popup-backdrop);
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.app-popup-backdrop--dim {
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.app-popup-panel {
+  position: fixed;
+  z-index: var(--z-app-popup-panel);
+  overflow: auto;
+}
+
+.app-popup-anchor {
+  position: relative;
+  display: inline-flex;
+}

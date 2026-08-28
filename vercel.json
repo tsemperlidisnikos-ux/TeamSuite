@@ -1,0 +1,20 @@
+{
+  "rewrites": [
+    { "source": "/api/health", "destination": "/api/gdpr?op=health" },
+    { "source": "/api/backup/scheduled", "destination": "/api/gdpr?op=backup" },
+    { "source": "/api/viva/webhook", "destination": "/api/viva?op=webhook" },
+    { "source": "/api/viva/create-order", "destination": "/api/viva?op=create-order" },
+    { "source": "/api/viva/settlements", "destination": "/api/viva?op=settlements" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/gdpr?op=backup",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/gdpr?op=retention",
+      "schedule": "30 2 * * *"
+    }
+  ]
+}
