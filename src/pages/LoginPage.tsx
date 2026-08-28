@@ -15,6 +15,7 @@ import {
 import {
   getSession,
   isDemoSessionActive,
+  isLocalSessionActive,
   isPresentationDemoEmail,
   login,
   logout,
@@ -36,14 +37,12 @@ function homeForRole(role?: string) {
 }
 
 function splitAppName(name: string): { title: string; accent: string } {
-  const trimmed = name.trim() || 'SPORTSUITE 360';
-  if (/\s*360\s*$/i.test(trimmed)) {
-    return {
-      title: trimmed.replace(/\s*360\s*$/i, '').trim() || 'SPORTSUITE',
-      accent: '360',
-    };
+  const trimmed = name.trim() || 'TeamSuite';
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return { title: parts.slice(0, -1).join(' '), accent: parts[parts.length - 1] };
   }
-  return { title: trimmed, accent: '360' };
+  return { title: trimmed, accent: '' };
 }
 
 export function LoginPage() {
@@ -70,7 +69,7 @@ export function LoginPage() {
   const [sessionBoot, setSessionBoot] = useState<'pending' | 'guest' | 'ready'>(() => {
     const session = getSession();
     if (!session) return 'guest';
-    if (isDemoSessionActive()) return 'ready';
+    if (isDemoSessionActive() || isLocalSessionActive()) return 'ready';
     if (getSessionToken()) return 'pending';
     return import.meta.env.DEV ? 'ready' : 'guest';
   });
@@ -131,7 +130,8 @@ export function LoginPage() {
         !import.meta.env.DEV &&
         getSession() &&
         !getSessionToken() &&
-        !isDemoSessionActive()
+        !isDemoSessionActive() &&
+        !isLocalSessionActive()
       ) {
         logout();
       }
@@ -357,7 +357,7 @@ export function LoginPage() {
                   <input
                     type="email"
                     autoComplete="username"
-                    placeholder="email@paradeigma.gr"
+                    placeholder="π.χ. tsemperlidis.nikos@gmail.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required

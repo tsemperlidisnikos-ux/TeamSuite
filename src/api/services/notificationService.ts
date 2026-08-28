@@ -204,7 +204,7 @@ export async function notifyAbsenceByEmail(input: {
     `Ημερομηνία: ${input.date}`,
     input.className ? `Τμήμα: ${input.className}` : '',
     ``,
-    `SPORTSUITE 360`,
+    `TeamSuite`,
   ]
     .filter(Boolean)
     .join('\n');

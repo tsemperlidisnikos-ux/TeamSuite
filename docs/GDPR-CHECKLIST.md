@@ -1,4 +1,4 @@
-# SportSuite 360 — GDPR Checklist (1 σελίδα)
+# TeamSuite — GDPR Checklist (1 σελίδα)
 
 **Ημερομηνία:** Αύγουστος 2026  
 **Production:** https://teamsuite-seven.vercel.app  
@@ -27,7 +27,7 @@
 
 ---
 
-## Β. Για τον ιδιοκτήτη πλατφόρμας (SportSuite / Vercel)
+## Β. Για τον ιδιοκτήτη πλατφόρμας (TeamSuite / Vercel)
 
 - [ ] Νομική επιμέλεια ολοκληρώθηκε (τμήμα Α)
 - [ ] Στο Vercel Environment: `CRON_SECRET`, `SS360_SYNC_SECRET`, `SS360_SESSION_SECRET` (ή `SS360_AMKA_SECRET`), `BLOB_READ_WRITE_TOKEN`, Redis/KV

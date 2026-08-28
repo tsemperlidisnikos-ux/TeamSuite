@@ -317,7 +317,9 @@ export function getData(): AppData {
     const ensured = ensureCollections(cache);
     const cleaned =
       purgeRemovedAthletePayment(cache) || purgeMirroredAthletePaymentRevenues(cache);
-    if (!stored || cleaned || ensured) saveStore(cache);
+    if (clubId !== '_default' && (!stored || cleaned || ensured)) {
+      saveStore(cache);
+    }
     return cache;
   }
 
@@ -377,6 +379,7 @@ export function replaceData(next: AppData): AppData {
   cacheClubId = resolveActiveClubId();
   saveStore(cache);
   notifyAppDataChanged();
+  scheduleClubMirrorPush(cacheClubId);
   return cache;
 }
 
@@ -395,6 +398,7 @@ export function replaceClubData(clubId: string, next: AppData): AppData {
     clearDataCache();
   }
   notifyAppDataChanged();
+  scheduleClubMirrorPush(clubId);
   return cache ?? data;
 }
 

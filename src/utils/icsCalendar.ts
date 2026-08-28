@@ -28,11 +28,11 @@ function icsStampNow(): string {
 }
 
 /** Minimal iCalendar export for parent schedule subscribe/download. */
-export function buildIcsCalendar(events: IcsEvent[], calendarName = 'SportSuite360'): string {
+export function buildIcsCalendar(events: IcsEvent[], calendarName = 'TeamSuite'): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//SportSuite360//Parent Schedule//EL',
+    'PRODID:-//TeamSuite//Parent Schedule//EL',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escapeIcs(calendarName)}`,
@@ -41,7 +41,7 @@ export function buildIcsCalendar(events: IcsEvent[], calendarName = 'SportSuite3
     const endTime = event.endTime || event.startTime;
     lines.push(
       'BEGIN:VEVENT',
-      `UID:${event.uid}@sportsuite360`,
+      `UID:${event.uid}@teamsuite`,
       `DTSTAMP:${icsStampNow()}`,
       `DTSTART:${toIcsUtc(event.date, event.startTime)}`,
       `DTEND:${toIcsUtc(event.date, endTime)}`,

@@ -306,7 +306,7 @@ export function FeesPage() {
     const club = getClubById(clubId);
     const viva = getClubViva(clubId);
     const emailBody = feeChargesService.buildDebtReminderEmail({
-      clubName: club?.name ?? 'SPORTSUITE 360',
+      clubName: club?.name ?? 'TeamSuite',
       athleteName: row.athleteName,
       balance: row.balance,
       daysOverdue: row.daysOverdue,
@@ -364,7 +364,7 @@ export function FeesPage() {
     let ok = 0;
     for (const row of rows) {
       const emailBody = feeChargesService.buildDebtReminderEmail({
-        clubName: club?.name ?? 'SPORTSUITE 360',
+        clubName: club?.name ?? 'TeamSuite',
         athleteName: row.athleteName,
         balance: row.balance,
         daysOverdue: row.daysOverdue,

@@ -1,4 +1,4 @@
-# Οδηγός ελέγχου SportSuite360
+# Οδηγός ελέγχου TeamSuite
 
 Διεύθυνση live: https://teamsuite-seven.vercel.app  
 Σκοπός: να περάσεις **όλες τις επιλογές** της εφαρμογής με σταθερή σειρά. Κάνε hard refresh (Ctrl+F5) μετά από deploy.
@@ -13,9 +13,9 @@
 
 | Ρόλος | Πώς μπαίνεις | Email DEMO |
 |---|---|---|
-| Διαχειριστής συλλόγου | Login → «Είσοδος DEMO παρουσίασης» ή email/κωδικός DEMO | `demo@sportsuite360.app` / `demo1234` |
-| Προπονητής | Login με | `coach@sportsuite360.app` / `demo1234` |
-| Γονέας | Login με | `parent@sportsuite360.app` / `demo1234` |
+| Διαχειριστής συλλόγου | Login → «Είσοδος DEMO παρουσίασης» ή email/κωδικός DEMO | `demo@teamsuite.app` / `demo1234` |
+| Προπονητής | Login με | `coach@teamsuite.app` / `demo1234` |
+| Γονέας | Login με | `parent@teamsuite.app` / `demo1234` |
 | Platform admin | Ο δικός σου λογαριασμός πλατφόρμας | — |
 | Ιατρός / αθλητής / γραμματεία | Τους δημιουργείς στο DEMO (ενότητα 3.2) | — |
 
@@ -303,7 +303,7 @@
 
 ---
 
-## 5. Προπονητής — `coach@sportsuite360.app`
+## 5. Προπονητής — `coach@teamsuite.app`
 
 - [ ] Αρχική portal: τμήματα, προσεχείς προπονήσεις, ανακοινώσεις
 - [ ] Αν δεν είναι συνδεδεμένος με καρτέλα προπονητή → μήνυμα στο Ρυθμίσεις → Χρήστες
@@ -313,7 +313,7 @@
 
 ---
 
-## 6. Γονέας — `parent@sportsuite360.app`
+## 6. Γονέας — `parent@teamsuite.app`
 
 - [ ] Περιοχή γονέα: συνδεδεμένοι αθλητές
 - [ ] Οφειλές συνδρομών

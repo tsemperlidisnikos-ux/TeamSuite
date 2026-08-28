@@ -65,8 +65,12 @@ export function PlatformAdminShell({
             type="button"
             variant="secondary"
             onClick={() => {
-              logout();
-              navigate('/login', { replace: true });
+              void (async () => {
+                const { persistLocalStateToCloud } = await import('../../data/clubSync');
+                await persistLocalStateToCloud();
+                logout();
+                navigate('/login', { replace: true });
+              })();
             }}
           >
             Αποσύνδεση

@@ -30,7 +30,7 @@ export function PublicAthleteIdPage() {
   return (
     <div className="public-athlete-id-page">
       <div className="public-athlete-id-shell">
-        <p className="public-athlete-id-brand">{getAppName() || 'SPORTSUITE 360'}</p>
+        <p className="public-athlete-id-brand">{getAppName() || 'TeamSuite'}</p>
         <h1>Επαλήθευση ταυτότητας αθλητή</h1>
 
         {!payload ? (

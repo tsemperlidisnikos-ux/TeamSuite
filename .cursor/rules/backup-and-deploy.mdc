@@ -1,19 +1,21 @@
 ---
-description: When user asks for BACKUP and DEPLOY, save ZIP to C:\SPORTSUITE360_BACKUP then commit and Vercel prod deploy
+description: TeamSuite-only BACKUP + DEPLOY — ZIP to C:\TeamSuite_backup, then commit and Vercel prod on project teamsuite
 alwaysApply: true
 ---
 
-# Backup + Deploy workflow
+# Backup + Deploy workflow (TeamSuite only)
+
+This repo is **TeamSuite**. Never backup, commit, or deploy **SportSuite360** from this workspace. Never use `c:\SportSuite360`, `C:\SPORTSUITE360_BACKUP`, or `https://sportsuite360.vercel.app`.
 
 When the user asks to **BACKUP** and **DEPLOY** (any casing / Greek/English mix like «KANE BACKUP KAI DEPLOY»):
 
 1. **Filesystem backup first** — run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "c:\SportSuite360\scripts\backup-project.ps1"
+powershell -ExecutionPolicy Bypass -File "C:\TeamSuite\scripts\backup-project.ps1"
 ```
 
-This writes a timestamped ZIP to `C:\SPORTSUITE360_BACKUP\SportSuite360_yyyy-MM-dd_HH-mm-ss.zip` (folder is created if missing). Report the ZIP path to the user.
+This writes a timestamped ZIP to `C:\TeamSuite_backup\TeamSuite_yyyy-MM-dd_HH-mm-ss.zip` (folder is created if missing). Report the ZIP path to the user.
 
 2. **Update backup inventory** — edit `docs/BACKUP-INVENTORY.md`:
    - Append a new row at the **top** of the «Ιστορικό filesystem ZIP» table with: ZIP filename, date, and a short note of what the code backup covered (the changes being shipped).
@@ -25,13 +27,13 @@ This writes a timestamped ZIP to `C:\SPORTSUITE360_BACKUP\SportSuite360_yyyy-MM-
 
 Follow the repo git safety rules (no force push, no amend unless allowed, no secrets).
 
-4. **Deploy** — run production deploy:
+4. **Deploy** — from `C:\TeamSuite`, with `.vercel` linked to project **teamsuite**:
 
 ```powershell
 npx vercel --prod --yes
 ```
 
-Working directory: `c:\SportSuite360`. Report the production URL (`https://sportsuite360.vercel.app`).
+Report the production URL: `https://teamsuite-seven.vercel.app`.
 
 Do **not** skip the ZIP step when the user asks for backup + deploy together.
 

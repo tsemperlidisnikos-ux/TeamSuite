@@ -10,7 +10,16 @@ import { PlatformDiagnosticPanel } from '../components/PlatformDiagnosticPanel';
 import { AdminZone, PlatformAdminShell } from '../components/layout/PlatformAdminShell';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
-import { createId, getData, mutateData, replaceAllClubsData, replaceClubData, replaceData, resetData } from '../data/repository';
+import { persistLocalStateToCloud } from '../data/clubSync';
+import {
+  createId,
+  getData,
+  mutateData,
+  replaceAllClubsData,
+  replaceClubData,
+  replaceData,
+  resetData,
+} from '../data/repository';
 import {
   assertPlatformScopedRestore,
   buildClubBackupPayload,
@@ -391,7 +400,9 @@ export function PlatformAdminPage() {
       if (parsed.appDataByClub && Object.keys(parsed.appDataByClub).length > 0) {
         replaceAllClubsData(parsed.appDataByClub);
       } else if (parsed.appData) {
-        replaceData(parsed.appData);
+        const targetId = restoreClubId || getClubs()[0]?.id;
+        if (targetId) replaceClubData(targetId, parsed.appData);
+        else replaceData(parsed.appData);
       }
       if (parsed.platformConfig) {
         persist(parsed.platformConfig);
@@ -403,10 +414,25 @@ export function PlatformAdminPage() {
         saveClubs(mergeClubsPreservingSecrets(parsed.clubs, getClubs()));
       }
 
-      flash('Πλήρης επαναφορά πλατφόρμας ολοκληρώθηκε. Ανανέωση σελίδας…');
+      const restoredClubIds =
+        parsed.appDataByClub && Object.keys(parsed.appDataByClub).length > 0
+          ? Object.keys(parsed.appDataByClub)
+          : [restoreClubId, getClubs()[0]?.id].filter(Boolean) as string[];
+      const cloud = await persistLocalStateToCloud({
+        clubIds: restoredClubIds,
+        overwriteCloud: true,
+      });
+      if (!cloud.success) {
+        flash(
+          `Η τοπική επαναφορά έγινε, αλλά το cloud απέτυχε: ${cloud.error ?? 'άγνωστο'}. Μην κάνετε logout μέχρι να πετύχει Push.`,
+        );
+        return;
+      }
+
+      flash('Πλήρης επαναφορά πλατφόρμας αποθηκεύτηκε και στο cloud. Ανανέωση σελίδας…');
       window.setTimeout(() => {
         window.location.reload();
-      }, 600);
+      }, 400);
     } catch (err) {
       flash(formatBackupError(err));
     } finally {
@@ -474,11 +500,22 @@ export function PlatformAdminPage() {
       flash(
         `Επαναφορά συλλόγου «${clubName}» OK` +
           (expectedStudents ? ` (${expectedStudents} αθλητές στο αρχείο)` : '') +
-          '. Ανανέωση…',
+          '.',
       );
+      const cloud = await persistLocalStateToCloud({
+        clubIds: [restoreClubId],
+        overwriteCloud: true,
+      });
+      if (!cloud.success) {
+        flash(
+          `Τα δεδομένα είναι τοπικά, αλλά το cloud απέτυχε: ${cloud.error ?? 'άγνωστο'}. Μην κάνετε logout μέχρι να πετύχει Push.`,
+        );
+        return;
+      }
+      flash('Αποθηκεύτηκε και στο cloud. Ανανέωση…');
       window.setTimeout(() => {
         window.location.reload();
-      }, 700);
+      }, 400);
     } catch (err) {
       flash(formatBackupError(err));
     } finally {
@@ -679,7 +716,7 @@ export function PlatformAdminPage() {
             }
             records={
               <RecordsTable>
-                <RecordsRow title="Όνομα">{config.appName || 'SPORTSUITE 360'}</RecordsRow>
+                <RecordsRow title="Όνομα">{config.appName || 'TeamSuite'}</RecordsRow>
                 <RecordsRow title="Logo">
                   {config.appLogoUrl ? 'Ορισμένο' : 'Προεπιλογή (SS)'}
                 </RecordsRow>

@@ -1,4 +1,4 @@
-# Κατάλογος Backup — SportSuite360
+# Κατάλογος Backup — TeamSuite
 
 Τελευταία ενημέρωση περιεχομένου: **2026-08-28** (ZIP `C:\TeamSuite_backup` + deploy `teamsuite`).
 
@@ -10,7 +10,7 @@
 
 | Ονομασία backup | Πού / πώς | Τι ακριβώς περιλαμβάνει | Τι ΔΕΝ περιλαμβάνει |
 |-----------------|-----------|-------------------------|---------------------|
-| **Club JSON** | Ρυθμίσεις → Backup → Λήψη JSON · ή Platform Admin → Backup συλλόγου | Μόνο τον ενεργό/επιλεγμένο σύλλογο: `AppData` (αθλητές, τμήματα, πρόγραμμα, παρουσίες, οικονομικά, αποθήκη, αιτήσεις, GDPR logs εντός AppData, κ.λπ.), το record του συλλόγου (προφίλ, licenses, δημόσια εγγραφή **χωρίς** secrets), users του συλλόγου **χωρίς** password hashes. `scope: club`. **Όνομα αρχείου:** `SportSuite360-{όνομα-συλλόγου}-ΗΜΕΡΟΜΗΝΙΑ.json` (διατηρούνται ελληνικοί χαρακτήρες). **Restore:** club Settings ή Platform Admin «Επαναφορά συλλόγου» (.json) | Άλλους συλλόγους, `platformConfig`, platform admins, SMTP password, Viva clientSecret, password hashes |
+| **Club JSON** | Ρυθμίσεις → Backup → Λήψη JSON · ή Platform Admin → Backup συλλόγου | Μόνο τον ενεργό/επιλεγμένο σύλλογο: `AppData` (αθλητές, τμήματα, πρόγραμμα, παρουσίες, οικονομικά, αποθήκη, αιτήσεις, GDPR logs εντός AppData, κ.λπ.), το record του συλλόγου (προφίλ, licenses, δημόσια εγγραφή **χωρίς** secrets), users του συλλόγου **χωρίς** password hashes. `scope: club`. **Όνομα αρχείου:** `TeamSuite-{όνομα-συλλόγου}-ΗΜΕΡΟΜΗΝΙΑ.json` (διατηρούνται ελληνικοί χαρακτήρες). **Restore:** club Settings ή Platform Admin «Επαναφορά συλλόγου» (.json) | Άλλους συλλόγους, `platformConfig`, platform admins, SMTP password, Viva clientSecret, password hashes |
 | **Club scheduled backup** | Ρυθμίσεις → Backup → Προγραμματισμένο backup | Ίδιο με **Club JSON** (mode=λήψη JSON) ή **Cloud mirror** την ορισμένη ημερομηνία/ώρα (μία φορά) ή καθημερινά/εβδομαδιαία. Τρέχει στο browser όσο η εφαρμογή είναι ανοιχτή· αν χάθηκε η ώρα, εκτελείται στο επόμενο άνοιγμα | Secrets όπως Club JSON· δεν τρέχει με κλειστό tab |
 | **Platform full JSON** | Platform Admin → Backup → Λήψη full backup | Όλους τους συλλόγους (`appDataByClub`), ενεργό `appData`, `users` (χωρίς hashes), `clubs` (χωρίς SMTP/Viva secrets), πλήρες `platformConfig`. `scope: platform`. **Restore:** μόνο «Επαναφορά όλης της εφαρμογής» (.json, όχι club-only αρχεία) | SMTP passwords, Viva secrets, password hashes (redacted στο download) |
 | **Scheduled full (browser)** | Platform Admin → Πρόγραμμα backup → fullApp | Ίδιο με Platform full JSON αν mode=download· αν mode=cloud: push mirror **όλων** των συλλόγων | Secrets στα JSON (redacted)· δεν τρέχει αν δεν είναι ανοιχτή η εφαρμογή ως Platform Admin |
@@ -18,7 +18,7 @@
 | **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) | Live `AppData` του συλλόγου στο Blob/Redis (ευαίσθητα πεδία κρυπτογραφημένα στο push). **Αυτόματο sync ενεργό από προεπιλογή** για κάθε σύλλογο (opt-out από το checkbox) | Users/clubs/config, ιστορικό εκδόσεων (overwrite), SMTP/Viva στο mirror |
 | **Cloud account bundle** | Platform Admin: Push/Pull λογαριασμοί | `users`, `clubs`, `platformConfig` στο cloud. Pull/push **διατηρεί** υπάρχοντα SMTP/Viva secrets αν το εισερχόμενο έχει κενό/`********` | AppData αθλητών (αυτό είναι στο mirror) |
 | **Server cron snapshot** | Vercel cron `0 2 * * *` → `/api/gdpr?op=backup` | Ημερήσιο αντίγραφο **υπαρχόντων** club mirrors (`ss360:backup-snap:ΗΜΕΡΟΜΗΝΙΑ:clubId`) | Account bundle· συλλόγους χωρίς προηγούμενο mirror push· δεν υπάρχει UI restore στην εφαρμογή |
-| **Filesystem project ZIP** | `scripts/backup-project.ps1` → default `C:\SPORTSUITE360_BACKUP\` · προαιρετικά `-BackupRoot` (π.χ. `C:\TeamSuite_backup`) | Source code του project (χωρίς `node_modules`, `dist`, `.git`, `.env`, credentials) | Δεδομένα αθλητών / localStorage / Redis· δεν είναι data backup |
+| **Filesystem project ZIP** | `scripts/backup-project.ps1` → `C:\TeamSuite_backup\` (`TeamSuite_yyyy-MM-dd_HH-mm-ss.zip`) | Source code του project (χωρίς `node_modules`, `dist`, `.git`, `.env`, credentials) | Δεδομένα αθλητών / localStorage / Redis· δεν είναι data backup |
 | **Git commit «Backup: …»** | Μετά από BACKUP + DEPLOY | Snapshot κώδικα στο git history | Runtime δεδομένα συλλόγων |
 
 ---
@@ -40,6 +40,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `TeamSuite_2026-08-28_14-42-31.zip` | 2026-08-28 | Durable Blob store · restore/login sync (τοπικά δεδομένα δεν σβήνονται) · club mirror push χωρίς Platform Admin account bundle |
 | `SportSuite360_2026-08-28_12-44-33.zip` | 2026-08-28 | TeamSuite ξεχωριστό Vercel project (`teamsuite-seven.vercel.app`) · production URLs εκτός SportSuite360 · πριν το deploy |
 | `SportSuite360_2026-08-28_11-24-15.zip` | 2026-08-28 | Κώδικας TeamSuite όπως στο GitHub (`main`) · ZIP στο `C:\TeamSuite_backup` · πριν το Vercel production deploy |
 | `SportSuite360_2026-08-27_02-56-41.zip` | 2026-08-27 | Backup μόνο JSON (αφαίρεση ZIP λήψης/επαναφοράς) · διόρθωση verify επαναφοράς |

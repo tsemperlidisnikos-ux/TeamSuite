@@ -48,7 +48,7 @@ export function SmtpSetupGuideModal({ open, onClose }: Props) {
               <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">
                 myaccount.google.com/apppasswords
               </a>{' '}
-              (Mail → Άλλη εφαρμογή → «SportSuite360»).
+              (Mail → Άλλη εφαρμογή → «TeamSuite»).
             </li>
             <li>Αντέγραψε τον 16ψήφιο κωδικό — μπαίνει μόνο στο πεδίο «Κωδικός» της εφαρμογής.</li>
           </ol>

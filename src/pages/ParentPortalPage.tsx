@@ -249,7 +249,7 @@ export function ParentPortalPage() {
         location: t.location,
         description: t.notes,
       })),
-      'proponiseis-sportsuite360.ics',
+      'proponiseis-teamsuite.ics',
       club?.name ? `Προπονήσεις · ${club.name}` : 'Προπονήσεις',
     );
   }

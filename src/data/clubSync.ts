@@ -1,6 +1,8 @@
 import * as accountSyncService from '../api/services/accountSyncService';
 import * as backendSyncService from '../api/services/backendSyncService';
-import { resolveActiveClubId } from './store';
+import { appDataWeight } from './mediaStrip';
+import { resolveActiveClubId, whenClubMapPersisted } from './store';
+import type { AppData } from '../types';
 
 const AUTO_SYNC_KEY = 'academyhub-auto-sync-v1';
 const LAST_SYNC_KEY = 'academyhub-last-sync-v1';
@@ -67,48 +69,83 @@ function setLastSyncAt(clubId: string, at: string): void {
   writeMap(LAST_SYNC_KEY, map);
 }
 
+export function clearLastSyncAt(clubId: string): void {
+  const map = readMap<LastSyncMap>(LAST_SYNC_KEY);
+  delete map[clubId];
+  writeMap(LAST_SYNC_KEY, map);
+}
+
 /** Debounced push of active club AppData + account bundle to cloud. */
 export function scheduleClubMirrorPush(clubId?: string | null): void {
   const id = clubId ?? resolveActiveClubId();
-  if (!id || !isAutoSyncEnabled(id)) return;
+  if (!id || id === '_default' || !isAutoSyncEnabled(id)) return;
 
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
     void flushClubMirrorPush(id);
-  }, 2500);
+  }, 800);
+}
+
+async function maybePushAccountBundle() {
+  const { getSession, isPlatformAdmin } = await import('../auth/auth');
+  const { getSessionToken } = await import('../api/services/sessionService');
+  if (!isPlatformAdmin() || !getSessionToken() || getSession()?.role !== 'platform_admin') {
+    return { success: true as const, skipped: true, error: null };
+  }
+  const result = await accountSyncService.pushAccountBundle();
+  if (!result.success) {
+    const err = result.error ?? '';
+    if (err.includes('Μόνο Platform Admin')) {
+      return { success: true as const, skipped: true, error: null };
+    }
+    return { success: false as const, skipped: false, error: err || 'Account push failed' };
+  }
+  return { success: true as const, skipped: false, error: null };
 }
 
 export async function flushClubMirrorPush(clubId?: string | null) {
   const id = clubId ?? resolveActiveClubId();
-  if (!id || !isAutoSyncEnabled(id) || pushing) {
+  if (!id || id === '_default' || !isAutoSyncEnabled(id) || pushing) {
     return { success: true as const, data: null, error: null };
   }
   pushing = true;
-  const baseUpdatedAt = getLastSyncAt(id);
+  try {
+    return await pushClubAndAccounts(id, getLastSyncAt(id));
+  } finally {
+    pushing = false;
+  }
+}
+
+async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
   let result = await backendSyncService.pushClubMirror(id, { baseUpdatedAt });
 
-  // On conflict: adopt cloud revision, then skip overwrite this cycle.
   if (!result.success) {
     const err = result.error ?? '';
     const isConflict = err.toLowerCase().includes('conflict');
     if (isConflict) {
       const pull = await backendSyncService.pullClubMirror(id);
-      if (pull.success && pull.data?.payload) {
-        const { replaceData } = await import('./repository');
-        replaceData(pull.data.payload);
-        setLastSyncAt(id, pull.data.updatedAt ?? new Date().toISOString());
-        pushing = false;
-        return {
-          success: false as const,
-          data: null,
-          error: 'Σύγκρουση sync: φορτώθηκαν τα νεότερα cloud δεδομένα.',
-        };
+      if (pull.success && pull.data?.payload && pull.data.durable !== false) {
+        const { getClubData, replaceClubData } = await import('./repository');
+        const local = getClubData(id);
+        if (cloudWouldLoseLocalData(local, pull.data.payload)) {
+          result = await backendSyncService.pushClubMirror(id, {
+            baseUpdatedAt: pull.data.updatedAt ?? null,
+          });
+        } else {
+          replaceClubData(id, pull.data.payload);
+          setLastSyncAt(id, pull.data.updatedAt ?? new Date().toISOString());
+          await maybePushAccountBundle();
+          return {
+            success: false as const,
+            data: null,
+            error: 'Σύγκρουση sync: φορτώθηκαν τα νεότερα cloud δεδομένα.',
+          };
+        }
       }
     }
   }
 
-  await accountSyncService.pushAccountBundle();
-  pushing = false;
+  await maybePushAccountBundle();
   if (result.success) {
     setLastSyncAt(id, result.data?.updatedAt ?? new Date().toISOString());
   }
@@ -123,10 +160,32 @@ function isMissingMirrorError(message: string): boolean {
   );
 }
 
+function isMissingAccountError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes('no account bundle') ||
+    m.includes('δεν βρέθηκε cloud account') ||
+    m.includes('http 404')
+  );
+}
+
 function isCloudNewer(cloudUpdatedAt: string | null | undefined, localUpdatedAt: string | null): boolean {
-  if (!cloudUpdatedAt) return true;
+  if (!cloudUpdatedAt) return false;
   if (!localUpdatedAt) return true;
   return cloudUpdatedAt > localUpdatedAt;
+}
+
+function isEmptyCloudOverwrite(local: AppData, cloud: AppData): boolean {
+  const localN = (local.students?.length ?? 0) + (local.classes?.length ?? 0);
+  const cloudN = (cloud.students?.length ?? 0) + (cloud.classes?.length ?? 0);
+  return localN > 0 && cloudN === 0;
+}
+
+function cloudWouldLoseLocalData(local: AppData, cloud: AppData): boolean {
+  if (isEmptyCloudOverwrite(local, cloud)) return true;
+  const localW = appDataWeight(local);
+  const cloudW = appDataWeight(cloud);
+  return localW > 0 && localW > cloudW;
 }
 
 /**
@@ -135,7 +194,7 @@ function isCloudNewer(cloudUpdatedAt: string | null | undefined, localUpdatedAt:
  */
 export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) {
   const id = clubId ?? resolveActiveClubId();
-  if (!id || !isAutoSyncEnabled(id) || pushing || pulling) {
+  if (!id || id === '_default' || !isAutoSyncEnabled(id) || pushing || pulling) {
     return { success: true as const, pulled: false, error: null };
   }
 
@@ -181,8 +240,15 @@ export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) 
       return { success: true as const, pulled: false, error: null };
     }
 
-    const { replaceData } = await import('./repository');
-    replaceData(result.data.payload);
+    const { getClubData, replaceClubData } = await import('./repository');
+    const local = getClubData(id);
+    if (
+      result.data.durable === false ||
+      cloudWouldLoseLocalData(local, result.data.payload)
+    ) {
+      return { success: true as const, pulled: false, error: null };
+    }
+    replaceClubData(id, result.data.payload);
     setLastSyncAt(id, cloudAt ?? new Date().toISOString());
     setCloudPreferred(true);
     return { success: true as const, pulled: true, error: null };
@@ -191,20 +257,65 @@ export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) 
   }
 }
 
+async function clubIdsForSync(preferred?: string | null): Promise<string[]> {
+  const { getClubs } = await import('../auth/clubs');
+  const ids = getClubs()
+    .map((club) => club.id)
+    .filter((id) => id && id !== '_default');
+  if (preferred && preferred !== '_default' && !ids.includes(preferred)) {
+    ids.unshift(preferred);
+  }
+  return [...new Set(ids)];
+}
+
 /**
- * Cloud-first login sync:
- * 1) Pull users/clubs/config if available
- * 2) Pull club AppData mirror if available (source of truth when present)
- * Missing cloud data is OK on first device.
+ * After restore (or logout): write local clubs + accounts to durable cloud.
+ * `overwriteCloud` sends baseUpdatedAt=null so a previous empty mirror is replaced.
+ */
+export async function persistLocalStateToCloud(opts?: {
+  clubIds?: string[];
+  overwriteCloud?: boolean;
+}) {
+  await whenClubMapPersisted();
+  const ids = opts?.clubIds?.length ? opts.clubIds : await clubIdsForSync();
+  const unique = [...new Set(ids.filter((id) => id && id !== '_default'))];
+
+  const account = await maybePushAccountBundle();
+  const errors: string[] = [];
+  if (!account.success && account.error) {
+    errors.push(account.error);
+  }
+
+  for (const id of unique) {
+    if (opts?.overwriteCloud) clearLastSyncAt(id);
+    pushing = true;
+    try {
+      const result = await pushClubAndAccounts(
+        id,
+        opts?.overwriteCloud ? null : getLastSyncAt(id),
+      );
+      if (!result.success && result.error) errors.push(`${id}: ${result.error}`);
+    } finally {
+      pushing = false;
+    }
+  }
+
+  if (errors.length) {
+    return { success: false as const, error: errors.join(' · ') };
+  }
+  return { success: true as const, error: null };
+}
+
+/**
+ * Login sync: keep richer local data, upload if cloud is empty/missing,
+ * never replace a restored club with an empty mirror.
  */
 export async function syncClubOnLogin(clubId: string | null | undefined) {
   let pulledAccount = false;
   let pulledClub = false;
 
   const account = await accountSyncService.pullAccountBundle();
-  if (account.success && account.data) {
-    // Κρατά τοπικούς λογαριασμούς που δεν έχουν ακόμα ανέβει στο cloud,
-    // ώστε να μην «εξαφανίζονται» μετά από login άλλου χρήστη.
+  if (account.success && account.data && account.data.durable !== false) {
     accountSyncService.applyAccountBundle(account.data, { mergeLocalUsers: true });
     pulledAccount = true;
     const { getSessionToken, updateCloudClubLogo } = await import('../api/services/sessionService');
@@ -217,40 +328,41 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
         }
       }
     }
+  } else if (!account.success && isMissingAccountError(account.error ?? '')) {
+    await maybePushAccountBundle();
   }
 
-  if (!clubId) {
-    return {
-      success: true as const,
-      data: { pulled: pulledAccount, pulledAccount, pulledClub },
-      error: null,
-    };
-  }
+  const ids = await clubIdsForSync(clubId);
+  const { getClubData, replaceClubData } = await import('./repository');
 
-  // Prefer cloud when available (source of truth). Auto-sync is on by default.
-  const result = await backendSyncService.pullClubMirror(clubId);
-  if (result.success && result.data?.payload) {
-    const { replaceData } = await import('./repository');
-    replaceData(result.data.payload);
-    setLastSyncAt(clubId, result.data.updatedAt ?? new Date().toISOString());
-    setCloudPreferred(true);
-    pulledClub = true;
-  } else {
+  for (const id of ids) {
+    if (!isAutoSyncEnabled(id)) continue;
+    const result = await backendSyncService.pullClubMirror(id);
+    if (result.success && result.data?.payload) {
+      if (result.data.durable === false) continue;
+      const local = getClubData(id);
+      if (cloudWouldLoseLocalData(local, result.data.payload)) {
+        await flushClubMirrorPush(id);
+        continue;
+      }
+      replaceClubData(id, result.data.payload);
+      setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
+      setCloudPreferred(true);
+      if (id === clubId) pulledClub = true;
+      continue;
+    }
+
     const msg = result.error ?? '';
     const missing = isMissingMirrorError(msg);
-    if (!missing && !result.success && isAutoSyncEnabled(clubId)) {
+    if (!missing && !result.success && clubId === id) {
       return {
         success: false as const,
         data: null,
         error: result.error ?? 'Αποτυχία sync',
       };
     }
-    if (
-      missing &&
-      isAutoSyncEnabled(clubId) &&
-      !msg.includes('μόνο στο production')
-    ) {
-      void flushClubMirrorPush(clubId);
+    if (missing && !msg.includes('μόνο στο production')) {
+      await flushClubMirrorPush(id);
     }
   }
 

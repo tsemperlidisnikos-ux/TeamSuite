@@ -93,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
 
-    const fromName = (smtp.fromName || 'SPORTSUITE 360').replace(/[\r\n]/g, '');
+    const fromName = (smtp.fromName || 'TeamSuite').replace(/[\r\n]/g, '');
     const listUnsubscribe = body.listUnsubscribe
       ? String(body.listUnsubscribe).replace(/[\r\n]/g, '')
       : '';

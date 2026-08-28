@@ -300,7 +300,7 @@ export function ensureSessionClub(
   const email = (session?.email ?? '').toLowerCase();
   const isDemo =
     clubId === 'club_demo_showcase' ||
-    email === 'demo@sportsuite360.app' ||
+    email === 'demo@teamsuite.app' ||
     email.startsWith('demo@');
 
   const stub: Club = {

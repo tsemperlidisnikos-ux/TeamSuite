@@ -1,9 +1,9 @@
-/** Public GDPR legal documents for SportSuite 360 (controller / processor templates). */
+/** Public GDPR legal documents for TeamSuite (controller / processor templates). */
 
 export const PLATFORM_PRIVACY_POLICY_HTML = `
-<h1>Πολιτική Απορρήτου — SportSuite 360</h1>
+<h1>Πολιτική Απορρήτου — TeamSuite</h1>
 <p><em>Τελευταία ενημέρωση: Αύγουστος 2026</em></p>
-<p>Η πλατφόρμα SportSuite 360 παρέχει λογισμικό διαχείρισης αθλητικών συλλόγων. Για τα δεδομένα μελών/αθλητών, <strong>υπεύθυνος επεξεργασίας</strong> είναι ο εκάστοτε σύλλογος. Η πλατφόρμα ενεργεί ως <strong>εκτελών την επεξεργασία</strong> κατ’ εντολή του συλλόγου (DPA).</p>
+<p>Η πλατφόρμα TeamSuite παρέχει λογισμικό διαχείρισης αθλητικών συλλόγων. Για τα δεδομένα μελών/αθλητών, <strong>υπεύθυνος επεξεργασίας</strong> είναι ο εκάστοτε σύλλογος. Η πλατφόρμα ενεργεί ως <strong>εκτελών την επεξεργασία</strong> κατ’ εντολή του συλλόγου (DPA).</p>
 <h2>1. Κατηγορίες δεδομένων</h2>
 <ul>
 <li>Ταυτοποίησης και επικοινωνίας (ονοματεπώνυμο, email, τηλέφωνο, διεύθυνση)</li>
@@ -29,7 +29,7 @@ export const PLATFORM_PRIVACY_POLICY_HTML = `
 `.trim();
 
 export const PLATFORM_COOKIE_POLICY_HTML = `
-<h1>Πολιτική Cookies — SportSuite 360</h1>
+<h1>Πολιτική Cookies — TeamSuite</h1>
 <p><em>Τελευταία ενημέρωση: Αύγουστος 2026</em></p>
 <h2>Τι είναι τα cookies</h2>
 <p>Μικρά αρχεία/αποθήκευση στο πρόγραμμα περιήγησης για λειτουργία της εφαρμογής και, εφόσον συναινείτε, για στατιστικά ή marketing.</p>
@@ -46,7 +46,7 @@ export const PLATFORM_COOKIE_POLICY_HTML = `
 
 export const PLATFORM_BREACH_PLAN_HTML = `
 <h1>Σχέδιο Αντιμετώπισης Παραβίασης Δεδομένων (Data Breach Plan)</h1>
-<p><em>SportSuite 360 — Αύγουστος 2026</em></p>
+<p><em>TeamSuite — Αύγουστος 2026</em></p>
 <ol>
 <li><strong>Ανίχνευση:</strong> ειδοποίηση από συστήματα, χρήστη ή τρίτο. Καταγραφή ώρας, εύρους, συστημάτων.</li>
 <li><strong>Περιορισμός:</strong> απομόνωση πρόσβασης, αλλαγή μυστικών (sync/session/SMTP/Viva), ανάκληση sessions.</li>
@@ -58,7 +58,7 @@ export const PLATFORM_BREACH_PLAN_HTML = `
 `.trim();
 
 export const PLATFORM_ROPA_HTML = `
-<h1>Αρχείο Δραστηριοτήτων Επεξεργασίας (RoPA) — SportSuite 360</h1>
+<h1>Αρχείο Δραστηριοτήτων Επεξεργασίας (RoPA) — TeamSuite</h1>
 <p><em>Συνοπτικό αρχείο δραστηριοτήτων (άρθρο 30 GDPR)</em></p>
 <table border="1" cellpadding="6" cellspacing="0">
 <thead><tr><th>Δραστηριότητα</th><th>Σκοπός</th><th>Κατηγορίες υποκειμένων</th><th>Κατηγορίες δεδομένων</th><th>Αποδέκτες</th><th>Διατήρηση</th></tr></thead>
@@ -75,7 +75,7 @@ export const PLATFORM_ROPA_HTML = `
 
 export const PLATFORM_PAYMENT_NOTICE_HTML = `
 <h1>Ενημέρωση για Δεδομένα Πληρωμών</h1>
-<p>Οι πληρωμές με κάρτα διεκπεραιώνονται από την <strong>Viva Wallet</strong>. Η SportSuite 360 <strong>δεν αποθηκεύει</strong> αριθμό κάρτας, CVV ή πλήρη στοιχεία πληρωμής PCI. Αποθηκεύονται μόνο: κωδικός παραγγελίας, αναγνωριστικό συναλλαγής, ποσό, κατάσταση και ημερομηνία.</p>
+<p>Οι πληρωμές με κάρτα διεκπεραιώνονται από την <strong>Viva Wallet</strong>. Η TeamSuite <strong>δεν αποθηκεύει</strong> αριθμό κάρτας, CVV ή πλήρη στοιχεία πληρωμής PCI. Αποθηκεύονται μόνο: κωδικός παραγγελίας, αναγνωριστικό συναλλαγής, ποσό, κατάσταση και ημερομηνία.</p>
 `.trim();
 
 export type PublicLegalDocId =

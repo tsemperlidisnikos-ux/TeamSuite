@@ -1,0 +1,13 @@
+---
+description: TeamSuite is a separate app from SportSuite360 — never mix deploys, backups, or cloud stores
+alwaysApply: true
+---
+
+# TeamSuite isolation
+
+- Work **only** in `C:\TeamSuite`. Do not edit, backup, or deploy SportSuite360 unless the user explicitly opens that project.
+- Vercel project: **teamsuite**. Production: `https://teamsuite-seven.vercel.app`.
+- Never deploy this folder to `sportsuite360` / `https://sportsuite360.vercel.app`.
+- Never reuse SportSuite360 Blob, Redis/KV, `BLOB_READ_WRITE_TOKEN`, or sync secrets. TeamSuite needs its own stores and env.
+- Never hardcode a SportSuite360 blob host or store id as fallback.
+- Git remote is `https://github.com/tsemperlidisnikos-ux/TeamSuite.git`. Do not push TeamSuite commits to a SportSuite360 repo.

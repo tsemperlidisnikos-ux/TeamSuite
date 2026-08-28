@@ -392,7 +392,7 @@ export function SettingsPage() {
     const result = await emailService.sendClubEmail({
       clubId,
       to,
-      subject: `Έλεγχος SMTP — ${clubForm.name || 'SPORTSUITE 360'}`,
+      subject: `Έλεγχος SMTP — ${clubForm.name || 'TeamSuite'}`,
       text: 'Δοκιμαστικό μήνυμα ελέγχου σύνδεσης SMTP από τις Ρυθμίσεις.',
     });
     setTestingSmtp(false);

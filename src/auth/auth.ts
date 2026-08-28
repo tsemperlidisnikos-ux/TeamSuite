@@ -31,16 +31,17 @@ export interface AppUser {
   permissions?: string[] | null;
 }
 
-const SESSION_KEY = 'academyhub-session-v1';
-const USERS_KEY = 'academyhub-users-v2';
-const DEMO_SESSION_KEY = 'academyhub-demo-session-v1';
+const SESSION_KEY = 'teamsuite-session-v1';
+const USERS_KEY = 'teamsuite-users-v1';
+const DEMO_SESSION_KEY = 'teamsuite-demo-session-v1';
+const LOCAL_SESSION_KEY = 'teamsuite-local-session-v1';
 
 /** Presentation DEMO accounts (local-only; not in cloud account bundle). */
 const DEMO_ACCOUNT_EMAILS = new Set([
-  'demo@sportsuite360.app',
-  'coach@sportsuite360.app',
-  'parent@sportsuite360.app',
-  'parent2@sportsuite360.app',
+  'demo@teamsuite.app',
+  'coach@teamsuite.app',
+  'parent@teamsuite.app',
+  'parent2@teamsuite.app',
 ]);
 
 export function isPresentationDemoEmail(email: string | null | undefined): boolean {
@@ -63,6 +64,25 @@ function setDemoSessionActive(active: boolean): void {
     else localStorage.removeItem(DEMO_SESSION_KEY);
   } catch {
     /* ignore */
+  }
+}
+
+function setLocalSessionActive(active: boolean): void {
+  try {
+    if (active) localStorage.setItem(LOCAL_SESSION_KEY, '1');
+    else localStorage.removeItem(LOCAL_SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Local login without cloud JWT (first platform admin bootstrap on production). */
+export function isLocalSessionActive(): boolean {
+  try {
+    if (localStorage.getItem(LOCAL_SESSION_KEY) !== '1') return false;
+    return Boolean(getSession());
+  } catch {
+    return false;
   }
 }
 
@@ -253,9 +273,11 @@ function isCloudAuthRejection(message: string): boolean {
 }
 
 function isNoAccountBundle(message: string): boolean {
+  const m = message.toLowerCase();
   return (
-    message.includes('NO_ACCOUNT_BUNDLE') ||
-    message.toLowerCase().includes('no_account_bundle')
+    m.includes('no_account_bundle') ||
+    m.includes('http 404') ||
+    m.includes('session login http 404')
   );
 }
 
@@ -320,6 +342,7 @@ export async function login(
     }
 
     setDemoSessionActive(false);
+    setLocalSessionActive(false);
     setSessionFromUser(local);
     recordLoginActivity(local, 'login');
     return { success: true, data: local };
@@ -344,6 +367,8 @@ export async function login(
   // Local auth only for first-time bootstrap (no cloud bundle yet) or DEV offline.
   const allowLocal = import.meta.env.DEV || isNoAccountBundle(err);
   if (!allowLocal) {
+    const boot = await loginWithBootstrapIfMatch(normalizedEmail, normalizedPassword);
+    if (boot) return boot;
     return {
       success: false,
       error:
@@ -352,7 +377,44 @@ export async function login(
     };
   }
 
+  const boot = await loginWithBootstrapIfMatch(normalizedEmail, normalizedPassword);
+  if (boot) return boot;
   return loginLocalUser(normalizedEmail, normalizedPassword, { demoSession: false });
+}
+
+async function loginWithBootstrapIfMatch(
+  normalizedEmail: string,
+  normalizedPassword: string,
+): Promise<{ success: boolean; data?: AppUser; error?: string } | null> {
+  const bootstrap = readDevBootstrapAdmin();
+  if (!bootstrap) return null;
+  if (normalizedEmail !== bootstrap.email || normalizedPassword !== bootstrap.password) {
+    return null;
+  }
+
+  const hashed = await hashPassword(normalizedPassword);
+  const users = readUsersRaw();
+  let admin =
+    users.find((u) => u.id === PLATFORM_ADMIN_ID) ??
+    users.find((u) => u.role === 'platform_admin') ??
+    null;
+  const nextAdmin: AppUser = {
+    id: admin?.id ?? PLATFORM_ADMIN_ID,
+    email: bootstrap.email,
+    password: hashed,
+    fullName: bootstrap.fullName,
+    role: 'platform_admin',
+    active: true,
+    clubId: null,
+  };
+  const others = users.filter((u) => u.id !== nextAdmin.id && u.role !== 'platform_admin');
+  saveUsers([nextAdmin, ...others]);
+  setSessionToken(null);
+  setDemoSessionActive(false);
+  setLocalSessionActive(true);
+  setSessionFromUser(nextAdmin);
+  recordLoginActivity(nextAdmin, 'login');
+  return { success: true, data: nextAdmin };
 }
 
 async function loginLocalUser(
@@ -382,8 +444,10 @@ async function loginLocalUser(
   if (options.demoSession) {
     setSessionToken(null);
     setDemoSessionActive(true);
+    setLocalSessionActive(false);
   } else {
     setDemoSessionActive(false);
+    setLocalSessionActive(true);
   }
   setSessionFromUser(users[index]);
   recordLoginActivity(users[index], 'login');
@@ -393,6 +457,7 @@ async function loginLocalUser(
 export function logout(): void {
   localStorage.removeItem(SESSION_KEY);
   setDemoSessionActive(false);
+  setLocalSessionActive(false);
   setSessionToken(null);
   clearAmkaFieldKeyCache();
 }

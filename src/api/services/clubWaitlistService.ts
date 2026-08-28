@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { apiClient } from '../apiClient';
 import { syncAuthHeaders } from '../syncAuth';
 
-const LOCAL_KEY = 'sportsuite360-academy-waitlist-v1';
+const LOCAL_KEY = 'teamsuite-academy-waitlist-v1';
 const LOCAL_MAX = 200;
 
 export type ClubWaitlistStatus = 'pending' | 'approved' | 'rejected';

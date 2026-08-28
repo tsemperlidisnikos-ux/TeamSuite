@@ -9,6 +9,7 @@ import {
   getSession,
   isAuthenticated,
   isDemoSessionActive,
+  isLocalSessionActive,
   isPlatformAdmin,
   logout,
   setSessionFromVerifiedUser,
@@ -32,8 +33,8 @@ export function RequireAuth() {
         return;
       }
 
-      // Presentation DEMO is local-only (no cloud JWT).
-      if (isDemoSessionActive()) {
+      // Presentation DEMO and first-time local platform admin (no cloud JWT yet).
+      if (isDemoSessionActive() || isLocalSessionActive()) {
         if (active) setGate('ok');
         return;
       }

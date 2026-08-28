@@ -106,8 +106,7 @@ export function RegisterClubPage() {
       <div className="ssr-layout">
         <aside className="ssr-left">
           <div className="ssr-logo">
-            <span className="ssr-logo-name">SPORTSUITE</span>
-            <span className="ssr-logo-360">360</span>
+            <span className="ssr-logo-name">TeamSuite</span>
           </div>
 
           <h1 className="ssr-headline">

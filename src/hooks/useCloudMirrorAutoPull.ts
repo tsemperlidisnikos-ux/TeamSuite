@@ -25,9 +25,16 @@ export function useCloudMirrorAutoPull(clubId: string | null | undefined) {
     function onVisibility() {
       if (document.visibilityState === 'visible') {
         void runPull();
+      } else {
+        void import('../data/clubSync').then((m) => m.flushClubMirrorPush(clubId));
       }
     }
 
+    function onPageHide() {
+      void import('../data/clubSync').then((m) => m.flushClubMirrorPush(clubId));
+    }
+
+    window.addEventListener('pagehide', onPageHide);
     document.addEventListener('visibilitychange', onVisibility);
     intervalId = setInterval(() => void runPull(), POLL_INTERVAL_MS);
 
@@ -36,6 +43,7 @@ export function useCloudMirrorAutoPull(clubId: string | null | undefined) {
     return () => {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', onPageHide);
       if (intervalId) clearInterval(intervalId);
       window.clearTimeout(initial);
     };

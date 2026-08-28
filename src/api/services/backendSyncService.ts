@@ -94,7 +94,7 @@ export async function pullClubMirror(clubId: string) {
     const payload = await decryptSensitivePayloadFromCloud(json.payload, clubId);
     return {
       updatedAt: json.updatedAt ?? null,
-      durable: Boolean(json.durable),
+      durable: json.durable !== false,
       payload,
     };
   });

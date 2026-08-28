@@ -1,5 +1,6 @@
 # Sync / session secrets — SERVER ONLY (never VITE_* in the browser bundle)
-# Vercel Production:
+# TeamSuite only: do not copy Blob/KV/sync secrets from SportSuite360.
+# Vercel Production (project teamsuite):
 #   SS360_SYNC_SECRET=<secret>          # cron / ops sync key (x-ss360-sync-key)
 #   SS360_SESSION_SECRET=<secret>       # JWT signing (falls back to SS360_SYNC_SECRET)
 #   CRON_SECRET=<secret>                # for /api/backup/scheduled
@@ -17,7 +18,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=
 SMTP_PASS=
-SMTP_FROM_NAME=SPORTSUITE 360
+SMTP_FROM_NAME=TeamSuite
 # Where to notify when someone submits /register (club waitlist). Default below if unset.
 PLATFORM_ADMIN_NOTIFY_EMAIL=tsemperlidis.nikos@gmail.com
 APP_URL=https://teamsuite-seven.vercel.app

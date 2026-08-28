@@ -25,7 +25,7 @@ function severityClass(severity: DiagnosticSeverity): string {
 
 function downloadReport(report: DiagnosticReport) {
   const lines = [
-    `SPORTSUITE 360 — Diagnostic Report`,
+    `TeamSuite — Diagnostic Report`,
     `Ran at: ${report.ranAt}`,
     `Duration: ${report.durationMs} ms`,
     `Critical: ${report.summary.critical} | Warning: ${report.summary.warning} | Info: ${report.summary.info} | OK: ${report.summary.ok}`,
@@ -41,7 +41,7 @@ function downloadReport(report: DiagnosticReport) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `sportsuite360-diagnostic-${report.ranAt.slice(0, 10)}.txt`;
+  a.download = `teamsuite-diagnostic-${report.ranAt.slice(0, 10)}.txt`;
   a.click();
   URL.revokeObjectURL(url);
 }

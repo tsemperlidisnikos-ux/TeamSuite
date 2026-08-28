@@ -44,6 +44,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (body.payload == null) return res.status(400).json({ ok: false, error: 'payload required' });
     if (!assertClubTenantAccess(req, res, clubId)) return;
 
+    if (!isDurableStoreEnabled()) {
+      return res.status(503).json({
+        ok: false,
+        durable: false,
+        error:
+          'Το cloud sync δεν είναι ενεργό: λείπει Vercel Blob/Redis. Τα δεδομένα μένουν μόνο σε αυτόν τον browser μέχρι να συνδεθεί store.',
+      });
+    }
+
     const result = await saveMirror(clubId, body.payload, {
       baseUpdatedAt: body.baseUpdatedAt ?? null,
     });

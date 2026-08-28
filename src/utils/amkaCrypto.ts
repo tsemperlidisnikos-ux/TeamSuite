@@ -3,7 +3,7 @@
 export const AMKA_ENC_PREFIX = 'enc:amka:v1:';
 export const AMKA_ENC_PREFIX_V2 = 'enc:amka:v2:';
 
-const APP_SALT_V1 = 'SportSuite360-AMKA-AES256-v1';
+const APP_SALT_V1 = 'TeamSuite-AMKA-AES256-v1';
 const PBKDF2_ITERATIONS = 100_000;
 
 const v1KeyCache = new Map<string, CryptoKey>();

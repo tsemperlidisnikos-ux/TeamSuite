@@ -43,7 +43,7 @@ export async function createVivaCheckout(input: CreateVivaPaymentInput) {
         },
         merchantTrns:
           input.merchantTrns ||
-          `SportSuite360 · ${club?.name ?? 'club'} · ${amountCents}c`,
+          `TeamSuite · ${club?.name ?? 'club'} · ${amountCents}c`,
       }),
     });
 

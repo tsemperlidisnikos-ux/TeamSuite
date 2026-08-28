@@ -2,7 +2,7 @@ import { applyPlatformBranding } from '../../platform/platformConfig';
 import { apiClient } from '../apiClient';
 import { syncAuthHeaders } from '../syncAuth';
 
-const TOKEN_KEY = 'academyhub-session-token-v1';
+const TOKEN_KEY = 'teamsuite-session-token-v1';
 
 export type ServerSessionUser = {
   id: string;
@@ -37,9 +37,10 @@ export async function serverLogin(email: string, password: string) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'login', email, password }),
     });
-    const json = (await response.json()) as {
+    let json: {
       ok?: boolean;
       error?: string;
+      code?: string;
       token?: string;
       user?: ServerSessionUser;
       branding?: {
@@ -47,9 +48,16 @@ export async function serverLogin(email: string, password: string) {
         appName?: string;
         appLogoUrl?: string | null;
       };
-    };
+    } = {};
+    try {
+      json = (await response.json()) as typeof json;
+    } catch {
+      json = {};
+    }
     if (!response.ok || !json.ok || !json.token || !json.user) {
-      throw new Error(json.error || `Session login HTTP ${response.status}`);
+      throw new Error(
+        json.error || json.code || `Session login HTTP ${response.status}`,
+      );
     }
     setSessionToken(json.token);
     if (json.branding) {

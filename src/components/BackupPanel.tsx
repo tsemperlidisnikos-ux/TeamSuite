@@ -17,6 +17,7 @@ import {
   flushClubMirrorPush,
   getLastSyncAt,
   isAutoSyncEnabled,
+  persistLocalStateToCloud,
   setAutoSyncEnabled,
 } from '../data/clubSync';
 import {
@@ -327,13 +328,24 @@ export function BackupPanel() {
         );
       }
 
+      const cloud = await persistLocalStateToCloud({
+        clubIds: [activeClubId],
+        overwriteCloud: true,
+      });
+      if (!cloud.success) {
+        setError(
+          `Επαναφορά τοπικά OK (${gotStudents} αθλητές). Το cloud mirror απέτυχε: ${cloud.error ?? 'άγνωστο'}. Μην κάνετε logout μέχρι να πετύχει «Push mirror».`,
+        );
+        return;
+      }
+
       flash(
         `Επαναφορά OK στον σύλλογο «${getClubById(activeClubId)?.name ?? activeClubId}»: ` +
-          `${gotStudents} αθλητές, ${verify.classes?.length ?? 0} τμήματα. Ανανέωση…`,
+          `${gotStudents} αθλητές, ${verify.classes?.length ?? 0} τμήματα. Αποθηκεύτηκε στο cloud. Ανανέωση…`,
       );
       window.setTimeout(() => {
         window.location.reload();
-      }, 800);
+      }, 400);
     } catch (err) {
       setMessage('');
       setError(formatBackupError(err));

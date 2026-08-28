@@ -125,7 +125,7 @@ export function slugifyClubNameForBackup(name: string, fallback: string): string
 export function clubBackupFilenamePrefix(clubId: string): string {
   const club = getClubById(clubId);
   const slug = slugifyClubNameForBackup(club?.name ?? '', clubId.slice(0, 12));
-  return `SportSuite360-${slug}`;
+  return `TeamSuite-${slug}`;
 }
 
 export function buildBackupPayload(): BackupPayload {

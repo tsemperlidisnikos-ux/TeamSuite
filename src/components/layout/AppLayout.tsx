@@ -226,8 +226,10 @@ export function AppLayout() {
     return null;
   }, [session]);
 
-  function handleLogout() {
+  async function handleLogout() {
     endPreview();
+    const { persistLocalStateToCloud } = await import('../../data/clubSync');
+    await persistLocalStateToCloud();
     logout();
     navigate('/login', { replace: true });
   }

@@ -778,7 +778,7 @@ export async function runDueFeeReminders(clubId: string) {
     const club = getClubById(clubId);
     const viva = getClubViva(clubId);
     const payUrl = feePaymentLoginUrl();
-    const clubName = club?.name ?? 'SPORTSUITE 360';
+    const clubName = club?.name ?? 'TeamSuite';
 
     let sent = 0;
     let skipped = 0;

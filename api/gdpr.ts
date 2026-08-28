@@ -485,7 +485,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : undefined;
     return res.status(storageReadable ? 200 : 503).json({
       ok: storageReadable,
-      service: 'sportsuite360-api',
+      service: 'teamsuite-api',
       durable: configured,
       durableBackend: getDurableStoreBackend(),
       storageReadable,

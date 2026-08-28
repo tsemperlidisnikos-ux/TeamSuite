@@ -27,6 +27,7 @@ type ClubDataMap = Record<string, AppData>;
 let memoryMap: ClubDataMap | null = null;
 let amkaHydratePromise: Promise<void> | null = null;
 let persistSeq = 0;
+let persistChain: Promise<void> = Promise.resolve();
 
 /**
  * Active club for domain data.
@@ -90,43 +91,55 @@ async function decryptMapInPlace(map: ClubDataMap): Promise<boolean> {
   return changed;
 }
 
-function saveClubMapSafe(map: ClubDataMap, priorityClubId?: string): void {
+function writeMapBestEffort(map: ClubDataMap): void {
+  try {
+    writeClubMapToDisk(map);
+    return;
+  } catch (err) {
+    if (!isQuotaError(err)) throw err;
+  }
+
+  const stripped: ClubDataMap = {};
+  for (const [id, data] of Object.entries(map)) {
+    stripped[id] = stripHeavyMedia(data);
+  }
+  try {
+    writeClubMapToDisk(stripped);
+    return;
+  } catch (err) {
+    if (!isQuotaError(err)) throw err;
+  }
+
+  console.error(
+    'Ο χώρος του browser γέμισε. Καθαρίστε φωτογραφίες/media και ξαναδοκιμάστε. Τα δεδομένα συλλόγων δεν διαγράφηκαν από τη μνήμη.',
+  );
+}
+
+/** Resolves after the latest localStorage write (including AMKA encrypt rewrite). */
+export function whenClubMapPersisted(): Promise<void> {
+  return persistChain.catch(() => undefined);
+}
+
+function saveClubMapSafe(map: ClubDataMap, _priorityClubId?: string): void {
   memoryMap = map;
+  try {
+    writeMapBestEffort(map);
+  } catch (err) {
+    console.error(err);
+  }
+
   const seq = ++persistSeq;
-  void (async () => {
+  persistChain = persistChain.then(async () => {
+    if (seq !== persistSeq) return;
     try {
-      const forDisk = await encryptMapForDisk(map);
+      const snapshot = memoryMap ?? map;
+      const forDisk = await encryptMapForDisk(snapshot);
       if (seq !== persistSeq) return;
-      try {
-        writeClubMapToDisk(forDisk);
-        return;
-      } catch (err) {
-        if (!isQuotaError(err)) throw err;
-      }
-
-      const stripped: ClubDataMap = {};
-      for (const [id, data] of Object.entries(forDisk)) {
-        stripped[id] = stripHeavyMedia(data);
-      }
-      try {
-        writeClubMapToDisk(stripped);
-        return;
-      } catch (err) {
-        if (!isQuotaError(err)) throw err;
-      }
-
-      if (priorityClubId && stripped[priorityClubId]) {
-        writeClubMapToDisk({ [priorityClubId]: stripped[priorityClubId] });
-        return;
-      }
-
-      console.error(
-        'Ο χώρος του browser γέμισε. Καθαρίστε δεδομένα ιστότοπου (localStorage) και ξαναδοκιμάστε.',
-      );
+      writeMapBestEffort(forDisk);
     } catch (err) {
       console.error(err);
     }
-  })();
+  });
 }
 
 function emptyClubData(): AppData {

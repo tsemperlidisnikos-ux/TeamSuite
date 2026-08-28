@@ -103,8 +103,8 @@ export function ClubEmailPanel({ clubId }: Props) {
     const result = await emailService.sendClubEmail({
       clubId,
       to,
-      subject: `Δοκιμή SMTP — ${club?.name ?? 'SPORTSUITE 360'}`,
-      text: `Αυτό είναι δοκιμαστικό μήνυμα από το SportSuite 360 για τον σύλλογο «${club?.name ?? '—'}».\n\nΑν το λαμβάνετε, οι ρυθμίσεις SMTP λειτουργούν.`,
+      subject: `Δοκιμή SMTP — ${club?.name ?? 'TeamSuite'}`,
+      text: `Αυτό είναι δοκιμαστικό μήνυμα από το TeamSuite για τον σύλλογο «${club?.name ?? '—'}».\n\nΑν το λαμβάνετε, οι ρυθμίσεις SMTP λειτουργούν.`,
     });
     setTesting(false);
     setHistory(getClubSmtpSendLog(clubId));

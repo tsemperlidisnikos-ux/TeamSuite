@@ -142,8 +142,8 @@ async function handleCreateOrder(req: VercelRequest, res: VercelResponse) {
       },
       body: JSON.stringify({
         amount,
-        customerTrns: body.merchantTrns || 'SportSuite360 payment',
-        merchantTrns: body.merchantTrns || 'SportSuite360 payment',
+        customerTrns: body.merchantTrns || 'TeamSuite payment',
+        merchantTrns: body.merchantTrns || 'TeamSuite payment',
         sourceCode,
         customer: {
           email: body.customer?.email || undefined,

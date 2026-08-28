@@ -1,9 +1,9 @@
-# Creates a timestamped project ZIP in C:\SPORTSUITE360_BACKUP
+# Creates a timestamped project ZIP in C:\TeamSuite_backup
 # Excludes heavy/generated folders (node_modules, dist, caches).
 
 param(
   [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
-  [string]$BackupRoot = 'C:\SPORTSUITE360_BACKUP'
+  [string]$BackupRoot = 'C:\TeamSuite_backup'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path $BackupRoot | Out-Null
 
 $stamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
-$zipName = "SportSuite360_$stamp.zip"
+$zipName = "TeamSuite_$stamp.zip"
 $zipPath = Join-Path $BackupRoot $zipName
 
 $excludes = @(
@@ -36,8 +36,8 @@ $excludeFiles = @(
   'service-account*.json'
 )
 
-$tempRoot = Join-Path $env:TEMP ("SportSuite360_backup_" + [guid]::NewGuid().ToString('N'))
-$stageDir = Join-Path $tempRoot 'SportSuite360'
+$tempRoot = Join-Path $env:TEMP ("TeamSuite_backup_" + [guid]::NewGuid().ToString('N'))
+$stageDir = Join-Path $tempRoot 'TeamSuite'
 
 try {
   New-Item -ItemType Directory -Force -Path $stageDir | Out-Null

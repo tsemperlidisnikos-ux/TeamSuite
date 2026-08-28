@@ -431,7 +431,7 @@ async function sendMail(
       secure: port === 465,
       auth: { user: smtp.username, pass: smtp.password },
     });
-    const fromName = (smtp.fromName || 'SPORTSUITE 360').replace(/[\r\n]/g, '');
+    const fromName = (smtp.fromName || 'TeamSuite').replace(/[\r\n]/g, '');
     await transporter.sendMail({
       from: `"${fromName}" <${smtp.username}>`,
       to: message.to,

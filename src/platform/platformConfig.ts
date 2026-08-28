@@ -281,7 +281,7 @@ export type PlatformConfig = {
   backupSchedules?: PlatformBackupSchedules;
 };
 
-const CONFIG_KEY = 'academyhub-platform-config-v5';
+const CONFIG_KEY = 'teamsuite-platform-config-v1';
 const LEGACY_CONFIG_KEYS = [
   'academyhub-platform-config-v4',
   'academyhub-platform-config-v3',
@@ -391,7 +391,7 @@ export function defaultPlatformConfig(): PlatformConfig {
     registryKinds: ['ΑΘΛΗΤΕΣ', 'ΜΕΛΗ'],
     seasons: ['2025–2026', '2026–2027'],
     appLogoUrl: null,
-    appName: 'SPORTSUITE 360',
+    appName: 'TeamSuite',
     appearanceTheme: 'ocean-slate',
     backupSchedules: defaultBackupSchedules(),
   };
@@ -645,7 +645,7 @@ export function savePlatformConfig(config: PlatformConfig): void {
 }
 
 export function getAppName(): string {
-  return loadPlatformConfig().appName?.trim() || 'SPORTSUITE 360';
+  return loadPlatformConfig().appName?.trim() || 'TeamSuite';
 }
 
 export function getAppLogoUrl(): string | null {

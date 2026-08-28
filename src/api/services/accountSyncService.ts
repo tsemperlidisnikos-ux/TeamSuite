@@ -142,7 +142,7 @@ export async function pullAccountBundle() {
       platformConfig: json.platformConfig ?? null,
       platformBranding: json.platformBranding ?? null,
       updatedAt: json.updatedAt ?? null,
-      durable: Boolean(json.durable),
+      durable: json.durable !== false,
     } satisfies AccountBundlePayload;
   });
 }
@@ -152,6 +152,7 @@ export function applyAccountBundle(
   bundle: AccountBundlePayload,
   options?: { mergeLocalUsers?: boolean },
 ) {
+  if (bundle.durable === false) return;
   if (bundle.platformConfig) {
     savePlatformConfig(bundle.platformConfig);
   } else if (bundle.platformBranding) {

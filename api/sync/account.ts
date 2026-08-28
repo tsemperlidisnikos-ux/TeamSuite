@@ -497,7 +497,7 @@ function publicBranding(platformConfig: unknown) {
   const appLogoUrl = typeof cfg.appLogoUrl === 'string' ? cfg.appLogoUrl.trim() : '';
   return {
     appearanceTheme: sanitizeAppearanceThemeId(cfg.appearanceTheme),
-    appName: appName || 'SPORTSUITE 360',
+    appName: appName || 'TeamSuite',
     appLogoUrl: appLogoUrl || null,
   };
 }
@@ -727,6 +727,40 @@ function publicUser(user: BundleUser) {
   };
 }
 
+function readServerBootstrapAdmin(): { email: string; password: string; fullName: string } | null {
+  const email = (
+    process.env.TEAMSUITE_ADMIN_EMAIL ||
+    process.env.VITE_BOOTSTRAP_PLATFORM_ADMIN_EMAIL ||
+    ''
+  )
+    .trim()
+    .toLowerCase();
+  const password = (
+    process.env.TEAMSUITE_ADMIN_PASSWORD ||
+    process.env.VITE_BOOTSTRAP_PLATFORM_ADMIN_PASSWORD ||
+    ''
+  ).trim();
+  if (!email || !password) return null;
+  const fullName = (
+    process.env.TEAMSUITE_ADMIN_NAME ||
+    process.env.VITE_BOOTSTRAP_PLATFORM_ADMIN_NAME ||
+    'Platform Admin'
+  ).trim();
+  return { email, password, fullName };
+}
+
+function bootstrapAdminUser(boot: { email: string; fullName: string }): BundleUser {
+  return {
+    id: 'user_platform_admin',
+    email: boot.email,
+    fullName: boot.fullName,
+    role: 'platform_admin',
+    clubId: null,
+    active: true,
+    password: '',
+  };
+}
+
 /** Strip SMTP/Viva secrets from club records returned to non–platform-admin clients. */
 function sanitizeClubForTenant(club: BundleClub): BundleClub {
   const next: BundleClub = { ...club };
@@ -784,7 +818,7 @@ function resolvePlatformSmtp(): SmtpConfig | null {
   const fromName = (
     process.env.SMTP_FROM_NAME ||
     process.env.PLATFORM_SMTP_FROM_NAME ||
-    'SPORTSUITE 360'
+    'TeamSuite'
   ).trim();
   if (!host || !username || !password) return null;
   return { host, port: Number.isFinite(port) ? port : 587, username, password, fromName };
@@ -831,7 +865,7 @@ async function notifyPlatformAdminNewClubRegistration(entry: {
     }
   })();
 
-  const subject = `SPORTSUITE 360 — Νέα αίτηση συλλόγου: ${entry.clubName}`;
+  const subject = `TeamSuite — Νέα αίτηση συλλόγου: ${entry.clubName}`;
   const text = [
     'Νέα αίτηση εγγραφής συλλόγου στη λίστα αναμονής.',
     '',
@@ -849,7 +883,7 @@ async function notifyPlatformAdminNewClubRegistration(entry: {
   const html = `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#152033">
       <h2 style="margin:0 0 12px">Νέα αίτηση συλλόγου</h2>
-      <p style="margin:0 0 16px">Καταχωρήθηκε νέα αίτηση στη λίστα αναμονής SportSuite 360.</p>
+      <p style="margin:0 0 16px">Καταχωρήθηκε νέα αίτηση στη λίστα αναμονής TeamSuite.</p>
       <table style="border-collapse:collapse;width:100%;max-width:520px">
         <tr><td style="padding:6px 0;color:#4a5d70">Σύλλογος</td><td style="padding:6px 0"><strong>${escapeHtml(entry.clubName)}</strong></td></tr>
         <tr><td style="padding:6px 0;color:#4a5d70">Διαχειριστής</td><td style="padding:6px 0">${escapeHtml(entry.adminFullName)}</td></tr>
@@ -891,7 +925,7 @@ function resolveClubSmtp(clubs: BundleClub[], clubId: string | null | undefined)
     port: Number.isFinite(port) ? port : 587,
     username,
     password,
-    fromName: String(smtp.fromName || club?.name || 'SPORTSUITE 360').trim(),
+    fromName: String(smtp.fromName || club?.name || 'TeamSuite').trim(),
   };
 }
 
@@ -948,6 +982,14 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
           error: durableStorageUnavailableMessage(),
         });
       }
+      const boot = readServerBootstrapAdmin();
+      if (
+        boot &&
+        claims.role === 'platform_admin' &&
+        claims.email.toLowerCase() === boot.email
+      ) {
+        return res.status(200).json({ ok: true, user: publicUser(bootstrapAdminUser(boot)) });
+      }
       return res.status(503).json({ ok: false, error: 'Account bundle unavailable' });
     }
     const users = Array.isArray(bundle.users) ? (bundle.users as BundleUser[]) : [];
@@ -976,6 +1018,26 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
         return res.status(503).json({
           ok: false,
           error: durableStorageUnavailableMessage(),
+        });
+      }
+      const boot = readServerBootstrapAdmin();
+      if (boot && email === boot.email && password === boot.password) {
+        const token = signSession({
+          sub: 'user_platform_admin',
+          email: boot.email,
+          role: 'platform_admin',
+          clubId: null,
+        });
+        if (!token) {
+          return res.status(503).json({
+            ok: false,
+            error: 'Session signing unavailable (configure SS360_SESSION_SECRET)',
+          });
+        }
+        return res.status(200).json({
+          ok: true,
+          token,
+          user: publicUser(bootstrapAdminUser(boot)),
         });
       }
       return res.status(404).json({
@@ -1069,7 +1131,7 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const subject = 'SPORTSUITE 360 — Επαναφορά κωδικού';
+    const subject = 'TeamSuite — Επαναφορά κωδικού';
     const text = [
       'Λάβαμε αίτημα επαναφοράς κωδικού για τον λογαριασμό σας.',
       '',
@@ -1080,7 +1142,7 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
       'Αν δεν ζητήσατε εσείς επαναφορά, αγνοήστε αυτό το μήνυμα.',
     ].join('\n');
     const html = `
-      <p>Λάβαμε αίτημα επαναφοράς κωδικού για τον λογαριασμό σας στο <strong>SPORTSUITE 360</strong>.</p>
+      <p>Λάβαμε αίτημα επαναφοράς κωδικού για τον λογαριασμό σας στο <strong>TeamSuite</strong>.</p>
       ${
         resetUrl
           ? `<p><a href="${resetUrl}">Πατήστε εδώ για νέο κωδικό</a> (ισχύει 1 ώρα).</p>
@@ -1355,6 +1417,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
       if (body.users == null) {
         return res.status(400).json({ ok: false, error: 'users required' });
+      }
+
+      if (!isDurableStoreEnabled()) {
+        return res.status(503).json({
+          ok: false,
+          durable: false,
+          error:
+            'Το cloud sync δεν είναι ενεργό: λείπει Vercel Blob/Redis. Οι λογαριασμοί μένουν μόνο σε αυτόν τον browser.',
+        });
       }
 
       const existing = await loadAccountBundle();

@@ -155,7 +155,7 @@ export function AthletePortalPage() {
   return (
     <div className="aport">
       <header className="aport-welcome">
-        <h1>Καλωσήρθες στο SportSuite 360, {greetingName(session?.fullName)}!</h1>
+        <h1>Καλωσήρθες στο TeamSuite, {greetingName(session?.fullName)}!</h1>
         {className ? <p className="aport-class">Τμήμα · {className}</p> : null}
         {athlete ? (
           <Link className="aport-profile-link" to={`/athletes/${athlete.id}`}>

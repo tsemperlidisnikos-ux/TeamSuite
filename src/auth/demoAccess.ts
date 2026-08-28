@@ -16,16 +16,16 @@ import { getClubs, saveClubs } from './clubs';
 /** Stable IDs so DEMO is the same club on every visit to this browser. */
 export const DEMO_CLUB_ID = 'club_demo_showcase';
 export const DEMO_USER_ID = 'user_demo_admin';
-export const DEMO_EMAIL = 'demo@sportsuite360.app';
+export const DEMO_EMAIL = 'demo@teamsuite.app';
 export const DEMO_PASSWORD = 'demo1234';
 export const DEMO_CLUB_NAME = 'DEMO';
 
 export const DEMO_COACH_USER_ID = 'user_demo_coach';
-export const DEMO_COACH_EMAIL = 'coach@sportsuite360.app';
+export const DEMO_COACH_EMAIL = 'coach@teamsuite.app';
 export const DEMO_PARENT_USER_ID = 'user_demo_parent';
-export const DEMO_PARENT_EMAIL = 'parent@sportsuite360.app';
+export const DEMO_PARENT_EMAIL = 'parent@teamsuite.app';
 export const DEMO_PARENT_B_USER_ID = 'user_demo_parent_b';
-export const DEMO_PARENT_B_EMAIL = 'parent2@sportsuite360.app';
+export const DEMO_PARENT_B_EMAIL = 'parent2@teamsuite.app';
 
 type DemoRoleUser = {
   id: string;

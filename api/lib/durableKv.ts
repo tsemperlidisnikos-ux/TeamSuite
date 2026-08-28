@@ -54,7 +54,7 @@ function blobPath(key: string): string {
     .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
-  return `ss360-kv/${safe || 'key'}.json`;
+  return `teamsuite-kv/${safe || 'key'}.json`;
 }
 
 async function streamToText(stream: ReadableStream<Uint8Array>): Promise<string> {
@@ -84,9 +84,8 @@ async function parseBlobJson<T>(stream: ReadableStream<Uint8Array> | null): Prom
 
 function blobStoreBaseHost(): string | null {
   const storeId = (process.env.BLOB_STORE_ID || '').replace(/^store_/, '').trim();
-  if (storeId) return `${storeId.toLowerCase()}.private.blob.vercel-storage.com`;
-  // Fallback: known production store (sportsuite360-data) when env lost after reconnect.
-  return '20is6btjkyhvzkg7.private.blob.vercel-storage.com';
+  if (!storeId) return null;
+  return `${storeId.toLowerCase()}.private.blob.vercel-storage.com`;
 }
 
 async function fetchPrivateBlobJson<T>(url: string): Promise<T | null> {

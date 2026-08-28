@@ -862,7 +862,13 @@ type ResetRecord = {
 };
 
 function sessionSecret(): string {
-  return (process.env.SS360_SESSION_SECRET || process.env.SS360_SYNC_SECRET || '').trim();
+  return (
+    process.env.SS360_SESSION_SECRET ||
+    process.env.SS360_SYNC_SECRET ||
+    process.env.TEAMSUITE_ADMIN_PASSWORD ||
+    process.env.VITE_BOOTSTRAP_PLATFORM_ADMIN_PASSWORD ||
+    ''
+  ).trim();
 }
 
 function toHex(buffer: ArrayBuffer): string {
