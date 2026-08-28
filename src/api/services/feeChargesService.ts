@@ -620,7 +620,7 @@ export function feePaymentAppOrigin(): string {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin;
   }
-  return 'https://sportsuite360.vercel.app';
+  return 'https://teamsuite-seven.vercel.app';
 }
 
 /** Login URL that lands parents on the portal after auth. */

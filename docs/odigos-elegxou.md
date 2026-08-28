@@ -1,6 +1,6 @@
 # Οδηγός ελέγχου SportSuite360
 
-Διεύθυνση live: https://sportsuite360.vercel.app  
+Διεύθυνση live: https://teamsuite-seven.vercel.app  
 Σκοπός: να περάσεις **όλες τις επιλογές** της εφαρμογής με σταθερή σειρά. Κάνε hard refresh (Ctrl+F5) μετά από deploy.
 
 Σημείωσε δίπλα σε κάθε γραμμή: **OK** / **Πρόβλημα** / **Δεν εφαρμόζει**.

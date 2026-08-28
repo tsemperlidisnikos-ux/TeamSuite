@@ -212,7 +212,7 @@ export function formatBackupError(err: unknown): string {
   if (isQuotaError(err)) {
     return (
       'Ο χώρος του browser γέμισε (localStorage). ' +
-      'Καθαρίστε δεδομένα ιστότοπου για sportsuite360.vercel.app και ξαναδοκιμάστε.'
+      'Καθαρίστε δεδομένα ιστότοπου για teamsuite-seven.vercel.app και ξαναδοκιμάστε.'
     );
   }
   if (err instanceof Error && err.message) return err.message;

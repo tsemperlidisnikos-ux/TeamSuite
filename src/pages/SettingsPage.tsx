@@ -288,7 +288,7 @@ export function SettingsPage() {
         ok: false,
         error:
           published.error ??
-          'Το SMTP δεν ανέβηκε στο cloud. Χρησιμοποιήστε το production URL (sportsuite360.vercel.app) με ενεργή σύνδεση.',
+          'Το SMTP δεν ανέβηκε στο cloud. Χρησιμοποιήστε το production URL (teamsuite-seven.vercel.app) με ενεργή σύνδεση.',
       };
     }
     return { ok: true };

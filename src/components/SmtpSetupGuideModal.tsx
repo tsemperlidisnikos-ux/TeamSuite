@@ -2,7 +2,7 @@ import { BookOpen } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
-const PRODUCTION_URL = 'https://sportsuite360.vercel.app';
+const PRODUCTION_URL = 'https://teamsuite-seven.vercel.app';
 
 type Props = {
   open: boolean;

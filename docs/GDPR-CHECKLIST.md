@@ -1,7 +1,7 @@
 # SportSuite 360 — GDPR Checklist (1 σελίδα)
 
 **Ημερομηνία:** Αύγουστος 2026  
-**Production:** https://sportsuite360.vercel.app  
+**Production:** https://teamsuite-seven.vercel.app  
 **Στόχος:** νομική / επιχειρησιακή κάλυψη πέρα από τα τεχνικά μέτρα της εφαρμογής.
 
 > Η εφαρμογή παρέχει τεχνικά εργαλεία GDPR. **Η νομική συμμόρφωση** ολοκληρώνεται με υπογραφές, σωστά στοιχεία επικοινωνίας και σωστή χρήση από κάθε σύλλογο.
@@ -33,7 +33,7 @@
 - [ ] Στο Vercel Environment: `CRON_SECRET`, `SS360_SYNC_SECRET`, `SS360_SESSION_SECRET` (ή `SS360_AMKA_SECRET`), `BLOB_READ_WRITE_TOKEN`, Redis/KV
 - [ ] Αν χρησιμοποιείτε Viva: ορίστε `VIVA_WEBHOOK_SECRET`
 - [ ] Viva webhook URL:  
-  `https://sportsuite360.vercel.app/api/viva/webhook?key=ΤΟ_SECRET`
+  `https://teamsuite-seven.vercel.app/api/viva/webhook?key=ΤΟ_SECRET`
 - [ ] Επιβεβαίωση cron: backup + GDPR retention (ημερήσια)
 - [ ] Ορισμός εσωτερικού υπευθύνου για αιτήματα GDPR / παραβιάσεις
 - [ ] Σύντομο briefing προσωπικού (μην στέλνουμε ΑΜΚΑ/υγεία με email)

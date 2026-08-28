@@ -20,7 +20,7 @@ SMTP_PASS=
 SMTP_FROM_NAME=SPORTSUITE 360
 # Where to notify when someone submits /register (club waitlist). Default below if unset.
 PLATFORM_ADMIN_NOTIFY_EMAIL=tsemperlidis.nikos@gmail.com
-APP_URL=https://sportsuite360.vercel.app
+APP_URL=https://teamsuite-seven.vercel.app
 
 # Local/dev ONLY — never set these on Vercel production builds
 # (VITE_ vars are embedded in the client bundle).

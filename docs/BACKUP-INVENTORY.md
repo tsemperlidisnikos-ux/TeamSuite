@@ -1,6 +1,6 @@
 # Κατάλογος Backup — SportSuite360
 
-Τελευταία ενημέρωση περιεχομένου: **2026-08-28** (filesystem ZIP στο `C:\TeamSuite_backup` + deploy).
+Τελευταία ενημέρωση περιεχομένου: **2026-08-28** (ZIP `C:\TeamSuite_backup` + deploy `teamsuite`).
 
 Αυτό το αρχείο ενημερώνεται κάθε φορά που αλλάζει τι περιλαμβάνει κάποιο backup, ή μετά από **BACKUP + DEPLOY** (νέα γραμμή στο ιστορικό ZIP κώδικα).
 
@@ -40,6 +40,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `SportSuite360_2026-08-28_12-44-33.zip` | 2026-08-28 | TeamSuite ξεχωριστό Vercel project (`teamsuite-seven.vercel.app`) · production URLs εκτός SportSuite360 · πριν το deploy |
 | `SportSuite360_2026-08-28_11-24-15.zip` | 2026-08-28 | Κώδικας TeamSuite όπως στο GitHub (`main`) · ZIP στο `C:\TeamSuite_backup` · πριν το Vercel production deploy |
 | `SportSuite360_2026-08-27_02-56-41.zip` | 2026-08-27 | Backup μόνο JSON (αφαίρεση ZIP λήψης/επαναφοράς) · διόρθωση verify επαναφοράς |
 | `SportSuite360_2026-08-27_02-41-35.zip` | 2026-08-27 | Dashboard: τμήματα και μετρητές μόνο τρέχουσα ενεργή σεζόν (συνεπές με λίστα Τμήματα) |

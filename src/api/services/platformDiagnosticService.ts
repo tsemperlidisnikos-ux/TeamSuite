@@ -257,7 +257,7 @@ function checkStorage(): DiagnosticFinding[] {
         severity: 'critical',
         title: 'localStorage μπλοκαρισμένο ή γεμάτο',
         detail: 'Αποτυχία εγγραφής στο localStorage.',
-        fix: 'Καθαρίστε δεδομένα ιστότοπου για sportsuite360.vercel.app ή απενεργοποιήστε private mode χωρίς storage.',
+        fix: 'Καθαρίστε δεδομένα ιστότοπου για teamsuite-seven.vercel.app ή απενεργοποιήστε private mode χωρίς storage.',
       }),
     );
   }
