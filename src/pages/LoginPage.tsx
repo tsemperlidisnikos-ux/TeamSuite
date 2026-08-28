@@ -206,6 +206,7 @@ export function LoginPage() {
         }),
       ]);
       clearDataCache();
+      window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
       try {
         const { migrateUsersToPlatformRoleDefaults } = await import(
           '../api/services/clubUsersService'

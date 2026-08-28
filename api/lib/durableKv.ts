@@ -330,6 +330,7 @@ export async function putPublicBinary(
   pathname: string,
   body: Buffer,
   contentType: string,
+  options?: { cacheControlMaxAge?: number },
 ): Promise<string> {
   assertBlobConfigured();
   const uploaded = await put(pathname, body, {
@@ -338,6 +339,9 @@ export async function putPublicBinary(
     contentType,
     addRandomSuffix: false,
     allowOverwrite: true,
+    ...(typeof options?.cacheControlMaxAge === 'number'
+      ? { cacheControlMaxAge: options.cacheControlMaxAge }
+      : {}),
   });
   return uploaded.url;
 }

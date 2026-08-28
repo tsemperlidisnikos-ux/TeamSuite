@@ -161,6 +161,34 @@ export async function resetPasswordWithToken(resetToken: string, newPassword: st
   });
 }
 
+const CLOUD_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/svg+xml',
+] as const;
+
+export function parseImageDataUrl(
+  dataUrl: string,
+): { contentType: string; dataBase64: string } | null {
+  const match = /^data:([^;,]+);base64,(.+)$/i.exec(dataUrl.trim());
+  if (!match) return null;
+  let contentType = match[1].trim().toLowerCase();
+  if (contentType === 'image/jpg') contentType = 'image/jpeg';
+  return { contentType, dataBase64: dataUrl.trim() };
+}
+
+function withMediaCacheBust(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set('v', String(Date.now()));
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 export async function uploadClubPhotoBlob(input: {
   clubId: string;
   fileName: string;
@@ -197,5 +225,34 @@ export async function updateCloudClubLogo(clubId: string, logoUrl: string | null
       throw new Error(json.error || `Club profile HTTP ${response.status}`);
     }
     return { updatedAt: json.updatedAt ?? null };
+  });
+}
+
+/** Store club logo as a public HTTPS URL so every browser sees the same file after login. */
+export async function persistClubLogoToCloud(clubId: string, logoUrl: string | null) {
+  return apiClient(async () => {
+    let next = logoUrl?.trim() || null;
+    if (next?.startsWith('data:')) {
+      const parsed = parseImageDataUrl(next);
+      if (!parsed) throw new Error('Μη έγκυρη εικόνα λογοτύπου.');
+      if (!CLOUD_IMAGE_TYPES.includes(parsed.contentType as (typeof CLOUD_IMAGE_TYPES)[number])) {
+        throw new Error('Υποστηρίζονται JPG, PNG, WEBP, GIF ή SVG.');
+      }
+      const uploaded = await uploadClubPhotoBlob({
+        clubId,
+        fileName: parsed.contentType === 'image/svg+xml' ? 'club-logo.svg' : 'club-logo.jpg',
+        contentType: parsed.contentType,
+        dataBase64: parsed.dataBase64,
+      });
+      if (!uploaded.success || !uploaded.data?.url) {
+        throw new Error(uploaded.error ?? 'Αποτυχία αποθήκευσης λογοτύπου στο cloud.');
+      }
+      next = withMediaCacheBust(uploaded.data.url);
+    }
+    const cloud = await updateCloudClubLogo(clubId, next);
+    if (!cloud.success) {
+      throw new Error(cloud.error ?? 'Αποτυχία cloud αποθήκευσης λογοτύπου.');
+    }
+    return { logoUrl: next };
   });
 }

@@ -181,4 +181,7 @@ export function applyAccountBundle(
     saveUsers(cleanedUsers);
   }
   saveClubs(mergeClubCatalog(getClubs(), bundle.clubs));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
+  }
 }

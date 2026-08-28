@@ -1022,7 +1022,9 @@ export async function uploadClubMedia(input: {
   const pathname = isClubLogo
     ? `ss360-media/${input.clubId}/club-logo`
     : `ss360-media/${input.clubId}/${Date.now()}-${safeName}`;
-  const url = await putPublicBinary(pathname, bytes, input.contentType || 'image/jpeg');
+  const url = await putPublicBinary(pathname, bytes, input.contentType || 'image/jpeg', {
+    cacheControlMaxAge: isClubLogo ? 60 : undefined,
+  });
   return { url, pathname };
 }
 

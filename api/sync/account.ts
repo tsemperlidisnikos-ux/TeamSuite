@@ -510,6 +510,24 @@ function bearerClaims(req: VercelRequest) {
   return verifySessionToken(token);
 }
 
+function parseDataImageUrl(
+  logoUrl: string,
+): { contentType: string; dataBase64: string } | null {
+  const match = /^data:([^;,]+);base64,(.+)$/i.exec(logoUrl.trim());
+  if (!match) return null;
+  let contentType = match[1].trim().toLowerCase();
+  if (contentType === 'image/jpg') contentType = 'image/jpeg';
+  return { contentType, dataBase64: logoUrl.trim() };
+}
+
+const CLOUD_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/svg+xml',
+];
+
 async function handleClubProfile(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'PATCH' && req.method !== 'POST') {
     res.setHeader('Allow', 'PATCH, POST');
@@ -517,7 +535,7 @@ async function handleClubProfile(req: VercelRequest, res: VercelResponse) {
   }
   const body = (req.body ?? {}) as { clubId?: string; logoUrl?: string | null };
   const clubId = String(body.clubId ?? '').trim();
-  const logoUrl = body.logoUrl == null ? null : String(body.logoUrl).trim();
+  let logoUrl = body.logoUrl == null ? null : String(body.logoUrl).trim();
   if (!clubId) return res.status(400).json({ ok: false, error: 'clubId required' });
   if (logoUrl && !logoUrl.startsWith('https://') && !logoUrl.startsWith('data:image/')) {
     return res.status(400).json({ ok: false, error: 'logoUrl must be an HTTPS URL or image data URL' });
@@ -528,6 +546,26 @@ async function handleClubProfile(req: VercelRequest, res: VercelResponse) {
   const auth = getSyncAuthContext(req);
   if (!auth.viaSecret && auth.claims?.role !== 'platform_admin' && auth.claims?.clubId !== clubId) {
     return res.status(403).json({ ok: false, error: 'Forbidden: club mismatch' });
+  }
+  if (logoUrl?.startsWith('data:image/')) {
+    const parsed = parseDataImageUrl(logoUrl);
+    if (!parsed || !CLOUD_IMAGE_TYPES.includes(parsed.contentType)) {
+      return res.status(400).json({ ok: false, error: 'Unsupported logo image type' });
+    }
+    try {
+      const uploaded = await uploadClubMedia({
+        clubId,
+        fileName: parsed.contentType === 'image/svg+xml' ? 'club-logo.svg' : 'club-logo.jpg',
+        contentType: parsed.contentType,
+        dataBase64: parsed.dataBase64,
+      });
+      logoUrl = `${uploaded.url}${uploaded.url.includes('?') ? '&' : '?'}v=${Date.now()}`;
+    } catch (err) {
+      return res.status(500).json({
+        ok: false,
+        error: err instanceof Error ? err.message : 'Αποτυχία αποθήκευσης λογοτύπου στο cloud',
+      });
+    }
   }
   const bundle = await loadAccountBundle();
   if (!bundle || !Array.isArray(bundle.clubs)) {
@@ -1214,7 +1252,7 @@ async function handleMedia(req: VercelRequest, res: VercelResponse) {
   if (!clubId || !dataBase64) {
     return res.status(400).json({ ok: false, error: 'clubId and dataBase64 required' });
   }
-  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(contentType)) {
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'].includes(contentType)) {
     return res.status(400).json({ ok: false, error: 'Unsupported media type' });
   }
   const auth = getSyncAuthContext(req);

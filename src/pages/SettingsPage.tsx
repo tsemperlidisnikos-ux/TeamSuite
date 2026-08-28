@@ -34,7 +34,7 @@ import {
 } from '../auth/licensePackages';
 import * as emailService from '../api/services/emailService';
 import * as publicClubCloudService from '../api/services/publicClubCloudService';
-import { getSessionToken, updateCloudClubLogo, uploadClubPhotoBlob } from '../api/services/sessionService';
+import { getSessionToken, persistClubLogoToCloud, updateCloudClubLogo } from '../api/services/sessionService';
 import { BackupPanel } from '../components/BackupPanel';
 import { ChangePasswordPanel } from '../components/ChangePasswordPanel';
 import { ClubEmailPanel } from '../components/ClubEmailPanel';
@@ -223,20 +223,9 @@ export function SettingsPage() {
     try {
       let logoUrl = await optimizeLogoDataUrl(file);
       if (getSessionToken()) {
-        if (logoUrl.startsWith('data:image/') && !logoUrl.startsWith('data:image/svg')) {
-          const contentType = logoUrl.slice(5, logoUrl.indexOf(';')) || 'image/jpeg';
-          const uploaded = await uploadClubPhotoBlob({
-            clubId,
-            fileName: 'club-logo.jpg',
-            contentType,
-            dataBase64: logoUrl,
-          });
-          if (uploaded.success && uploaded.data?.url) {
-            logoUrl = uploaded.data.url;
-          }
-        }
-        const cloud = await updateCloudClubLogo(clubId, logoUrl);
+        const cloud = await persistClubLogoToCloud(clubId, logoUrl);
         if (!cloud.success) throw new Error(cloud.error ?? 'Αποτυχία cloud αποθήκευσης λογοτύπου.');
+        logoUrl = cloud.data?.logoUrl ?? logoUrl;
       }
       const result = updateClubLogo(clubId, logoUrl);
       if (!result.success) throw new Error(result.error ?? 'Σφάλμα αποθήκευσης');

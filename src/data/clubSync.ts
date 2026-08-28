@@ -318,13 +318,20 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
   if (account.success && account.data && account.data.durable !== false) {
     accountSyncService.applyAccountBundle(account.data, { mergeLocalUsers: true });
     pulledAccount = true;
-    const { getSessionToken, updateCloudClubLogo } = await import('../api/services/sessionService');
+    const { getSessionToken, persistClubLogoToCloud } = await import('../api/services/sessionService');
+    const { getClubs, updateClubLogo } = await import('../auth/clubs');
     if (getSessionToken()) {
-      const { getClubs } = await import('../auth/clubs');
       for (const club of getClubs()) {
         const cloud = account.data.clubs.find((row) => row.id === club.id);
-        if (club.logoUrl && !(cloud?.logoUrl ?? '').trim()) {
-          void updateCloudClubLogo(club.id, club.logoUrl);
+        const cloudLogo = (cloud?.logoUrl ?? '').trim();
+        const localLogo = (club.logoUrl ?? '').trim();
+        const cloudNeedsLogo = !cloudLogo || cloudLogo.startsWith('data:');
+        const localIsData = localLogo.startsWith('data:');
+        if (localLogo && (cloudNeedsLogo || localIsData)) {
+          const pushed = await persistClubLogoToCloud(club.id, localLogo);
+          if (pushed.success && pushed.data?.logoUrl && pushed.data.logoUrl !== localLogo) {
+            updateClubLogo(club.id, pushed.data.logoUrl);
+          }
         }
       }
     }
