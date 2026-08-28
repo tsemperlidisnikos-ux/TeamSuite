@@ -33,6 +33,7 @@ import {
   type ClubWaitlistEntry,
   type LoginActivityEvent,
 } from '../lib/serverStore.js';
+import { isAllowedClubMediaPath } from '../lib/durableKv.js';
 import { deriveClubFieldKeyMaterial, fieldCryptoSecret } from '../lib/fieldCrypto.js';
 
 type BundleUser = {
@@ -528,6 +529,24 @@ const CLOUD_IMAGE_TYPES = [
   'image/svg+xml',
 ];
 
+function isClubMediaLogoUrl(value: string): boolean {
+  try {
+    const parsed = value.startsWith('/')
+      ? new URL(value, 'https://teamsuite.invalid')
+      : new URL(value);
+    if (parsed.pathname !== '/api/club-media') return false;
+    return isAllowedClubMediaPath(parsed.searchParams.get('p') ?? '');
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedStoredLogoUrl(value: string): boolean {
+  if (value.startsWith('data:image/')) return true;
+  if (value.startsWith('https://')) return true;
+  return isClubMediaLogoUrl(value);
+}
+
 async function handleClubProfile(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'PATCH' && req.method !== 'POST') {
     res.setHeader('Allow', 'PATCH, POST');
@@ -537,8 +556,8 @@ async function handleClubProfile(req: VercelRequest, res: VercelResponse) {
   const clubId = String(body.clubId ?? '').trim();
   let logoUrl = body.logoUrl == null ? null : String(body.logoUrl).trim();
   if (!clubId) return res.status(400).json({ ok: false, error: 'clubId required' });
-  if (logoUrl && !logoUrl.startsWith('https://') && !logoUrl.startsWith('data:image/')) {
-    return res.status(400).json({ ok: false, error: 'logoUrl must be an HTTPS URL or image data URL' });
+  if (logoUrl && !isAllowedStoredLogoUrl(logoUrl)) {
+    return res.status(400).json({ ok: false, error: 'logoUrl must be an HTTPS URL, /api/club-media path, or image data URL' });
   }
   if (logoUrl && logoUrl.length > 180_000) {
     return res.status(400).json({ ok: false, error: 'Το λογότυπο είναι υπερβολικά μεγάλο' });
