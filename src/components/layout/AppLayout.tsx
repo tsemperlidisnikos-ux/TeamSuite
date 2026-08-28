@@ -277,7 +277,7 @@ export function AppLayout() {
           />
           <button
             type="button"
-            className={`app-logo-btn ${canUploadAppLogo ? 'is-editable' : ''}`}
+            className={`app-logo-btn ${appLogoUrl ? 'app-logo-btn--full' : ''} ${canUploadAppLogo ? 'is-editable' : ''}`}
             onClick={() => {
               if (canUploadAppLogo) appLogoInputRef.current?.click();
             }}
@@ -296,17 +296,22 @@ export function AppLayout() {
                 : appName
             }
           >
-            {appLogoUrl ? <img src={appLogoUrl} alt="" /> : <span className="brand-mark">SS</span>}
+            {appLogoUrl ? (
+              <img src={appLogoUrl} alt={appName} />
+            ) : (
+              <span className="brand-mark">SS</span>
+            )}
           </button>
-          <div>
-            <strong>{appName}</strong>
-            {session?.role === 'athlete' ? (
-              <span className="app-header-portal">ATHLETE PORTAL</span>
-            ) : session?.role === 'coach' ? (
-              <span className="app-header-portal">COACH PORTAL</span>
-            ) : null}
-            {logoError ? <em className="app-logo-error">{logoError}</em> : null}
-          </div>
+          {session?.role === 'athlete' || session?.role === 'coach' || logoError ? (
+            <div>
+              {session?.role === 'athlete' ? (
+                <span className="app-header-portal">ATHLETE PORTAL</span>
+              ) : session?.role === 'coach' ? (
+                <span className="app-header-portal">COACH PORTAL</span>
+              ) : null}
+              {logoError ? <em className="app-logo-error">{logoError}</em> : null}
+            </div>
+          ) : null}
         </div>
 
         {headerGreeting ? <p className="app-header-greeting">{headerGreeting}</p> : null}

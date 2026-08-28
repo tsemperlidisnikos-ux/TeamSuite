@@ -253,6 +253,16 @@ strong {
   padding: 0.2rem;
 }
 
+.app-logo-btn--full img {
+  width: auto;
+  height: auto;
+  max-height: 52px;
+  max-width: min(280px, 52vw);
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
 .admin-club-logo-thumb {
   max-height: 36px;
   max-width: 120px;
@@ -2634,8 +2644,9 @@ html[data-appearance] .settings-backup-schedule-status {
     padding: 0.65rem 0.9rem;
   }
 
-  .app-header-brand strong {
-    font-size: 1.2rem;
+  .app-logo-btn--full img {
+    max-height: 40px;
+    max-width: min(200px, 48vw);
   }
 
   .app-header-user {
