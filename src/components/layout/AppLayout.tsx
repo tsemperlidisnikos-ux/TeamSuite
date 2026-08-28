@@ -50,6 +50,7 @@ import {
 } from '../../platform/platformConfig';
 import { useAppData } from '../../hooks/useAppData';
 import { useCloudMirrorAutoPull } from '../../hooks/useCloudMirrorAutoPull';
+import * as publicClubCloudService from '../../api/services/publicClubCloudService';
 import { saveClubLogoFromFile } from '../../utils/clubLogoFile';
 
 type NavIcon = LucideIcon | ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;
