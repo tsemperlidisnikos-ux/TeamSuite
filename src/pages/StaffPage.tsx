@@ -513,9 +513,11 @@ export function StaffPage() {
               }
             >
               <option value="admin">Διαχειριστής</option>
-              <option value="coach">Προπονητής</option>
               <option value="secretariat">Γραμματεία</option>
               <option value="employee">Υπάλληλος</option>
+              {form.role === 'coach' ? (
+                <option value="coach">Προπονητής</option>
+              ) : null}
             </select>
           </label>
           <label className="field">
