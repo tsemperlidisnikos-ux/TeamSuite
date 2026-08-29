@@ -5959,6 +5959,16 @@ html[data-appearance] .settings-backup-schedule-status {
   border-radius: 8px;
 }
 
+.join-form-snapshot-preview {
+  display: block;
+  width: 100%;
+  max-height: min(70vh, 52rem);
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
 .registration-app-card-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

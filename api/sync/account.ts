@@ -1302,6 +1302,19 @@ async function handleMedia(req: VercelRequest, res: VercelResponse) {
  * Cloud accounts + login-activity + session + media (Hobby-friendly single function).
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  try {
+    return await dispatchAccount(req, res);
+  } catch (err) {
+    console.error('[sync/account]', err);
+    if (res.headersSent) return;
+    return res.status(503).json({
+      ok: false,
+      error: 'Account sync temporarily unavailable',
+    });
+  }
+}
+
+async function dispatchAccount(req: VercelRequest, res: VercelResponse) {
   const kind = kindOf(req);
 
   if (kind === 'session') {

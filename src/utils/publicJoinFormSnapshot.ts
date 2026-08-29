@@ -27,6 +27,74 @@ export type PublicJoinSnapshotFields = {
   guardianSignature?: string;
 };
 
+type JoinSnapshotSource = {
+  createdAt?: string;
+  amka?: string;
+  firstName?: string;
+  lastName?: string;
+  birthDate?: string;
+  gender?: string;
+  athleteEmail?: string;
+  email?: string;
+  phone?: string;
+  fatherFirstName?: string;
+  guardianName?: string;
+  motherFirstName?: string;
+  fatherEmail?: string;
+  motherEmail?: string;
+  guardianPhone?: string;
+  motherPhone?: string;
+  address?: string;
+  postalCode?: string;
+  city?: string;
+  county?: string;
+  sport?: string;
+  sports?: string[];
+  uniformSize?: string;
+  notes?: string;
+  comments?: string;
+  joinExtras?: PublicJoinExtras;
+  guardianSignature?: string;
+};
+
+function parseSubmittedAt(value?: string): Date {
+  if (!value) return new Date();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+export function snapshotFieldsFromJoinSource(
+  source: JoinSnapshotSource,
+  clubName: string,
+): PublicJoinSnapshotFields {
+  return {
+    clubName,
+    submittedAt: parseSubmittedAt(source.createdAt),
+    amka: source.amka ?? '',
+    firstName: source.firstName ?? '',
+    lastName: source.lastName ?? '',
+    birthDate: source.birthDate ?? '',
+    gender: source.gender ?? '',
+    athleteEmail: source.athleteEmail ?? '',
+    phone: source.phone ?? '',
+    fatherFirstName: source.fatherFirstName || source.guardianName || '',
+    motherFirstName: source.motherFirstName ?? '',
+    fatherEmail: source.fatherEmail || source.email || '',
+    motherEmail: source.motherEmail ?? '',
+    guardianPhone: source.guardianPhone ?? '',
+    motherPhone: source.motherPhone ?? '',
+    address: source.address ?? '',
+    postalCode: source.postalCode ?? '',
+    city: source.city ?? '',
+    county: source.county ?? '',
+    sport: source.sport || source.sports?.[0] || '',
+    uniformSize: source.uniformSize ?? '',
+    notes: source.notes || source.comments || '',
+    joinExtras: source.joinExtras,
+    guardianSignature: source.guardianSignature,
+  };
+}
+
 function genderLabel(value: string): string {
   if (value === 'boy') return 'Αγόρι';
   if (value === 'girl') return 'Κορίτσι';

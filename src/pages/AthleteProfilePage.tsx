@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  FileImage,
   HeartPulse,
   History,
   IdCard,
@@ -27,8 +28,13 @@ import { Modal } from '../components/ui/Modal';
 import { AppPopupLayer } from '../components/ui/AppPopupLayer';
 import { useAppData } from '../hooks/useAppData';
 import type { StudentInput } from '../schemas';
-import type { Gender, Student } from '../types';
+import type { Gender, RegistrationApplication, Student } from '../types';
 import { formatJoinExtrasLines } from '../shared/publicJoinExtras';
+import { normalizePersonName, normalizePhone } from '../api/services/registrationApplicationsService';
+import {
+  renderPublicJoinFormSnapshot,
+  snapshotFieldsFromJoinSource,
+} from '../utils/publicJoinFormSnapshot';
 import { buildHealthCardPdf } from '../utils/healthCardPdf';
 import { sizeChartOptGroups } from '../utils/sizeChartOptions';
 import { formatDate } from '../utils/labels';
@@ -411,6 +417,8 @@ export function AthleteProfilePage() {
   const [loadingHealthCardPreview, setLoadingHealthCardPreview] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [joinExtrasOpen, setJoinExtrasOpen] = useState(false);
+  const [joinFormImage, setJoinFormImage] = useState<string | null>(null);
+  const [joinFormBusy, setJoinFormBusy] = useState(false);
   const actionsAnchorRef = useRef<HTMLDivElement>(null);
   const healthCardPreviewUrlRef = useRef<string | null>(null);
   const amkaViewLoggedRef = useRef<string | null>(null);
@@ -646,6 +654,22 @@ export function AthleteProfilePage() {
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   }, [data.announcements, data.classes, student]);
 
+  const linkedJoinApp = useMemo((): RegistrationApplication | undefined => {
+    if (!student) return undefined;
+    const apps = data.registrationApplications ?? [];
+    const byAthlete = apps.find((a) => a.athleteId === student.id);
+    if (byAthlete) return byAthlete;
+    const first = normalizePersonName(student.firstName);
+    const last = normalizePersonName(student.lastName);
+    const phone = normalizePhone(student.guardianPhone || '');
+    return apps.find(
+      (a) =>
+        normalizePersonName(a.firstName) === first &&
+        normalizePersonName(a.lastName) === last &&
+        (phone.length < 6 || normalizePhone(a.guardianPhone || '') === phone),
+    );
+  }, [student, data.registrationApplications]);
+
   if (session?.role === 'doctor') {
     return <Navigate to="/athletes" replace />;
   }
@@ -674,6 +698,46 @@ export function AthleteProfilePage() {
         </Link>
       </div>
     );
+  }
+
+  const storedJoinFormUrl =
+    form.registrationFormImageUrl || linkedJoinApp?.formSnapshotUrl || null;
+  const canShowJoinForm = Boolean(
+    storedJoinFormUrl || form.joinExtras || linkedJoinApp,
+  );
+  const joinFormClubName = profileClub?.name || form.clubName || 'Σύλλογος';
+  const joinFormStudent = student;
+  const joinFormFields = form;
+
+  async function openJoinFormPopup() {
+    setJoinExtrasOpen(true);
+    if (storedJoinFormUrl) {
+      setJoinFormImage(storedJoinFormUrl);
+      return;
+    }
+    setJoinFormBusy(true);
+    setJoinFormImage(null);
+    const source = linkedJoinApp
+      ? {
+          ...linkedJoinApp,
+          comments: joinFormFields.comments,
+          sports: joinFormFields.sports,
+        }
+      : {
+          ...joinFormFields,
+          createdAt: joinFormStudent.enrolledAt,
+          guardianSignature: undefined as string | undefined,
+        };
+    try {
+      const url = await renderPublicJoinFormSnapshot(
+        snapshotFieldsFromJoinSource(source, joinFormClubName),
+      );
+      setJoinFormImage(url);
+    } catch {
+      setJoinFormImage(null);
+    } finally {
+      setJoinFormBusy(false);
+    }
   }
 
   function setField<K extends keyof StudentInput>(key: K, value: StudentInput[K]) {
@@ -1252,6 +1316,17 @@ export function AthleteProfilePage() {
             >
               Προεπισκόπηση QR κάρτας
             </button>
+            {canShowJoinForm ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setActionsOpen(false);
+                  void openJoinFormPopup();
+                }}
+              >
+                Φόρμα δημόσιας εγγραφής
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => {
@@ -1440,20 +1515,14 @@ export function AthleteProfilePage() {
                   placeholder="Γενικές παρατηρήσεις…"
                 />
               </ApCard>
-              {form.joinExtras ? (
-                <ApCard title="Επιλογές δημόσιας εγγραφής">
-                  <Button type="button" variant="secondary" onClick={() => setJoinExtrasOpen(true)}>
-                    Προβολή
-                  </Button>
-                </ApCard>
-              ) : null}
-              {form.registrationFormImageUrl ? (
+              {canShowJoinForm ? (
                 <ApCard title="Φόρμα δημόσιας εγγραφής">
-                  <img
-                    className="ap-registration-form-shot"
-                    src={form.registrationFormImageUrl}
-                    alt="Υποβληθείσα φόρμα εγγραφής"
-                  />
+                  <p className="ap-muted">
+                    JPEG στιγμιότυπο της αίτησης μετά την υποβολή.
+                  </p>
+                  <Button type="button" variant="secondary" onClick={() => void openJoinFormPopup()}>
+                    <FileImage size={16} /> Προβολή φόρμας
+                  </Button>
                 </ApCard>
               ) : null}
             </div>
@@ -2146,25 +2215,53 @@ export function AthleteProfilePage() {
           )
         ) : null}
       </footer>
-      {form.joinExtras ? (
+      {canShowJoinForm ? (
         <Modal
           open={joinExtrasOpen}
-          title="Επιλογές δημόσιας εγγραφής"
-          onClose={() => setJoinExtrasOpen(false)}
+          title="Φόρμα δημόσιας εγγραφής"
+          wide
+          onClose={() => {
+            setJoinExtrasOpen(false);
+            setJoinFormBusy(false);
+          }}
+          footer={
+            joinFormImage ? (
+              <a
+                className="btn btn-secondary"
+                href={joinFormImage}
+                download={`forma-eggrafis-${form.lastName || 'athlitis'}.jpg`}
+              >
+                Λήψη JPEG
+              </a>
+            ) : null
+          }
         >
-          <dl className="ap-join-extras-popup">
-            {formatJoinExtrasLines(form.joinExtras).map((line) => {
-              const sep = line.indexOf(':');
-              const label = sep >= 0 ? line.slice(0, sep).trim() : line;
-              const value = sep >= 0 ? line.slice(sep + 1).trim() : '';
-              return (
-                <div key={label} className="ap-join-extras-row">
-                  <dt>{label}</dt>
-                  <dd>{value || '—'}</dd>
-                </div>
-              );
-            })}
-          </dl>
+          {joinFormBusy ? (
+            <p className="ap-muted">Φόρτωση στιγμιότυπου…</p>
+          ) : joinFormImage ? (
+            <img
+              className="join-form-snapshot-preview"
+              src={joinFormImage}
+              alt="Στιγμιότυπο φόρμας εγγραφής"
+            />
+          ) : (
+            <p className="ap-muted">Δεν υπάρχει αποθηκευμένο JPEG. Εμφανίζονται οι επιλογές της αίτησης.</p>
+          )}
+          {form.joinExtras ? (
+            <dl className="ap-join-extras-popup">
+              {formatJoinExtrasLines(form.joinExtras).map((line) => {
+                const sep = line.indexOf(':');
+                const label = sep >= 0 ? line.slice(0, sep).trim() : line;
+                const value = sep >= 0 ? line.slice(sep + 1).trim() : '';
+                return (
+                  <div key={label} className="ap-join-extras-row">
+                    <dt>{label}</dt>
+                    <dd>{value || '—'}</dd>
+                  </div>
+                );
+              })}
+            </dl>
+          ) : null}
         </Modal>
       ) : null}
     </div>

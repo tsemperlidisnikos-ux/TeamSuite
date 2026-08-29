@@ -11,10 +11,17 @@ export function stripHeavyMedia(data: AppData): AppData {
     students: (data.students ?? []).map((s) => ({
       ...s,
       photoUrl: s.photoUrl?.startsWith('data:') ? null : s.photoUrl,
+      registrationFormImageUrl: s.registrationFormImageUrl?.startsWith('data:')
+        ? null
+        : s.registrationFormImageUrl,
     })),
     announcements: (data.announcements ?? []).map((a) => ({
       ...a,
       imageUrl: a.imageUrl?.startsWith('data:') ? null : a.imageUrl,
+    })),
+    registrationApplications: (data.registrationApplications ?? []).map((a) => ({
+      ...a,
+      formSnapshotUrl: a.formSnapshotUrl?.startsWith('data:') ? null : a.formSnapshotUrl,
     })),
   };
 }

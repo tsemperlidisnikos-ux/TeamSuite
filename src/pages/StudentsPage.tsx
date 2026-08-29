@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, Download, Plus, Pencil, SquarePen, Trash2, Search, X, HeartPulse } from 'lucide-react';
+import { Check, Download, FileImage, Plus, Pencil, SquarePen, Trash2, Search, X, HeartPulse } from 'lucide-react';
 import * as publicClubCloudService from '../api/services/publicClubCloudService';
 import * as registrationApplicationsService from '../api/services/registrationApplicationsService';
 import * as studentsService from '../api/services/studentsService';
 import { getSession } from '../auth/auth';
+import { getClubById } from '../auth/clubs';
 import { AthletesIcon } from '../components/icons/AthletesIcon';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
@@ -26,6 +27,10 @@ import { studentStatusLabels } from '../utils/labels';
 import { studentClassIds } from '../utils/studentClasses';
 import { studentHasSport } from '../utils/studentSports';
 import { downloadXlsx } from '../utils/xlsxDownload';
+import {
+  renderPublicJoinFormSnapshot,
+  snapshotFieldsFromJoinSource,
+} from '../utils/publicJoinFormSnapshot';
 
 const draftAthlete: StudentInput = {
   firstName: 'ΝΕΟΣ',
@@ -167,6 +172,9 @@ export function StudentsPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<StudentStatus>('inactive');
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [joinFormApp, setJoinFormApp] = useState<RegistrationApplication | null>(null);
+  const [joinFormImage, setJoinFormImage] = useState<string | null>(null);
+  const [joinFormBusy, setJoinFormBusy] = useState(false);
 
   useEffect(() => {
     const clubId = getSession()?.clubId ?? getPreviewClubId();
@@ -323,6 +331,28 @@ export function StudentsPage() {
     setEditDraft(null);
   }
 
+  async function openJoinForm(app: RegistrationApplication) {
+    setJoinFormApp(app);
+    setJoinFormBusy(true);
+    setJoinFormImage(null);
+    if (app.formSnapshotUrl) {
+      setJoinFormImage(app.formSnapshotUrl);
+      setJoinFormBusy(false);
+      return;
+    }
+    const clubName = getClubById(getSession()?.clubId)?.name || 'Σύλλογος';
+    try {
+      const url = await renderPublicJoinFormSnapshot(
+        snapshotFieldsFromJoinSource(app, clubName),
+      );
+      setJoinFormImage(url);
+    } catch {
+      setJoinFormImage(null);
+    } finally {
+      setJoinFormBusy(false);
+    }
+  }
+
   async function handleSaveEdit(appId: string) {
     if (!editDraft || busyAppId) return;
     setBusyAppId(appId);
@@ -423,7 +453,7 @@ export function StudentsPage() {
           </div>
           <p className="lede">
             Από δημόσια φόρμα. Οι αιτήσεις μένουν σε αναμονή μέχρι να πατήσετε Έγκριση (ενεργός
-            αθλητής).
+            αθλητής). Το JPEG της φόρμας ανοίγει με «Φόρμα εγγραφής».
           </p>
           {appError ? <p className="form-error">{appError}</p> : null}
           {appMessage ? <p className="settings-success">{appMessage}</p> : null}
@@ -566,13 +596,6 @@ export function StudentsPage() {
                               {formatJoinExtrasText(app.joinExtras)}
                             </div>
                           ) : null}
-                          {app.formSnapshotUrl ? (
-                            <img
-                              className="registration-app-form-shot"
-                              src={app.formSnapshotUrl}
-                              alt="Φόρμα εγγραφής"
-                            />
-                          ) : null}
                         </div>
                         <div>
                           <span className="muted">Γονέας</span>
@@ -590,6 +613,14 @@ export function StudentsPage() {
                         </div>
                       </div>
                       <div className="row-actions">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={busy || Boolean(busyAppId)}
+                          onClick={() => void openJoinForm(app)}
+                        >
+                          <FileImage size={16} /> Φόρμα εγγραφής
+                        </Button>
                         <Button
                           type="button"
                           variant="secondary"
@@ -830,6 +861,39 @@ export function StudentsPage() {
           </tbody>
         </table>
       </div>
+
+      <Modal
+        open={Boolean(joinFormApp)}
+        title="Φόρμα δημόσιας εγγραφής"
+        wide
+        onClose={() => {
+          setJoinFormApp(null);
+          setJoinFormImage(null);
+        }}
+        footer={
+          joinFormImage ? (
+            <a
+              className="btn btn-secondary"
+              href={joinFormImage}
+              download={`forma-eggrafis-${joinFormApp?.lastName ?? 'aitisi'}.jpg`}
+            >
+              Λήψη JPEG
+            </a>
+          ) : null
+        }
+      >
+        {joinFormBusy ? (
+          <p className="muted">Φόρτωση στιγμιότυπου…</p>
+        ) : joinFormImage ? (
+          <img
+            className="join-form-snapshot-preview"
+            src={joinFormImage}
+            alt="Στιγμιότυπο φόρμας εγγραφής"
+          />
+        ) : (
+          <p className="muted">Δεν υπάρχει αποθηκευμένο στιγμιότυπο για αυτή την αίτηση.</p>
+        )}
+      </Modal>
 
       <Modal
         open={bulkOpen}
