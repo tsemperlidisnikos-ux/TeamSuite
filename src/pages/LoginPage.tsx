@@ -221,22 +221,17 @@ export function LoginPage() {
       }
       if (clubSyncFinished) {
         try {
-          const { runDueFeeGenerations, runDueFeeReminders } = await import(
-            '../api/services/feeChargesService'
-          );
-          await Promise.race([
-            (async () => {
-              await runDueFeeGenerations();
-              if (result.data?.clubId) {
-                await runDueFeeReminders(result.data.clubId);
-              }
-            })(),
-            new Promise<void>((resolve) => {
-              window.setTimeout(resolve, 8000);
-            }),
-          ]);
+          const { runDueFeeReminders } = await import('../api/services/feeChargesService');
+          if (result.data?.clubId) {
+            await Promise.race([
+              runDueFeeReminders(result.data.clubId),
+              new Promise<void>((resolve) => {
+                window.setTimeout(resolve, 8000);
+              }),
+            ]);
+          }
         } catch {
-          /* best-effort auto fees / reminders */
+          /* best-effort reminders */
         }
       }
     }

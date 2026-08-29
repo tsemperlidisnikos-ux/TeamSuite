@@ -15,15 +15,28 @@ export function suppressionKey(
   return `${athleteId}|${year}|${month}|${tag}`;
 }
 
+export function monthChargeSuppressionKey(
+  athleteId: string,
+  year: number,
+  month: number,
+): string {
+  return `${athleteId}|${year}|${month}|*`;
+}
+
 export function suppressionKeysForTransaction(tx: {
   athleteId: string;
   month: number;
   year: number;
   comments: string;
+  type?: string;
 }): string[] {
-  return feeTagsInComments(tx.comments).map((tag) =>
+  const keys = feeTagsInComments(tx.comments).map((tag) =>
     suppressionKey(tx.athleteId, tx.year, tx.month, tag),
   );
+  if (tx.type === 'charge') {
+    keys.push(monthChargeSuppressionKey(tx.athleteId, tx.year, tx.month));
+  }
+  return keys;
 }
 
 export function isFeeChargeSuppressed(
@@ -34,7 +47,26 @@ export function isFeeChargeSuppressed(
   tag: string,
 ): boolean {
   if (!keys?.length) return false;
-  return keys.includes(suppressionKey(athleteId, year, month, tag));
+  return (
+    keys.includes(suppressionKey(athleteId, year, month, tag)) ||
+    keys.includes(monthChargeSuppressionKey(athleteId, year, month))
+  );
+}
+
+export function transactionIsSuppressed(
+  tx: {
+    id: string;
+    athleteId: string;
+    month: number;
+    year: number;
+    comments: string;
+    type?: string;
+  },
+  deletedIds: Set<string>,
+  suppressedKeys: Set<string>,
+): boolean {
+  if (deletedIds.has(tx.id)) return true;
+  return suppressionKeysForTransaction(tx).some((key) => suppressedKeys.has(key));
 }
 
 export function rememberDeletedTransaction(

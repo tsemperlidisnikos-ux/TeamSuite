@@ -3,6 +3,7 @@ import * as backendSyncService from '../api/services/backendSyncService';
 import { appDataWeight } from './mediaStrip';
 import { resolveActiveClubId, whenClubMapPersisted } from './store';
 import type { AppData } from '../types';
+import { transactionIsSuppressed } from '../utils/feeChargeKeys';
 
 const AUTO_SYNC_KEY = 'academyhub-auto-sync-v1';
 const LAST_SYNC_KEY = 'academyhub-last-sync-v1';
@@ -271,7 +272,7 @@ function mergeCloudWithLocalDeletes(
 
   const byId = new Map<string, (typeof local.transactions)[number]>();
   for (const tx of [...(cloud.transactions ?? []), ...(local.transactions ?? [])]) {
-    if (deleted.has(tx.id)) continue;
+    if (transactionIsSuppressed(tx, deleted, suppressed)) continue;
     byId.set(tx.id, tx);
   }
 
@@ -466,6 +467,12 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
       if (result.data.durable === false) continue;
       const local = getClubData(id);
       const stillDirty = isClubMirrorDirty(id);
+      const localFewerTx =
+        (local.transactions?.length ?? 0) < (result.data.payload.transactions?.length ?? 0);
+      const dropStaleCloudTx =
+        stillDirty ||
+        (local.deletedTransactionIds?.length ?? 0) > 0 ||
+        ((local.suppressedFeeChargeKeys?.length ?? 0) > 0 && localFewerTx);
       const neverSyncedHere = !getLastSyncAt(id);
       if (
         !neverSyncedHere &&
@@ -477,7 +484,7 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
       }
       replaceClubData(
         id,
-        mergeCloudWithLocalDeletes(local, result.data.payload, stillDirty),
+        mergeCloudWithLocalDeletes(local, result.data.payload, dropStaleCloudTx),
       );
       setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
       setCloudPreferred(true);
