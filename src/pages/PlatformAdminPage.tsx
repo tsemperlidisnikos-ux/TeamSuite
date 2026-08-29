@@ -11,6 +11,7 @@ import { AdminZone, PlatformAdminShell } from '../components/layout/PlatformAdmi
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { persistLocalStateToCloud } from '../data/clubSync';
+import * as joinFormSnapshotAdminService from '../api/services/joinFormSnapshotAdminService';
 import { optimizeLogoDataUrl } from '../utils/clubLogoFile';
 import {
   createId,
@@ -217,6 +218,10 @@ export function PlatformAdminPage() {
   const [restoreClubId, setRestoreClubId] = useState(() => getClubs()[0]?.id ?? '');
   const [platformRestoring, setPlatformRestoring] = useState(false);
   const [clubRestoring, setClubRestoring] = useState(false);
+  const [joinFormAllClubs, setJoinFormAllClubs] = useState(true);
+  const [joinFormClubIds, setJoinFormClubIds] = useState<string[]>([]);
+  const [joinFormBusy, setJoinFormBusy] = useState(false);
+  const [joinFormError, setJoinFormError] = useState('');
 
   useEffect(() => {
     const onClubsUpdated = () => setClubsTick((n) => n + 1);
@@ -252,6 +257,38 @@ export function PlatformAdminPage() {
     setMessage(text);
     window.setTimeout(() => setMessage(''), 2500);
   }, []);
+
+  async function handleStripJoinFormSnapshots() {
+    const ids = joinFormAllClubs
+      ? clubs.map((club) => club.id).filter((id) => id && id !== '_default')
+      : joinFormClubIds.filter((id) => id && id !== '_default');
+    if (ids.length === 0) {
+      setJoinFormError('Επιλέξτε τουλάχιστον έναν σύλλογο.');
+      return;
+    }
+    const preview = joinFormSnapshotAdminService.previewJoinFormSnapshotCounts(ids);
+    const stored = preview.reduce((sum, row) => sum + row.total, 0);
+    if (
+      !window.confirm(
+        `Διαγραφή JPEG φορμών δημόσιας εγγραφής από ${ids.length} συλλόγους; Βρέθηκαν ${stored} αποθηκευμένα στιγμιότυπα/υπογραφές. Οι αθλητές και οι αιτήσεις μένουν.`,
+      )
+    ) {
+      return;
+    }
+    setJoinFormBusy(true);
+    setJoinFormError('');
+    try {
+      const result = await joinFormSnapshotAdminService.stripJoinFormSnapshotsForClubs(ids);
+      flash(
+        `Διαγράφηκαν φόρμες από ${result.clubs} συλλόγους (${result.athletes} αθλητές, ${result.applications} αιτήσεις).`,
+      );
+      setTick((n) => n + 1);
+    } catch (err) {
+      setJoinFormError(err instanceof Error ? err.message : 'Αποτυχία διαγραφής φορμών');
+    } finally {
+      setJoinFormBusy(false);
+    }
+  }
 
   function toggleClubPermission(permission: ClubPermission) {
     if (clubRole === 'admin' || clubRole === 'doctor') return;
@@ -636,6 +673,73 @@ export function PlatformAdminPage() {
                 </RecordsRow>
                 <RecordsRow title="Αποθήκευση">
                   Cloud durable store (Blob/Redis) + τοπικό αντίγραφο ασφαλείας.
+                </RecordsRow>
+              </RecordsTable>
+            }
+          />
+
+          <AdminRow
+            id="join-form-snapshots"
+            title="Φόρμες δημόσιας εγγραφής (JPEG)"
+            description="Ομαδική διαγραφή αποθηκευμένων στιγμιότυπων JPEG (και υπογραφών) από όλους τους συλλόγους ή από επιλεγμένους. Οι αιτήσεις και οι καρτέλες αθλητών μένουν."
+            entry={
+              <div className="entry-form admin-entry">
+                {joinFormError ? <p className="form-error">{joinFormError}</p> : null}
+                <label className="admin-check">
+                  <span>Όλοι οι σύλλογοι</span>
+                  <input
+                    type="checkbox"
+                    checked={joinFormAllClubs}
+                    onChange={(e) => {
+                      setJoinFormAllClubs(e.target.checked);
+                      if (e.target.checked) setJoinFormClubIds([]);
+                    }}
+                  />
+                </label>
+                {!joinFormAllClubs ? (
+                  <div className="admin-check-list">
+                    {clubs.map((club) => (
+                      <label key={club.id} className="admin-check">
+                        <span>{club.name}</span>
+                        <input
+                          type="checkbox"
+                          checked={joinFormClubIds.includes(club.id)}
+                          onChange={(e) => {
+                            setJoinFormClubIds((prev) =>
+                              e.target.checked
+                                ? [...prev, club.id]
+                                : prev.filter((id) => id !== club.id),
+                            );
+                          }}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="admin-entry-actions">
+                  <Button
+                    type="button"
+                    variant="danger"
+                    disabled={joinFormBusy || clubs.length === 0}
+                    onClick={() => void handleStripJoinFormSnapshots()}
+                  >
+                    {joinFormBusy ? 'Διαγραφή…' : 'Διαγραφή JPEG φορμών'}
+                  </Button>
+                </div>
+              </div>
+            }
+            records={
+              <RecordsTable>
+                <RecordsRow title="Τι σβήνει">
+                  JPEG φόρμας και υπογραφή γονέα σε αθλητές και αιτήσεις.
+                </RecordsRow>
+                <RecordsRow title="Τι μένει">
+                  Αθλητές, εκκρεμείς αιτήσεις, επιλογές ρουχισμού/πληρωμής.
+                </RecordsRow>
+                <RecordsRow title="Εμβέλεια">
+                  {joinFormAllClubs
+                    ? `Όλοι οι σύλλογοι (${clubs.length})`
+                    : `${joinFormClubIds.length} επιλεγμένοι`}
                 </RecordsRow>
               </RecordsTable>
             }

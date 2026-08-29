@@ -362,6 +362,10 @@ export function getClubData(clubId: string): AppData {
   return data;
 }
 
+export function clubHasStoredData(clubId: string): boolean {
+  return Object.prototype.hasOwnProperty.call(loadAllClubStores(), clubId);
+}
+
 /** Mutate AppData for a specific clubId (works without session). */
 export function mutateClubData(clubId: string, updater: (data: AppData) => void): AppData {
   const data = getClubData(clubId);

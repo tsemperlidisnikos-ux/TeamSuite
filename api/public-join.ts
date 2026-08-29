@@ -3,6 +3,8 @@ import nodemailer from 'nodemailer';
 import {
   appendPendingApplication,
   allowRateLimit,
+  assertClubTenantAccess,
+  assertPlatformAdminOrSecret,
   assertSyncAuthorized,
   getSyncAuthContext,
   isDurableStoreEnabled,
@@ -12,6 +14,7 @@ import {
   loadPublicClubBySlug,
   requestAddress,
   saveMirror,
+  stripClubJoinFormSnapshots,
   type RemoteRegistrationApplication,
 } from './lib/serverStore.js';
 
@@ -80,6 +83,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ok: true,
       durable: isDurableStoreEnabled(),
       applications,
+    });
+  }
+
+  if (req.method === 'POST' && String(req.query.op ?? '').trim() === 'strip-form-snapshots') {
+    const body = (req.body ?? {}) as { clubId?: string };
+    const clubId = String(body.clubId ?? req.query.clubId ?? '').trim();
+    if (!clubId) return res.status(400).json({ ok: false, error: 'clubId required' });
+    if (!assertPlatformAdminOrSecret(req, res)) return;
+    if (!assertClubTenantAccess(req, res, clubId)) return;
+    const stripped = await stripClubJoinFormSnapshots(clubId);
+    return res.status(200).json({
+      ok: true,
+      durable: isDurableStoreEnabled(),
+      clubId,
+      ...stripped,
     });
   }
 

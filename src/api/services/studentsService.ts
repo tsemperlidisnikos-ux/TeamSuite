@@ -7,6 +7,7 @@ import { normalizeStudentClasses } from '../../utils/studentClasses';
 import { normalizeStudentCoaches } from '../../utils/studentCoaches';
 import { normalizeStudentSports } from '../../utils/studentSports';
 import { applySubscriptionDiscountToCharges } from './feeChargesService';
+import { stripJoinFormSnapshotForStudent } from '../../utils/publicJoinFormSnapshots';
 
 export async function getStudents() {
   return apiClient(() => getData().students);
@@ -65,5 +66,19 @@ export async function deleteStudent(id: string) {
       data.attendance = data.attendance.filter((a) => a.studentId !== id);
     });
     return { id };
+  });
+}
+
+export async function deleteJoinFormSnapshotForStudent(id: string) {
+  return apiClient(() => {
+    let changed = false;
+    mutateData((data) => {
+      changed = stripJoinFormSnapshotForStudent(data, id);
+      if (!changed) {
+        const exists = data.students.some((s) => s.id === id);
+        if (!exists) throw new Error('Ο αθλητής δεν βρέθηκε');
+      }
+    });
+    return { id, changed };
   });
 }

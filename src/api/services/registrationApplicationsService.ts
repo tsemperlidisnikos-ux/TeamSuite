@@ -3,6 +3,7 @@ import { getSession, getUserById, isPlatformAdmin } from '../../auth/auth';
 import { getClubById, getClubPublicRegistration, getClubSmtp } from '../../auth/clubs';
 import { createId, getData, mutateData } from '../../data/repository';
 import { buildStudentFromRegistrationApplication } from '../../shared/publicJoinPayload';
+import { stripJoinFormSnapshotForApplication } from '../../utils/publicJoinFormSnapshots';
 import type {
   RegistrationApplication,
   RegistrationApplicationKind,
@@ -197,6 +198,20 @@ export async function deleteRegistrationApplication(id: string) {
       data.registrationApplications = apps.filter((a) => a.id !== id);
     });
     return { id };
+  });
+}
+
+export async function deleteJoinFormSnapshotForApplication(id: string) {
+  return apiClient(() => {
+    let changed = false;
+    mutateData((data) => {
+      changed = stripJoinFormSnapshotForApplication(data, id);
+      if (!changed) {
+        const exists = (data.registrationApplications ?? []).some((a) => a.id === id);
+        if (!exists) throw new Error('Η αίτηση δεν βρέθηκε.');
+      }
+    });
+    return { id, changed };
   });
 }
 

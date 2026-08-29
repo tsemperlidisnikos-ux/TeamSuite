@@ -1084,14 +1084,11 @@
   min-width: 7.5rem;
 }
 
-.ap-registration-form-shot {
-  display: block;
-  width: 100%;
-  max-width: 36rem;
-  height: auto;
-  border: 1px solid var(--line, #e5e7eb);
-  border-radius: 10px;
-  background: #fff;
+.ap-join-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .ap-join-extras-popup {

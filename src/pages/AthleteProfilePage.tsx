@@ -399,6 +399,10 @@ export function AthleteProfilePage() {
     return student.email.toLowerCase() === email;
   }, [session, athleteId, student]);
   const canEditProfile = session?.role !== 'athlete' && session?.role !== 'parent';
+  const canDeleteJoinForm =
+    session?.role === 'admin' ||
+    session?.role === 'secretariat' ||
+    session?.role === 'platform_admin';
 
   const [editing, setEditing] = useState(
     Boolean((location.state as { editing?: boolean } | null)?.editing),
@@ -419,6 +423,7 @@ export function AthleteProfilePage() {
   const [joinExtrasOpen, setJoinExtrasOpen] = useState(false);
   const [joinFormImage, setJoinFormImage] = useState<string | null>(null);
   const [joinFormBusy, setJoinFormBusy] = useState(false);
+  const [joinFormDeleting, setJoinFormDeleting] = useState(false);
   const actionsAnchorRef = useRef<HTMLDivElement>(null);
   const healthCardPreviewUrlRef = useRef<string | null>(null);
   const amkaViewLoggedRef = useRef<string | null>(null);
@@ -738,6 +743,29 @@ export function AthleteProfilePage() {
     } finally {
       setJoinFormBusy(false);
     }
+  }
+
+  async function handleDeleteJoinForm() {
+    if (!canDeleteJoinForm) return;
+    if (
+      !window.confirm(
+        'Διαγραφή του αποθηκευμένου JPEG (και της υπογραφής) της δημόσιας φόρμας εγγραφής; Τα υπόλοιπα στοιχεία του αθλητή μένουν.',
+      )
+    ) {
+      return;
+    }
+    setJoinFormDeleting(true);
+    setError('');
+    const result = await studentsService.deleteJoinFormSnapshotForStudent(joinFormStudent.id);
+    setJoinFormDeleting(false);
+    if (!result.success) {
+      setError(result.error ?? 'Αποτυχία διαγραφής φόρμας');
+      return;
+    }
+    setField('registrationFormImageUrl', null);
+    setJoinFormImage(null);
+    setJoinExtrasOpen(false);
+    refresh();
   }
 
   function setField<K extends keyof StudentInput>(key: K, value: StudentInput[K]) {
@@ -1520,9 +1548,21 @@ export function AthleteProfilePage() {
                   <p className="ap-muted">
                     JPEG στιγμιότυπο της αίτησης μετά την υποβολή.
                   </p>
-                  <Button type="button" variant="secondary" onClick={() => void openJoinFormPopup()}>
-                    <FileImage size={16} /> Προβολή φόρμας
-                  </Button>
+                  <div className="ap-join-form-actions">
+                    <Button type="button" variant="secondary" onClick={() => void openJoinFormPopup()}>
+                      <FileImage size={16} /> Προβολή φόρμας
+                    </Button>
+                    {canDeleteJoinForm ? (
+                      <Button
+                        type="button"
+                        variant="danger"
+                        disabled={joinFormDeleting}
+                        onClick={() => void handleDeleteJoinForm()}
+                      >
+                        {joinFormDeleting ? 'Διαγραφή…' : 'Διαγραφή'}
+                      </Button>
+                    ) : null}
+                  </div>
                 </ApCard>
               ) : null}
             </div>
@@ -2225,15 +2265,27 @@ export function AthleteProfilePage() {
             setJoinFormBusy(false);
           }}
           footer={
-            joinFormImage ? (
-              <a
-                className="btn btn-secondary"
-                href={joinFormImage}
-                download={`forma-eggrafis-${form.lastName || 'athlitis'}.jpg`}
-              >
-                Λήψη JPEG
-              </a>
-            ) : null
+            <>
+              {joinFormImage ? (
+                <a
+                  className="btn btn-secondary"
+                  href={joinFormImage}
+                  download={`forma-eggrafis-${form.lastName || 'athlitis'}.jpg`}
+                >
+                  Λήψη JPEG
+                </a>
+              ) : null}
+              {canDeleteJoinForm ? (
+                <Button
+                  type="button"
+                  variant="danger"
+                  disabled={joinFormDeleting}
+                  onClick={() => void handleDeleteJoinForm()}
+                >
+                  {joinFormDeleting ? 'Διαγραφή…' : 'Διαγραφή'}
+                </Button>
+              ) : null}
+            </>
           }
         >
           {joinFormBusy ? (

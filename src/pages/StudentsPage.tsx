@@ -153,6 +153,10 @@ export function StudentsPage() {
   const session = getSession();
   const isDoctor = session?.role === 'doctor';
   const isCoach = session?.role === 'coach';
+  const canDeleteJoinForm =
+    session?.role === 'admin' ||
+    session?.role === 'secretariat' ||
+    session?.role === 'platform_admin';
   const visibleClasses = useMemo(
     () => visibleClassesForSession(data.classes, data.coaches, session, { seasons: data.clubSeasons }),
     [data.classes, data.coaches, data.clubSeasons, session],
@@ -351,6 +355,33 @@ export function StudentsPage() {
     } finally {
       setJoinFormBusy(false);
     }
+  }
+
+  async function handleDeleteJoinForm(app: RegistrationApplication) {
+    if (!canDeleteJoinForm) return;
+    if (
+      !window.confirm(
+        'Διαγραφή του αποθηκευμένου JPEG (και της υπογραφής) αυτής της αίτησης; Η αίτηση μένει εκκρεμής.',
+      )
+    ) {
+      return;
+    }
+    setBusyAppId(app.id);
+    setAppError('');
+    const result = await registrationApplicationsService.deleteJoinFormSnapshotForApplication(
+      app.id,
+    );
+    setBusyAppId(null);
+    if (!result.success) {
+      setAppError(result.error ?? 'Αποτυχία διαγραφής φόρμας');
+      return;
+    }
+    if (joinFormApp?.id === app.id) {
+      setJoinFormApp(null);
+      setJoinFormImage(null);
+    }
+    refresh();
+    setAppMessage('Διαγράφηκε το JPEG της φόρμας εγγραφής.');
   }
 
   async function handleSaveEdit(appId: string) {
@@ -621,6 +652,16 @@ export function StudentsPage() {
                         >
                           <FileImage size={16} /> Φόρμα εγγραφής
                         </Button>
+                        {canDeleteJoinForm ? (
+                          <Button
+                            type="button"
+                            variant="danger"
+                            disabled={busy || Boolean(busyAppId)}
+                            onClick={() => void handleDeleteJoinForm(app)}
+                          >
+                            Διαγραφή φόρμας
+                          </Button>
+                        ) : null}
                         <Button
                           type="button"
                           variant="secondary"
@@ -871,15 +912,27 @@ export function StudentsPage() {
           setJoinFormImage(null);
         }}
         footer={
-          joinFormImage ? (
-            <a
-              className="btn btn-secondary"
-              href={joinFormImage}
-              download={`forma-eggrafis-${joinFormApp?.lastName ?? 'aitisi'}.jpg`}
-            >
-              Λήψη JPEG
-            </a>
-          ) : null
+          <>
+            {joinFormImage ? (
+              <a
+                className="btn btn-secondary"
+                href={joinFormImage}
+                download={`forma-eggrafis-${joinFormApp?.lastName ?? 'aitisi'}.jpg`}
+              >
+                Λήψη JPEG
+              </a>
+            ) : null}
+            {canDeleteJoinForm && joinFormApp ? (
+              <Button
+                type="button"
+                variant="danger"
+                disabled={Boolean(busyAppId)}
+                onClick={() => void handleDeleteJoinForm(joinFormApp)}
+              >
+                Διαγραφή
+              </Button>
+            ) : null}
+          </>
         }
       >
         {joinFormBusy ? (

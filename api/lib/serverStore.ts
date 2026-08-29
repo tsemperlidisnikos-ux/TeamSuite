@@ -632,6 +632,65 @@ export async function listPendingApplications(
   return (await kvGet<RemoteRegistrationApplication[]>(`${PENDING_APPS_PREFIX}${clubId}`)) ?? [];
 }
 
+export async function savePendingApplications(
+  clubId: string,
+  applications: RemoteRegistrationApplication[],
+): Promise<void> {
+  const next = applications.slice(0, 200);
+  if (!isDurableKvEnabled()) {
+    memory().pendingApps[clubId] = next;
+    return;
+  }
+  await kvSet(`${PENDING_APPS_PREFIX}${clubId}`, next);
+}
+
+function stripRemoteJoinFormFields(app: RemoteRegistrationApplication): RemoteRegistrationApplication {
+  if (!app.formSnapshotUrl && !app.guardianSignature) return app;
+  return { ...app, formSnapshotUrl: null, guardianSignature: '' };
+}
+
+export async function stripClubJoinFormSnapshots(clubId: string): Promise<{
+  pending: number;
+  mirror: number;
+}> {
+  const pendingPrev = await listPendingApplications(clubId);
+  let pending = 0;
+  const pendingNext = pendingPrev.map((app) => {
+    const next = stripRemoteJoinFormFields(app);
+    if (next !== app) pending += 1;
+    return next;
+  });
+  if (pending) await savePendingApplications(clubId, pendingNext);
+
+  const mirror = await loadMirror(clubId);
+  let mirrorCount = 0;
+  const payload =
+    mirror?.payload && typeof mirror.payload === 'object'
+      ? { ...(mirror.payload as Record<string, unknown>) }
+      : null;
+  if (payload) {
+    const apps = Array.isArray(payload.registrationApplications)
+      ? (payload.registrationApplications as RemoteRegistrationApplication[])
+      : [];
+    payload.registrationApplications = apps.map((app) => {
+      const next = stripRemoteJoinFormFields(app);
+      if (next !== app) mirrorCount += 1;
+      return next;
+    });
+    const students = Array.isArray(payload.students)
+      ? (payload.students as Array<{ registrationFormImageUrl?: string | null }>)
+      : [];
+    payload.students = students.map((student) => {
+      if (!student?.registrationFormImageUrl) return student;
+      mirrorCount += 1;
+      return { ...student, registrationFormImageUrl: null };
+    });
+    await saveMirror(clubId, payload);
+  }
+
+  return { pending, mirror: mirrorCount };
+}
+
 async function readLoginActivity(): Promise<LoginActivityEvent[]> {
   if (!isDurableKvEnabled()) return memory().loginActivity ?? [];
   const raw = await kvGet<LoginActivityEvent[]>(LOGIN_ACTIVITY_KEY);
