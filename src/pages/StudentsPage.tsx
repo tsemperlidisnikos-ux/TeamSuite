@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, Download, FileImage, Plus, Pencil, SquarePen, Trash2, Search, X, HeartPulse } from 'lucide-react';
+import { Check, Download, FileImage, Plus, Pencil, SquarePen, Trash2, Search, Upload, X, HeartPulse } from 'lucide-react';
 import * as publicClubCloudService from '../api/services/publicClubCloudService';
 import * as registrationApplicationsService from '../api/services/registrationApplicationsService';
 import * as studentsService from '../api/services/studentsService';
@@ -23,9 +23,15 @@ import {
 import { openAthleteHealthCardPreview } from '../utils/healthCardPreview';
 import { activeClubSportSelectOptions, clubSportsMatch } from '../utils/clubSports';
 import { studentStatusLabels } from '../utils/labels';
+import {
+  athleteSheetHeaders,
+  planAthleteImport,
+  studentToSheetRow,
+} from '../utils/athleteSpreadsheet';
 import { studentClassIds } from '../utils/studentClasses';
 import { studentHasSport } from '../utils/studentSports';
 import { downloadXlsx } from '../utils/xlsxDownload';
+import { parseSpreadsheetGrid } from '../utils/xlsxParse';
 
 const draftAthlete: StudentInput = {
   firstName: 'ΝΕΟΣ',
@@ -102,41 +108,11 @@ function toEditDraft(app: RegistrationApplication): EditDraft {
   };
 }
 
-function exportAthletesXlsx(
-  rows: Student[],
-  classes: { id: string; name: string }[],
-  isDoctor: boolean,
-) {
+function exportAthletesXlsx(rows: Student[], classes: { id: string; name: string }[]) {
   downloadXlsx(
     'Αθλητές',
-    isDoctor
-      ? ['Επώνυμο', 'Όνομα', 'Άθλημα', 'ΑΜΚΑ', 'Γονέας', 'Κατάσταση']
-      : ['Επώνυμο', 'Όνομα', 'Άθλημα', 'Τμήμα', 'Γονέας', 'Email', 'Κατάσταση'],
-    rows.map((s) => {
-      const classNames = studentClassIds(s)
-        .map((id) => classes.find((c) => c.id === id)?.name)
-        .filter(Boolean)
-        .join(', ');
-      if (isDoctor) {
-        return [
-          s.lastName,
-          s.firstName,
-          s.sport || '',
-          s.amka || '',
-          s.guardianName || '',
-          studentStatusLabels[s.status],
-        ];
-      }
-      return [
-        s.lastName,
-        s.firstName,
-        s.sport || '',
-        classNames,
-        s.guardianName || '',
-        s.email || '',
-        studentStatusLabels[s.status],
-      ];
-    }),
+    athleteSheetHeaders(),
+    rows.map((s) => studentToSheetRow(s, classes)),
     `athlites-${new Date().toISOString().slice(0, 10)}.xlsx`,
   );
 }
@@ -174,6 +150,8 @@ export function StudentsPage() {
   const [joinFormApp, setJoinFormApp] = useState<RegistrationApplication | null>(null);
   const [joinFormImage, setJoinFormImage] = useState<string | null>(null);
   const [joinFormBusy, setJoinFormBusy] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const clubId = getSession()?.clubId ?? getPreviewClubId();
@@ -296,6 +274,55 @@ export function StudentsPage() {
     setHealthCardBusyId(null);
     if (!result.success) {
       window.alert(result.error ?? 'Αποτυχία προεπισκόπησης κάρτας υγείας');
+    }
+  }
+
+  async function handleImportFile(file: File | undefined) {
+    if (!file || importing) return;
+    setImporting(true);
+    try {
+      const grid = await parseSpreadsheetGrid(file);
+      const plan = planAthleteImport(grid, data.students, data.classes);
+      if (plan.actions.length === 0) {
+        window.alert(
+          plan.errors.length
+            ? plan.errors.join('\n')
+            : 'Δεν βρέθηκαν γραμμές αθλητών στο αρχείο.',
+        );
+        return;
+      }
+      const creates = plan.actions.filter((a) => a.mode === 'create').length;
+      const updates = plan.actions.filter((a) => a.mode === 'update').length;
+      const warnings = plan.errors.length
+        ? `\n\nΠαραλείφθηκαν γραμμές με σφάλμα:\n${plan.errors.slice(0, 12).join('\n')}${
+            plan.errors.length > 12 ? `\n… και άλλες ${plan.errors.length - 12}` : ''
+          }`
+        : '';
+      const ok = window.confirm(
+        `Θα δημιουργηθούν ${creates} νέοι αθλητές και θα ενημερωθούν ${updates} υπάρχοντες.\n` +
+          'Για νέους αθλητές αφήστε κενό το πεδίο Κωδικός. Οι φωτογραφίες και τα JPEG φόρμας δεν εισάγονται.' +
+          warnings +
+          '\n\nΣυνέχεια;',
+      );
+      if (!ok) return;
+      for (const action of plan.actions) {
+        const result =
+          action.mode === 'create'
+            ? await studentsService.createStudent(action.input)
+            : await studentsService.updateStudent(action.existingId!, action.input);
+        if (!result.success) {
+          window.alert(result.error ?? `Αποτυχία εισαγωγής: ${action.label}`);
+          refresh();
+          return;
+        }
+      }
+      refresh();
+      window.alert(`Η εισαγωγή ολοκληρώθηκε (${creates} νέοι, ${updates} ενημερώσεις).`);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Αποτυχία ανάγνωσης αρχείου.');
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) importInputRef.current.value = '';
     }
   }
 
@@ -727,10 +754,29 @@ export function StudentsPage() {
         <Button
           type="button"
           variant="secondary"
-          onClick={() => exportAthletesXlsx(filtered, data.classes, isDoctor)}
+          onClick={() => exportAthletesXlsx(filtered, data.classes)}
         >
           <Download size={16} /> Εξαγωγή
         </Button>
+        {!isDoctor ? (
+          <>
+            <input
+              ref={importInputRef}
+              className="sr-only"
+              type="file"
+              accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+              onChange={(e) => void handleImportFile(e.target.files?.[0])}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={importing}
+              onClick={() => importInputRef.current?.click()}
+            >
+              <Upload size={16} /> {importing ? 'Εισαγωγή...' : 'Εισαγωγή'}
+            </Button>
+          </>
+        ) : null}
       </div>
 
       <div className="panel table-wrap">
