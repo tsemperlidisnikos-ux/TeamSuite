@@ -1,19 +1,24 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
+  CircleHelp,
   Download,
   Pencil,
   Plus,
   Search,
   SquarePen,
   Trash2,
+  Upload,
 } from 'lucide-react';
 import * as staffService from '../api/services/staffService';
 import { staffNameParts, type StaffInput } from '../api/services/staffService';
+import { SpreadsheetImportHelpModal } from '../components/SpreadsheetImportHelpModal';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/ui/PageHeader';
 import { useAppData } from '../hooks/useAppData';
+import { staffSheetHeaders, staffToSheetRow, planStaffImport } from '../utils/staffSpreadsheet';
 import { downloadXlsx } from '../utils/xlsxDownload';
+import { parseSpreadsheetGrid } from '../utils/xlsxParse';
 import type { StaffMember } from '../types';
 
 const roleLabels: Record<StaffMember['role'], string> = {
@@ -69,18 +74,8 @@ function initials(name: string): string {
 function exportStaffXlsx(rows: StaffMember[]) {
   downloadXlsx(
     'Προσωπικό',
-    ['Επώνυμο', 'Όνομα', 'Ρόλος', 'Τηλέφωνο', 'Email', 'Κατάσταση'],
-    rows.map((member) => {
-      const names = staffNameParts(member);
-      return [
-        names.lastName,
-        names.firstName,
-        roleLabels[member.role],
-        member.phone || '',
-        member.email,
-        member.active ? 'Ενεργός' : 'Ανενεργός',
-      ];
-    }),
+    staffSheetHeaders(),
+    rows.map((member) => staffToSheetRow(member)),
     `prosopiko-${new Date().toISOString().slice(0, 10)}.xlsx`,
   );
 }
@@ -102,6 +97,9 @@ export function StaffPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkActive, setBulkActive] = useState(false);
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importHelpOpen, setImportHelpOpen] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const staff = useMemo(
     () =>
@@ -170,6 +168,55 @@ export function StaffPage() {
     setBulkOpen(false);
     setSelected([]);
     refresh();
+  }
+
+  async function handleImportFile(file: File | undefined) {
+    if (!file || importing) return;
+    setImporting(true);
+    try {
+      const grid = await parseSpreadsheetGrid(file);
+      const plan = planStaffImport(grid, staff);
+      if (plan.actions.length === 0) {
+        window.alert(
+          plan.errors.length
+            ? plan.errors.join('\n')
+            : 'Δεν βρέθηκαν γραμμές προσωπικού στο αρχείο.',
+        );
+        return;
+      }
+      const creates = plan.actions.filter((a) => a.mode === 'create').length;
+      const updates = plan.actions.filter((a) => a.mode === 'update').length;
+      const warnings = plan.errors.length
+        ? `\n\nΠαραλείφθηκαν γραμμές με σφάλμα:\n${plan.errors.slice(0, 12).join('\n')}${
+            plan.errors.length > 12 ? `\n… και άλλες ${plan.errors.length - 12}` : ''
+          }`
+        : '';
+      const ok = window.confirm(
+        `Θα δημιουργηθούν ${creates} νέα μέλη και θα ενημερωθούν ${updates} υπάρχοντα.\n` +
+          'Για νέα μέλη αφήστε κενό το πεδίο Κωδικός. Οι φωτογραφίες δεν εισάγονται.' +
+          warnings +
+          '\n\nΣυνέχεια;',
+      );
+      if (!ok) return;
+      for (const action of plan.actions) {
+        const result =
+          action.mode === 'create'
+            ? await staffService.createStaff(action.input)
+            : await staffService.updateStaff(action.existingId!, action.input);
+        if (!result.success) {
+          window.alert(result.error ?? `Αποτυχία εισαγωγής: ${action.label}`);
+          refresh();
+          return;
+        }
+      }
+      refresh();
+      window.alert(`Η εισαγωγή ολοκληρώθηκε (${creates} νέα, ${updates} ενημερώσεις).`);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Αποτυχία ανάγνωσης αρχείου.');
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
   }
 
   async function handleSave() {
@@ -273,6 +320,32 @@ export function StaffPage() {
         <Button type="button" variant="secondary" onClick={() => exportStaffXlsx(filtered)}>
           <Download size={16} /> Εξαγωγή
         </Button>
+        <div className="toolbar-import">
+          <input
+            ref={importInputRef}
+            className="sr-only"
+            type="file"
+            accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+            onChange={(e) => void handleImportFile(e.target.files?.[0])}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={importing}
+            onClick={() => importInputRef.current?.click()}
+          >
+            <Upload size={16} /> {importing ? 'Εισαγωγή...' : 'Εισαγωγή'}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="toolbar-help-btn"
+            aria-label="Οδηγίες εισαγωγής προσωπικού"
+            onClick={() => setImportHelpOpen(true)}
+          >
+            <CircleHelp size={18} />
+          </Button>
+        </div>
       </div>
 
       <section className="stf-table-card panel">
@@ -534,6 +607,18 @@ export function StaffPage() {
           {error ? <p className="form-error">{error}</p> : null}
         </div>
       </Modal>
+
+      <SpreadsheetImportHelpModal
+        open={importHelpOpen}
+        onClose={() => setImportHelpOpen(false)}
+        steps={[
+          'Κάντε εξαγωγή με το κουμπί Εξαγωγή (ώστε να έχετε όλες τις στήλες).',
+          'Προσθέστε γραμμές στο Excel.',
+          'Για νέα μέλη προσωπικού αφήστε κενό το πεδίο Κωδικός. Αν αντιγράψετε υπάρχουσα γραμμή και αφήσετε τον ίδιο κωδικό, θα ενημερωθεί το υπάρχον μέλος, δεν θα δημιουργηθεί δεύτερο.',
+          'Ο ρόλος γράφεται όπως στο πρόγραμμα: Διαχειριστής, Γραμματεία ή Υπάλληλος.',
+          'Όνομα, επώνυμο και έγκυρο email είναι υποχρεωτικά. Οι φωτογραφίες δεν εισάγονται.',
+        ]}
+      />
     </div>
   );
 }

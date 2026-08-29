@@ -9,6 +9,7 @@ import { AthletesIcon } from '../components/icons/AthletesIcon';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/ui/PageHeader';
+import { SpreadsheetImportHelpModal } from '../components/SpreadsheetImportHelpModal';
 import { useAppData } from '../hooks/useAppData';
 import { getPreviewClubId } from '../platform/platformConfig';
 import type { StudentInput } from '../schemas';
@@ -983,31 +984,17 @@ export function StudentsPage() {
         )}
       </Modal>
 
-      <Modal
+      <SpreadsheetImportHelpModal
         open={importHelpOpen}
-        title="Πώς να το χρησιμοποιήσετε"
         onClose={() => setImportHelpOpen(false)}
-        footer={
-          <Button type="button" variant="secondary" onClick={() => setImportHelpOpen(false)}>
-            Κλείσιμο
-          </Button>
-        }
-      >
-        <ol className="import-help-list">
-          <li>Κάντε εξαγωγή με το κουμπί Εξαγωγή (ώστε να έχετε όλες τις στήλες).</li>
-          <li>Προσθέστε γραμμές στο Excel.</li>
-          <li>
-            Για νέους αθλητές αφήστε κενό το πεδίο Κωδικός. Αν αντιγράψετε υπάρχουσα γραμμή και
-            αφήσετε τον ίδιο κωδικό, θα ενημερωθεί ο υπάρχων αθλητής, δεν θα δημιουργηθεί δεύτερος.
-          </li>
-          <li>
-            Τα τμήματα πρέπει να γράφονται όπως στο πρόγραμμα (π.χ. ΠΑΙΔΙΚΟ Α' ΑΠΟΛΛΩΝΙΑΔΑ),
-            χωρισμένα με κόμμα αν είναι περισσότερα από ένα.
-          </li>
-          <li>Όνομα και επώνυμο είναι υποχρεωτικά (τουλάχιστον 2 χαρακτήρες).</li>
-        </ol>
-      </Modal>
-
+        steps={[
+          'Κάντε εξαγωγή με το κουμπί Εξαγωγή (ώστε να έχετε όλες τις στήλες).',
+          'Προσθέστε γραμμές στο Excel.',
+          'Για νέους αθλητές αφήστε κενό το πεδίο Κωδικός. Αν αντιγράψετε υπάρχουσα γραμμή και αφήσετε τον ίδιο κωδικό, θα ενημερωθεί ο υπάρχων αθλητής, δεν θα δημιουργηθεί δεύτερος.',
+          "Τα τμήματα πρέπει να γράφονται όπως στο πρόγραμμα (π.χ. ΠΑΙΔΙΚΟ Α' ΑΠΟΛΛΩΝΙΑΔΑ), χωρισμένα με κόμμα αν είναι περισσότερα από ένα.",
+          'Όνομα και επώνυμο είναι υποχρεωτικά (τουλάχιστον 2 χαρακτήρες).',
+        ]}
+      />
       <Modal
         open={bulkOpen}
         title="Μαζική αλλαγή κατάστασης"

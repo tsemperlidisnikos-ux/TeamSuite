@@ -1,6 +1,7 @@
-import { useMemo, useState, type ChangeEvent } from 'react';
-import { Download, Eye, FileText, Plus, Pencil, Search, SquarePen, Trash2, Upload } from 'lucide-react';
+import { useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { CircleHelp, Download, Eye, FileText, Plus, Pencil, Search, SquarePen, Trash2, Upload } from 'lucide-react';
 import * as coachesService from '../api/services/coachesService';
+import { SpreadsheetImportHelpModal } from '../components/SpreadsheetImportHelpModal';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
@@ -12,7 +13,9 @@ import type { Coach } from '../types';
 import { formatDate } from '../utils/labels';
 import { localDateIso } from '../utils/dates';
 import { activeClubSportSelectOptions, clubSportsMatch } from '../utils/clubSports';
+import { coachSheetHeaders, coachToSheetRow, planCoachImport } from '../utils/coachSpreadsheet';
 import { downloadXlsx } from '../utils/xlsxDownload';
+import { parseSpreadsheetGrid } from '../utils/xlsxParse';
 
 const MAX_PHOTO_BYTES = 800_000;
 const MAX_DOC_BYTES = 2_500_000;
@@ -108,16 +111,8 @@ function coachToForm(coach: Coach): CoachInput {
 function exportCoachesXlsx(rows: Coach[]) {
   downloadXlsx(
     'Προπονητές',
-    ['Επώνυμο', 'Όνομα', 'Άθλημα', 'Τηλέφωνο', 'Email', 'Κωδικός Γ.Γ.Α', 'Κατάσταση'],
-    rows.map((coach) => [
-      coach.lastName,
-      coach.firstName,
-      coach.sport || '',
-      coach.phone || '',
-      coach.email,
-      coach.ggaCode || '',
-      coach.active ? 'Ενεργός' : 'Ανενεργός',
-    ]),
+    coachSheetHeaders(),
+    rows.map((coach) => coachToSheetRow(coach)),
     `proponites-${new Date().toISOString().slice(0, 10)}.xlsx`,
   );
 }
@@ -150,6 +145,9 @@ export function CoachesPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkActive, setBulkActive] = useState(false);
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importHelpOpen, setImportHelpOpen] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const listSportOptions = useMemo(
     () =>
@@ -321,6 +319,55 @@ export function CoachesPage() {
     refresh();
   }
 
+  async function handleImportFile(file: File | undefined) {
+    if (!file || importing) return;
+    setImporting(true);
+    try {
+      const grid = await parseSpreadsheetGrid(file);
+      const plan = planCoachImport(grid, data.coaches);
+      if (plan.actions.length === 0) {
+        window.alert(
+          plan.errors.length
+            ? plan.errors.join('\n')
+            : 'Δεν βρέθηκαν γραμμές προπονητών στο αρχείο.',
+        );
+        return;
+      }
+      const creates = plan.actions.filter((a) => a.mode === 'create').length;
+      const updates = plan.actions.filter((a) => a.mode === 'update').length;
+      const warnings = plan.errors.length
+        ? `\n\nΠαραλείφθηκαν γραμμές με σφάλμα:\n${plan.errors.slice(0, 12).join('\n')}${
+            plan.errors.length > 12 ? `\n… και άλλες ${plan.errors.length - 12}` : ''
+          }`
+        : '';
+      const ok = window.confirm(
+        `Θα δημιουργηθούν ${creates} νέοι προπονητές και θα ενημερωθούν ${updates} υπάρχοντες.\n` +
+          'Για νέους προπονητές αφήστε κενό το πεδίο Κωδικός. Οι φωτογραφίες και τα αρχεία αδειών δεν εισάγονται.' +
+          warnings +
+          '\n\nΣυνέχεια;',
+      );
+      if (!ok) return;
+      for (const action of plan.actions) {
+        const result =
+          action.mode === 'create'
+            ? await coachesService.createCoach(action.input)
+            : await coachesService.updateCoach(action.existingId!, action.input);
+        if (!result.success) {
+          window.alert(result.error ?? `Αποτυχία εισαγωγής: ${action.label}`);
+          refresh();
+          return;
+        }
+      }
+      refresh();
+      window.alert(`Η εισαγωγή ολοκληρώθηκε (${creates} νέοι, ${updates} ενημερώσεις).`);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Αποτυχία ανάγνωσης αρχείου.');
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
+  }
+
   return (
     <div className="stack-lg">
       <PageHeader
@@ -380,6 +427,32 @@ export function CoachesPage() {
         <Button type="button" variant="secondary" onClick={() => exportCoachesXlsx(filteredCoaches)}>
           <Download size={16} /> Εξαγωγή
         </Button>
+        <div className="toolbar-import">
+          <input
+            ref={importInputRef}
+            className="sr-only"
+            type="file"
+            accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+            onChange={(e) => void handleImportFile(e.target.files?.[0])}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={importing}
+            onClick={() => importInputRef.current?.click()}
+          >
+            <Upload size={16} /> {importing ? 'Εισαγωγή...' : 'Εισαγωγή'}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="toolbar-help-btn"
+            aria-label="Οδηγίες εισαγωγής προπονητών"
+            onClick={() => setImportHelpOpen(true)}
+          >
+            <CircleHelp size={18} />
+          </Button>
+        </div>
       </div>
 
       <section className="panel table-wrap">
@@ -824,6 +897,18 @@ export function CoachesPage() {
           </div>
         ) : null}
       </Modal>
+
+      <SpreadsheetImportHelpModal
+        open={importHelpOpen}
+        onClose={() => setImportHelpOpen(false)}
+        steps={[
+          'Κάντε εξαγωγή με το κουμπί Εξαγωγή (ώστε να έχετε όλες τις στήλες).',
+          'Προσθέστε γραμμές στο Excel.',
+          'Για νέους προπονητές αφήστε κενό το πεδίο Κωδικός. Αν αντιγράψετε υπάρχουσα γραμμή και αφήσετε τον ίδιο κωδικό, θα ενημερωθεί ο υπάρχων προπονητής, δεν θα δημιουργηθεί δεύτερος.',
+          'Το άθλημα πρέπει να συμπληρώνεται (όπως εμφανίζεται στο πρόγραμμα).',
+          'Όνομα, επώνυμο, έγκυρο email και τηλέφωνο (τουλάχιστον 10 ψηφία) είναι υποχρεωτικά. Φωτογραφίες και αρχεία αδειών δεν εισάγονται.',
+        ]}
+      />
     </div>
   );
 }
