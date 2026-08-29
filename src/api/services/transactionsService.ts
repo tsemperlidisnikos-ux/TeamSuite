@@ -3,6 +3,7 @@ import { createId, getData, mutateData } from '../../data/repository';
 import { transactionSchema, type TransactionInput } from '../../schemas';
 import type { AthleteTransaction } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
+import { rememberDeletedTransaction } from '../../utils/feeChargeKeys';
 import {
   removeRevenuesForPaymentInData,
   syncRevenuesForPaymentInData,
@@ -74,13 +75,22 @@ export async function updateTransaction(id: string, input: TransactionInput) {
 }
 
 export async function deleteTransaction(id: string) {
-  return apiClient(() => {
+  return apiClient(async () => {
     mutateData((data) => {
+      const removed = (data.transactions ?? []).find((t) => t.id === id);
       data.transactions = (data.transactions ?? []).filter((t) => t.id !== id);
+      const remembered = rememberDeletedTransaction(
+        data.deletedTransactionIds,
+        data.suppressedFeeChargeKeys,
+        removed,
+      );
+      data.deletedTransactionIds = remembered.deletedTransactionIds;
+      data.suppressedFeeChargeKeys = remembered.suppressedFeeChargeKeys;
       removeRevenuesForPaymentInData(data, id);
-      // Legacy mirrors που χρησιμοποιούσαν περιγραφή με (txnId)
       data.revenues = data.revenues.filter((r) => !r.description.includes(`(${id})`));
     });
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
+    await flushClubMirrorPush();
     return { id };
   });
 }

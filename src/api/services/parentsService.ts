@@ -10,6 +10,7 @@ import { createId, getData, mutateData } from '../../data/repository';
 import type { ParentAthleteLink, Student } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import { studentClassIds } from '../../utils/studentClasses';
+import { motherFullName, feminineGreekSurname } from '../../utils/greekSurname';
 
 export type ParentLinkRow = {
   linkId: string;
@@ -38,6 +39,7 @@ export type ParentDirectoryRow = {
   parentUserId: string | null;
   linkIds: string[];
   classIds: string[];
+  isMother?: boolean;
 };
 
 export type ConnectParentInput = {
@@ -80,6 +82,7 @@ function upsertGuardian(
     email: string;
     fullName: string;
     athlete: ParentDirectoryAthlete;
+    isMother?: boolean;
   },
 ) {
   const email = opts.email.trim().toLowerCase();
@@ -95,9 +98,11 @@ function upsertGuardian(
       parentUserId: null,
       linkIds: [],
       classIds: studentClassIds(opts.athlete),
+      isMother: Boolean(opts.isMother),
     });
     return;
   }
+  if (opts.isMother) existing.isMother = true;
   if (!existing.athletes.some((a) => a.id === opts.athlete.id)) {
     existing.athletes.push(opts.athlete);
   }
@@ -150,10 +155,11 @@ export async function listParentDirectory(clubId: string) {
         upsertGuardian(map, {
           email: student.motherEmail,
           fullName:
-            [student.motherFirstName, student.lastName].filter(Boolean).join(' ') ||
+            motherFullName(student.motherFirstName, student.lastName) ||
             student.guardianName ||
             'Μητέρα',
           athlete,
+          isMother: true,
         });
       }
       if (
@@ -243,6 +249,10 @@ export async function listParentDirectory(clubId: string) {
       row.fullName = user.fullName || row.fullName;
       if (row.linkIds.length > 0 && user.active) row.status = 'active';
       else row.status = 'pending';
+    }
+
+    for (const row of map.values()) {
+      if (row.isMother) row.fullName = feminineGreekSurname(row.fullName);
     }
 
     return [...map.values()].sort((a, b) => a.fullName.localeCompare(b.fullName, 'el'));

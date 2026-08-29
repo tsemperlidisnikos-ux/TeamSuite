@@ -685,6 +685,10 @@ export interface AppData {
   revenues: Revenue[];
   expenses: Expense[];
   transactions: AthleteTransaction[];
+  /** Κινήσεις που διαγράφηκαν ρητά — δεν επαναφέρονται από cloud/login. */
+  deletedTransactionIds?: string[];
+  /** Αυτόματες χρεώσεις συνδρομής που ο χρήστης διέγραψε — δεν ξαναδημιουργούνται. */
+  suppressedFeeChargeKeys?: string[];
   trainings: Training[];
   staff: StaffMember[];
   associations: Association[];

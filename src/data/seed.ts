@@ -9,6 +9,8 @@ export const seedData: AppData = {
   revenues: [],
   expenses: [],
   transactions: [],
+  deletedTransactionIds: [],
+  suppressedFeeChargeKeys: [],
   trainings: [],
   staff: [],
   associations: [],

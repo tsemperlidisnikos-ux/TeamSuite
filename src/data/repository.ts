@@ -33,6 +33,8 @@ const REMOVED_PAYMENT_TXN_ID = 'txn_8d535cbd';
 function ensureCollections(data: AppData): boolean {
   let changed = false;
   if (!data.transactions) data.transactions = structuredClone(seedData.transactions);
+  if (!data.deletedTransactionIds) data.deletedTransactionIds = [];
+  if (!data.suppressedFeeChargeKeys) data.suppressedFeeChargeKeys = [];
   if (!data.trainings) data.trainings = structuredClone(seedData.trainings);
   if (!data.staff) data.staff = structuredClone(seedData.staff);
   if (!data.associations) data.associations = structuredClone(seedData.associations);

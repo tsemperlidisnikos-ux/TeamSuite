@@ -10,6 +10,7 @@ import type {
   Student,
 } from '../../types';
 import { localDateIso, localDateTimeIso } from '../../utils/dates';
+import { isFeeChargeSuppressed } from '../../utils/feeChargeKeys';
 import { normalizeSportKey } from '../../utils/sport';
 import { studentInClass } from '../../utils/studentClasses';
 import { studentHasSport } from '../../utils/studentSports';
@@ -143,7 +144,11 @@ function hasCharge(
   month: number,
   year: number,
   commentIncludes: string,
+  suppressedKeys?: string[],
 ): boolean {
+  if (isFeeChargeSuppressed(suppressedKeys, athleteId, year, month, commentIncludes)) {
+    return true;
+  }
   return transactions.some(
     (t) =>
       t.athleteId === athleteId &&
@@ -305,6 +310,7 @@ export async function generateChargesFromTemplate(templateId: string) {
     mutateData((store) => {
       if (!store.transactions) store.transactions = [];
       const existing = store.transactions;
+      const suppressed = store.suppressedFeeChargeKeys ?? [];
 
       for (const athlete of athletes) {
         const appliesTo = template.appliesTo ?? 'all';
@@ -325,7 +331,7 @@ export async function generateChargesFromTemplate(templateId: string) {
           if (!chargeMonthly || amount <= 0) break;
           const year = yearForSeasonMonth(template.season, month);
           const tag = `[fee:${template.id}:sub]`;
-          if (hasCharge(existing, athlete.id, month, year, tag)) continue;
+          if (hasCharge(existing, athlete.id, month, year, tag, suppressed)) continue;
 
           let chargeAmount = monthlyNet;
           let comments = withDiscTag(
@@ -334,7 +340,7 @@ export async function generateChargesFromTemplate(templateId: string) {
           );
           if (firstMonthly && template.registrationFee > 0) {
             const regTag = `[fee:${template.id}:reg]`;
-            if (!hasCharge(existing, athlete.id, month, year, regTag)) {
+            if (!hasCharge(existing, athlete.id, month, year, regTag, suppressed)) {
               chargeAmount += template.registrationFee;
               comments = withDiscTag(
                 `${template.typeLabel} + Εγγραφή ${template.season} ${tag} ${regTag}`,
@@ -366,7 +372,7 @@ export async function generateChargesFromTemplate(templateId: string) {
           for (const month of template.seasonTicketMonths) {
             const year = yearForSeasonMonth(template.season, month);
             const tag = `[fee:${template.id}:ticket]`;
-            if (hasCharge(existing, athlete.id, month, year, tag)) continue;
+            if (hasCharge(existing, athlete.id, month, year, tag, suppressed)) continue;
             existing.push({
               id: createId('txn'),
               athleteId: athlete.id,
@@ -388,7 +394,7 @@ export async function generateChargesFromTemplate(templateId: string) {
           const month = template.months[0] ?? 9;
           const year = yearForSeasonMonth(template.season, month);
           const tag = `[fee:${template.id}:custom]`;
-          if (!hasCharge(existing, athlete.id, month, year, tag)) {
+          if (!hasCharge(existing, athlete.id, month, year, tag, suppressed)) {
             existing.push({
               id: createId('txn'),
               athleteId: athlete.id,

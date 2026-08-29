@@ -7,6 +7,7 @@ import type { AppData } from '../types';
 const AUTO_SYNC_KEY = 'academyhub-auto-sync-v1';
 const LAST_SYNC_KEY = 'academyhub-last-sync-v1';
 const CLOUD_PREFERRED_KEY = 'academyhub-cloud-preferred-v1';
+const DIRTY_KEY = 'academyhub-club-dirty-v1';
 
 type AutoSyncMap = Record<string, boolean>;
 type LastSyncMap = Record<string, string>;
@@ -76,10 +77,27 @@ export function clearLastSyncAt(clubId: string): void {
   writeMap(LAST_SYNC_KEY, map);
 }
 
+function isClubMirrorDirty(clubId: string): boolean {
+  return readMap<Record<string, boolean>>(DIRTY_KEY)[clubId] === true;
+}
+
+function markClubMirrorDirty(clubId: string): void {
+  const map = readMap<Record<string, boolean>>(DIRTY_KEY);
+  map[clubId] = true;
+  writeMap(DIRTY_KEY, map);
+}
+
+function clearClubMirrorDirty(clubId: string): void {
+  const map = readMap<Record<string, boolean>>(DIRTY_KEY);
+  delete map[clubId];
+  writeMap(DIRTY_KEY, map);
+}
+
 /** Debounced push of active club AppData + account bundle to cloud. */
 export function scheduleClubMirrorPush(clubId?: string | null): void {
   const id = clubId ?? resolveActiveClubId();
   if (!id || id === '_default' || !isAutoSyncEnabled(id)) return;
+  markClubMirrorDirty(id);
 
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
@@ -149,7 +167,10 @@ async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
             baseUpdatedAt: pull.data.updatedAt ?? null,
           });
         } else {
-          replaceClubData(id, pull.data.payload);
+          replaceClubData(
+            id,
+            mergeCloudWithLocalDeletes(local, pull.data.payload, false),
+          );
           setLastSyncAt(id, pull.data.updatedAt ?? new Date().toISOString());
           await maybePushAccountBundle();
           return {
@@ -165,6 +186,7 @@ async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
   await maybePushAccountBundle();
   if (result.success) {
     setLastSyncAt(id, result.data?.updatedAt ?? new Date().toISOString());
+    clearClubMirrorDirty(id);
   }
   return result;
 }
@@ -200,12 +222,67 @@ function isEmptyCloudOverwrite(local: AppData, cloud: AppData): boolean {
 
 function cloudWouldLoseLocalData(local: AppData, cloud: AppData): boolean {
   if (isEmptyCloudOverwrite(local, cloud)) return true;
-  const cloudTxn = cloud.transactions?.length ?? 0;
-  const localTxn = local.transactions?.length ?? 0;
-  if (cloudTxn > localTxn) return false;
+
+  const localDeleted = local.deletedTransactionIds ?? [];
+  if (localDeleted.length > 0) {
+    const cloudTxnIds = new Set((cloud.transactions ?? []).map((t) => t.id));
+    if (localDeleted.some((id) => cloudTxnIds.has(id))) return true;
+  }
+
+  const localIds = new Set((local.transactions ?? []).map((t) => t.id));
+  const cloudIds = new Set((cloud.transactions ?? []).map((t) => t.id));
+  const cloudOnly = [...cloudIds].filter((id) => !localIds.has(id));
+  const localOnly = [...localIds].filter((id) => !cloudIds.has(id));
+  const studentsLocal = local.students?.length ?? 0;
+  const studentsCloud = cloud.students?.length ?? 0;
+  if (
+    cloudOnly.length > 0 &&
+    localOnly.length === 0 &&
+    studentsLocal > 0 &&
+    studentsLocal >= studentsCloud
+  ) {
+    return true;
+  }
+
   const localW = appDataWeight(local);
   const cloudW = appDataWeight(cloud);
   return localW > 0 && localW > cloudW;
+}
+
+function mergeCloudWithLocalDeletes(
+  local: AppData,
+  cloud: AppData,
+  treatCloudOnlyAsDeleted: boolean,
+): AppData {
+  const deleted = new Set([
+    ...(local.deletedTransactionIds ?? []),
+    ...(cloud.deletedTransactionIds ?? []),
+  ]);
+  const suppressed = new Set([
+    ...(local.suppressedFeeChargeKeys ?? []),
+    ...(cloud.suppressedFeeChargeKeys ?? []),
+  ]);
+  const localIds = new Set((local.transactions ?? []).map((t) => t.id));
+  if (treatCloudOnlyAsDeleted) {
+    for (const tx of cloud.transactions ?? []) {
+      if (!localIds.has(tx.id)) deleted.add(tx.id);
+    }
+  }
+
+  const byId = new Map<string, (typeof local.transactions)[number]>();
+  for (const tx of [...(cloud.transactions ?? []), ...(local.transactions ?? [])]) {
+    if (deleted.has(tx.id)) continue;
+    byId.set(tx.id, tx);
+  }
+
+  const next = structuredClone(cloud);
+  next.transactions = [...byId.values()];
+  next.deletedTransactionIds = [...deleted].slice(-5000);
+  next.suppressedFeeChargeKeys = [...suppressed].slice(-5000);
+  next.revenues = (next.revenues ?? []).filter(
+    (row) => !row.linkedTransactionId || !deleted.has(row.linkedTransactionId),
+  );
+  return next;
 }
 
 /**
@@ -268,7 +345,10 @@ export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) 
     ) {
       return { success: true as const, pulled: false, error: null };
     }
-    replaceClubData(id, result.data.payload);
+    replaceClubData(
+      id,
+      mergeCloudWithLocalDeletes(local, result.data.payload, isClubMirrorDirty(id)),
+    );
     setLastSyncAt(id, cloudAt ?? new Date().toISOString());
     setCloudPreferred(true);
     return { success: true as const, pulled: true, error: null };
@@ -306,9 +386,20 @@ export async function hydrateAllClubMirrorsFromCloud(): Promise<void> {
       if (!result.success || !result.data?.payload || result.data.durable === false) continue;
       if (clubHasStoredData(id)) {
         const local = getClubData(id);
-        if (cloudWouldLoseLocalData(local, result.data.payload)) continue;
+        if (cloudWouldLoseLocalData(local, result.data.payload)) {
+          replaceClubData(
+            id,
+            mergeCloudWithLocalDeletes(local, result.data.payload, isClubMirrorDirty(id)),
+          );
+          continue;
+        }
+        replaceClubData(
+          id,
+          mergeCloudWithLocalDeletes(local, result.data.payload, false),
+        );
+      } else {
+        replaceClubData(id, result.data.payload);
       }
-      replaceClubData(id, result.data.payload);
       setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
     }
   } finally {
@@ -367,19 +458,27 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
 
   for (const id of ids) {
     if (!isAutoSyncEnabled(id)) continue;
+    if (isClubMirrorDirty(id)) {
+      await flushClubMirrorPush(id);
+    }
     const result = await backendSyncService.pullClubMirror(id);
     if (result.success && result.data?.payload) {
       if (result.data.durable === false) continue;
       const local = getClubData(id);
+      const stillDirty = isClubMirrorDirty(id);
       const neverSyncedHere = !getLastSyncAt(id);
       if (
         !neverSyncedHere &&
+        stillDirty &&
         cloudWouldLoseLocalData(local, result.data.payload)
       ) {
         await flushClubMirrorPush(id);
         continue;
       }
-      replaceClubData(id, result.data.payload);
+      replaceClubData(
+        id,
+        mergeCloudWithLocalDeletes(local, result.data.payload, stillDirty),
+      );
       setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
       setCloudPreferred(true);
       if (id === clubId) pulledClub = true;
