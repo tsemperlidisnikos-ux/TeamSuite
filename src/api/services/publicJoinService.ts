@@ -2,14 +2,12 @@ import { apiClient } from '../apiClient';
 import { getClubById, getClubPublicRegistration } from '../../auth/clubs';
 import { createId, mutateClubData } from '../../data/repository';
 import {
-  buildStudentFromRegistrationApplication,
   gdprItemsFromPublicConsent,
   registrationApplicationFromPublicJoin,
   validatePublicJoinRequiredFields,
   type PublicJoinGdprItems,
 } from '../../shared/publicJoinPayload';
 import { localDateIso } from '../../utils/dates';
-import { studentInClass } from '../../utils/studentClasses';
 import type { RegistrationApplicationKind } from '../../types';
 import type { PublicJoinExtras } from '../../shared/publicJoinExtras';
 import * as emailService from './emailService';
@@ -46,12 +44,8 @@ export type PublicJoinInput = {
   gdprItems?: PublicJoinGdprItems;
   amkaConsentAt?: string;
   guardianSignature?: string;
+  formSnapshotUrl?: string | null;
 };
-
-function classIsFull(classId: string | null, maxStudents: number, activeCount: number): boolean {
-  if (!classId) return false;
-  return activeCount >= maxStudents;
-}
 
 export async function submitPublicJoin(input: PublicJoinInput) {
   return apiClient(async () => {
@@ -97,96 +91,34 @@ export async function submitPublicJoin(input: PublicJoinInput) {
     if (!input.gdprItems?.amkaHealthCard) {
       throw new Error('Απαιτείται ρητή συγκατάθεση για τη συλλογή του ΑΜΚΑ.');
     }
-    if (input.kind === 'trial' && !settings.allowTrial) {
-      throw new Error('Η δοκιμαστική προπόνηση δεν επιτρέπεται.');
-    }
-    if (input.kind === 'waitlist' && !settings.allowWaitlist) {
-      throw new Error('Η λίστα αναμονής δεν επιτρέπεται.');
-    }
-
-    let resultKind = input.kind;
-    let createdAthleteId: string | null = null;
 
     const gdprItems =
       input.gdprItems ??
       gdprItemsFromPublicConsent(input.acceptedTerms, Boolean(input.amkaConsentAt));
 
     mutateClubData(input.clubId, (data) => {
-      const cls = input.classId
-        ? data.classes.find((c) => c.id === input.classId) ?? null
-        : null;
-      const activeInClass = input.classId
-        ? data.students.filter(
-            (s) => studentInClass(s, input.classId) && s.status !== 'inactive',
-          ).length
-        : 0;
-      const full = classIsFull(input.classId, cls?.maxStudents ?? 0, activeInClass);
-
-      if (full && settings.allowWaitlist) {
-        resultKind = 'waitlist';
-      }
-
-      const shouldCreateAthlete =
-        settings.autoApprove &&
-        resultKind !== 'waitlist' &&
-        (resultKind === 'full' || resultKind === 'trial');
-
       const applicationId = createId('rapp');
-      if (shouldCreateAthlete) {
-        const athleteId = createId('stu');
-        const athlete = buildStudentFromRegistrationApplication(
-          registrationApplicationFromPublicJoin(
-            {
-              ...input,
-              firstName,
-              lastName,
-              guardianName: input.guardianName.trim(),
-              guardianPhone: input.guardianPhone.trim(),
-              email: input.email.trim(),
-              gdprItems,
-              amkaConsentAt: input.amkaConsentAt || (amka ? localDateIso() : ''),
-            },
-            {
-              id: applicationId,
-              status: 'approved',
-              athleteId,
-            },
-          ),
-          club.name,
-          cls,
-          athleteId,
-          {
-            status: resultKind === 'trial' ? 'trial' : 'active',
-            comments: input.notes?.trim() || 'Δημόσια εγγραφή',
-          },
-        );
-        data.students = [athlete, ...data.students];
-        createdAthleteId = athlete.id;
-      }
-
       const application = registrationApplicationFromPublicJoin(
         {
           ...input,
           firstName,
           lastName,
+          kind: 'waitlist',
           guardianName: input.guardianName.trim(),
           guardianPhone: input.guardianPhone.trim(),
           email: input.email.trim(),
           gdprItems,
           amkaConsentAt: input.amkaConsentAt || (amka ? localDateIso() : ''),
+          formSnapshotUrl: input.formSnapshotUrl || null,
         },
         {
           id: applicationId,
-          status: shouldCreateAthlete ? 'approved' : 'pending',
-          athleteId: createdAthleteId,
+          status: 'pending',
+          athleteId: null,
         },
       );
       data.registrationApplications = [application, ...(data.registrationApplications ?? [])];
     });
-
-    const resolvedMode: 'athlete' | 'application' = createdAthleteId
-      ? 'athlete'
-      : 'application';
 
     let emailSent = false;
     let guardianEmailSent = false;
@@ -195,7 +127,7 @@ export async function submitPublicJoin(input: PublicJoinInput) {
         clubId: input.clubId,
         firstName,
         lastName,
-        kind: resultKind,
+        kind: 'waitlist',
         guardianPhone: input.guardianPhone.trim(),
       });
       emailSent = notify.sent;
@@ -215,11 +147,7 @@ export async function submitPublicJoin(input: PublicJoinInput) {
             `Αγαπητέ/ή ${input.guardianName.trim()},`,
             '',
             `Λάβαμε την αίτηση εγγραφής για τον/την ${firstName} ${lastName} στον σύλλογο ${clubName}.`,
-            resolvedMode === 'athlete'
-              ? 'Η εγγραφή καταχωρήθηκε.'
-              : resultKind === 'waitlist'
-                ? 'Η αίτηση μπήκε στη λίστα αναμονής.'
-                : 'Η αίτηση εκκρεμεί έγκριση από τον σύλλογο.',
+            'Η αίτηση μπήκε σε αναμονή. Ο σύλλογος θα ενεργοποιήσει τον αθλητή μετά τον έλεγχο.',
             '',
             'Ευχαριστούμε.',
             clubName,
@@ -232,17 +160,13 @@ export async function submitPublicJoin(input: PublicJoinInput) {
     }
 
     return {
-      mode: resolvedMode,
-      kind: resultKind,
-      athleteId: createdAthleteId,
+      mode: 'application' as const,
+      kind: 'waitlist' as const,
+      athleteId: null,
       emailSent,
       guardianEmailSent,
       message:
-        resolvedMode === 'athlete'
-          ? 'Η εγγραφή ολοκληρώθηκε.'
-          : resultKind === 'waitlist'
-            ? 'Η αίτηση μπήκε στη λίστα αναμονής.'
-            : 'Η αίτηση υποβλήθηκε και εκκρεμεί έγκριση.',
+        'Η αίτηση μπήκε σε αναμονή. Ο σύλλογος θα ενεργοποιήσει τον αθλητή από Αθλητές → εκκρεμείς αιτήσεις.',
     };
   });
 }

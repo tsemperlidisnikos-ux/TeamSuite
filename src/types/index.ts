@@ -87,6 +87,8 @@ export interface Student {
   discountReason?: string;
   comments?: string;
   photoUrl?: string | null;
+  /** Στιγμιότυπο υποβληθείσας δημόσιας φόρμας εγγραφής. */
+  registrationFormImageUrl?: string | null;
   gdprConsent?: 'full' | 'pending' | 'locked';
   gdprItems?: {
     personalData: boolean;
@@ -650,6 +652,8 @@ export interface RegistrationApplication {
   amkaConsentAt?: string;
   /** Υπογραφή γονέα/κηδεμόνα (data URL PNG). */
   guardianSignature?: string;
+  /** Στιγμιότυπο της υποβληθείσας φόρμας (JPEG data URL ή Blob URL). */
+  formSnapshotUrl?: string | null;
 }
 
 export type DocumentProtocolDirection = 'incoming' | 'outgoing';

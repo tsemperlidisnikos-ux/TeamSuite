@@ -5951,13 +5951,12 @@ html[data-appearance] .settings-backup-schedule-status {
   gap: 0.75rem;
 }
 
-.registration-app-card {
-  border: 1px solid rgba(180, 120, 20, 0.22);
-  border-radius: 12px;
-  padding: 0.85rem 0.95rem;
-  background: #fff;
-  display: grid;
-  gap: 0.75rem;
+.registration-app-form-shot {
+  display: block;
+  max-width: min(100%, 280px);
+  margin-top: 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
 .registration-app-card-grid {

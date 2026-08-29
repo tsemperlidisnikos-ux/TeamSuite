@@ -85,7 +85,7 @@ type EditDraft = {
 
 function applicationKindLabel(kind: RegistrationApplication['kind']): string {
   if (kind === 'trial') return 'Δοκιμαστική';
-  if (kind === 'waitlist') return 'Λίστα αναμονής';
+  if (kind === 'waitlist') return 'Αναμονή';
   return 'Πλήρης εγγραφή';
 }
 
@@ -422,7 +422,8 @@ export function StudentsPage() {
             <span className="badge badge-pending">{pendingApplications.length}</span>
           </div>
           <p className="lede">
-            Από δημόσια φόρμα. Μπορείτε να επεξεργαστείτε τμήμα/τύπο πριν την έγκριση.
+            Από δημόσια φόρμα. Οι αιτήσεις μένουν σε αναμονή μέχρι να πατήσετε Έγκριση (ενεργός
+            αθλητής).
           </p>
           {appError ? <p className="form-error">{appError}</p> : null}
           {appMessage ? <p className="settings-success">{appMessage}</p> : null}
@@ -564,6 +565,13 @@ export function StudentsPage() {
                             <div className="muted" style={{ whiteSpace: 'pre-line' }}>
                               {formatJoinExtrasText(app.joinExtras)}
                             </div>
+                          ) : null}
+                          {app.formSnapshotUrl ? (
+                            <img
+                              className="registration-app-form-shot"
+                              src={app.formSnapshotUrl}
+                              alt="Φόρμα εγγραφής"
+                            />
                           ) : null}
                         </div>
                         <div>

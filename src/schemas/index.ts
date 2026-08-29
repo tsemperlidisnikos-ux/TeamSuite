@@ -52,6 +52,7 @@ export const studentSchema = z.object({
   discountReason: z.string().optional(),
   comments: z.string().optional(),
   photoUrl: z.string().nullable().optional(),
+  registrationFormImageUrl: z.string().nullable().optional(),
   gdprConsent: z.enum(['full', 'pending', 'locked']).optional(),
   gdprItems: z
     .object({

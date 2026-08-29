@@ -27,6 +27,7 @@ import {
   parsePublicJoinExtras,
 } from '../shared/publicJoinExtras';
 import type { SizeChart } from '../types';
+import { renderPublicJoinFormSnapshot } from '../utils/publicJoinFormSnapshot';
 import { sizeChartOptGroups } from '../utils/sizeChartOptions';
 
 type JoinClubView = {
@@ -251,6 +252,38 @@ export function PublicJoinPage() {
     });
     const amkaConsentAt = acceptedAmka ? new Date().toISOString().slice(0, 10) : '';
 
+    let formSnapshotUrl: string | null = null;
+    try {
+      formSnapshotUrl = await renderPublicJoinFormSnapshot({
+        clubName: club.name,
+        submittedAt: new Date(),
+        amka: amkaTrim,
+        firstName,
+        lastName,
+        birthDate,
+        gender,
+        athleteEmail,
+        phone,
+        fatherFirstName,
+        motherFirstName,
+        fatherEmail,
+        motherEmail,
+        guardianPhone,
+        motherPhone,
+        address,
+        postalCode,
+        city,
+        county,
+        sport,
+        uniformSize,
+        notes,
+        joinExtras: extras,
+        guardianSignature,
+      });
+    } catch {
+      formSnapshotUrl = null;
+    }
+
     const payload = {
       firstName,
       lastName,
@@ -260,7 +293,7 @@ export function PublicJoinPage() {
       guardianPhone,
       email: fatherEmail.trim(),
       classId: null,
-      kind: 'full' as const,
+      kind: 'waitlist' as const,
       notes,
       acceptedTerms: acceptedPersonalData,
       amka: amkaTrim,
@@ -281,6 +314,7 @@ export function PublicJoinPage() {
       gdprItems,
       amkaConsentAt,
       guardianSignature,
+      formSnapshotUrl,
     };
 
     let message = '';

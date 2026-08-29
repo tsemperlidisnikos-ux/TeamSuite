@@ -83,6 +83,7 @@ export function ClubPublicRegistrationPanel({ clubId, onOpenGdpr }: Props) {
     }
     const result = updateClubPublicRegistration(clubId, {
       ...form,
+      autoApprove: false,
       notifyEmail: form.notifyEmail ?? '',
     });
     if (!result.success) {
@@ -213,21 +214,16 @@ export function ClubPublicRegistrationPanel({ clubId, onOpenGdpr }: Props) {
 
         <SettingsFormRow label="Άμεση εμφάνιση στη λίστα αθλητών" htmlFor="pub-reg-auto">
           <label className="public-reg-check">
-            <input
-              id="pub-reg-auto"
-              type="checkbox"
-              checked={form.autoApprove}
-              onChange={(e) => setField('autoApprove', e.target.checked)}
-            />
-            <span>Ενεργή</span>
+            <input id="pub-reg-auto" type="checkbox" checked={false} disabled />
+            <span>Ανενεργή</span>
           </label>
           <div className="public-reg-info">
             <span className="public-reg-info-icon" aria-hidden>
               i
             </span>
             <p>
-              Αν είναι ενεργό, ο αθλητής προστίθεται αμέσως μετά τη φόρμα. Αν όχι, χρειάζεται έγκριση
-              από Αθλητές.
+              Κάθε δημόσια εγγραφή μένει σε αναμονή. Ο σύλλογος ενεργοποιεί τον αθλητή από Αθλητές →
+              εκκρεμείς αιτήσεις (Έγκριση).
             </p>
           </div>
         </SettingsFormRow>

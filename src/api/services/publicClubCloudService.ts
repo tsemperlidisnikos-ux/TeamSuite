@@ -240,6 +240,7 @@ export type RemotePublicJoinInput = {
   };
   amkaConsentAt?: string;
   guardianSignature?: string;
+  formSnapshotUrl?: string | null;
 };
 
 export async function submitPublicJoinRemote(input: RemotePublicJoinInput) {
@@ -335,6 +336,7 @@ export async function pullRemoteRegistrationApplications(clubId: string) {
           gdprItems: a.gdprItems,
           amkaConsentAt: a.amkaConsentAt,
           guardianSignature: a.guardianSignature,
+          formSnapshotUrl: a.formSnapshotUrl ?? null,
         }));
       merged = incoming.length;
       if (incoming.length) {

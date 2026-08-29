@@ -123,6 +123,7 @@ export type RemoteRegistrationApplication = {
   };
   amkaConsentAt?: string;
   guardianSignature?: string;
+  formSnapshotUrl?: string | null;
 };
 
 export type LoginActivityEvent = {

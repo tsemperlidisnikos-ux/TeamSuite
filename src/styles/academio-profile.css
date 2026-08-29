@@ -1084,6 +1084,40 @@
   min-width: 7.5rem;
 }
 
+.ap-registration-form-shot {
+  display: block;
+  width: 100%;
+  max-width: 36rem;
+  height: auto;
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.ap-join-extras-popup {
+  margin: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.ap-join-extras-row {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.ap-join-extras-row dt {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+}
+
+.ap-join-extras-row dd {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--ink, #0f172a);
+  line-height: 1.45;
+}
+
 .ap-hero-photo {
   width: 88px;
   height: 88px;

@@ -23,11 +23,12 @@ import * as amkaAuditService from '../api/services/amkaAuditService';
 import { getSession } from '../auth/auth';
 import { getClubById, ensureSessionClub } from '../auth/clubs';
 import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
 import { AppPopupLayer } from '../components/ui/AppPopupLayer';
 import { useAppData } from '../hooks/useAppData';
 import type { StudentInput } from '../schemas';
 import type { Gender, Student } from '../types';
-import { formatJoinExtrasText } from '../shared/publicJoinExtras';
+import { formatJoinExtrasLines } from '../shared/publicJoinExtras';
 import { buildHealthCardPdf } from '../utils/healthCardPdf';
 import { sizeChartOptGroups } from '../utils/sizeChartOptions';
 import { formatDate } from '../utils/labels';
@@ -215,6 +216,7 @@ function toForm(student: Student): StudentInput {
     discountReason: student.discountReason ?? '',
     comments: student.comments ?? '',
     photoUrl: student.photoUrl ?? null,
+    registrationFormImageUrl: student.registrationFormImageUrl ?? null,
     gdprConsent: student.gdprConsent ?? 'pending',
     gdprItems: {
       personalData: false,
@@ -408,6 +410,7 @@ export function AthleteProfilePage() {
   const [progressSaving, setProgressSaving] = useState(false);
   const [loadingHealthCardPreview, setLoadingHealthCardPreview] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [joinExtrasOpen, setJoinExtrasOpen] = useState(false);
   const actionsAnchorRef = useRef<HTMLDivElement>(null);
   const healthCardPreviewUrlRef = useRef<string | null>(null);
   const amkaViewLoggedRef = useRef<string | null>(null);
@@ -1439,9 +1442,18 @@ export function AthleteProfilePage() {
               </ApCard>
               {form.joinExtras ? (
                 <ApCard title="Επιλογές δημόσιας εγγραφής">
-                  <p className="muted" style={{ whiteSpace: 'pre-line', margin: 0 }}>
-                    {formatJoinExtrasText(form.joinExtras)}
-                  </p>
+                  <Button type="button" variant="secondary" onClick={() => setJoinExtrasOpen(true)}>
+                    Προβολή
+                  </Button>
+                </ApCard>
+              ) : null}
+              {form.registrationFormImageUrl ? (
+                <ApCard title="Φόρμα δημόσιας εγγραφής">
+                  <img
+                    className="ap-registration-form-shot"
+                    src={form.registrationFormImageUrl}
+                    alt="Υποβληθείσα φόρμα εγγραφής"
+                  />
                 </ApCard>
               ) : null}
             </div>
@@ -2134,6 +2146,27 @@ export function AthleteProfilePage() {
           )
         ) : null}
       </footer>
+      {form.joinExtras ? (
+        <Modal
+          open={joinExtrasOpen}
+          title="Επιλογές δημόσιας εγγραφής"
+          onClose={() => setJoinExtrasOpen(false)}
+        >
+          <dl className="ap-join-extras-popup">
+            {formatJoinExtrasLines(form.joinExtras).map((line) => {
+              const sep = line.indexOf(':');
+              const label = sep >= 0 ? line.slice(0, sep).trim() : line;
+              const value = sep >= 0 ? line.slice(sep + 1).trim() : '';
+              return (
+                <div key={label} className="ap-join-extras-row">
+                  <dt>{label}</dt>
+                  <dd>{value || '—'}</dd>
+                </div>
+              );
+            })}
+          </dl>
+        </Modal>
+      ) : null}
     </div>
   );
 }

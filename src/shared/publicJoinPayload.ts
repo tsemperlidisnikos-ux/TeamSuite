@@ -179,6 +179,7 @@ export function buildStudentFromRegistrationApplication(
     county: app.county || '',
     uniformSize: app.uniformSize || '',
     joinExtras: app.joinExtras,
+    registrationFormImageUrl: app.formSnapshotUrl || '',
   };
 }
 
@@ -212,6 +213,7 @@ export function registrationApplicationFromPublicJoin(
     gdprItems?: PublicJoinGdprItems;
     amkaConsentAt?: string;
     guardianSignature?: string;
+    formSnapshotUrl?: string | null;
   },
   meta: { id: string; status: RegistrationApplication['status']; athleteId?: string | null },
 ): RegistrationApplication {
@@ -248,5 +250,6 @@ export function registrationApplicationFromPublicJoin(
     gdprItems: input.gdprItems,
     amkaConsentAt: input.amkaConsentAt || '',
     guardianSignature: input.guardianSignature || '',
+    formSnapshotUrl: input.formSnapshotUrl || null,
   };
 }

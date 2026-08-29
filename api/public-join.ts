@@ -60,6 +60,7 @@ type Body = {
   };
   amkaConsentAt?: string;
   guardianSignature?: string;
+  formSnapshotUrl?: string;
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -132,6 +133,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const uniformSize = String(body.uniformSize ?? '').trim();
   const joinExtras = parseJoinExtras(body.joinExtras);
   const guardianSignature = String(body.guardianSignature ?? '').trim();
+  const formSnapshotRaw = String(body.formSnapshotUrl ?? '').trim();
+  const formSnapshotUrl =
+    formSnapshotRaw.startsWith('data:image/') && formSnapshotRaw.length <= 700_000
+      ? formSnapshotRaw
+      : '';
   const amkaConsentAt = String(body.amkaConsentAt ?? '').trim();
   const gdprItems = {
     personalData: Boolean(body.gdprItems?.personalData ?? body.acceptedTerms),
@@ -144,7 +150,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!gdprItems.amkaHealthCard) {
     return res.status(400).json({ ok: false, error: 'Απαιτείται ρητή συγκατάθεση για τη συλλογή του ΑΜΚΑ.' });
   }
-  let kind = (body.kind ?? 'full') as 'full' | 'trial' | 'waitlist';
   const classId = body.classId ? String(body.classId) : null;
 
   const requiredError = validateRemotePublicJoinFields({
@@ -178,12 +183,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!guardianName) {
     return res.status(400).json({ ok: false, error: 'Συμπληρώστε πατρώνυμο.' });
   }
-  if (kind === 'trial' && !club.allowTrial) {
-    return res.status(400).json({ ok: false, error: 'Η δοκιμαστική προπόνηση δεν επιτρέπεται.' });
-  }
-  if (kind === 'waitlist' && !club.allowWaitlist) {
-    return res.status(400).json({ ok: false, error: 'Η λίστα αναμονής δεν επιτρέπεται.' });
-  }
+
+  const kind = 'waitlist' as const;
 
   const mirror = await loadMirror(club.clubId);
   const payload =
@@ -191,85 +192,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? (mirror.payload as Record<string, unknown>)
       : null;
 
-  if (classId && payload && Array.isArray(payload.classes) && Array.isArray(payload.students)) {
-    const cls = (payload.classes as Array<{ id: string; maxStudents?: number }>).find(
-      (c) => c.id === classId,
-    );
-    const activeCount = (
-      payload.students as Array<{
-        classId?: string | null;
-        classIds?: string[];
-        status?: string;
-      }>
-    ).filter((s) => {
-      if (s.status === 'inactive') return false;
-      const ids = [...(s.classIds ?? []), ...(s.classId ? [s.classId] : [])];
-      return ids.includes(classId);
-    }).length;
-    const max = cls?.maxStudents ?? 0;
-    if (max > 0 && activeCount >= max && club.allowWaitlist) {
-      kind = 'waitlist';
-    }
-  }
-
-  const shouldCreateAthlete =
-    club.autoApprove && kind !== 'waitlist' && (kind === 'full' || kind === 'trial');
-
   const createdAt = new Date().toISOString().slice(0, 10);
   const applicationId = `rapp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  let athleteId: string | null = null;
-
-  if (shouldCreateAthlete && payload && Array.isArray(payload.students)) {
-    athleteId = `stu_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const cls = Array.isArray(payload.classes)
-      ? (payload.classes as Array<{ id: string; monthlyFee?: number; sport?: string }>).find(
-          (c) => c.id === classId,
-        )
-      : null;
-    const athlete = {
-      id: athleteId,
-      firstName,
-      lastName,
-      email: athleteEmail || fatherEmail || email,
-      phone,
-      birthDate,
-      guardianName,
-      guardianPhone,
-      classId,
-      classIds: classId ? [classId] : [],
-      status: kind === 'trial' ? 'trial' : 'active',
-      monthlyFee: cls?.monthlyFee ?? 0,
-      enrolledAt: createdAt,
-      gender,
-      clubName: club.name,
-      sport: sport || (cls?.sport ?? ''),
-      sports: sport ? [sport] : [],
-      healthCard: false,
-      comments: notes || 'Δημόσια εγγραφή',
-      gdprConsent:
-        gdprItems.personalData &&
-        gdprItems.photoUse &&
-        gdprItems.gallery &&
-        gdprItems.communication
-          ? 'full'
-          : 'pending',
-      gdprItems,
-      amka,
-      amkaConsentAt: amkaConsentAt || (amka ? createdAt : ''),
-      fatherFirstName,
-      motherFirstName,
-      fatherEmail,
-      motherEmail,
-      motherPhone,
-      address,
-      postalCode,
-      city,
-      county,
-      uniformSize,
-      joinExtras,
-    };
-    payload.students = [athlete, ...(payload.students as unknown[])];
-  }
+  const athleteId: string | null = null;
 
   const application: RemoteRegistrationApplication = {
     id: applicationId,
@@ -282,7 +207,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     email,
     classId,
     kind,
-    status: shouldCreateAthlete ? 'approved' : 'pending',
+    status: 'pending',
     notes,
     createdAt,
     athleteId,
@@ -304,6 +229,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     gdprItems,
     amkaConsentAt: amkaConsentAt || (amka ? createdAt : ''),
     guardianSignature,
+    formSnapshotUrl: formSnapshotUrl || undefined,
   };
 
   await appendPendingApplication(club.clubId, application);
@@ -321,8 +247,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let guardianEmailSent = false;
 
   if (notify?.smtp?.enabled && notify.smtp.host && notify.smtp.username && notify.smtp.password) {
-    const kindLabel =
-      kind === 'trial' ? 'Δοκιμαστική' : kind === 'waitlist' ? 'Λίστα αναμονής' : 'Πλήρης εγγραφή';
     const clubTo = (notify.notifyEmail || notify.smtp.username || '').trim();
     if (clubTo.includes('@')) {
       clubEmailSent = await sendMail(notify.smtp, {
@@ -332,7 +256,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           `Νέα αίτηση δημόσιας εγγραφής στον σύλλογο ${club.name}.`,
           '',
           `Αθλητής: ${lastName} ${firstName}`,
-          `Τύπος: ${kindLabel}`,
+          `Τύπος: Αναμονή`,
           `Τηλ. κηδεμόνα: ${guardianPhone}`,
           email ? `Email: ${email}` : '',
           joinExtras
@@ -358,11 +282,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           `Αγαπητέ/ή ${guardianName},`,
           '',
           `Λάβαμε την αίτηση εγγραφής για τον/την ${firstName} ${lastName} στον σύλλογο ${club.name}.`,
-          shouldCreateAthlete
-            ? 'Η εγγραφή καταχωρήθηκε.'
-            : kind === 'waitlist'
-              ? 'Η αίτηση μπήκε στη λίστα αναμονής.'
-              : 'Η αίτηση εκκρεμεί έγκριση από τον σύλλογο.',
+          'Η αίτηση μπήκε σε αναμονή. Ο σύλλογος θα ενεργοποιήσει τον αθλητή μετά τον έλεγχο.',
           '',
           'Ευχαριστούμε.',
           club.name,
@@ -371,7 +291,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  const mode = shouldCreateAthlete ? 'athlete' : 'application';
+  const mode = 'application';
   return res.status(200).json({
     ok: true,
     durable: isDurableStoreEnabled(),
@@ -382,11 +302,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     guardianEmailSent,
     applicationId,
     message:
-      mode === 'athlete'
-        ? 'Η εγγραφή ολοκληρώθηκε.'
-        : kind === 'waitlist'
-          ? 'Η αίτηση μπήκε στη λίστα αναμονής.'
-          : 'Η αίτηση υποβλήθηκε και εκκρεμεί έγκριση.',
+      'Η αίτηση μπήκε σε αναμονή. Ο σύλλογος θα ενεργοποιήσει τον αθλητή από Αθλητές → εκκρεμείς αιτήσεις.',
   });
 }
 
