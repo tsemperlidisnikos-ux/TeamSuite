@@ -288,6 +288,34 @@ async function clubIdsForSync(preferred?: string | null): Promise<string[]> {
   return [...new Set(ids)];
 }
 
+/** Pull every club mirror so Platform Admin repairs run on durable data, not a preview club. */
+export async function hydrateAllClubMirrorsFromCloud(): Promise<void> {
+  const { getSessionToken } = await import('../api/services/sessionService');
+  const { isDemoSessionActive } = await import('../auth/auth');
+  if (!getSessionToken() || isDemoSessionActive()) return;
+
+  const { getClubs } = await import('../auth/clubs');
+  const { clubHasStoredData, getClubData, replaceClubData } = await import('./repository');
+
+  pulling = true;
+  try {
+    for (const club of getClubs()) {
+      const id = club.id;
+      if (!id || id === '_default' || !isAutoSyncEnabled(id)) continue;
+      const result = await backendSyncService.pullClubMirror(id);
+      if (!result.success || !result.data?.payload || result.data.durable === false) continue;
+      if (clubHasStoredData(id)) {
+        const local = getClubData(id);
+        if (cloudWouldLoseLocalData(local, result.data.payload)) continue;
+      }
+      replaceClubData(id, result.data.payload);
+      setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
+    }
+  } finally {
+    pulling = false;
+  }
+}
+
 /**
  * After restore (or logout): write local clubs + accounts to durable cloud.
  * `overwriteCloud` sends baseUpdatedAt=null so a previous empty mirror is replaced.

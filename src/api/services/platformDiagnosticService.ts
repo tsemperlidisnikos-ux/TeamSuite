@@ -1,7 +1,8 @@
-import { getUsers, migratePlaintextPasswords, type AppUser } from '../../auth/auth';
+import { getUsers, migratePlaintextPasswords, saveUsers, type AppUser } from '../../auth/auth';
 import { isPasswordHashed } from '../../auth/password';
 import { getClubs, getClubSmtp, getClubViva, type Club } from '../../auth/clubs';
 import {
+  clubHasStoredData,
   createId,
   exportAllClubsData,
   getData,
@@ -21,6 +22,7 @@ import type { AppData, FeeChargeTemplate } from '../../types';
 import { appDataWeight } from '../../data/mediaStrip';
 import { localDateTimeIso } from '../../utils/dates';
 import { studentClassIds } from '../../utils/studentClasses';
+import { hydrateAllClubMirrorsFromCloud, persistLocalStateToCloud } from '../../data/clubSync';
 import { pushAccountBundle } from './accountSyncService';
 import { ensureLegacyPaymentsMatchedAllClubs } from './paymentMatchingService';
 
@@ -405,11 +407,13 @@ function checkUsers(users: AppUser[], clubs: Club[]): DiagnosticFinding[] {
     );
   }
 
-  // Athlete/coach link integrity against active club data
-  const data = getData();
-  const athleteIds = new Set(data.students.map((s) => s.id));
-  const coachIds = new Set(data.coaches.map((c) => c.id));
+  // Athlete/coach link integrity against each user's own club dataset
+  const clubMap = exportAllClubsData();
   for (const user of users) {
+    const clubData = user.clubId ? clubMap[user.clubId] : undefined;
+    if (!clubData) continue;
+    const athleteIds = new Set(clubData.students.map((s) => s.id));
+    const coachIds = new Set(clubData.coaches.map((c) => c.id));
     if (user.athleteId && !athleteIds.has(user.athleteId)) orphanAthleteLink += 1;
     if (user.coachId && !coachIds.has(user.coachId)) orphanCoachLink += 1;
   }
@@ -922,9 +926,64 @@ function ensureBackupSchedulesEnabled(): boolean {
   return true;
 }
 
+function personKey(parts: string[]): string {
+  return parts
+    .map((p) => p.trim().toLowerCase())
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ');
+}
+
+function resolveCoachLink(
+  coaches: Array<{ id: string; firstName: string; lastName: string }>,
+  user: AppUser,
+): string | null {
+  const current = user.coachId?.trim() || '';
+  if (current && coaches.some((c) => c.id === current)) return current;
+  const full = personKey([user.fullName ?? '']);
+  if (!full) return null;
+  const matches = coaches.filter((c) => {
+    const a = personKey([c.lastName, c.firstName]);
+    const b = personKey([c.firstName, c.lastName]);
+    return a === full || b === full;
+  });
+  return matches.length === 1 ? matches[0]!.id : null;
+}
+
+function repairOrphanUserLinks(): { coaches: number; athletes: number } {
+  const clubMap = exportAllClubsData();
+  const users = getUsers();
+  let coaches = 0;
+  let athletes = 0;
+  const next = users.map((user) => {
+    const clubData = user.clubId ? clubMap[user.clubId] : undefined;
+    if (!clubData) return user;
+    let changed = user;
+    if (user.role === 'coach' || user.coachId) {
+      const resolved = resolveCoachLink(clubData.coaches ?? [], user);
+      if ((user.coachId || null) !== (resolved || null)) {
+        coaches += 1;
+        changed = { ...changed, coachId: resolved };
+      }
+    }
+    if (user.athleteId) {
+      const ok = (clubData.students ?? []).some((s) => s.id === user.athleteId);
+      if (!ok) {
+        athletes += 1;
+        changed = { ...changed, athleteId: null };
+      }
+    }
+    return changed;
+  });
+  if (coaches > 0 || athletes > 0) saveUsers(next);
+  return { coaches, athletes };
+}
+
 async function applyAutomaticRepairs(
   onProgress?: ProgressFn,
 ): Promise<DiagnosticFinding[]> {
+  onProgress?.('Λήψη συλλόγων από cloud', 1);
+  await hydrateAllClubMirrorsFromCloud();
   onProgress?.('Αυτόματες διορθώσεις', 2);
   const out: DiagnosticFinding[] = [];
 
@@ -975,10 +1034,11 @@ async function applyAutomaticRepairs(
   let feeEnabled = 0;
   let feeCreated = 0;
   let orphanAttendanceCleaned = 0;
-  const clubIds = new Set([
+  let orphanTxnCleaned = 0;
+  const clubIds = [...new Set([
     ...getClubs().map((c) => c.id),
     ...Object.keys(exportAllClubsData()),
-  ]);
+  ])].filter((id) => id && id !== '_default' && clubHasStoredData(id));
   for (const clubId of clubIds) {
     mutateClubData(clubId, (draft) => {
       const result = ensureFeeTemplatesReady(draft);
@@ -991,7 +1051,28 @@ async function applyAutomaticRepairs(
         (a) => studentIds.has(a.studentId) && classIdsLocal.has(a.classId),
       );
       orphanAttendanceCleaned += before - draft.attendance.length;
+      const beforeTxn = draft.transactions?.length ?? 0;
+      draft.transactions = (draft.transactions ?? []).filter((t) =>
+        studentIds.has(t.athleteId),
+      );
+      orphanTxnCleaned += beforeTxn - draft.transactions.length;
     });
+  }
+
+  const userLinks = repairOrphanUserLinks();
+  const cloud = await persistLocalStateToCloud({
+    clubIds,
+  });
+  if (!cloud.success) {
+    out.push(
+      finding({
+        category: 'Repair',
+        severity: 'warning',
+        title: 'Τοπική διόρθωση έγινε, το cloud sync απέτυχε',
+        detail: cloud.error ?? 'Άγνωστο σφάλμα',
+        fix: 'Ξανατρέξτε το διαγνωστικό όσο είστε συνδεδεμένοι.',
+      }),
+    );
   }
 
   out.push(
@@ -1016,6 +1097,33 @@ async function applyAutomaticRepairs(
           ? `Καθαρίστηκαν ${orphanAttendanceCleaned} ορφανές παρουσίες`
           : 'Παρουσίες χωρίς ορφανά OK',
       detail: 'Αφαιρέθηκαν εγγραφές με ανύπαρκτο αθλητή/τμήμα.',
+      fix: 'Καμία ενέργεια.',
+    }),
+  );
+
+  out.push(
+    finding({
+      category: 'Repair',
+      severity: 'ok',
+      title:
+        orphanTxnCleaned > 0
+          ? `Καθαρίστηκαν ${orphanTxnCleaned} ορφανές συναλλαγές`
+          : 'Συναλλαγές χωρίς ορφανά OK',
+      detail: 'Αφαιρέθηκαν χρεώσεις/πληρωμές με ανύπαρκτο αθλητή στο μητρώο.',
+      fix: 'Καμία ενέργεια.',
+    }),
+  );
+
+  out.push(
+    finding({
+      category: 'Repair',
+      severity: 'ok',
+      title:
+        userLinks.coaches + userLinks.athletes > 0
+          ? `Διορθώθηκαν συνδέσεις: ${userLinks.coaches} προπονητές, ${userLinks.athletes} αθλητές`
+          : 'Συνδέσεις χρηστών→προπονητή/αθλητή OK',
+      detail:
+        'Άκυρα coachId/athleteId καθαρίστηκαν ή επανασυνδέθηκαν με καρτέλα ίδιου ονόματος στον σύλλογο του χρήστη.',
       fix: 'Καμία ενέργεια.',
     }),
   );
@@ -1088,7 +1196,11 @@ export async function runPlatformDiagnostics(
   for (const club of clubs) {
     steps.push({
       label: `Data «${club.name}»`,
-      run: () => checkAppData(club.id, club.name, clubMap[club.id] ?? getData()),
+      run: () => {
+        const data = clubMap[club.id];
+        if (!data) return [];
+        return checkAppData(club.id, club.name, data);
+      },
     });
   }
   if (clubs.length === 0) {
