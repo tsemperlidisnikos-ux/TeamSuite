@@ -14,6 +14,7 @@ import {
   snapshotAllMirrors,
   diagnoseDurableStorage,
 } from './lib/serverStore.js';
+import { uploadClubMirrorsToGoogleDrive } from './lib/googleDriveBackup.js';
 
 /**
  * Unified GDPR API (Hobby plan: one serverless function).
@@ -518,10 +519,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
     const result = await snapshotAllMirrors();
+    const googleDrive = await uploadClubMirrorsToGoogleDrive();
     return res.status(200).json({
       ok: true,
       durable: isDurableStoreEnabled(),
       ...result,
+      googleDrive,
     });
   }
 

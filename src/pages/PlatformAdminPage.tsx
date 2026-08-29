@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { pushAccountBundle } from '../api/services/accountSyncService';
 import { getUsers, saveUsers } from '../auth/auth';
 import { getClubs, saveClubs, type Club } from '../auth/clubs';
 import { BackupSchedulePanel } from '../components/BackupSchedulePanel';
+import { GoogleDriveBackupPanel } from '../components/GoogleDriveBackupPanel';
 import { ClubWaitlistPanel } from '../components/ClubWaitlistPanel';
 import { LoginActivityPanel } from '../components/LoginActivityPanel';
 import { PlatformDiagnosticPanel } from '../components/PlatformDiagnosticPanel';
@@ -191,6 +192,7 @@ function EditableRecordLine({
 
 export function PlatformAdminPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [clubsTick, setClubsTick] = useState(0);
   const clubs = useMemo(() => getClubs(), [clubsTick]);
   const [config, setConfig] = useState<PlatformConfig>(() => {
@@ -255,7 +257,26 @@ export function PlatformAdminPage() {
 
   const flash = useCallback((text: string) => {
     setMessage(text);
-    window.setTimeout(() => setMessage(''), 2500);
+    window.setTimeout(() => setMessage(''), 4000);
+  }, []);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const drive = searchParams.get('drive');
+    const driveMsg = searchParams.get('driveMsg');
+    if (!tab && !drive) return;
+    if (tab === 'backup') setAdminTab('backup');
+    if (drive === 'ok') flash('Το Google Drive συνδέθηκε.');
+    if (drive === 'error') {
+      flash(driveMsg || 'Αποτυχία σύνδεσης Google Drive.');
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete('tab');
+    next.delete('drive');
+    next.delete('driveMsg');
+    setSearchParams(next, { replace: true });
+    // Intentionally once after OAuth redirect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleStripJoinFormSnapshots() {
@@ -1382,6 +1403,25 @@ export function PlatformAdminPage() {
                 </RecordsRow>
                 <RecordsRow title="Εμβέλεια">
                   Μόνο AppData (+ users/club record του συλλόγου αν υπάρχουν στο αρχείο).
+                </RecordsRow>
+              </RecordsTable>
+            }
+          />
+
+          <AdminRow
+            title="Google Drive (όλοι οι σύλλογοι)"
+            description="Ένας φάκελος στο Drive σας, με υποφάκελο ανά σύλλογο. Το νυχτερινό backup ανεβάζει JSON χωρίς να χρειάζεται ανοιχτό browser."
+            entry={<GoogleDriveBackupPanel onSaved={flash} />}
+            records={
+              <RecordsTable>
+                <RecordsRow title="Δομή">
+                  TeamSuite-Backups / όνομα συλλόγου / ΗΜΕΡΟΜΗΝΙΑ.json
+                </RecordsRow>
+                <RecordsRow title="Πότε">
+                  Cron 02:00 UTC και κουμπί «Δοκιμή / αποστολή τώρα».
+                </RecordsRow>
+                <RecordsRow title="Περιεχόμενο">
+                  Club mirror (ευαίσθητα πεδία όπως στο cloud). Όχι SMTP/Viva secrets.
                 </RecordsRow>
               </RecordsTable>
             }

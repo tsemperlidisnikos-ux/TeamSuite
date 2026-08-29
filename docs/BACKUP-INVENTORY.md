@@ -17,7 +17,8 @@
 | **Scheduled per-club (browser)** | Πρόγραμμα backup → perClub | Ανά επιλεγμένο σύλλογο: ίδιο με **Club JSON** (ή cloud mirror push) | Άλλους συλλόγους· secrets στα JSON |
 | **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) | Live `AppData` του συλλόγου στο Blob/Redis (ευαίσθητα πεδία κρυπτογραφημένα στο push). **Αυτόματο sync ενεργό από προεπιλογή** για κάθε σύλλογο (opt-out από το checkbox) | Users/clubs/config, ιστορικό εκδόσεων (overwrite), SMTP/Viva στο mirror |
 | **Cloud account bundle** | Platform Admin: Push/Pull λογαριασμοί | `users`, `clubs`, `platformConfig` στο cloud. Pull/push **διατηρεί** υπάρχοντα SMTP/Viva secrets αν το εισερχόμενο έχει κενό/`********` | AppData αθλητών (αυτό είναι στο mirror) |
-| **Server cron snapshot** | Vercel cron `0 2 * * *` → `/api/gdpr?op=backup` | Ημερήσιο αντίγραφο **υπαρχόντων** club mirrors (`ss360:backup-snap:ΗΜΕΡΟΜΗΝΙΑ:clubId`) | Account bundle· συλλόγους χωρίς προηγούμενο mirror push· δεν υπάρχει UI restore στην εφαρμογή |
+| **Server cron snapshot** | Vercel cron `0 2 * * *` → `/api/gdpr?op=backup` | Ημερήσιο αντίγραφο **υπαρχόντων** club mirrors (`ss360:backup-snap:ΗΜΕΡΟΜΗΝΙΑ:clubId`). Αν είναι συνδεδεμένο Google Drive, ανεβάζει και JSON σε `TeamSuite-Backups/{σύλλογος}/ΗΜΕΡΟΜΗΝΙΑ.json` | Account bundle· συλλόγους χωρίς προηγούμενο mirror push· δεν υπάρχει UI restore στην εφαρμογή |
+| **Google Drive (platform)** | Platform Admin → Backup → Google Drive | OAuth σε έναν φάκελο Drive, υποφάκελοι ανά σύλλογο, νυχτερινό ανέβασμα + δοκιμή τώρα. Token μόνο στον server (KV). Απαιτεί `GOOGLE_DRIVE_CLIENT_ID` / `GOOGLE_DRIVE_CLIENT_SECRET` | Λήψη στον υπολογιστή· ZIP κώδικα· σύλλογοι χωρίς mirror |
 | **Filesystem project ZIP** | `scripts/backup-project.ps1` → `C:\TeamSuite_backup\` (`TeamSuite_yyyy-MM-dd_HH-mm-ss.zip`) | Source code του project (χωρίς `node_modules`, `dist`, `.git`, `.env`, credentials) | Δεδομένα αθλητών / localStorage / Redis· δεν είναι data backup |
 | **Git commit «Backup: …»** | Μετά από BACKUP + DEPLOY | Snapshot κώδικα στο git history | Runtime δεδομένα συλλόγων |
 
@@ -40,6 +41,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `TeamSuite_2026-08-29_16-23-03.zip` | 2026-08-29 | Google Drive: νυχτερινό backup όλων των συλλόγων σε έναν φάκελο με υποφακέλους |
 | `TeamSuite_2026-08-29_15-28-45.zip` | 2026-08-29 | Οδηγίες εισαγωγής αθλητών: τμήματα ακριβώς όπως στο πρόγραμμα |
 | `TeamSuite_2026-08-29_15-24-46.zip` | 2026-08-29 | Προπονητές και Προσωπικό: πλήρης εξαγωγή Excel, εισαγωγή και οδηγίες όπως στους αθλητές |
 | `TeamSuite_2026-08-29_15-11-50.zip` | 2026-08-29 | Αθλητές: οδηγίες εισαγωγής Excel δίπλα στο κουμπί Εισαγωγή |

@@ -30,7 +30,7 @@
 ## Β. Για τον ιδιοκτήτη πλατφόρμας (TeamSuite / Vercel)
 
 - [ ] Νομική επιμέλεια ολοκληρώθηκε (τμήμα Α)
-- [ ] Στο Vercel Environment: `CRON_SECRET`, `SS360_SYNC_SECRET`, `SS360_SESSION_SECRET` (ή `SS360_AMKA_SECRET`), `BLOB_READ_WRITE_TOKEN`, Redis/KV
+- [ ] Στο Vercel Environment: `CRON_SECRET`, `SS360_SYNC_SECRET`, `SS360_SESSION_SECRET` (ή `SS360_AMKA_SECRET`), `BLOB_READ_WRITE_TOKEN`, Redis/KV. Για Drive: `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, προαιρετικά `GOOGLE_DRIVE_REDIRECT_URI`
 - [ ] Αν χρησιμοποιείτε Viva: ορίστε `VIVA_WEBHOOK_SECRET`
 - [ ] Viva webhook URL:  
   `https://teamsuite-seven.vercel.app/api/viva/webhook?key=ΤΟ_SECRET`
