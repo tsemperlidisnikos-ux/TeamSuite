@@ -10,7 +10,7 @@ import { createId, getData, mutateData } from '../../data/repository';
 import type { ParentAthleteLink, Student } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import { studentClassIds } from '../../utils/studentClasses';
-import { motherFullName, feminineGreekSurname } from '../../utils/greekSurname';
+import { motherFullName } from '../../utils/greekSurname';
 
 export type ParentLinkRow = {
   linkId: string;
@@ -76,6 +76,51 @@ function athleteLabel(student: Student, classNameById: Map<string, string>): str
   return className ? `${name} (${className})` : name;
 }
 
+function rowsWithEmail(map: Map<string, ParentDirectoryRow>, email: string): ParentDirectoryRow[] {
+  const e = email.trim().toLowerCase();
+  if (!e) return [];
+  return [...map.values()].filter((row) => row.email === e);
+}
+
+function attachLinkedParent(
+  map: Map<string, ParentDirectoryRow>,
+  parent: AppUser,
+  athlete: ParentDirectoryAthlete | null,
+  linkId?: string,
+) {
+  const email = parent.email.toLowerCase();
+  const matches = rowsWithEmail(map, email);
+  if (matches.length === 0) {
+    map.set(`f:${email}`, {
+      key: `f:${email}`,
+      fullName: parent.fullName,
+      email,
+      athletes: athlete ? [athlete] : [],
+      status: parent.active ? 'active' : 'pending',
+      parentUserId: parent.id,
+      linkIds: linkId ? [linkId] : [],
+      classIds: athlete?.classId ? [athlete.classId] : [],
+    });
+    return;
+  }
+  for (const existing of matches) {
+    existing.parentUserId = parent.id;
+    existing.email = email;
+    if (!existing.isMother) {
+      existing.fullName = parent.fullName || existing.fullName;
+    }
+    if (linkId && !existing.linkIds.includes(linkId)) existing.linkIds.push(linkId);
+    if (athlete && !existing.athletes.some((a) => a.id === athlete.id)) {
+      existing.athletes.push(athlete);
+    }
+    if (athlete?.classId && !existing.classIds.includes(athlete.classId)) {
+      existing.classIds.push(athlete.classId);
+    }
+    if (existing.linkIds.length > 0 && parent.active) existing.status = 'active';
+    else if (!existing.isMother) existing.status = parent.active ? 'pending' : existing.status;
+  }
+}
+
 function upsertGuardian(
   map: Map<string, ParentDirectoryRow>,
   opts: {
@@ -86,7 +131,10 @@ function upsertGuardian(
   },
 ) {
   const email = opts.email.trim().toLowerCase();
-  const key = email || `name:${opts.fullName.trim().toLowerCase()}:${opts.athlete.id}`;
+  const role = opts.isMother ? 'm' : 'f';
+  const key = email
+    ? `${role}:${email}`
+    : `${role}:name:${opts.fullName.trim().toLowerCase()}:${opts.athlete.id}`;
   const existing = map.get(key);
   if (!existing) {
     map.set(key, {
@@ -103,6 +151,7 @@ function upsertGuardian(
     return;
   }
   if (opts.isMother) existing.isMother = true;
+  else if (!existing.isMother) existing.isMother = false;
   if (!existing.athletes.some((a) => a.id === opts.athlete.id)) {
     existing.athletes.push(opts.athlete);
   }
@@ -178,7 +227,6 @@ export async function listParentDirectory(clubId: string) {
     for (const link of data.parentLinks ?? []) {
       const parent = parentById.get(link.parentUserId);
       if (!parent) continue;
-      const key = parent.email.toLowerCase();
       const student = studentById.get(link.athleteId);
       const athlete: ParentDirectoryAthlete | null = student
         ? {
@@ -187,58 +235,11 @@ export async function listParentDirectory(clubId: string) {
             classId: student.classId,
           }
         : null;
-
-      const existing = map.get(key);
-      if (!existing) {
-        map.set(key, {
-          key,
-          fullName: parent.fullName,
-          email: parent.email,
-          athletes: athlete ? [athlete] : [],
-          status: parent.active ? 'active' : 'pending',
-          parentUserId: parent.id,
-          linkIds: [link.id],
-          classIds: athlete?.classId ? [athlete.classId] : [],
-        });
-        continue;
-      }
-
-      existing.parentUserId = parent.id;
-      existing.fullName = parent.fullName || existing.fullName;
-      existing.email = parent.email;
-      existing.linkIds.push(link.id);
-      if (athlete && !existing.athletes.some((a) => a.id === athlete.id)) {
-        existing.athletes.push(athlete);
-      }
-      if (athlete?.classId && !existing.classIds.includes(athlete.classId)) {
-        existing.classIds.push(athlete.classId);
-      }
-      existing.status = parent.active ? 'active' : 'pending';
+      attachLinkedParent(map, parent, athlete, link.id);
     }
 
     for (const parent of parentUsers) {
-      const key = parent.email.toLowerCase();
-      const existing = map.get(key);
-      if (!existing) {
-        map.set(key, {
-          key,
-          fullName: parent.fullName,
-          email: parent.email,
-          athletes: [],
-          status: 'pending',
-          parentUserId: parent.id,
-          linkIds: [],
-          classIds: [],
-        });
-        continue;
-      }
-      existing.parentUserId = parent.id;
-      existing.fullName = parent.fullName || existing.fullName;
-      if (existing.linkIds.length > 0 && parent.active) {
-        existing.status = 'active';
-      } else {
-        existing.status = 'pending';
-      }
+      attachLinkedParent(map, parent, null);
     }
 
     for (const row of map.values()) {
@@ -246,13 +247,11 @@ export async function listParentDirectory(clubId: string) {
       const user = parentByEmail.get(row.email);
       if (!user) continue;
       row.parentUserId = user.id;
-      row.fullName = user.fullName || row.fullName;
+      if (!row.isMother) {
+        row.fullName = user.fullName || row.fullName;
+      }
       if (row.linkIds.length > 0 && user.active) row.status = 'active';
       else row.status = 'pending';
-    }
-
-    for (const row of map.values()) {
-      if (row.isMother) row.fullName = feminineGreekSurname(row.fullName);
     }
 
     return [...map.values()].sort((a, b) => a.fullName.localeCompare(b.fullName, 'el'));
