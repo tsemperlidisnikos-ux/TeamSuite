@@ -5,7 +5,6 @@ import * as publicClubCloudService from '../api/services/publicClubCloudService'
 import * as registrationApplicationsService from '../api/services/registrationApplicationsService';
 import * as studentsService from '../api/services/studentsService';
 import { getSession } from '../auth/auth';
-import { getClubById } from '../auth/clubs';
 import { AthletesIcon } from '../components/icons/AthletesIcon';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
@@ -27,10 +26,6 @@ import { studentStatusLabels } from '../utils/labels';
 import { studentClassIds } from '../utils/studentClasses';
 import { studentHasSport } from '../utils/studentSports';
 import { downloadXlsx } from '../utils/xlsxDownload';
-import {
-  renderPublicJoinFormSnapshot,
-  snapshotFieldsFromJoinSource,
-} from '../utils/publicJoinFormSnapshot';
 
 const draftAthlete: StudentInput = {
   firstName: 'ΝΕΟΣ',
@@ -337,31 +332,15 @@ export function StudentsPage() {
 
   async function openJoinForm(app: RegistrationApplication) {
     setJoinFormApp(app);
-    setJoinFormBusy(true);
-    setJoinFormImage(null);
-    if (app.formSnapshotUrl) {
-      setJoinFormImage(app.formSnapshotUrl);
-      setJoinFormBusy(false);
-      return;
-    }
-    const clubName = getClubById(getSession()?.clubId)?.name || 'Σύλλογος';
-    try {
-      const url = await renderPublicJoinFormSnapshot(
-        snapshotFieldsFromJoinSource(app, clubName),
-      );
-      setJoinFormImage(url);
-    } catch {
-      setJoinFormImage(null);
-    } finally {
-      setJoinFormBusy(false);
-    }
+    setJoinFormBusy(false);
+    setJoinFormImage(app.formSnapshotUrl || null);
   }
 
   async function handleDeleteJoinForm(app: RegistrationApplication) {
     if (!canDeleteJoinForm) return;
     if (
       !window.confirm(
-        'Διαγραφή του αποθηκευμένου JPEG (και της υπογραφής) αυτής της αίτησης; Η αίτηση μένει εκκρεμής.',
+        'Διαγραφή της φόρμας δημόσιας εγγραφής (JPEG και επιλογές αίτησης); Η αίτηση μένει εκκρεμής.',
       )
     ) {
       return;

@@ -4,28 +4,37 @@ function isStoredJoinImage(value: string | null | undefined): boolean {
   return Boolean(value?.trim());
 }
 
+function hasStudentJoinForm(student: Student): boolean {
+  return isStoredJoinImage(student.registrationFormImageUrl) || Boolean(student.joinExtras);
+}
+
+function hasApplicationJoinForm(app: RegistrationApplication): boolean {
+  return (
+    isStoredJoinImage(app.formSnapshotUrl) ||
+    Boolean(app.guardianSignature?.trim()) ||
+    Boolean(app.joinExtras)
+  );
+}
+
 export function countPublicJoinFormSnapshots(data: AppData): {
   athletes: number;
   applications: number;
   total: number;
 } {
-  const athletes = (data.students ?? []).filter((s) =>
-    isStoredJoinImage(s.registrationFormImageUrl),
-  ).length;
-  const applications = (data.registrationApplications ?? []).filter(
-    (a) => isStoredJoinImage(a.formSnapshotUrl) || Boolean(a.guardianSignature?.trim()),
-  ).length;
+  const athletes = (data.students ?? []).filter(hasStudentJoinForm).length;
+  const applications = (data.registrationApplications ?? []).filter(hasApplicationJoinForm)
+    .length;
   return { athletes, applications, total: athletes + applications };
 }
 
 function stripStudent(student: Student): Student {
-  if (!isStoredJoinImage(student.registrationFormImageUrl)) return student;
-  return { ...student, registrationFormImageUrl: null };
+  if (!hasStudentJoinForm(student)) return student;
+  return { ...student, registrationFormImageUrl: null, joinExtras: undefined };
 }
 
 function stripApplication(app: RegistrationApplication): RegistrationApplication {
-  if (!isStoredJoinImage(app.formSnapshotUrl) && !app.guardianSignature?.trim()) return app;
-  return { ...app, formSnapshotUrl: null, guardianSignature: '' };
+  if (!hasApplicationJoinForm(app)) return app;
+  return { ...app, formSnapshotUrl: null, guardianSignature: '', joinExtras: undefined };
 }
 
 /** Removes stored JPEG snapshots (and signatures) of the public join form. */
@@ -49,12 +58,15 @@ export function stripPublicJoinFormSnapshots(data: AppData): {
 }
 
 export function stripJoinFormSnapshotForStudent(data: AppData, studentId: string): boolean {
-  let changed = false;
+  let found = false;
   data.students = (data.students ?? []).map((student) => {
     if (student.id !== studentId) return student;
-    const next = stripStudent(student);
-    if (next !== student) changed = true;
-    return next;
+    found = true;
+    return {
+      ...student,
+      registrationFormImageUrl: null,
+      joinExtras: undefined,
+    };
   });
   const student = data.students.find((s) => s.id === studentId);
   data.registrationApplications = (data.registrationApplications ?? []).map((app) => {
@@ -64,30 +76,35 @@ export function stripJoinFormSnapshotForStudent(data: AppData, studentId: string
         app.firstName.trim().toLowerCase() === student.firstName.trim().toLowerCase() &&
         app.lastName.trim().toLowerCase() === student.lastName.trim().toLowerCase());
     if (!linked) return app;
-    const next = stripApplication(app);
-    if (next !== app) changed = true;
-    return next;
+    return {
+      ...app,
+      formSnapshotUrl: null,
+      guardianSignature: '',
+      joinExtras: undefined,
+    };
   });
-  return changed;
+  return found;
 }
 
 export function stripJoinFormSnapshotForApplication(data: AppData, applicationId: string): boolean {
-  let changed = false;
+  let found = false;
   let athleteId: string | null = null;
   data.registrationApplications = (data.registrationApplications ?? []).map((app) => {
     if (app.id !== applicationId) return app;
+    found = true;
     athleteId = app.athleteId ?? null;
-    const next = stripApplication(app);
-    if (next !== app) changed = true;
-    return next;
+    return {
+      ...app,
+      formSnapshotUrl: null,
+      guardianSignature: '',
+      joinExtras: undefined,
+    };
   });
   if (athleteId) {
     data.students = (data.students ?? []).map((student) => {
       if (student.id !== athleteId) return student;
-      const next = stripStudent(student);
-      if (next !== student) changed = true;
-      return next;
+      return { ...student, registrationFormImageUrl: null, joinExtras: undefined };
     });
   }
-  return changed;
+  return found;
 }

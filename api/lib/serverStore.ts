@@ -645,8 +645,8 @@ export async function savePendingApplications(
 }
 
 function stripRemoteJoinFormFields(app: RemoteRegistrationApplication): RemoteRegistrationApplication {
-  if (!app.formSnapshotUrl && !app.guardianSignature) return app;
-  return { ...app, formSnapshotUrl: null, guardianSignature: '' };
+  if (!app.formSnapshotUrl && !app.guardianSignature && !app.joinExtras) return app;
+  return { ...app, formSnapshotUrl: null, guardianSignature: '', joinExtras: undefined };
 }
 
 export async function stripClubJoinFormSnapshots(clubId: string): Promise<{
@@ -681,9 +681,13 @@ export async function stripClubJoinFormSnapshots(clubId: string): Promise<{
       ? (payload.students as Array<{ registrationFormImageUrl?: string | null }>)
       : [];
     payload.students = students.map((student) => {
-      if (!student?.registrationFormImageUrl) return student;
+      const record = student as {
+        registrationFormImageUrl?: string | null;
+        joinExtras?: unknown;
+      };
+      if (!record?.registrationFormImageUrl && !record?.joinExtras) return student;
       mirrorCount += 1;
-      return { ...student, registrationFormImageUrl: null };
+      return { ...student, registrationFormImageUrl: null, joinExtras: undefined };
     });
     await saveMirror(clubId, payload);
   }

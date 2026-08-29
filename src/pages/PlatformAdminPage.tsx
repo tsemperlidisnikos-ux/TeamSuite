@@ -731,10 +731,10 @@ export function PlatformAdminPage() {
             records={
               <RecordsTable>
                 <RecordsRow title="Τι σβήνει">
-                  JPEG φόρμας και υπογραφή γονέα σε αθλητές και αιτήσεις.
+                  JPEG φόρμας, υπογραφή γονέα και επιλογές δημόσιας αίτησης.
                 </RecordsRow>
                 <RecordsRow title="Τι μένει">
-                  Αθλητές, εκκρεμείς αιτήσεις, επιλογές ρουχισμού/πληρωμής.
+                  Αθλητές και αιτήσεις (στοιχεία επικοινωνίας). Όχι η κάρτα «Φόρμα δημόσιας εγγραφής».
                 </RecordsRow>
                 <RecordsRow title="Εμβέλεια">
                   {joinFormAllClubs

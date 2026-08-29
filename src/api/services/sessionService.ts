@@ -76,10 +76,18 @@ export type SessionVerifyResult = {
   code?: SessionVerifyFailureCode;
 };
 
-function classifyVerifyFailure(status: number, error: string): SessionVerifyFailureCode {
+function classifyVerifyFailure(
+  status: number,
+  error: string,
+  transient?: boolean,
+): SessionVerifyFailureCode {
+  if (transient) return 'transient';
   if (status === 403 || /περίοδος χρήσης|usage/i.test(error)) return 'expired_usage';
   // Rate limits, storage blips, and network-ish 5xx must not wipe a valid JWT.
   if (status === 429 || status === 503 || status >= 500) return 'transient';
+  if (/temporarily unavailable|δεν διαβάστηκε|δοκιμάστε ξανά/i.test(error)) {
+    return 'transient';
+  }
   return 'invalid';
 }
 
@@ -95,16 +103,22 @@ export async function serverVerifySession(): Promise<SessionVerifyResult> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'verify', token }),
     });
-    let json: { ok?: boolean; error?: string; user?: unknown } = {};
+    let json: { ok?: boolean; error?: string; user?: unknown; transient?: boolean } = {};
     try {
-      json = (await response.json()) as { ok?: boolean; error?: string; user?: unknown };
+      json = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        user?: unknown;
+        transient?: boolean;
+      };
     } catch {
       /* non-JSON body */
     }
 
     if (!response.ok || !json.ok) {
       const message = json.error || `Verify HTTP ${response.status}`;
-      const code = classifyVerifyFailure(response.status, message);
+      const code = classifyVerifyFailure(response.status, message, json.transient);
+      // Only clear the JWT when the server says the session itself is bad.
       // Only clear the JWT when the server says the session itself is bad.
       if (code === 'invalid' || code === 'expired_usage') {
         setSessionToken(null);

@@ -31,10 +31,6 @@ import type { StudentInput } from '../schemas';
 import type { Gender, RegistrationApplication, Student } from '../types';
 import { formatJoinExtrasLines } from '../shared/publicJoinExtras';
 import { normalizePersonName, normalizePhone } from '../api/services/registrationApplicationsService';
-import {
-  renderPublicJoinFormSnapshot,
-  snapshotFieldsFromJoinSource,
-} from '../utils/publicJoinFormSnapshot';
 import { buildHealthCardPdf } from '../utils/healthCardPdf';
 import { sizeChartOptGroups } from '../utils/sizeChartOptions';
 import { formatDate } from '../utils/labels';
@@ -707,49 +703,20 @@ export function AthleteProfilePage() {
 
   const storedJoinFormUrl =
     form.registrationFormImageUrl || linkedJoinApp?.formSnapshotUrl || null;
-  const canShowJoinForm = Boolean(
-    storedJoinFormUrl || form.joinExtras || linkedJoinApp,
-  );
-  const joinFormClubName = profileClub?.name || form.clubName || 'Σύλλογος';
+  const canShowJoinForm = Boolean(storedJoinFormUrl || form.joinExtras);
   const joinFormStudent = student;
-  const joinFormFields = form;
 
   async function openJoinFormPopup() {
     setJoinExtrasOpen(true);
-    if (storedJoinFormUrl) {
-      setJoinFormImage(storedJoinFormUrl);
-      return;
-    }
-    setJoinFormBusy(true);
-    setJoinFormImage(null);
-    const source = linkedJoinApp
-      ? {
-          ...linkedJoinApp,
-          comments: joinFormFields.comments,
-          sports: joinFormFields.sports,
-        }
-      : {
-          ...joinFormFields,
-          createdAt: joinFormStudent.enrolledAt,
-          guardianSignature: undefined as string | undefined,
-        };
-    try {
-      const url = await renderPublicJoinFormSnapshot(
-        snapshotFieldsFromJoinSource(source, joinFormClubName),
-      );
-      setJoinFormImage(url);
-    } catch {
-      setJoinFormImage(null);
-    } finally {
-      setJoinFormBusy(false);
-    }
+    setJoinFormImage(storedJoinFormUrl);
+    setJoinFormBusy(false);
   }
 
   async function handleDeleteJoinForm() {
     if (!canDeleteJoinForm) return;
     if (
       !window.confirm(
-        'Διαγραφή του αποθηκευμένου JPEG (και της υπογραφής) της δημόσιας φόρμας εγγραφής; Τα υπόλοιπα στοιχεία του αθλητή μένουν.',
+        'Διαγραφή της φόρμας δημόσιας εγγραφής (JPEG και επιλογές αίτησης); Τα υπόλοιπα στοιχεία του αθλητή μένουν.',
       )
     ) {
       return;
@@ -762,7 +729,11 @@ export function AthleteProfilePage() {
       setError(result.error ?? 'Αποτυχία διαγραφής φόρμας');
       return;
     }
-    setField('registrationFormImageUrl', null);
+    setForm((prev) =>
+      prev
+        ? { ...prev, registrationFormImageUrl: null, joinExtras: undefined }
+        : prev,
+    );
     setJoinFormImage(null);
     setJoinExtrasOpen(false);
     refresh();

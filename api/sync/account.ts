@@ -1037,11 +1037,22 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
     const token = String(body.token ?? '').trim();
     const claims = verifySessionToken(token);
     if (!claims) return res.status(401).json({ ok: false, error: 'Invalid session' });
-    const bundle = await loadAccountBundle();
+    let bundle: Awaited<ReturnType<typeof loadAccountBundle>> = null;
+    try {
+      bundle = await loadAccountBundle();
+    } catch (err) {
+      console.error('[sync/account session verify]', err);
+      return res.status(200).json({
+        ok: false,
+        transient: true,
+        error: 'Account sync temporarily unavailable',
+      });
+    }
     if (!bundle) {
       if (await accountBundleExists()) {
-        return res.status(503).json({
+        return res.status(200).json({
           ok: false,
+          transient: true,
           error: durableStorageUnavailableMessage(),
         });
       }
@@ -1053,7 +1064,11 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
       ) {
         return res.status(200).json({ ok: true, user: publicUser(bootstrapAdminUser(boot)) });
       }
-      return res.status(503).json({ ok: false, error: 'Account bundle unavailable' });
+      return res.status(200).json({
+        ok: false,
+        transient: true,
+        error: 'Account bundle unavailable',
+      });
     }
     const users = Array.isArray(bundle.users) ? (bundle.users as BundleUser[]) : [];
     const current = users.find((user) => user.id === claims.sub);
@@ -1075,11 +1090,22 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
     if (!email || !password) {
       return res.status(400).json({ ok: false, error: 'email and password required' });
     }
-    const bundle = await loadAccountBundle();
+    let bundle: Awaited<ReturnType<typeof loadAccountBundle>> = null;
+    try {
+      bundle = await loadAccountBundle();
+    } catch (err) {
+      console.error('[sync/account session login]', err);
+      return res.status(200).json({
+        ok: false,
+        transient: true,
+        error: 'Account sync temporarily unavailable',
+      });
+    }
     if (!bundle) {
       if (await accountBundleExists()) {
-        return res.status(503).json({
+        return res.status(200).json({
           ok: false,
+          transient: true,
           error: durableStorageUnavailableMessage(),
         });
       }
@@ -1338,7 +1364,12 @@ async function dispatchAccount(req: VercelRequest, res: VercelResponse) {
       res.setHeader('Allow', 'GET');
       return res.status(405).json({ ok: false, error: 'Method not allowed' });
     }
-    const bundle = await loadAccountBundle();
+    let bundle: Awaited<ReturnType<typeof loadAccountBundle>> = null;
+    try {
+      bundle = await loadAccountBundle();
+    } catch (err) {
+      console.error('[sync/account branding]', err);
+    }
     return res.status(200).json({
       ok: true,
       durable: isDurableStoreEnabled(),
@@ -1445,7 +1476,18 @@ async function dispatchAccount(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'GET') {
-    const bundle = await loadAccountBundle();
+    let bundle: Awaited<ReturnType<typeof loadAccountBundle>> = null;
+    try {
+      bundle = await loadAccountBundle();
+    } catch (err) {
+      console.error('[sync/account GET]', err);
+      return res.status(200).json({
+        ok: false,
+        transient: true,
+        durable: isDurableStoreEnabled(),
+        error: 'Account sync temporarily unavailable',
+      });
+    }
     if (!bundle) {
       return res.status(404).json({
         ok: false,
