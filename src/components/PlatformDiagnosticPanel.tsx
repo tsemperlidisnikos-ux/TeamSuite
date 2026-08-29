@@ -46,12 +46,18 @@ function downloadReport(report: DiagnosticReport) {
   URL.revokeObjectURL(url);
 }
 
+const REPAIR_CONFIRM =
+  'Το Auto Repair θα καθαρίσει ορφανές συναλλαγές/παρουσίες (αθλητής που δεν υπάρχει στο μητρώο) ' +
+  'και άκυρες συνδέσεις χρήστη→προπονητή/αθλητή σε όλους τους συλλόγους, και θα τις αποθηκεύσει στο cloud.\n\n' +
+  'Συνέχεια;';
+
 export function PlatformDiagnosticPanel({
   onSaved,
 }: {
   onSaved?: (message: string) => void;
 }) {
   const [running, setRunning] = useState(false);
+  const [mode, setMode] = useState<'test' | 'repair' | null>(null);
   const [progress, setProgress] = useState('');
   const [percent, setPercent] = useState(0);
   const [report, setReport] = useState<DiagnosticReport | null>(null);
@@ -63,8 +69,9 @@ export function PlatformDiagnosticPanel({
     return report.findings.filter((f) => f.severity === filter);
   }, [report, filter]);
 
-  async function handleRun() {
+  async function run(autoRepair: boolean) {
     setRunning(true);
+    setMode(autoRepair ? 'repair' : 'test');
     setReport(null);
     setProgress('Έναρξη…');
     setPercent(0);
@@ -72,37 +79,56 @@ export function PlatformDiagnosticPanel({
       const result = await runPlatformDiagnostics((label, pct) => {
         setProgress(label);
         setPercent(pct);
-      });
+      }, { autoRepair });
       setReport(result);
       const crit = result.summary.critical;
       const warn = result.summary.warning;
-      onSaved?.(
-        crit > 0
-          ? `Τεστ ολοκληρώθηκε: ${crit} κρίσιμα, ${warn} προειδοποιήσεις.`
-          : warn > 0
-            ? `Τεστ ολοκληρώθηκε: ${warn} προειδοποιήσεις.`
-            : 'Τεστ ολοκληρώθηκε χωρίς κρίσιμα προβλήματα.',
-      );
+      if (autoRepair) {
+        onSaved?.(
+          crit > 0
+            ? `Auto Repair ολοκληρώθηκε με ${crit} κρίσιμα, ${warn} προειδοποιήσεις.`
+            : warn > 0
+              ? `Auto Repair ολοκληρώθηκε: απομένουν ${warn} προειδοποιήσεις.`
+              : 'Auto Repair ολοκληρώθηκε. Δεν απομένουν κρίσιμα/προειδοποιήσεις.',
+        );
+      } else {
+        onSaved?.(
+          crit > 0
+            ? `Τεστ ολοκληρώθηκε: ${crit} κρίσιμα, ${warn} προειδοποιήσεις.`
+            : warn > 0
+              ? `Τεστ ολοκληρώθηκε: ${warn} προειδοποιήσεις.`
+              : 'Τεστ ολοκληρώθηκε χωρίς κρίσιμα προβλήματα.',
+        );
+      }
     } catch (err) {
       onSaved?.(err instanceof Error ? err.message : 'Αποτυχία diagnostic');
     } finally {
       setRunning(false);
+      setMode(null);
       setProgress('');
       setPercent(100);
     }
   }
 
+  function handleRepair() {
+    if (!window.confirm(REPAIR_CONFIRM)) return;
+    void run(true);
+  }
+
   return (
     <div className="entry-form admin-entry platform-diagnostic">
       <p className="admin-entry-note">
-        Εκτελεί αναλυτικό έλεγχο API, sync/Redis, localStorage, χρηστών, συλλόγων, SMTP/Viva,
-        δεδομένων ανά σύλλογο, οικονομικών, συνδρομών, αγώνων και ρυθμίσεων. Για κάθε εύρημα
-        εμφανίζεται και τρόπος διόρθωσης.
+        Το πλήρες τεστ είναι έλεγχος (χωρίς αλλαγές δεδομένων). Το Auto Repair διορθώνει
+        ορφανές συναλλαγές/παρουσίες και σπασμένες συνδέσεις προπονητή/αθλητή, αποθηκεύει στο
+        cloud και ξανατρέχει τον έλεγχο.
       </p>
 
       <div className="admin-entry-actions">
-        <Button type="button" disabled={running} onClick={() => void handleRun()}>
-          {running ? `Έλεγχος… ${percent}%` : 'Εκτέλεση πλήρους τεστ'}
+        <Button type="button" disabled={running} onClick={() => void run(false)}>
+          {running && mode === 'test' ? `Έλεγχος… ${percent}%` : 'Εκτέλεση πλήρους τεστ'}
+        </Button>
+        <Button type="button" variant="secondary" disabled={running} onClick={handleRepair}>
+          {running && mode === 'repair' ? `Auto Repair… ${percent}%` : 'Auto Repair'}
         </Button>
         {report ? (
           <Button type="button" variant="secondary" onClick={() => downloadReport(report)}>
@@ -153,8 +179,8 @@ export function PlatformDiagnosticPanel({
             {filtered.length === 0 ? (
               <p className="muted">Κανένα εύρημα για αυτό το φίλτρο.</p>
             ) : (
-              filtered.map((item) => (
-                <article key={item.id + item.title} className="diag-card">
+              filtered.map((item, index) => (
+                <article key={`${item.id}-${item.title}-${index}`} className="diag-card">
                   <header className="diag-card-head">
                     <span className={severityClass(item.severity)}>{item.severity}</span>
                     <span className="diag-cat">{item.category}</span>

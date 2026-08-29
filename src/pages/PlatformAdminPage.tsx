@@ -1412,7 +1412,7 @@ export function PlatformAdminPage() {
         <AdminZone title="Έλεγχος">
           <AdminRow
             title="Διαγνωστικό τεστ εφαρμογής"
-            description="Αναλυτικός έλεγχος όλων των βασικών λειτουργιών για bugs/ασυνέπειες, με οδηγίες διόρθωσης."
+            description="Έλεγχος λειτουργιών και Auto Repair για ορφανά δεδομένα / σπασμένες συνδέσεις χρηστών."
             entry={<PlatformDiagnosticPanel onSaved={flash} />}
             records={
               <RecordsTable>
@@ -1422,6 +1422,9 @@ export function PlatformAdminPage() {
                 </RecordsRow>
                 <RecordsRow title="Αποτέλεσμα">
                   Κρίσιμα / προειδοποιήσεις / info / OK + τρόπος διόρθωσης ανά εύρημα.
+                </RecordsRow>
+                <RecordsRow title="Auto Repair">
+                  Καθαρίζει ορφανές συναλλαγές/παρουσίες και άκυρα coachId/athleteId, τα αποθηκεύει στο cloud και ξανατρέχει τον έλεγχο.
                 </RecordsRow>
                 <RecordsRow title="Εξαγωγή">
                   Λήψη αναφοράς TXT μετά την εκτέλεση.

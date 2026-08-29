@@ -1062,6 +1062,7 @@ async function applyAutomaticRepairs(
   const userLinks = repairOrphanUserLinks();
   const cloud = await persistLocalStateToCloud({
     clubIds,
+    overwriteCloud: true,
   });
   if (!cloud.success) {
     out.push(
@@ -1158,23 +1159,29 @@ async function applyAutomaticRepairs(
 
 export async function runPlatformDiagnostics(
   onProgress?: ProgressFn,
+  options?: { autoRepair?: boolean },
 ): Promise<DiagnosticReport> {
   const started = performance.now();
   const findings: DiagnosticFinding[] = [];
+  const autoRepair = Boolean(options?.autoRepair);
 
-  // Πρώτα διορθώσεις, μετά fresh snapshot των club data για τους ελέγχους.
-  try {
-    findings.push(...(await applyAutomaticRepairs(onProgress)));
-  } catch (err) {
-    findings.push(
-      finding({
-        category: 'Repair',
-        severity: 'critical',
-        title: 'Αποτυχία αυτόματων διορθώσεων',
-        detail: err instanceof Error ? err.message : String(err),
-        fix: 'Ανοίξτε την κονσόλα browser (F12) και ξανατρέξτε το τεστ.',
-      }),
-    );
+  if (autoRepair) {
+    try {
+      findings.push(...(await applyAutomaticRepairs(onProgress)));
+    } catch (err) {
+      findings.push(
+        finding({
+          category: 'Repair',
+          severity: 'critical',
+          title: 'Αποτυχία αυτόματων διορθώσεων',
+          detail: err instanceof Error ? err.message : String(err),
+          fix: 'Ανοίξτε την κονσόλα browser (F12) και ξανατρέξτε το Auto Repair.',
+        }),
+      );
+    }
+  } else {
+    onProgress?.('Λήψη συλλόγων από cloud', 2);
+    await hydrateAllClubMirrorsFromCloud();
   }
 
   const clubMap = exportAllClubsData();
