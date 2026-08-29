@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, Download, FileImage, Plus, Pencil, SquarePen, Trash2, Search, Upload, X, HeartPulse } from 'lucide-react';
+import { Check, CircleHelp, Download, FileImage, Plus, Pencil, SquarePen, Trash2, Search, Upload, X, HeartPulse } from 'lucide-react';
 import * as publicClubCloudService from '../api/services/publicClubCloudService';
 import * as registrationApplicationsService from '../api/services/registrationApplicationsService';
 import * as studentsService from '../api/services/studentsService';
@@ -151,6 +151,7 @@ export function StudentsPage() {
   const [joinFormImage, setJoinFormImage] = useState<string | null>(null);
   const [joinFormBusy, setJoinFormBusy] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importHelpOpen, setImportHelpOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -759,7 +760,7 @@ export function StudentsPage() {
           <Download size={16} /> Εξαγωγή
         </Button>
         {!isDoctor ? (
-          <>
+          <div className="toolbar-import">
             <input
               ref={importInputRef}
               className="sr-only"
@@ -775,7 +776,16 @@ export function StudentsPage() {
             >
               <Upload size={16} /> {importing ? 'Εισαγωγή...' : 'Εισαγωγή'}
             </Button>
-          </>
+            <Button
+              type="button"
+              variant="secondary"
+              className="toolbar-help-btn"
+              aria-label="Οδηγίες εισαγωγής αθλητών"
+              onClick={() => setImportHelpOpen(true)}
+            >
+              <CircleHelp size={18} />
+            </Button>
+          </div>
         ) : null}
       </div>
 
@@ -971,6 +981,31 @@ export function StudentsPage() {
         ) : (
           <p className="muted">Δεν υπάρχει αποθηκευμένο στιγμιότυπο για αυτή την αίτηση.</p>
         )}
+      </Modal>
+
+      <Modal
+        open={importHelpOpen}
+        title="Πώς να το χρησιμοποιήσετε"
+        onClose={() => setImportHelpOpen(false)}
+        footer={
+          <Button type="button" variant="secondary" onClick={() => setImportHelpOpen(false)}>
+            Κλείσιμο
+          </Button>
+        }
+      >
+        <ol className="import-help-list">
+          <li>Κάντε εξαγωγή με το κουμπί Εξαγωγή (ώστε να έχετε όλες τις στήλες).</li>
+          <li>Προσθέστε γραμμές στο Excel.</li>
+          <li>
+            Για νέους αθλητές αφήστε κενό το πεδίο Κωδικός. Αν αντιγράψετε υπάρχουσα γραμμή και
+            αφήσετε τον ίδιο κωδικό, θα ενημερωθεί ο υπάρχων αθλητής, δεν θα δημιουργηθεί δεύτερος.
+          </li>
+          <li>
+            Τα τμήματα πρέπει να γράφονται όπως στο πρόγραμμα (π.χ. ΠΑΙΔΙΚΟ Α' ΑΠΟΛΛΩΝΙΑΔΑ),
+            χωρισμένα με κόμμα αν είναι περισσότερα από ένα.
+          </li>
+          <li>Όνομα και επώνυμο είναι υποχρεωτικά (τουλάχιστον 2 χαρακτήρες).</li>
+        </ol>
       </Modal>
 
       <Modal

@@ -861,6 +861,27 @@ a.stat-card:hover {
   flex-wrap: wrap;
 }
 
+.toolbar-import {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.toolbar-help-btn {
+  width: 2.55rem;
+  min-width: 2.55rem;
+  padding: 0.55rem;
+}
+
+.import-help-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.7rem;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
 .search-field {
   display: flex;
   align-items: center;
