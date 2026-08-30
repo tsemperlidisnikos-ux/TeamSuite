@@ -1,7 +1,7 @@
 import type { AcademyClass, AttendanceRecord, Student } from '../types';
 import { maskAmka } from './amkaAccess';
 import { normalizeSportKey } from './sport';
-import { studentClassIds, studentInClass } from './studentClasses';
+import { studentClassIds, studentMatchesTeamFilter } from './studentClasses';
 import { studentHasSport } from './studentSports';
 
 export type TriState = '' | 'yes' | 'no';
@@ -127,7 +127,7 @@ export function filterAthleteRegistry(
     if (createdKey != null && fromKey != null && createdKey < fromKey) return false;
     if (createdKey != null && refKey != null && createdKey > refKey) return false;
 
-    if (filters.teamId && !studentInClass(athlete, filters.teamId)) return false;
+    if (!studentMatchesTeamFilter(athlete, filters.teamId)) return false;
 
     if (filters.birthYear) {
       const year = parseDate(athlete.birthDate)?.getFullYear();

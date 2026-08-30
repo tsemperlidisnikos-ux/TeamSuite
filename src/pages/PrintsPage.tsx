@@ -21,7 +21,13 @@ import { sizeChartOptGroups } from '../utils/sizeChartOptions';
 import { localDateIso } from '../utils/dates';
 import { canAccessAmka } from '../utils/amkaAccess';
 import { sportsMatch } from '../utils/coachScope';
-import { studentClassIds, studentInClass } from '../utils/studentClasses';
+import {
+  isNoClassFilter,
+  NO_CLASS_FILTER,
+  studentClassIds,
+  studentInClass,
+  studentMatchesTeamFilter,
+} from '../utils/studentClasses';
 import { studentHasSport } from '../utils/studentSports';
 
 const COMPARE_OPS = ['=', '<', '>', '<=', '>='] as const;
@@ -209,12 +215,14 @@ function TeamSelect({
   onChange,
   allLabel = 'Όλα τα τμήματα',
   sport = '',
+  includeUnassigned = true,
 }: {
   id: string;
   value: string;
   onChange: (v: string) => void;
   allLabel?: string;
   sport?: string;
+  includeUnassigned?: boolean;
 }) {
   const { data } = useAppData();
   const options = useMemo(() => {
@@ -231,6 +239,9 @@ function TeamSelect({
       onChange={(e) => onChange(e.target.value)}
     >
       <option value="">{allLabel}</option>
+      {includeUnassigned ? (
+        <option value={NO_CLASS_FILTER}>Χωρίς τμήμα</option>
+      ) : null}
       {options.map((c) => (
         <option key={c.id} value={c.id}>
           {c.name}
@@ -755,7 +766,7 @@ function AthleteBalancesSection() {
     const next = data.students
       .filter((s) => {
         if (!studentMatchesSportFilter(s, sport, data.classes)) return false;
-        if (teamId && !studentInClass(s, teamId)) return false;
+        if (!studentMatchesTeamFilter(s, teamId)) return false;
         if (gender && s.gender !== gender) return false;
         if (active === 'yes' && s.status !== 'active') return false;
         if (active === 'no' && s.status === 'active') return false;
@@ -900,7 +911,7 @@ function AttendanceLogSection() {
     const next = data.students
       .filter((s) => {
         if (!studentMatchesSportFilter(s, sport, data.classes)) return false;
-        if (teamId && !studentInClass(s, teamId)) return false;
+        if (!studentMatchesTeamFilter(s, teamId)) return false;
         if (gender && s.gender !== gender) return false;
         if (active === 'yes' && s.status !== 'active') return false;
         if (active === 'no' && s.status === 'active') return false;
@@ -1124,6 +1135,7 @@ function TrainingAttendanceSheetSection() {
             setTrainingId('');
           }}
           allLabel="Επιλέξτε τμήμα"
+          includeUnassigned={false}
         />
       </FilterRow>
       <FilterRow label="Ημερομηνία" htmlFor="tas-date">
@@ -1222,8 +1234,12 @@ function RegistrationApplicationsSection() {
       const day = (app.createdAt || '').slice(0, 10);
       if (fromDate && day && day < fromDate) return false;
       if (untilDate && day && day > untilDate) return false;
-      if (teamId && app.classId !== teamId) return false;
-      if (sport) {
+      if (isNoClassFilter(teamId)) {
+        if (app.classId) return false;
+      } else if (teamId && app.classId !== teamId) {
+        return false;
+      }
+      if (sport && !isNoClassFilter(teamId)) {
         const cls = data.classes.find((c) => c.id === app.classId);
         if (!sportsMatch(cls?.sport, sport)) return false;
       }
@@ -1380,7 +1396,7 @@ function MedicalExpirySection() {
     const next = data.students
       .filter((s) => {
         if (!studentMatchesSportFilter(s, sport, data.classes)) return false;
-        if (teamId && !studentInClass(s, teamId)) return false;
+        if (!studentMatchesTeamFilter(s, teamId)) return false;
         if (gender && s.gender !== gender) return false;
         if (active === 'yes' && s.status !== 'active') return false;
         if (active === 'no' && s.status === 'active') return false;
@@ -1508,7 +1524,7 @@ function PaymentsCollectionsSection() {
         if (max != null && !Number.isNaN(max) && t.amount > max) return false;
 
         const student = data.students.find((s) => s.id === t.athleteId);
-        if (teamId && (!student || !studentInClass(student, teamId))) return false;
+        if (teamId && (!student || !studentMatchesTeamFilter(student, teamId))) return false;
         if (sport && student && !studentMatchesSportFilter(student, sport, data.classes)) {
           return false;
         }
@@ -1696,7 +1712,7 @@ function DebtorsSection() {
       .filter(({ student: s, balance }) => {
         if (balance <= 0) return false;
         if (!studentMatchesSportFilter(s, sport, data.classes)) return false;
-        if (teamId && !studentInClass(s, teamId)) return false;
+        if (!studentMatchesTeamFilter(s, teamId)) return false;
         if (gender && s.gender !== gender) return false;
         if (active === 'yes' && s.status !== 'active') return false;
         if (active === 'no' && s.status === 'active') return false;
@@ -2062,7 +2078,7 @@ function SimpleReportSection({
         data.students
           .filter((s) => {
             if (!studentMatchesSportFilter(s, sport, data.classes)) return false;
-            if (teamId && !studentInClass(s, teamId)) return false;
+            if (!studentMatchesTeamFilter(s, teamId)) return false;
             return true;
           })
           .map((s, i) => ({
@@ -2142,6 +2158,7 @@ function SimpleReportSection({
             value={teamId}
             sport={filters.includes('sport') ? sport : ''}
             onChange={setTeamId}
+            includeUnassigned={title !== 'Πρόγραμμα προπονήσεων'}
           />
         </FilterRow>
       ) : null}
