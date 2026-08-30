@@ -1,3 +1,30 @@
+import {
+  Activity,
+  Archive,
+  BadgeCheck,
+  Building2,
+  Calendar,
+  CalendarClock,
+  Clock,
+  Cloud,
+  Eye,
+  FileImage,
+  Image,
+  Landmark,
+  Layers,
+  Library,
+  List,
+  Monitor,
+  Palette,
+  PanelLeft,
+  PieChart,
+  Settings,
+  Shield,
+  Tag,
+  Timer,
+  Users,
+  Wallet,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { pushAccountBundle } from '../api/services/accountSyncService';
@@ -8,7 +35,8 @@ import { GoogleDriveBackupPanel } from '../components/GoogleDriveBackupPanel';
 import { ClubWaitlistPanel } from '../components/ClubWaitlistPanel';
 import { LoginActivityPanel } from '../components/LoginActivityPanel';
 import { PlatformDiagnosticPanel } from '../components/PlatformDiagnosticPanel';
-import { AdminZone, PlatformAdminShell } from '../components/layout/PlatformAdminShell';
+import { AdminDrill, type AdminDrillCategory } from '../components/layout/AdminDrill';
+import { PlatformAdminShell } from '../components/layout/PlatformAdminShell';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { persistLocalStateToCloud } from '../data/clubSync';
@@ -64,21 +92,119 @@ import {
 
 type AdminWorkspaceTab = 'platform' | 'academio' | 'backup';
 
+const PLATFORM_DRILL: AdminDrillCategory[] = [
+  {
+    id: 'ops',
+    label: 'Λειτουργία',
+    icon: Settings,
+    items: [
+      { id: 'waitlist', label: 'Λίστα αναμονής ακαδημιών', hint: 'Αιτήσεις /register', icon: Users },
+      { id: 'logins', label: 'Ιστορικό εισόδων', hint: 'Φίλτρο συλλόγου', icon: Clock },
+      { id: 'jpegs', label: 'Φόρμες δημόσιας εγγραφής', hint: 'JPEG / υπογραφές', icon: FileImage },
+    ],
+  },
+  {
+    id: 'look',
+    label: 'Εμφάνιση',
+    icon: Eye,
+    items: [
+      { id: 'logo', label: 'Logo εφαρμογής', hint: 'Καθολικό σήμα', icon: Image },
+      { id: 'theme', label: 'Εμφάνιση εφαρμογής', hint: 'Ocean Slate / Ember', icon: Palette },
+    ],
+  },
+  {
+    id: 'catalog',
+    label: 'Κατάλογος',
+    icon: Library,
+    items: [
+      { id: 'incomeCat', label: 'Κατηγορίες εσόδων', icon: Tag },
+      { id: 'incomeDesc', label: 'Περιγραφές εσόδων', icon: List },
+      { id: 'expenseCat', label: 'Κατηγορίες εξόδων', icon: Wallet },
+      { id: 'expenseDesc', label: 'Περιγραφές εξόδων', icon: List },
+      { id: 'roles', label: 'Δικαιώματα ρόλων', icon: Shield },
+    ],
+  },
+];
+
+const BACKUP_DRILL: AdminDrillCategory[] = [
+  {
+    id: 'copies',
+    label: 'Αντίγραφα',
+    icon: Archive,
+    items: [
+      { id: 'full', label: 'Backup όλης της εφαρμογής', icon: Archive },
+      { id: 'club', label: 'Backup συλλόγου', icon: Building2 },
+      { id: 'gdrive', label: 'Google Drive', icon: Cloud },
+    ],
+  },
+  {
+    id: 'schedule',
+    label: 'Πρόγραμμα',
+    icon: CalendarClock,
+    items: [{ id: 'schedule', label: 'Πρόγραμμα backup', icon: Timer }],
+  },
+  {
+    id: 'check',
+    label: 'Έλεγχος',
+    icon: Activity,
+    items: [{ id: 'diagnostic', label: 'Διαγνωστικό τεστ', icon: Activity }],
+  },
+];
+
+const ACADEMY_DRILL: AdminDrillCategory[] = [
+  {
+    id: 'preview',
+    label: 'Preview',
+    icon: Monitor,
+    items: [
+      { id: 'preview', label: 'Preview συλλόγου', icon: Monitor },
+      { id: 'clubLogo', label: 'Λογότυπο ανά σύλλογο', icon: Image },
+      { id: 'associations', label: 'Ομάδες σωματείου', icon: Landmark },
+    ],
+  },
+  {
+    id: 'academy',
+    label: 'Κατάλογος ακαδημίας',
+    icon: Layers,
+    items: [
+      { id: 'financeTabs', label: 'Καρτέλες Οικονομικών', icon: PieChart },
+      { id: 'menu', label: 'Καρτέλες μενού', icon: PanelLeft },
+    ],
+  },
+  {
+    id: 'season',
+    label: 'Σεζόν & άδειες',
+    icon: Calendar,
+    items: [
+      { id: 'seasons', label: 'Σεζόν', icon: Calendar },
+      { id: 'licenses', label: 'Άδειες / πακέτο', icon: BadgeCheck },
+    ],
+  },
+];
+
 function AdminRow({
   title,
   description,
   entry,
   records,
   id,
+  drillId,
+  activeDrill,
 }: {
   title: string;
   description: string;
   entry: ReactNode;
   records: ReactNode;
   id?: string;
+  drillId?: string;
+  activeDrill?: string;
 }) {
   return (
-    <article className="admin-zone-card" id={id}>
+    <article
+      className="admin-zone-card"
+      id={id}
+      hidden={Boolean(drillId && activeDrill && drillId !== activeDrill)}
+    >
       <header className="admin-zone-card-head">
         <h3>{title}</h3>
         <p>{description}</p>
@@ -217,6 +343,12 @@ export function PlatformAdminPage() {
   const [newSeason, setNewSeason] = useState('');
   const [tick, setTick] = useState(0);
   const [adminTab, setAdminTab] = useState<AdminWorkspaceTab>('platform');
+  const [platformCat, setPlatformCat] = useState('ops');
+  const [platformItem, setPlatformItem] = useState('waitlist');
+  const [backupCat, setBackupCat] = useState('copies');
+  const [backupItem, setBackupItem] = useState('full');
+  const [academyCat, setAcademyCat] = useState('preview');
+  const [academyItem, setAcademyItem] = useState('preview');
   const [restoreClubId, setRestoreClubId] = useState(() => getClubs()[0]?.id ?? '');
   const [platformRestoring, setPlatformRestoring] = useState(false);
   const [clubRestoring, setClubRestoring] = useState(false);
@@ -265,7 +397,13 @@ export function PlatformAdminPage() {
     const drive = searchParams.get('drive');
     const driveMsg = searchParams.get('driveMsg');
     if (!tab && !drive) return;
-    if (tab === 'backup') setAdminTab('backup');
+    if (tab === 'backup') {
+      setAdminTab('backup');
+      if (drive) {
+        setBackupCat('copies');
+        setBackupItem('gdrive');
+      }
+    }
     if (drive === 'ok') flash('Το Google Drive συνδέθηκε.');
     if (drive === 'error') {
       flash(driveMsg || 'Αποτυχία σύνδεσης Google Drive.');
@@ -622,14 +760,22 @@ export function PlatformAdminPage() {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => setAdminTab('platform')}
+            onClick={() => {
+              setAdminTab('platform');
+              setPlatformCat('ops');
+              setPlatformItem('waitlist');
+            }}
           >
             Λίστα αναμονής
           </button>
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => setAdminTab('platform')}
+            onClick={() => {
+              setAdminTab('platform');
+              setPlatformCat('ops');
+              setPlatformItem('logins');
+            }}
           >
             Ιστορικό εισόδων
           </button>
@@ -656,9 +802,18 @@ export function PlatformAdminPage() {
       </nav>
 
       {adminTab === 'platform' ? (
-      <div className="admin-zones">
-        <AdminZone title="Λειτουργία">
+      <AdminDrill
+        categories={PLATFORM_DRILL}
+        categoryId={platformCat}
+        itemId={platformItem}
+        onNavigate={(cat, item) => {
+          setPlatformCat(cat);
+          setPlatformItem(item);
+        }}
+      >
           <AdminRow
+            drillId="waitlist"
+            activeDrill={platformItem}
             id="club-waitlist"
             title="Λίστα αναμονής ακαδημιών"
             description="Αιτήσεις από /register. Έγκριση με κωδικό δημιουργεί σύλλογο και admin λογαριασμό."
@@ -680,6 +835,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
+            drillId="logins"
+            activeDrill={platformItem}
             id="login-activity"
             title="Ιστορικό εισόδων"
             description="Ποιος συνδέθηκε, σε ποιον σύλλογο ανήκει ο λογαριασμός, ρόλος και ώρα. Αποθήκευση στο cloud."
@@ -700,6 +857,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
+            drillId="jpegs"
+            activeDrill={platformItem}
             id="join-form-snapshots"
             title="Φόρμες δημόσιας εγγραφής (JPEG)"
             description="Ομαδική διαγραφή αποθηκευμένων στιγμιότυπων JPEG (και υπογραφών) από όλους τους συλλόγους ή από επιλεγμένους. Οι αιτήσεις και οι καρτέλες αθλητών μένουν."
@@ -765,10 +924,10 @@ export function PlatformAdminPage() {
               </RecordsTable>
             }
           />
-        </AdminZone>
 
-        <AdminZone title="Εμφάνιση">
           <AdminRow
+            drillId="logo"
+            activeDrill={platformItem}
             title="Logo εφαρμογής"
             description="Καθολικό λογότυπο εφαρμογής (εικονίδιο SS, login, έγγραφα). Αν υπάρχει λογότυπο εφαρμογής ανά σύλλογο, αυτό υπερισχύει στην κεφαλίδα του συλλόγου."
             entry={
@@ -852,6 +1011,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
+            drillId="theme"
+            activeDrill={platformItem}
             title="Εμφάνιση εφαρμογής"
             description="Το θέμα ισχύει για όλους τους συλλόγους: login, shell και modules. Δεν αλλάζει ανά σωματείο."
             entry={
@@ -913,10 +1074,10 @@ export function PlatformAdminPage() {
               </RecordsTable>
             }
           />
-        </AdminZone>
 
-        <AdminZone title="Κατάλογος & δικαιώματα">
           <AdminRow
+            drillId="incomeCat"
+            activeDrill={platformItem}
             title="Κατηγορίες εσόδων"
             description="Υποκατηγορίες εσόδων που εμφανίζονται στη φόρμα καταχώρησης."
             entry={
@@ -1005,6 +1166,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
+            drillId="incomeDesc"
+            activeDrill={platformItem}
             title="Περιγραφές εσόδων"
             description="Επιλογές dropdown ανά υποκατηγορία εσόδου."
             entry={
@@ -1073,6 +1236,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
+            drillId="expenseCat"
+            activeDrill={platformItem}
             title="Κατηγορίες εξόδων"
             description="Υποκατηγορίες εξόδων που εμφανίζονται στη φόρμα καταχώρησης."
             entry={
@@ -1136,6 +1301,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
+            drillId="expenseDesc"
+            activeDrill={platformItem}
             title="Περιγραφές εξόδων"
             description="Επιλογές dropdown ανά υποκατηγορία εξόδου."
             entry={
@@ -1210,6 +1377,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
+            drillId="roles"
+            activeDrill={platformItem}
             title="Δικαιώματα ρόλων"
             description="Καθολικές προεπιλογές για όλα τα σωματεία. Ό,τι ορίζει εδώ ο Platform Admin ισχύει by default σε κάθε σύλλογο."
             entry={
@@ -1302,14 +1471,22 @@ export function PlatformAdminPage() {
               </RecordsTable>
             }
           />
-        </AdminZone>
-      </div>
+      </AdminDrill>
       ) : null}
 
       {adminTab === 'backup' ? (
-      <div className="admin-zones">
-        <AdminZone title="Αντίγραφα">
+      <AdminDrill
+        categories={BACKUP_DRILL}
+        categoryId={backupCat}
+        itemId={backupItem}
+        onNavigate={(cat, item) => {
+          setBackupCat(cat);
+          setBackupItem(item);
+        }}
+      >
           <AdminRow
+            drillId="full"
+            activeDrill={backupItem}
             title="Backup / επαναφορά όλης της εφαρμογής"
             description="Πλήρες αντίγραφο πλατφόρμας: όλοι οι σύλλογοι, users, config. Ξεχωριστή επαναφορά από το club restore."
             entry={
@@ -1351,6 +1528,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
+            drillId="club"
+            activeDrill={backupItem}
             title="Backup / επαναφορά συγκεκριμένου συλλόγου"
             description="Στοχευμένη λήψη ή επαναφορά δεδομένων ενός συλλόγου — οι υπόλοιποι δεν αλλάζουν."
             entry={
@@ -1409,6 +1588,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
+            drillId="gdrive"
+            activeDrill={backupItem}
             title="Google Drive (όλοι οι σύλλογοι)"
             description="Ένας φάκελος στο Drive σας, με υποφάκελο ανά σύλλογο. Το νυχτερινό backup ανεβάζει JSON χωρίς να χρειάζεται ανοιχτό browser."
             entry={<GoogleDriveBackupPanel onSaved={flash} />}
@@ -1426,10 +1607,10 @@ export function PlatformAdminPage() {
               </RecordsTable>
             }
           />
-        </AdminZone>
 
-        <AdminZone title="Πρόγραμμα">
           <AdminRow
+            drillId="schedule"
+            activeDrill={backupItem}
             title="Πρόγραμμα backup"
             description="Ορίστε πότε γίνεται full backup εφαρμογής και πότε backup δεδομένων κάθε συλλόγου/χρήστη."
             entry={<BackupSchedulePanel onSaved={flash} />}
@@ -1447,10 +1628,10 @@ export function PlatformAdminPage() {
               </RecordsTable>
             }
           />
-        </AdminZone>
 
-        <AdminZone title="Έλεγχος">
           <AdminRow
+            drillId="diagnostic"
+            activeDrill={backupItem}
             title="Διαγνωστικό τεστ εφαρμογής"
             description="Έλεγχος λειτουργιών και Auto Repair για ορφανά δεδομένα / σπασμένες συνδέσεις χρηστών."
             entry={<PlatformDiagnosticPanel onSaved={flash} />}
@@ -1472,14 +1653,22 @@ export function PlatformAdminPage() {
               </RecordsTable>
             }
           />
-        </AdminZone>
-      </div>
+      </AdminDrill>
       ) : null}
 
       {adminTab === 'academio' ? (
-      <div className="admin-zones">
-        <AdminZone title="Preview">
+      <AdminDrill
+        categories={ACADEMY_DRILL}
+        categoryId={academyCat}
+        itemId={academyItem}
+        onNavigate={(cat, item) => {
+          setAcademyCat(cat);
+          setAcademyItem(item);
+        }}
+      >
           <AdminRow
+            drillId="preview"
+            activeDrill={academyItem}
             title="Preview συλλόγου"
             description="Δείτε την εφαρμογή όπως εμφανίζεται σε συγκεκριμένο λογαριασμό, χωρίς αποθήκευση αλλαγών."
             entry={
@@ -1522,6 +1711,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
+            drillId="clubLogo"
+            activeDrill={academyItem}
             title="Λογότυπο εφαρμογής ανά σύλλογο"
             description="Διαφορετικό εικονίδιο SS στην κεφαλίδα για κάθε σύλλογο. Το λογότυπο συλλόγου (αποδείξεις, Ρυθμίσεις) ορίζεται χωριστά από τον σύλλογο."
             entry={
@@ -1625,6 +1816,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
+            drillId="associations"
+            activeDrill={academyItem}
             title="Ομάδες σωματείου"
             description="Σωματεία που εμφανίζονται στις φόρμες εσόδων/εξόδων."
             entry={
@@ -1690,10 +1883,10 @@ export function PlatformAdminPage() {
               </RecordsTable>
             }
           />
-        </AdminZone>
 
-        <AdminZone title="Κατάλογος ακαδημίας">
           <AdminRow
+            drillId="financeTabs"
+            activeDrill={academyItem}
             title="Καρτέλες Οικονομικών"
             description="Ποιες επιλογές εμφανίζονται στο μενού Οικονομικά (Ανάλυση, Έσοδα, Έξοδα, Ταμεία, Ισοζύγιο, Προϋπολογισμός, Αναφορές). Ισχύει για όλους τους συλλόγους."
             entry={
@@ -1731,6 +1924,8 @@ export function PlatformAdminPage() {
             }
           />
           <AdminRow
+            drillId="menu"
+            activeDrill={academyItem}
             title="Καρτέλες μενού ακαδημίας"
             description="Εμφάνιση/απόκρυψη στοιχείων sidebar (Αθλητές, Τμήματα, Οικονομικά κ.λπ.)."
             entry={
@@ -1786,10 +1981,10 @@ export function PlatformAdminPage() {
               </RecordsTable>
             }
           />
-        </AdminZone>
 
-        <AdminZone title="Σεζόν & άδειες">
           <AdminRow
+            drillId="seasons"
+            activeDrill={academyItem}
             title="Σεζόν"
             description="Διαθέσιμες αγωνιστικές σεζόν για φίλτρα και οικονομικά."
             entry={
@@ -1847,6 +2042,8 @@ export function PlatformAdminPage() {
           />
 
           <AdminRow
+            drillId="licenses"
+            activeDrill={academyItem}
             title="Άδειες / πακέτο"
             description="Όρια αθλητών και πακέτο GROWTH (τιμές μόνο από Platform Admin)."
             entry={
@@ -1872,8 +2069,7 @@ export function PlatformAdminPage() {
               </RecordsTable>
             }
           />
-        </AdminZone>
-      </div>
+      </AdminDrill>
       ) : null}
     </PlatformAdminShell>
   );

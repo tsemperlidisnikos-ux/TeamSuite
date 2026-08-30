@@ -484,9 +484,142 @@
   font-size: 0.85rem;
 }
 
+.admin-drill {
+  display: grid;
+  grid-template-columns: 13.25rem 16.75rem minmax(0, 1fr);
+  flex: 1;
+  min-height: 28rem;
+  max-height: calc(100vh - 11.5rem);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.admin-drill-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.35rem 0 0.75rem;
+  border-right: 1px solid var(--line);
+  background: #f7faf8;
+  overflow: auto;
+}
+
+.admin-drill-col-title {
+  margin: 0;
+  padding: 0.65rem 1rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.admin-drill-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: calc(100% - 0.5rem);
+  margin: 0 0.25rem;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0.7rem 0.75rem 0.7rem 0.65rem;
+  text-align: left;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.admin-drill-btn svg {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  color: var(--muted);
+}
+
+.admin-drill-btn span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.admin-drill-btn small {
+  font-weight: 500;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.admin-drill-count {
+  margin-left: auto;
+  min-width: 1.4rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(23, 54, 46, 0.1);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.admin-drill-btn.is-active {
+  background: color-mix(in srgb, var(--brand, #1a3e38) 12%, #fff);
+  border-left-color: var(--brand, #1a3e38);
+}
+
+.admin-drill-btn.is-active svg {
+  color: var(--brand, #1a3e38);
+}
+
+.admin-drill-btn.is-active .admin-drill-count {
+  background: color-mix(in srgb, var(--brand, #1a3e38) 18%, #fff);
+  color: var(--brand, #1a3e38);
+}
+
+.admin-drill-main {
+  min-width: 0;
+  overflow: auto;
+  background: #fff;
+}
+
+.admin-drill-main .admin-zone-card[hidden] {
+  display: none !important;
+}
+
+.admin-drill-main .admin-zone-card {
+  border-top: 0;
+  min-height: 100%;
+}
+
 @media (max-width: 1100px) {
   .admin-zones {
     grid-template-columns: 1fr;
+  }
+
+  .admin-drill {
+    grid-template-columns: 1fr;
+    max-height: none;
+  }
+
+  .admin-drill-col {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 0.35rem;
+  }
+
+  .admin-drill-col-title {
+    width: 100%;
+    padding-bottom: 0.2rem;
+  }
+
+  .admin-drill-btn {
+    width: auto;
+    margin: 0.1rem;
   }
 
   .admin-check-list {

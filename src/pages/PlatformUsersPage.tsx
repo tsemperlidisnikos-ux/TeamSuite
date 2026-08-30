@@ -1,6 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  Briefcase,
+  Heart,
+  Shield,
+  Stethoscope,
+  UserRound,
+  Users,
+  UsersRound,
+} from 'lucide-react';
+import {
   deleteUser,
   getSession,
   getUsers,
@@ -23,7 +32,8 @@ import {
   seatPackageId,
 } from '../auth/licensePackages';
 import { pushAccountBundle } from '../api/services/accountSyncService';
-import { AdminZone, PlatformAdminShell } from '../components/layout/PlatformAdminShell';
+import { AdminDrill, type AdminDrillCategory } from '../components/layout/AdminDrill';
+import { PlatformAdminShell } from '../components/layout/PlatformAdminShell';
 import { loadStore, removeClubStore } from '../data/store';
 
 type PlatformRole =
@@ -66,10 +76,36 @@ const ROLE_CARDS: Array<{
   { role: 'parent', title: 'Γονείς' },
 ];
 
-const USER_ZONES: Array<{ title: string; roles: PlatformRole[] }> = [
-  { title: 'Διαχείριση', roles: ['platform_admin', 'admin', 'secretariat'] },
-  { title: 'Ομάδα', roles: ['coach', 'staff'] },
-  { title: 'Μέλη', roles: ['athlete', 'parent'] },
+const USER_DRILL: AdminDrillCategory[] = [
+  {
+    id: 'manage',
+    label: 'Διαχείριση',
+    icon: Shield,
+    items: [
+      { id: 'platform_admin', label: 'Διαχειριστές πλατφόρμας', icon: Shield },
+      { id: 'admin', label: 'Διαχειριστές συλλόγων', icon: Briefcase },
+      { id: 'secretariat', label: 'Γραμματεία', icon: Users },
+      { id: 'doctor', label: 'Ιατροί', icon: Stethoscope },
+    ],
+  },
+  {
+    id: 'team',
+    label: 'Ομάδα',
+    icon: UserRound,
+    items: [
+      { id: 'coach', label: 'Προπονητές', icon: Users },
+      { id: 'staff', label: 'Προσωπικό', icon: UsersRound },
+    ],
+  },
+  {
+    id: 'members',
+    label: 'Μέλη',
+    icon: Heart,
+    items: [
+      { id: 'athlete', label: 'Αθλητές', icon: Users },
+      { id: 'parent', label: 'Γονείς', icon: Heart },
+    ],
+  },
 ];
 
 function licenseText(club: Club | null): string | null {
@@ -181,6 +217,8 @@ export function PlatformUsersPage() {
   const activePackages = useMemo(() => listAssignableLicensePackages(), []);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [userCat, setUserCat] = useState('manage');
+  const [userRole, setUserRole] = useState<PlatformRole>('platform_admin');
 
   const grouped = useMemo(() => {
     const map = Object.fromEntries(
@@ -191,6 +229,18 @@ export function PlatformUsersPage() {
     }
     return map;
   }, [rows]);
+
+  const userDrill = useMemo(
+    () =>
+      USER_DRILL.map((cat) => ({
+        ...cat,
+        items: cat.items.map((item) => ({
+          ...item,
+          count: grouped[item.id as PlatformRole]?.length ?? 0,
+        })),
+      })),
+    [grouped],
+  );
 
   function refresh() {
     setRows(buildRows());
@@ -353,100 +403,107 @@ export function PlatformUsersPage() {
       banner={message}
       error={error}
     >
-      <div className="admin-zones">
-        {USER_ZONES.map((zone) => (
-          <AdminZone key={zone.title} title={zone.title}>
-            {zone.roles.map((role) => {
-              const card = ROLE_CARDS.find((c) => c.role === role);
-              if (!card) return null;
-              const q = queries[role].trim().toLowerCase();
-              const list = grouped[role].filter((row) => {
-                if (!q) return true;
-                return (
-                  row.fullName.toLowerCase().includes(q) ||
-                  row.email.toLowerCase().includes(q) ||
-                  row.clubName.toLowerCase().includes(q)
-                );
-              });
-              return (
-                <article key={role} className="admin-zone-card">
-                  <header className="admin-zone-card-head">
-                    <h3>{card.title}</h3>
-                    <div className="platform-card-tools">
-                      <input
-                        type="search"
-                        placeholder="Αναζήτηση..."
-                        value={queries[role]}
-                        onChange={(e) =>
-                          setQueries((prev) => ({ ...prev, [role]: e.target.value }))
-                        }
-                      />
-                      <span className="platform-count">{grouped[role].length}</span>
-                    </div>
-                  </header>
-                  <div className="admin-zone-card-body">
-                    {list.length === 0 ? (
-                      <p className="platform-empty">Δεν υπάρχουν χρήστες σε αυτή την κατηγορία.</p>
-                    ) : (
-                      <ul className="platform-user-list">
-                        {list.map((row) => (
-                          <li key={row.id} className="platform-user-item">
-                            <div className="platform-user-meta">
-                              <strong>{row.fullName}</strong>
-                              <span>{row.email}</span>
-                              {row.roleLabel ? (
-                                <span className="platform-user-role">{row.roleLabel}</span>
-                              ) : null}
-                              <span className={row.active ? 'platform-user-status is-active' : 'platform-user-status is-inactive'}>
-                                {row.active ? 'Ενεργός λογαριασμός' : 'Ανενεργός λογαριασμός'}
-                              </span>
-                              {row.licenseText ? (
-                                <span className="platform-user-licenses">{row.licenseText}</span>
-                              ) : null}
-                            </div>
-                            <div className="platform-user-actions">
-                              <button
-                                type="button"
-                                className="pu-btn pu-btn-enter"
-                                onClick={() => handleEnter(row)}
-                                disabled={!row.canImpersonate && row.source === 'user'}
-                              >
-                                Είσοδος →
-                              </button>
-                              <button
-                                type="button"
-                                className="pu-btn pu-btn-email"
-                                onClick={() => openEmailEdit(row)}
-                              >
-                                Αλλαγή email
-                              </button>
-                              <button
-                                type="button"
-                                className="pu-btn pu-btn-access"
-                                onClick={() => openLicenses(row)}
-                              >
-                                Πρόσβαση &amp; άδειες αθλητών
-                              </button>
-                              <button
-                                type="button"
-                                className="pu-btn pu-btn-delete"
-                                onClick={() => void handleDelete(row)}
-                                disabled={!row.canDelete}
-                              >
-                                Διαγραφή
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </AdminZone>
-        ))}
-      </div>
+      <AdminDrill
+        categories={userDrill}
+        categoryId={userCat}
+        itemId={userRole}
+        onNavigate={(cat, item) => {
+          setUserCat(cat);
+          setUserRole(item as PlatformRole);
+        }}
+      >
+        {ROLE_CARDS.map((card) => {
+          const role = card.role;
+          const q = queries[role].trim().toLowerCase();
+          const list = grouped[role].filter((row) => {
+            if (!q) return true;
+            return (
+              row.fullName.toLowerCase().includes(q) ||
+              row.email.toLowerCase().includes(q) ||
+              row.clubName.toLowerCase().includes(q)
+            );
+          });
+          return (
+            <article
+              key={role}
+              className="admin-zone-card"
+              hidden={role !== userRole}
+            >
+              <header className="admin-zone-card-head">
+                <h3>{card.title}</h3>
+                <div className="platform-card-tools">
+                  <input
+                    type="search"
+                    placeholder="Αναζήτηση..."
+                    value={queries[role]}
+                    onChange={(e) =>
+                      setQueries((prev) => ({ ...prev, [role]: e.target.value }))
+                    }
+                  />
+                  <span className="platform-count">{grouped[role].length}</span>
+                </div>
+              </header>
+              <div className="admin-zone-card-body">
+                {list.length === 0 ? (
+                  <p className="platform-empty">Δεν υπάρχουν χρήστες σε αυτή την κατηγορία.</p>
+                ) : (
+                  <ul className="platform-user-list">
+                    {list.map((row) => (
+                      <li key={row.id} className="platform-user-item">
+                        <div className="platform-user-meta">
+                          <strong>{row.fullName}</strong>
+                          <span>{row.email}</span>
+                          {row.roleLabel ? (
+                            <span className="platform-user-role">{row.roleLabel}</span>
+                          ) : null}
+                          <span className={row.active ? 'platform-user-status is-active' : 'platform-user-status is-inactive'}>
+                            {row.active ? 'Ενεργός λογαριασμός' : 'Ανενεργός λογαριασμός'}
+                          </span>
+                          {row.licenseText ? (
+                            <span className="platform-user-licenses">{row.licenseText}</span>
+                          ) : null}
+                        </div>
+                        <div className="platform-user-actions">
+                          <button
+                            type="button"
+                            className="pu-btn pu-btn-enter"
+                            onClick={() => handleEnter(row)}
+                            disabled={!row.canImpersonate && row.source === 'user'}
+                          >
+                            Είσοδος →
+                          </button>
+                          <button
+                            type="button"
+                            className="pu-btn pu-btn-email"
+                            onClick={() => openEmailEdit(row)}
+                          >
+                            Αλλαγή email
+                          </button>
+                          <button
+                            type="button"
+                            className="pu-btn pu-btn-access"
+                            onClick={() => openLicenses(row)}
+                          >
+                            Πρόσβαση &amp; άδειες αθλητών
+                          </button>
+                          <button
+                            type="button"
+                            className="pu-btn pu-btn-delete"
+                            onClick={() => void handleDelete(row)}
+                            disabled={!row.canDelete}
+                          >
+                            Διαγραφή
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </AdminDrill>
 
       {emailEdit ? (
         <div className="platform-modal-backdrop">

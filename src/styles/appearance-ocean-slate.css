@@ -618,6 +618,19 @@ html[data-appearance='ocean-slate'] .admin-zone-card-head {
   background: #eef3f7;
 }
 
+html[data-appearance='ocean-slate'] .admin-drill-col {
+  background: #f4f7fa;
+}
+
+html[data-appearance='ocean-slate'] .admin-drill-btn.is-active {
+  background: #e4eef4;
+  border-left-color: #2a9bb5;
+}
+
+html[data-appearance='ocean-slate'] .admin-drill-btn.is-active svg {
+  color: #2a9bb5;
+}
+
 html[data-appearance='ocean-slate'] .cport-role-pill,
 html[data-appearance='ocean-slate'] .aport-pill {
   color: var(--ocean-ink);
