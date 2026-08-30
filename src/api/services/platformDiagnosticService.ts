@@ -623,21 +623,6 @@ function checkAppData(clubId: string, clubName: string, data: AppData): Diagnost
     );
   }
 
-  const templateCount = data.feeChargeTemplates?.length ?? 0;
-  const autoTemplates = (data.feeChargeTemplates ?? []).filter((t) => t.autoGenerate);
-  out.push(
-    finding({
-      category: 'Fees',
-      severity: templateCount === 0 ? 'info' : 'ok',
-      title: `${prefix}: πρότυπα χρεώσεων ${templateCount}`,
-      detail: `Αυτόματη χρέωση: ${autoTemplates.length}/${templateCount}.`,
-      fix:
-        templateCount === 0
-          ? 'Προαιρετικό: Συνδρομές → νέο πρότυπο, αν ο σύλλογος χρεώνει συνδρομές από την εφαρμογή.'
-          : 'Καμία ενέργεια. Τα πρότυπα ορίζονται μόνο από Συνδρομές, όχι από το Auto Repair.',
-    }),
-  );
-
   const matches = data.matches ?? [];
   const badMatchClass = matches.filter((m) => m.classId && !classIds.has(m.classId)).length;
   if (badMatchClass > 0) {

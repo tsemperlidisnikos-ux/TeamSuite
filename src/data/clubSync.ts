@@ -19,7 +19,7 @@ let pulling = false;
 let lastPullAttemptAt = 0;
 let pushQueue: Promise<unknown> = Promise.resolve();
 
-const MIN_PULL_GAP_MS = 15_000;
+const MIN_PULL_GAP_MS = 6_000;
 
 function readMap<T extends Record<string, unknown>>(key: string): T {
   try {

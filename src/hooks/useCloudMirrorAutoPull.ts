@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 import { pullClubMirrorIfNewer } from '../data/clubSync';
 
-const POLL_INTERVAL_MS = 30_000;
-const INITIAL_DELAY_MS = 8_000;
+const POLL_INTERVAL_MS = 8_000;
+const INITIAL_DELAY_MS = 2_000;
 
 /**
  * Background pull of cloud mirror while the app is open:
  * - on tab focus (visibility visible)
- * - every ~90s while visible
+ * - every ~8s while visible, so a second secretariat sees new athletes quickly
  * Skips demo sessions and when auto-sync is off (handled in clubSync).
  */
 export function useCloudMirrorAutoPull(clubId: string | null | undefined) {
