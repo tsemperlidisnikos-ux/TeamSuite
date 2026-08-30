@@ -3,7 +3,6 @@ import { isPasswordHashed } from '../../auth/password';
 import { getClubs, getClubSmtp, getClubViva, type Club } from '../../auth/clubs';
 import {
   clubHasStoredData,
-  createId,
   exportAllClubsData,
   getData,
   mutateClubData,
@@ -18,9 +17,8 @@ import {
   saveBackupSchedules,
   type AcademyModuleId,
 } from '../../platform/platformConfig';
-import type { AppData, FeeChargeTemplate } from '../../types';
+import type { AppData } from '../../types';
 import { appDataWeight } from '../../data/mediaStrip';
-import { localDateTimeIso } from '../../utils/dates';
 import { studentClassIds } from '../../utils/studentClasses';
 import { hydrateAllClubMirrorsFromCloud, persistLocalStateToCloud } from '../../data/clubSync';
 import { pushAccountBundle } from './accountSyncService';
@@ -630,20 +628,13 @@ function checkAppData(clubId: string, clubName: string, data: AppData): Diagnost
   out.push(
     finding({
       category: 'Fees',
-      severity:
-        templateCount > 0 && autoTemplates.length === templateCount
-          ? 'ok'
-          : templateCount === 0
-            ? 'warning'
-            : 'warning',
+      severity: templateCount === 0 ? 'info' : 'ok',
       title: `${prefix}: πρότυπα χρεώσεων ${templateCount}`,
-      detail: `Αυτόματα: ${autoTemplates.length}/${templateCount || 0}.`,
+      detail: `Αυτόματη χρέωση: ${autoTemplates.length}/${templateCount}.`,
       fix:
         templateCount === 0
-          ? 'Ξανατρέξτε το διαγνωστικό για δημιουργία default προτύπου, ή Συνδρομές → νέο πρότυπο.'
-          : autoTemplates.length < templateCount
-            ? 'Ξανατρέξτε το διαγνωστικό για ενεργοποίηση αυτόματης χρέωσης.'
-            : 'Καμία ενέργεια. Το auto τρέχει στο login 1×/μήνα.',
+          ? 'Προαιρετικό: Συνδρομές → νέο πρότυπο, αν ο σύλλογος χρεώνει συνδρομές από την εφαρμογή.'
+          : 'Καμία ενέργεια. Τα πρότυπα ορίζονται μόνο από Συνδρομές, όχι από το Auto Repair.',
     }),
   );
 
@@ -849,55 +840,6 @@ function checkRoutesSmoke(): DiagnosticFinding[] {
   return out;
 }
 
-function ensureFeeTemplatesReady(data: AppData): { enabled: number; created: number } {
-  if (!data.feeChargeTemplates) data.feeChargeTemplates = [];
-  let enabled = 0;
-  let created = 0;
-
-  if (data.feeChargeTemplates.length === 0 && data.students.length > 0) {
-    const fees = data.students
-      .map((s) => s.monthlyFee)
-      .filter((n) => typeof n === 'number' && n > 0);
-    const monthlyAmount =
-      fees.length > 0
-        ? Math.round((fees.reduce((a, b) => a + b, 0) / fees.length) * 100) / 100
-        : 50;
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
-    const seasonStart = month >= 8 ? year : year - 1;
-    const template: FeeChargeTemplate = {
-      id: createId('fee'),
-      season: `${seasonStart}-${seasonStart + 1}`,
-      sport: '',
-      typeLabel: 'Μηνιαία συνδρομή',
-      monthlyAmount,
-      appliesTo: 'monthly',
-      classId: null,
-      months: [8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7],
-      reminderDays: 7,
-      registrationFee: 0,
-      seasonTicketAmount: 0,
-      seasonTicketMonths: [],
-      customChargeAmount: 0,
-      autoGenerate: true,
-      createdAt: localDateTimeIso(),
-    };
-    data.feeChargeTemplates.push(template);
-    created = 1;
-    enabled = 1;
-    return { enabled, created };
-  }
-
-  for (const template of data.feeChargeTemplates) {
-    if (!template.autoGenerate) {
-      template.autoGenerate = true;
-      enabled += 1;
-    }
-  }
-  return { enabled, created };
-}
-
 function ensureBackupSchedulesEnabled(): boolean {
   const current = getBackupSchedules();
   if (current.fullApp.enabled || current.perClub.enabled) return false;
@@ -1031,8 +973,6 @@ async function applyAutomaticRepairs(
     }),
   );
 
-  let feeEnabled = 0;
-  let feeCreated = 0;
   let orphanAttendanceCleaned = 0;
   let orphanTxnCleaned = 0;
   const clubIds = [...new Set([
@@ -1041,9 +981,6 @@ async function applyAutomaticRepairs(
   ])].filter((id) => id && id !== '_default' && clubHasStoredData(id));
   for (const clubId of clubIds) {
     mutateClubData(clubId, (draft) => {
-      const result = ensureFeeTemplatesReady(draft);
-      feeEnabled += result.enabled;
-      feeCreated += result.created;
       const studentIds = new Set(draft.students.map((s) => s.id));
       const classIdsLocal = new Set(draft.classes.map((c) => c.id));
       const before = draft.attendance?.length ?? 0;
@@ -1075,19 +1012,6 @@ async function applyAutomaticRepairs(
       }),
     );
   }
-
-  out.push(
-    finding({
-      category: 'Repair',
-      severity: 'ok',
-      title:
-        feeEnabled + feeCreated > 0
-          ? `Πρότυπα συνδρομών: +${feeCreated} νέα, ${feeEnabled} με αυτόματη χρέωση`
-          : 'Πρότυπα συνδρομών OK',
-      detail: 'autoGenerate ενεργό σε όλα τα πρότυπα (και default όπου έλειπαν).',
-      fix: 'Καμία ενέργεια. Ελέγξτε ποσά στη σελίδα Συνδρομές αν χρειάζεται.',
-    }),
-  );
 
   out.push(
     finding({
