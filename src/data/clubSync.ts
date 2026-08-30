@@ -163,23 +163,17 @@ async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
       if (pull.success && pull.data?.payload && pull.data.durable !== false) {
         const { getClubData, replaceClubData } = await import('./repository');
         const local = getClubData(id);
-        if (cloudWouldLoseLocalData(local, pull.data.payload)) {
-          result = await backendSyncService.pushClubMirror(id, {
-            baseUpdatedAt: pull.data.updatedAt ?? null,
-          });
-        } else {
-          replaceClubData(
-            id,
-            mergeCloudWithLocalDeletes(local, pull.data.payload, false),
-          );
-          setLastSyncAt(id, pull.data.updatedAt ?? new Date().toISOString());
-          await maybePushAccountBundle();
-          return {
-            success: false as const,
-            data: null,
-            error: 'Σύγκρουση sync: φορτώθηκαν τα νεότερα cloud δεδομένα.',
-          };
-        }
+        const merged = mergeClubSnapshots(local, pull.data.payload, {
+          preferLocal: true,
+          treatCloudOnlyTxAsDeleted: Boolean(
+            (local.deletedTransactionIds?.length ?? 0) > 0 ||
+              (local.suppressedFeeChargeKeys?.length ?? 0) > 0,
+          ),
+        });
+        replaceClubData(id, merged, { skipCloudPush: true });
+        result = await backendSyncService.pushClubMirror(id, {
+          baseUpdatedAt: pull.data.updatedAt ?? null,
+        });
       }
     }
   }
@@ -221,13 +215,48 @@ function isEmptyCloudOverwrite(local: AppData, cloud: AppData): boolean {
   return localN > 0 && cloudN === 0;
 }
 
+function rowIds(rows: { id: string }[] | undefined): Set<string> {
+  return new Set((rows ?? []).map((row) => row.id));
+}
+
+function hasLocalOnlyRows(localRows: { id: string }[] | undefined, cloudRows: { id: string }[] | undefined) {
+  const cloudIds = rowIds(cloudRows);
+  return (localRows ?? []).some((row) => !cloudIds.has(row.id));
+}
+
+function localHasUnsyncedEdits(local: AppData, cloud: AppData): boolean {
+  if (hasLocalOnlyRows(local.students, cloud.students)) return true;
+  if (hasLocalOnlyRows(local.classes, cloud.classes)) return true;
+  if (hasLocalOnlyRows(local.coaches, cloud.coaches)) return true;
+  if (hasLocalOnlyRows(local.staff, cloud.staff)) return true;
+  if (hasLocalOnlyRows(local.transactions, cloud.transactions)) return true;
+
+  const cloudDeletedTx = new Set(cloud.deletedTransactionIds ?? []);
+  if ((local.deletedTransactionIds ?? []).some((id) => !cloudDeletedTx.has(id))) return true;
+
+  const cloudSuppressed = new Set(cloud.suppressedFeeChargeKeys ?? []);
+  if ((local.suppressedFeeChargeKeys ?? []).some((key) => !cloudSuppressed.has(key))) return true;
+
+  const cloudDeletedStudents = new Set(cloud.deletedStudentIds ?? []);
+  if ((local.deletedStudentIds ?? []).some((id) => !cloudDeletedStudents.has(id))) return true;
+
+  return false;
+}
+
 function cloudWouldLoseLocalData(local: AppData, cloud: AppData): boolean {
   if (isEmptyCloudOverwrite(local, cloud)) return true;
+  if (localHasUnsyncedEdits(local, cloud)) return true;
 
   const localDeleted = local.deletedTransactionIds ?? [];
   if (localDeleted.length > 0) {
     const cloudTxnIds = new Set((cloud.transactions ?? []).map((t) => t.id));
     if (localDeleted.some((id) => cloudTxnIds.has(id))) return true;
+  }
+
+  const localDeletedStudents = local.deletedStudentIds ?? [];
+  if (localDeletedStudents.length > 0) {
+    const cloudStudentIds = new Set((cloud.students ?? []).map((s) => s.id));
+    if (localDeletedStudents.some((id) => cloudStudentIds.has(id))) return true;
   }
 
   const localIds = new Set((local.transactions ?? []).map((t) => t.id));
@@ -250,11 +279,33 @@ function cloudWouldLoseLocalData(local: AppData, cloud: AppData): boolean {
   return localW > 0 && localW > cloudW;
 }
 
-function mergeCloudWithLocalDeletes(
+function mergeById<T extends { id: string }>(
+  localRows: T[] | undefined,
+  cloudRows: T[] | undefined,
+  deleted: Set<string>,
+  preferLocal: boolean,
+): T[] {
+  const map = new Map<string, T>();
+  const first = preferLocal ? cloudRows ?? [] : localRows ?? [];
+  const second = preferLocal ? localRows ?? [] : cloudRows ?? [];
+  for (const row of first) {
+    if (!deleted.has(row.id)) map.set(row.id, row);
+  }
+  for (const row of second) {
+    if (!deleted.has(row.id)) map.set(row.id, row);
+  }
+  return [...map.values()];
+}
+
+function mergeClubSnapshots(
   local: AppData,
   cloud: AppData,
-  treatCloudOnlyAsDeleted: boolean,
+  opts: { preferLocal: boolean; treatCloudOnlyTxAsDeleted: boolean },
 ): AppData {
+  const deletedStudents = new Set([
+    ...(local.deletedStudentIds ?? []),
+    ...(cloud.deletedStudentIds ?? []),
+  ]);
   const deleted = new Set([
     ...(local.deletedTransactionIds ?? []),
     ...(cloud.deletedTransactionIds ?? []),
@@ -263,22 +314,30 @@ function mergeCloudWithLocalDeletes(
     ...(local.suppressedFeeChargeKeys ?? []),
     ...(cloud.suppressedFeeChargeKeys ?? []),
   ]);
-  const localIds = new Set((local.transactions ?? []).map((t) => t.id));
-  if (treatCloudOnlyAsDeleted) {
+  const localTxnIds = new Set((local.transactions ?? []).map((t) => t.id));
+  if (opts.treatCloudOnlyTxAsDeleted) {
     for (const tx of cloud.transactions ?? []) {
-      if (!localIds.has(tx.id)) deleted.add(tx.id);
+      if (!localTxnIds.has(tx.id)) deleted.add(tx.id);
     }
   }
 
   const byId = new Map<string, (typeof local.transactions)[number]>();
-  for (const tx of [...(cloud.transactions ?? []), ...(local.transactions ?? [])]) {
+  const ordered = opts.preferLocal
+    ? [...(cloud.transactions ?? []), ...(local.transactions ?? [])]
+    : [...(local.transactions ?? []), ...(cloud.transactions ?? [])];
+  for (const tx of ordered) {
     if (transactionIsSuppressed(tx, deleted, suppressed)) continue;
     byId.set(tx.id, tx);
   }
 
   const next = structuredClone(cloud);
+  next.students = mergeById(local.students, cloud.students, deletedStudents, opts.preferLocal);
+  next.classes = mergeById(local.classes, cloud.classes, new Set(), opts.preferLocal);
+  next.coaches = mergeById(local.coaches, cloud.coaches, new Set(), opts.preferLocal);
+  next.staff = mergeById(local.staff, cloud.staff, new Set(), opts.preferLocal);
   next.transactions = [...byId.values()];
   next.deletedTransactionIds = [...deleted].slice(-5000);
+  next.deletedStudentIds = [...deletedStudents].slice(-5000);
   next.suppressedFeeChargeKeys = [...suppressed].slice(-5000);
   next.revenues = (next.revenues ?? []).filter(
     (row) => !row.linkedTransactionId || !deleted.has(row.linkedTransactionId),
@@ -348,7 +407,11 @@ export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) 
     }
     replaceClubData(
       id,
-      mergeCloudWithLocalDeletes(local, result.data.payload, isClubMirrorDirty(id)),
+      mergeClubSnapshots(local, result.data.payload, {
+        preferLocal: isClubMirrorDirty(id) || localHasUnsyncedEdits(local, result.data.payload),
+        treatCloudOnlyTxAsDeleted: isClubMirrorDirty(id),
+      }),
+      { skipCloudPush: true },
     );
     setLastSyncAt(id, cloudAt ?? new Date().toISOString());
     setCloudPreferred(true);
@@ -387,21 +450,28 @@ export async function hydrateAllClubMirrorsFromCloud(): Promise<void> {
       if (!result.success || !result.data?.payload || result.data.durable === false) continue;
       if (clubHasStoredData(id)) {
         const local = getClubData(id);
-        if (cloudWouldLoseLocalData(local, result.data.payload)) {
-          replaceClubData(
-            id,
-            mergeCloudWithLocalDeletes(local, result.data.payload, isClubMirrorDirty(id)),
-          );
-          continue;
-        }
+        const preferLocal =
+          isClubMirrorDirty(id) || localHasUnsyncedEdits(local, result.data.payload);
         replaceClubData(
           id,
-          mergeCloudWithLocalDeletes(local, result.data.payload, false),
+          mergeClubSnapshots(local, result.data.payload, {
+            preferLocal,
+            treatCloudOnlyTxAsDeleted: preferLocal,
+          }),
+          { skipCloudPush: true },
         );
+        setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
+        if (localHasUnsyncedEdits(local, result.data.payload)) {
+          markClubMirrorDirty(id);
+          await flushClubMirrorPush(id);
+        } else {
+          clearClubMirrorDirty(id);
+        }
       } else {
-        replaceClubData(id, result.data.payload);
+        replaceClubData(id, result.data.payload, { skipCloudPush: true });
+        setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
+        clearClubMirrorDirty(id);
       }
-      setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
     }
   } finally {
     pulling = false;
@@ -459,35 +529,29 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
 
   for (const id of ids) {
     if (!isAutoSyncEnabled(id)) continue;
-    if (isClubMirrorDirty(id)) {
-      await flushClubMirrorPush(id);
-    }
     const result = await backendSyncService.pullClubMirror(id);
     if (result.success && result.data?.payload) {
       if (result.data.durable === false) continue;
       const local = getClubData(id);
-      const stillDirty = isClubMirrorDirty(id);
-      const localFewerTx =
-        (local.transactions?.length ?? 0) < (result.data.payload.transactions?.length ?? 0);
-      const dropStaleCloudTx =
-        stillDirty ||
-        (local.deletedTransactionIds?.length ?? 0) > 0 ||
-        ((local.suppressedFeeChargeKeys?.length ?? 0) > 0 && localFewerTx);
-      const neverSyncedHere = !getLastSyncAt(id);
-      if (
-        !neverSyncedHere &&
-        stillDirty &&
-        cloudWouldLoseLocalData(local, result.data.payload)
-      ) {
-        await flushClubMirrorPush(id);
-        continue;
-      }
-      replaceClubData(
-        id,
-        mergeCloudWithLocalDeletes(local, result.data.payload, dropStaleCloudTx),
-      );
+      const cloud = result.data.payload;
+      const preferLocal = isClubMirrorDirty(id) || localHasUnsyncedEdits(local, cloud);
+      const treatCloudOnlyTxAsDeleted =
+        preferLocal &&
+        ((local.deletedTransactionIds?.length ?? 0) > 0 ||
+          (local.suppressedFeeChargeKeys?.length ?? 0) > 0);
+      const merged = mergeClubSnapshots(local, cloud, {
+        preferLocal,
+        treatCloudOnlyTxAsDeleted,
+      });
+      replaceClubData(id, merged, { skipCloudPush: true });
       setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
       setCloudPreferred(true);
+      if (localHasUnsyncedEdits(local, cloud) || isEmptyCloudOverwrite(local, cloud)) {
+        markClubMirrorDirty(id);
+        await flushClubMirrorPush(id);
+      } else {
+        clearClubMirrorDirty(id);
+      }
       if (id === clubId) pulledClub = true;
       continue;
     }

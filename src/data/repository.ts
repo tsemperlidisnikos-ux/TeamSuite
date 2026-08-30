@@ -34,6 +34,7 @@ function ensureCollections(data: AppData): boolean {
   let changed = false;
   if (!data.transactions) data.transactions = structuredClone(seedData.transactions);
   if (!data.deletedTransactionIds) data.deletedTransactionIds = [];
+  if (!data.deletedStudentIds) data.deletedStudentIds = [];
   if (!data.suppressedFeeChargeKeys) data.suppressedFeeChargeKeys = [];
   if (!data.trainings) data.trainings = structuredClone(seedData.trainings);
   if (!data.staff) data.staff = structuredClone(seedData.staff);
@@ -403,7 +404,11 @@ export function replaceData(next: AppData): AppData {
 }
 
 /** Write AppData into a specific club (e.g. restore from another device). */
-export function replaceClubData(clubId: string, next: AppData): AppData {
+export function replaceClubData(
+  clubId: string,
+  next: AppData,
+  opts?: { skipCloudPush?: boolean },
+): AppData {
   const data = structuredClone(next);
   ensureCollections(data);
   writeClubStoreExclusive(clubId, data);
@@ -417,7 +422,9 @@ export function replaceClubData(clubId: string, next: AppData): AppData {
     clearDataCache();
   }
   notifyAppDataChanged();
-  scheduleClubMirrorPush(clubId);
+  if (!opts?.skipCloudPush) {
+    scheduleClubMirrorPush(clubId);
+  }
   return cache ?? data;
 }
 

@@ -206,7 +206,7 @@ export function LoginPage() {
       await Promise.race([
         syncWork,
         new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 20000);
+          window.setTimeout(resolve, 45000);
         }),
       ]);
       clearDataCache();

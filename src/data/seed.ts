@@ -10,6 +10,7 @@ export const seedData: AppData = {
   expenses: [],
   transactions: [],
   deletedTransactionIds: [],
+  deletedStudentIds: [],
   suppressedFeeChargeKeys: [],
   trainings: [],
   staff: [],

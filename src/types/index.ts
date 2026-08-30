@@ -687,6 +687,8 @@ export interface AppData {
   transactions: AthleteTransaction[];
   /** Κινήσεις που διαγράφηκαν ρητά — δεν επαναφέρονται από cloud/login. */
   deletedTransactionIds?: string[];
+  /** Αθλητές που διαγράφηκαν ρητά — δεν επαναφέρονται από παλιό mirror. */
+  deletedStudentIds?: string[];
   /** Αυτόματες χρεώσεις συνδρομής που ο χρήστης διέγραψε — δεν ξαναδημιουργούνται. */
   suppressedFeeChargeKeys?: string[];
   trainings: Training[];

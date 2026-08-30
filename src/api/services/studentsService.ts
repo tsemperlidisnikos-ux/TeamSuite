@@ -14,7 +14,7 @@ export async function getStudents() {
 }
 
 export async function createStudent(input: StudentInput) {
-  return apiClient(() => {
+  return apiClient(async () => {
     const parsed = studentSchema.parse(input);
     const classes = normalizeStudentClasses(parsed.classIds, parsed.classId);
     const sports = normalizeStudentSports(parsed.sports, parsed.sport);
@@ -30,6 +30,8 @@ export async function createStudent(input: StudentInput) {
     mutateData((data) => {
       data.students.push(student);
     });
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
+    await flushClubMirrorPush();
     return student;
   });
 }
@@ -60,11 +62,17 @@ export async function updateStudent(id: string, input: StudentInput) {
 }
 
 export async function deleteStudent(id: string) {
-  return apiClient(() => {
+  return apiClient(async () => {
     mutateData((data) => {
       data.students = data.students.filter((s) => s.id !== id);
       data.attendance = data.attendance.filter((a) => a.studentId !== id);
+      const deleted = data.deletedStudentIds ?? [];
+      if (!deleted.includes(id)) {
+        data.deletedStudentIds = [...deleted, id].slice(-5000);
+      }
     });
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
+    await flushClubMirrorPush();
     return { id };
   });
 }

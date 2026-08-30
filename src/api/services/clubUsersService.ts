@@ -446,6 +446,10 @@ export async function removeClubDirectoryMember(
       mutateData((data) => {
         data.students = data.students.filter((s) => s.id !== row.entityId);
         data.attendance = data.attendance.filter((a) => a.studentId !== row.entityId);
+        const deleted = data.deletedStudentIds ?? [];
+        if (row.entityId && !deleted.includes(row.entityId)) {
+          data.deletedStudentIds = [...deleted, row.entityId].slice(-5000);
+        }
       });
     }
 
