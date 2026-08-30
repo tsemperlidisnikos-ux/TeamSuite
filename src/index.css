@@ -264,10 +264,10 @@ strong {
 }
 
 .admin-club-logo-thumb {
-  max-height: 36px;
-  max-width: 120px;
+  display: block;
+  max-height: 72px;
+  max-width: min(280px, 100%);
   object-fit: contain;
-  vertical-align: middle;
 }
 
 .app-logo-error {
