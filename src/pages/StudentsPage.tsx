@@ -35,8 +35,8 @@ import { downloadXlsx } from '../utils/xlsxDownload';
 import { parseSpreadsheetGrid } from '../utils/xlsxParse';
 
 const draftAthlete: StudentInput = {
-  firstName: 'ΝΕΟΣ',
-  lastName: 'ΑΘΛΗΤΗΣ',
+  firstName: '',
+  lastName: '',
   email: '',
   phone: '',
   birthDate: '',
@@ -67,6 +67,7 @@ const draftAthlete: StudentInput = {
   consentExpires: '',
   uniformReceived: false,
   uniformSize: '',
+  clothingPackageIds: [],
   registrationFee: 0,
   registrationCharge: true,
   monthlyCharge: true,
@@ -74,6 +75,7 @@ const draftAthlete: StudentInput = {
   subscriptionDiscount: false,
   discountAmount: 0,
   discountReason: '',
+  discountReasonIds: [],
   comments: '',
   photoUrl: null,
   gdprConsent: 'pending',

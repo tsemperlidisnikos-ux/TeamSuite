@@ -28,10 +28,22 @@ import { Modal } from '../components/ui/Modal';
 import { AppPopupLayer } from '../components/ui/AppPopupLayer';
 import { useAppData } from '../hooks/useAppData';
 import type { StudentInput } from '../schemas';
-import type { Gender, RegistrationApplication, Student } from '../types';
+import type { DiscountReasonDef, Gender, RegistrationApplication, Student } from '../types';
 import { formatJoinExtrasLines } from '../shared/publicJoinExtras';
 import { normalizePersonName, normalizePhone } from '../api/services/registrationApplicationsService';
 import { buildHealthCardPdf } from '../utils/healthCardPdf';
+import {
+  clothingPackageSummary,
+  defaultClothingPackages,
+  studentClothingPackageIds,
+} from '../utils/clothingPackages';
+import {
+  defaultDiscountReasons,
+  discountReasonOptionLabel,
+  discountReasonSummary,
+  discountReasonsForAthlete,
+  studentDiscountReasonIds,
+} from '../utils/discountReasons';
 import { sizeChartOptGroups } from '../utils/sizeChartOptions';
 import { formatDate } from '../utils/labels';
 import { localDateIso } from '../utils/dates';
@@ -114,14 +126,6 @@ const MONTH_LABELS = [
   'Ιούλιος',
 ];
 
-const DISCOUNT_REASONS = [
-  { value: '', label: '—' },
-  { value: 'siblings', label: 'Αδέλφια' },
-  { value: 'annual', label: 'Ετήσια συνδρομή' },
-  { value: 'social', label: 'Κοινωνικό κριτήριο' },
-  { value: 'other', label: 'Άλλο' },
-];
-
 const YES_NO = [
   { value: 'yes', label: 'Ναι' },
   { value: 'no', label: 'Όχι' },
@@ -172,7 +176,10 @@ function statusText(status: Student['status']) {
   return 'Ανενεργός';
 }
 
-function toForm(student: Student): StudentInput {
+function toForm(
+  student: Student,
+  catalog: DiscountReasonDef[] = defaultDiscountReasons(),
+): StudentInput {
   return {
     firstName: student.firstName,
     lastName: student.lastName,
@@ -207,6 +214,7 @@ function toForm(student: Student): StudentInput {
     consentExpires: student.consentExpires ?? '',
     uniformReceived: student.uniformReceived ?? false,
     uniformSize: student.uniformSize ?? '',
+    clothingPackageIds: studentClothingPackageIds(student),
     joinExtras: student.joinExtras,
     registrationFee: student.registrationFee ?? 0,
     registrationCharge: student.registrationCharge ?? (student.registrationFee ?? 0) > 0,
@@ -216,6 +224,7 @@ function toForm(student: Student): StudentInput {
     subscriptionDiscount: student.subscriptionDiscount ?? false,
     discountAmount: student.discountAmount ?? 0,
     discountReason: student.discountReason ?? '',
+    discountReasonIds: studentDiscountReasonIds(student, catalog),
     comments: student.comments ?? '',
     photoUrl: student.photoUrl ?? null,
     registrationFormImageUrl: student.registrationFormImageUrl ?? null,
@@ -424,6 +433,14 @@ export function AthleteProfilePage() {
   const healthCardPreviewUrlRef = useRef<string | null>(null);
   const amkaViewLoggedRef = useRef<string | null>(null);
 
+  const clothingPackages = useMemo(
+    () => data.clothingPackages ?? defaultClothingPackages(),
+    [data.clothingPackages],
+  );
+  const discountCatalog = useMemo(
+    () => data.discountReasons ?? defaultDiscountReasons(),
+    [data.discountReasons],
+  );
   const uniformSizeOptions = useMemo(() => {
     const sizes = sizeChartOptGroups(data.sizeChart).flatMap((g) => g.sizes);
     const all = new Set(sizes.map((s) => s.toUpperCase()));
@@ -452,8 +469,8 @@ export function AthleteProfilePage() {
       : null;
 
   useEffect(() => {
-    if (student) setForm(toForm(student));
-  }, [student]);
+    if (student) setForm(toForm(student, discountCatalog));
+  }, [student, discountCatalog]);
 
   useEffect(() => {
     if (!amkaAllowed || !student || !session) return;
@@ -758,8 +775,22 @@ export function AthleteProfilePage() {
       return;
     }
     const previousAmka = (student.amka ?? '').trim();
+    const selectedPackages = form.clothingPackageIds ?? [];
+    const joinClothing = selectedPackages.find(
+      (id): id is 'basic' | 'upgraded' => id === 'basic' || id === 'upgraded',
+    );
     const payload: StudentInput = {
       ...form,
+      clothingPackageIds: selectedPackages,
+      discountReasonIds: form.discountReasonIds ?? [],
+      discountReason: discountReasonSummary(
+        form.discountReasonIds ?? [],
+        discountCatalog,
+      ),
+      joinExtras:
+        form.joinExtras && joinClothing
+          ? { ...form.joinExtras, clothingPackage: joinClothing }
+          : form.joinExtras,
       amka: amkaValue,
       amkaConsentAt: amkaValue
         ? form.amkaConsentAt || localDateIso()
@@ -818,7 +849,7 @@ export function AthleteProfilePage() {
 
   function handleCancel() {
     if (!student) return;
-    setForm(toForm(student));
+    setForm(toForm(student, discountCatalog));
     setEditing(false);
     setError('');
   }
@@ -1058,7 +1089,7 @@ export function AthleteProfilePage() {
   async function openHealthCardPreview() {
     if (!form) return;
     if (!amkaAllowed) {
-      setError('Η προεπισκόπηση κάρτας υγείας με ΑΜΚΑ είναι διαθέσιμη μόνο σε διαχειριστή/ιατρό.');
+      setError('Η προεπισκόπηση κάρτας υγείας με ΑΜΚΑ είναι διαθέσιμη μόνο σε διαχειριστή, γραμματεία ή ιατρό.');
       return;
     }
     setLoadingHealthCardPreview(true);
@@ -1686,6 +1717,29 @@ export function AthleteProfilePage() {
                       ))}
                     </select>
                   </ApField>
+                  <ApField label="Πακέτο ρουχισμού" className="ap-span-2">
+                    <ApMultiCheckDropdown
+                      summary={clothingPackageSummary(
+                        form.clothingPackageIds ?? [],
+                        clothingPackages,
+                      )}
+                      placeholder="Επιλογή πακέτου…"
+                      emptyText="Δεν υπάρχουν πακέτα. Πρόσθεσέ τα από Ρυθμίσεις → Πακέτο ρουχισμού."
+                      disabled={disabled}
+                      options={clothingPackages.map((pkg) => ({
+                        value: pkg.id,
+                        label: pkg.name,
+                        checked: (form.clothingPackageIds ?? []).includes(pkg.id),
+                        onToggle: (checked) => {
+                          const current = form.clothingPackageIds ?? [];
+                          const next = checked
+                            ? [...current, pkg.id]
+                            : current.filter((id) => id !== pkg.id);
+                          setField('clothingPackageIds', [...new Set(next)]);
+                        },
+                      }))}
+                    />
+                  </ApField>
                 </div>
               </ApCard>
 
@@ -1783,7 +1837,7 @@ export function AthleteProfilePage() {
               />
             ) : (
               <p className="ap-field-hint">
-                Ο ΑΜΚΑ είναι ορατός μόνο σε διαχειριστή συλλόγου και ιατρό (RBAC).
+                Ο ΑΜΚΑ είναι ορατός μόνο σε διαχειριστή συλλόγου, γραμματεία και ιατρό (RBAC).
               </p>
             )}
             {amkaAllowed ? (
@@ -1857,20 +1911,38 @@ export function AthleteProfilePage() {
                     onChange={(e) => setField('discountAmount', Number(e.target.value))}
                   />
                 </ApField>
-                <ApField label="Λόγος έκπτωσης">
-                  <select
-                    className={inputClass}
-                    value={form.discountReason ?? ''}
-                    disabled={disabled}
-                    onChange={(e) => setField('discountReason', e.target.value)}
-                  >
-                    {DISCOUNT_REASONS.map((o) => (
-                      <option key={o.value || 'empty'} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </ApField>
+                <ApField label="Λόγος έκπτωσης" className="ap-span-2">
+                    <ApMultiCheckDropdown
+                      summary={discountReasonSummary(
+                        form.discountReasonIds ?? [],
+                        discountCatalog,
+                      )}
+                      placeholder="Επιλογή λόγου έκπτωσης…"
+                      emptyText="Δεν υπάρχουν λόγοι. Πρόσθεσέ τους από Ρυθμίσεις → Λόγοι έκπτωσης."
+                      disabled={disabled}
+                      options={discountReasonsForAthlete(
+                        discountCatalog,
+                        form,
+                        form.discountReasonIds ?? [],
+                      ).map((row) => ({
+                        value: row.id,
+                        label: discountReasonOptionLabel(row),
+                        checked: (form.discountReasonIds ?? []).includes(row.id),
+                        onToggle: (checked) => {
+                          const current = form.discountReasonIds ?? [];
+                          const next = checked
+                            ? [...current, row.id]
+                            : current.filter((id) => id !== row.id);
+                          const unique = [...new Set(next)];
+                          setField('discountReasonIds', unique);
+                          setField(
+                            'discountReason',
+                            discountReasonSummary(unique, discountCatalog),
+                          );
+                        },
+                      }))}
+                    />
+                  </ApField>
               </div>
             </ApCard>
 

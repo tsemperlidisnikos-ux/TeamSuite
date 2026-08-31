@@ -1,24 +1,26 @@
 ﻿import { useEffect, useState } from 'react';
-import { Printer } from 'lucide-react';
+import { Printer, Send } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
+import * as emailService from '../api/services/emailService';
+import { getClubSmtp } from '../auth/clubs';
 import { amountToGreekWords } from '../utils/amountToGreekWords';
+import {
+  buildPaymentReceiptEmail,
+  parentReceiptEmails,
+  type PaymentReceiptDraft,
+} from '../utils/paymentReceiptEmail';
 
-export type PaymentReceiptDraft = {
-  date: string;
-  series: string;
-  number: string;
-  amount: string;
-  receivedFrom: string;
-  address: string;
-  amountWords: string;
-  reason: string;
-};
+export type { PaymentReceiptDraft };
 
 type PaymentReceiptModalProps = {
   open: boolean;
   logoUrl: string | null;
   clubName: string;
+  clubId: string | null;
+  athleteId?: string | null;
+  fatherEmail?: string | null;
+  motherEmail?: string | null;
   initial: PaymentReceiptDraft;
   onClose: () => void;
 };
@@ -38,10 +40,17 @@ export function PaymentReceiptModal({
   open,
   logoUrl,
   clubName,
+  clubId,
+  athleteId,
+  fatherEmail,
+  motherEmail,
   initial,
   onClose,
 }: PaymentReceiptModalProps) {
   const [draft, setDraft] = useState<PaymentReceiptDraft>(emptyDraft);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const [sendOk, setSendOk] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -50,6 +59,8 @@ export function PaymentReceiptModal({
       next.amountWords = amountToGreekWords(next.amount);
     }
     setDraft(next);
+    setSendError('');
+    setSendOk('');
   }, [open, initial]);
 
   function setField<K extends keyof PaymentReceiptDraft>(key: K, value: PaymentReceiptDraft[K]) {
@@ -70,6 +81,63 @@ export function PaymentReceiptModal({
     window.print();
   }
 
+  async function handleSend() {
+    if (sending) return;
+    setSendError('');
+    setSendOk('');
+    if (!clubId) {
+      setSendError('Δεν βρέθηκε σύλλογος.');
+      return;
+    }
+    const smtp = getClubSmtp(clubId);
+    if (!smtp.enabled) {
+      setSendError('Ενεργοποιήστε το SMTP στις Ρυθμίσεις → Email για αποστολή απόδειξης.');
+      return;
+    }
+    const recipients = parentReceiptEmails({ fatherEmail, motherEmail });
+    if (recipients.length === 0) {
+      setSendError(
+        'Δεν υπάρχουν email πατέρα ή μητέρας στο προφίλ αθλητή. Συμπληρώστε τα και δοκιμάστε ξανά.',
+      );
+      return;
+    }
+
+    const message = buildPaymentReceiptEmail({
+      clubName,
+      logoUrl,
+      draft,
+    });
+    setSending(true);
+    const sent: string[] = [];
+    const failed: string[] = [];
+    for (const to of recipients) {
+      const result = await emailService.sendClubEmail({
+        clubId,
+        to,
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+        athleteId: athleteId ?? undefined,
+        transactional: true,
+      });
+      if (result.success) sent.push(to);
+      else failed.push(`${to}: ${result.error ?? 'αποτυχία'}`);
+    }
+    setSending(false);
+    if (failed.length > 0 && sent.length === 0) {
+      setSendError(failed.join(' · '));
+      return;
+    }
+    if (failed.length > 0) {
+      setSendError(failed.join(' · '));
+    }
+    setSendOk(
+      sent.length === 1
+        ? `Η απόδειξη στάλθηκε στο ${sent[0]}.`
+        : `Η απόδειξη στάλθηκε σε πατέρα και μητέρα (${sent.join(', ')}).`,
+    );
+  }
+
   return (
     <Modal
       open={open}
@@ -79,8 +147,15 @@ export function PaymentReceiptModal({
       className="payment-receipt-modal"
       footer={
         <>
+          <div className="payment-receipt-footer-status">
+            {sendError ? <p className="form-error">{sendError}</p> : null}
+            {sendOk ? <p className="settings-success">{sendOk}</p> : null}
+          </div>
           <Button type="button" variant="secondary" onClick={onClose}>
             Κλείσιμο
+          </Button>
+          <Button type="button" variant="secondary" disabled={sending} onClick={() => void handleSend()}>
+            <Send size={16} /> {sending ? 'Αποστολή…' : 'Αποστολή'}
           </Button>
           <Button type="button" onClick={handlePrint}>
             <Printer size={16} /> Εκτύπωση

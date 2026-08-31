@@ -1,6 +1,7 @@
 import type { AppData, Student } from '../types';
 import { DEFAULT_TERMS_OF_USE_HTML } from '../shared/termsDefaults';
 import { localDateIso } from '../utils/dates';
+import { defaultDiscountReasons } from '../utils/discountReasons';
 
 /** Bump to re-seed DEMO clubs after showcase content changes. */
 export const DEMO_SHOWCASE_VERSION = 5;
@@ -1470,6 +1471,17 @@ export function buildDemoShowcaseData(now = new Date()): AppData {
       men: [],
       women: [],
     },
+    clothingPackages: [
+      {
+        id: 'basic',
+        name: 'BASIC (ΠΟΥΓΚΙ - DOUBLE FACE - SHORTS - TSHIRT)',
+      },
+      {
+        id: 'upgraded',
+        name: 'ΑΝΑΒΑΘΜΙΣΜΕΝΟ (DOUBLE FACE - SHORTS - TSHIRT - ΤΣΑΝΤΑ ΠΛΑΤΗΣ - ΖΑΚΕΤΑ ΦΟΥΤΕΡ ΚΟΥΚΟΥΛΑ - ΠΑΝΤΕΛΟΝΙ ΦΟΡΜΑΣ)',
+      },
+    ],
+    discountReasons: defaultDiscountReasons(),
     termsOfUseHtml: `<h2>Όροι χρήσης (DEMO)</h2><p>Τα δεδομένα του συλλόγου DEMO είναι πλασματικά.</p>${DEFAULT_TERMS_OF_USE_HTML}`,
   };
 }

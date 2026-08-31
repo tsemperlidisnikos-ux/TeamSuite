@@ -32,6 +32,7 @@ export const studentSchema = z.object({
   consentExpires: z.string().optional().default(''),
   uniformReceived: z.boolean().optional(),
   uniformSize: z.string().optional(),
+  clothingPackageIds: z.array(z.string()).optional().default([]),
   joinExtras: z
     .object({
       clothingPackage: z.enum(['basic', 'upgraded']),
@@ -50,6 +51,7 @@ export const studentSchema = z.object({
   subscriptionDiscount: z.boolean().optional(),
   discountAmount: z.coerce.number().optional(),
   discountReason: z.string().optional(),
+  discountReasonIds: z.array(z.string()).optional().default([]),
   comments: z.string().optional(),
   photoUrl: z.string().nullable().optional(),
   registrationFormImageUrl: z.string().nullable().optional(),
@@ -88,6 +90,12 @@ export const studentSchema = z.object({
   medication: z.string().optional(),
   registrationExpires: z.string().optional(),
   autoRenewal: z.boolean().optional(),
+});
+
+/** Αρχική καταχώρηση: όνομα/επώνυμο μπορούν να είναι κενά μέχρι την αποθήκευση στο προφίλ. */
+export const studentCreateSchema = studentSchema.extend({
+  firstName: z.string(),
+  lastName: z.string(),
 });
 
 export const coachSchema = z.object({

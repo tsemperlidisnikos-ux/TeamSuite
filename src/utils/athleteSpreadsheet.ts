@@ -11,6 +11,7 @@ import {
   type PublicJoinExtras,
 } from '../shared/publicJoinExtras';
 import { studentStatusLabels } from './labels';
+import { studentClothingPackageIds } from './clothingPackages';
 import { studentClassIds } from './studentClasses';
 import { studentCoachNames } from './studentCoaches';
 import { studentSports } from './studentSports';
@@ -393,7 +394,13 @@ export function studentToSheetRow(student: Student, classes: AthleteSheetClass[]
     medication: student.medication ?? '',
     registrationExpires: student.registrationExpires ?? '',
     autoRenewal: yesNo(student.autoRenewal),
-    clothingPackage: optionLabel(CLOTHING_PACKAGE_OPTIONS, extras?.clothingPackage),
+    clothingPackage:
+      studentClothingPackageIds(student)
+        .map(
+          (id) =>
+            CLOTHING_PACKAGE_OPTIONS.find((o) => o.value === id)?.label ?? id,
+        )
+        .join('; ') || optionLabel(CLOTHING_PACKAGE_OPTIONS, extras?.clothingPackage),
     istosProgram: optionLabel(ISTOS_OPTIONS, extras?.istosProgram),
     preferredPayment: optionLabel(PAYMENT_OPTIONS, extras?.preferredPayment),
     healthDeclaration: optionLabel(HEALTH_OPTIONS, extras?.healthDeclaration),
@@ -439,6 +446,8 @@ function emptyInput(): StudentInput {
     coachNames: [] as string[],
     healthCardExpires: '',
     consentExpires: '',
+    clothingPackageIds: [] as string[],
+    discountReasonIds: [] as string[],
   };
 }
 
@@ -709,7 +718,20 @@ function applyCell(
     case 'liabilityAcceptance':
     case 'mediaConsent': {
       const extras: Partial<PublicJoinExtras> = { ...(draft.joinExtras ?? {}) };
-      if (key === 'clothingPackage') extras.clothingPackage = parseOption(value, CLOTHING_PACKAGE_OPTIONS);
+      if (key === 'clothingPackage') {
+        extras.clothingPackage = parseOption(value, CLOTHING_PACKAGE_OPTIONS);
+        const ids = value
+          .split(/[;,]/)
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .map((part) => {
+            const match = CLOTHING_PACKAGE_OPTIONS.find(
+              (o) => o.value === part || o.label === part,
+            );
+            return match?.value ?? part;
+          });
+        if (ids.length) draft.clothingPackageIds = ids;
+      }
       if (key === 'istosProgram') extras.istosProgram = parseOption(value, ISTOS_OPTIONS);
       if (key === 'preferredPayment') extras.preferredPayment = parseOption(value, PAYMENT_OPTIONS);
       if (key === 'healthDeclaration') extras.healthDeclaration = parseOption(value, HEALTH_OPTIONS);

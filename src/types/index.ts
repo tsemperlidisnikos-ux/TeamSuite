@@ -75,6 +75,8 @@ export interface Student {
   consentExpires?: string;
   uniformReceived?: boolean;
   uniformSize?: string;
+  /** Επιλεγμένα πακέτα ρουχισμού συλλόγου. */
+  clothingPackageIds?: string[];
   /** Επιλογές δημόσιας φόρμας (πακέτο, ΙΣΤΟΣ, πληρωμή, δηλώσεις). */
   joinExtras?: PublicJoinExtras;
   registrationFee?: number;
@@ -85,6 +87,8 @@ export interface Student {
   subscriptionDiscount?: boolean;
   discountAmount?: number;
   discountReason?: string;
+  /** Επιλεγμένοι λόγοι έκπτωσης συλλόγου. */
+  discountReasonIds?: string[];
   comments?: string;
   photoUrl?: string | null;
   /** Στιγμιότυπο υποβληθείσας δημόσιας φόρμας εγγραφής. */
@@ -494,6 +498,18 @@ export interface SizeChart {
   };
 }
 
+export interface ClothingPackageDef {
+  id: string;
+  name: string;
+}
+
+export interface DiscountReasonDef {
+  id: string;
+  name: string;
+  /** Κενό = ισχύει για όλα τα αθλήματα. */
+  sport: string;
+}
+
 /** Πρότυπο χρεώσεων συνδρομών (Συνδρομές / Πληρωμές). */
 export interface FeeChargeTemplate {
   id: string;
@@ -717,6 +733,10 @@ export interface AppData {
   progressReports: ProgressReport[];
   registrationApplications: RegistrationApplication[];
   sizeChart: SizeChart;
+  /** Πακέτα ρουχισμού που ορίζει ο σύλλογος. */
+  clothingPackages?: ClothingPackageDef[];
+  /** Λόγοι έκπτωσης συνδρομής ανά άθλημα. */
+  discountReasons?: DiscountReasonDef[];
   /** HTML όρων χρήσης / πολιτικής απορρήτου (εγγραφή). */
   termsOfUseHtml?: string;
   /** Συμφωνία επεξεργασίας (DPA) συλλόγου–πλατφόρμας. */

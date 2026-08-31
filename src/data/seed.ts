@@ -1,4 +1,5 @@
 import type { AppData } from '../types';
+import { defaultDiscountReasons } from '../utils/discountReasons';
 
 export const seedData: AppData = {
   coaches: [],
@@ -36,6 +37,17 @@ export const seedData: AppData = {
     men: [],
     women: [],
   },
+  clothingPackages: [
+    {
+      id: 'basic',
+      name: 'BASIC (ΠΟΥΓΚΙ - DOUBLE FACE - SHORTS - TSHIRT)',
+    },
+    {
+      id: 'upgraded',
+      name: 'ΑΝΑΒΑΘΜΙΣΜΕΝΟ (DOUBLE FACE - SHORTS - TSHIRT - ΤΣΑΝΤΑ ΠΛΑΤΗΣ - ΖΑΚΕΤΑ ΦΟΥΤΕΡ ΚΟΥΚΟΥΛΑ - ΠΑΝΤΕΛΟΝΙ ΦΟΡΜΑΣ)',
+    },
+  ],
+  discountReasons: defaultDiscountReasons(),
   termsOfUseHtml: '',
   dpaHtml: '',
   retentionPolicyHtml: '',

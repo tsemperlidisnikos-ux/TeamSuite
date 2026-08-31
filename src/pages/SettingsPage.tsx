@@ -7,9 +7,11 @@ import {
   EyeOff,
   FileText,
   KeyRound,
+  Percent,
   Plus,
   Ruler,
   ShieldCheck,
+  Shirt,
   Trophy,
   UserPlus,
 } from 'lucide-react';
@@ -45,6 +47,8 @@ import { ClubUsersPanel } from '../components/ClubUsersPanel';
 import { ClubVivaPanel } from '../components/ClubVivaPanel';
 import { Button } from '../components/ui/Button';
 import { SizeChartPanel } from '../components/SizeChartPanel';
+import { ClothingPackagesPanel } from '../components/ClothingPackagesPanel';
+import { DiscountReasonsPanel } from '../components/DiscountReasonsPanel';
 import { useAppData } from '../hooks/useAppData';
 import { getPreviewClubId } from '../platform/platformConfig';
 import { AssociationsPage } from './AssociationsPage';
@@ -66,6 +70,8 @@ type SettingsTab =
   | 'sports'
   | 'seasons'
   | 'sizes'
+  | 'clothing'
+  | 'discounts'
   | 'terms'
   | 'amka'
   | 'backup';
@@ -97,6 +103,8 @@ const MORE_TABS: Array<{ id: SettingsTab; label: string; icon: typeof KeyRound }
   { id: 'sports', label: 'Άθλημα', icon: Trophy },
   { id: 'seasons', label: 'Σεζόν', icon: CalendarRange },
   { id: 'sizes', label: 'Μεγεθολόγιο', icon: Ruler },
+  { id: 'clothing', label: 'Πακέτο ρουχισμού', icon: Shirt },
+  { id: 'discounts', label: 'Λόγοι έκπτωσης', icon: Percent },
   { id: 'terms', label: 'Όροι', icon: FileText },
   { id: 'amka', label: 'GDPR', icon: ShieldCheck },
   { id: 'backup', label: 'Backup', icon: Database },
@@ -789,6 +797,8 @@ export function SettingsPage() {
       {tab === 'sports' ? <SportsPage /> : null}
       {tab === 'seasons' ? <SeasonsPage /> : null}
       {tab === 'sizes' ? <SizeChartPanel /> : null}
+      {tab === 'clothing' ? <ClothingPackagesPanel /> : null}
+      {tab === 'discounts' ? <DiscountReasonsPanel /> : null}
       {tab === 'terms' ? <TermsOfUsePanel /> : null}
       {tab === 'amka' ? <AmkaCompliancePanel /> : null}
       {tab === 'backup' ? <BackupPanel /> : null}

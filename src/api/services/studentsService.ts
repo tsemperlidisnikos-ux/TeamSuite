@@ -1,6 +1,6 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
-import { studentSchema, type StudentInput } from '../../schemas';
+import { studentCreateSchema, studentSchema, type StudentInput } from '../../schemas';
 import type { Student } from '../../types';
 import { localDateIso } from '../../utils/dates';
 import { normalizeStudentClasses } from '../../utils/studentClasses';
@@ -15,7 +15,7 @@ export async function getStudents() {
 
 export async function createStudent(input: StudentInput) {
   return apiClient(async () => {
-    const parsed = studentSchema.parse(input);
+    const parsed = studentCreateSchema.parse(input);
     const classes = normalizeStudentClasses(parsed.classIds, parsed.classId);
     const sports = normalizeStudentSports(parsed.sports, parsed.sport);
     const coaches = normalizeStudentCoaches(parsed.coachNames, parsed.coachName);

@@ -23,6 +23,8 @@ import { ensureAmkaPrivacySection } from '../shared/termsDefaults';
 import { resolveCatalogSportName } from '../shared/sportsCatalog';
 import { pruneAmkaAccessLogs } from '../utils/amkaAccess';
 import { clearExpiredSeasonEnrollments } from '../utils/clubSeasons';
+import { defaultClothingPackages, normalizeClothingPackages } from '../utils/clothingPackages';
+import { defaultDiscountReasons, normalizeDiscountReasons } from '../utils/discountReasons';
 import { normalizeSizeChart } from '../utils/sizeChartOptions';
 
 let cache: AppData | null = null;
@@ -137,6 +139,26 @@ function ensureCollections(data: AppData): boolean {
     const sameWomen = JSON.stringify(nextChart.women) === JSON.stringify(data.sizeChart.women ?? []);
     if (!sameKids || !sameMen || !sameWomen) {
       data.sizeChart = nextChart;
+      changed = true;
+    }
+  }
+  if (!data.clothingPackages) {
+    data.clothingPackages = defaultClothingPackages();
+    changed = true;
+  } else {
+    const nextPackages = normalizeClothingPackages(data.clothingPackages);
+    if (JSON.stringify(nextPackages) !== JSON.stringify(data.clothingPackages)) {
+      data.clothingPackages = nextPackages;
+      changed = true;
+    }
+  }
+  if (!data.discountReasons) {
+    data.discountReasons = defaultDiscountReasons();
+    changed = true;
+  } else {
+    const nextReasons = normalizeDiscountReasons(data.discountReasons);
+    if (JSON.stringify(nextReasons) !== JSON.stringify(data.discountReasons)) {
+      data.discountReasons = nextReasons;
       changed = true;
     }
   }

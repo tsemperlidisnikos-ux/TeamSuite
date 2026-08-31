@@ -20,7 +20,7 @@ import {
   DEFAULT_RETENTION_POLICY_HTML,
   MEDICAL_ACCESS_HINT,
 } from '../shared/termsDefaults';
-import { canAccessAmka } from '../utils/amkaAccess';
+import { canAccessMedical } from '../utils/amkaAccess';
 import type { AmkaAccessLog } from '../types';
 
 const ACTION_LABELS: Record<AmkaAccessLog['action'], string> = {
@@ -48,7 +48,7 @@ export function AmkaCompliancePanel() {
   const [clearingLogs, setClearingLogs] = useState(false);
   const [dsarAthleteId, setDsarAthleteId] = useState('');
   const [dsarBusy, setDsarBusy] = useState(false);
-  const allowed = canAccessAmka(session?.role);
+  const allowed = canAccessMedical(session?.role);
   const canDeleteLogs = isPlatformAdmin();
   const clubId = getPreviewClubId() || session?.clubId || null;
 

@@ -1,8 +1,15 @@
 import type { UserRole } from '../auth/auth';
 import type { AmkaAccessLog } from '../types';
 
-/** Roles allowed to view/edit AMKA and medical special-category data. */
-const SENSITIVE_ACCESS_ROLES: ReadonlySet<string> = new Set<UserRole | string>([
+/** Roles allowed to view/edit AMKA. Medical fields stay admin + doctor. */
+const AMKA_ACCESS_ROLES: ReadonlySet<string> = new Set<UserRole | string>([
+  'platform_admin',
+  'admin',
+  'secretariat',
+  'doctor',
+]);
+
+const MEDICAL_ACCESS_ROLES: ReadonlySet<string> = new Set<UserRole | string>([
   'platform_admin',
   'admin',
   'doctor',
@@ -16,12 +23,13 @@ const AMKA_LABEL_RE = /ΑΜΚΑ\s*[:-]?\s*\d{5,}/gi;
 
 export function canAccessAmka(role: string | null | undefined): boolean {
   if (!role) return false;
-  return SENSITIVE_ACCESS_ROLES.has(role);
+  return AMKA_ACCESS_ROLES.has(role);
 }
 
-/** Same RBAC as AMKA: admin + doctor (+ platform admin). */
+/** Medical special-category fields: admin + doctor (+ platform admin). */
 export function canAccessMedical(role: string | null | undefined): boolean {
-  return canAccessAmka(role);
+  if (!role) return false;
+  return MEDICAL_ACCESS_ROLES.has(role);
 }
 
 export function maskAmka(value: string | undefined | null): string {

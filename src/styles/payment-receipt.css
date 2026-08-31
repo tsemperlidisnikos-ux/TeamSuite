@@ -169,6 +169,21 @@
   min-height: 72px;
 }
 
+.payment-receipt-modal .modal-footer {
+  flex-wrap: wrap;
+}
+
+.payment-receipt-footer-status {
+  flex: 1 1 14rem;
+  margin-right: auto;
+  min-width: 12rem;
+}
+
+.payment-receipt-footer-status p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
 @media print {
   body * {
     visibility: hidden !important;

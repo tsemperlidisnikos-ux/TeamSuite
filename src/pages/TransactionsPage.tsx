@@ -155,6 +155,7 @@ export function TransactionsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receiptAthlete, setReceiptAthlete] = useState<Student | null>(null);
   const [receiptDraft, setReceiptDraft] = useState<PaymentReceiptDraft>({
     date: '',
     series: 'A',
@@ -394,6 +395,7 @@ export function TransactionsPage() {
           payload.comments?.trim() ||
           (monthLabel ? `Συνδρομή ${monthLabel} ${payload.year}` : ''),
       });
+      setReceiptAthlete(athlete);
       setReceiptOpen(true);
     }
 
@@ -768,6 +770,10 @@ export function TransactionsPage() {
         open={receiptOpen}
         logoUrl={clubLogoUrl}
         clubName={clubName}
+        clubId={clubId}
+        athleteId={receiptAthlete?.id ?? null}
+        fatherEmail={receiptAthlete?.fatherEmail}
+        motherEmail={receiptAthlete?.motherEmail}
         initial={receiptDraft}
         onClose={() => setReceiptOpen(false)}
       />
