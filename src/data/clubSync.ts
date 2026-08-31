@@ -2,7 +2,18 @@ import * as accountSyncService from '../api/services/accountSyncService';
 import * as backendSyncService from '../api/services/backendSyncService';
 import { appDataWeight } from './mediaStrip';
 import { resolveActiveClubId, whenClubMapPersisted } from './store';
-import type { AppData } from '../types';
+import type { AppData, ClothingPackageDef, DiscountReasonDef, ReceiptIssueRecord, SizeChart } from '../types';
+import {
+  defaultClothingPackages,
+  normalizeClothingPackages,
+} from '../utils/clothingPackages';
+import {
+  clubDiscountReasons,
+} from '../utils/discountReasons';
+import {
+  normalizeReceiptIssues,
+  normalizeReceiptRanges,
+} from '../utils/receiptBook';
 import { transactionIsSuppressed } from '../utils/feeChargeKeys';
 
 const AUTO_SYNC_KEY = 'academyhub-auto-sync-v1';
@@ -224,6 +235,67 @@ function hasLocalOnlyRows(localRows: { id: string }[] | undefined, cloudRows: { 
   return (localRows ?? []).some((row) => !cloudIds.has(row.id));
 }
 
+function catalogSignature(rows: unknown[]): string {
+  return JSON.stringify(rows);
+}
+
+function isDefaultDiscountCatalog(list: DiscountReasonDef[]): boolean {
+  return list.length === 0;
+}
+
+function isDefaultClothingCatalog(list: ClothingPackageDef[]): boolean {
+  return catalogSignature(list) === catalogSignature(defaultClothingPackages());
+}
+
+function localCatalogAhead<T extends { id: string }>(
+  localRows: T[],
+  cloudRows: T[],
+  isDefault: (list: T[]) => boolean,
+): boolean {
+  if (catalogSignature(localRows) === catalogSignature(cloudRows)) return false;
+  if (localRows.length === 0) return false;
+  if (isDefault(localRows) && !isDefault(cloudRows) && cloudRows.length > 0) return false;
+  return true;
+}
+
+function mergeIdCatalog<T extends { id: string }>(
+  localRows: T[] | undefined,
+  cloudRows: T[] | undefined,
+  normalize: (list: T[] | undefined) => T[],
+  isDefault: (list: T[]) => boolean,
+  preferLocal: boolean,
+): T[] {
+  const local = normalize(localRows);
+  const cloud = normalize(cloudRows);
+  if (!local.length) return cloud;
+  if (!cloud.length) return local;
+  if (!isDefault(local) && isDefault(cloud)) return local;
+  if (isDefault(local) && !isDefault(cloud)) return cloud;
+  const map = new Map<string, T>();
+  const first = preferLocal ? cloud : local;
+  const second = preferLocal ? local : cloud;
+  for (const row of first) map.set(row.id, row);
+  for (const row of second) map.set(row.id, row);
+  return [...map.values()];
+}
+
+function sizeChartCount(chart: SizeChart | undefined): number {
+  if (!chart) return 0;
+  return (chart.kids?.length ?? 0) + (chart.men?.length ?? 0) + (chart.women?.length ?? 0);
+}
+
+function mergeSizeCharts(
+  local: SizeChart | undefined,
+  cloud: SizeChart | undefined,
+  preferLocal: boolean,
+): SizeChart {
+  if (preferLocal && local) return local;
+  if (!cloud && local) return local;
+  if (!local && cloud) return cloud;
+  if (local && cloud && sizeChartCount(local) > sizeChartCount(cloud)) return local;
+  return cloud ?? local ?? { kids: [], men: [], women: [] };
+}
+
 function localHasUnsyncedEdits(local: AppData, cloud: AppData): boolean {
   if (hasLocalOnlyRows(local.students, cloud.students)) return true;
   if (hasLocalOnlyRows(local.classes, cloud.classes)) return true;
@@ -239,6 +311,25 @@ function localHasUnsyncedEdits(local: AppData, cloud: AppData): boolean {
 
   const cloudDeletedStudents = new Set(cloud.deletedStudentIds ?? []);
   if ((local.deletedStudentIds ?? []).some((id) => !cloudDeletedStudents.has(id))) return true;
+
+  const localReasons = clubDiscountReasons(local.discountReasons);
+  const cloudReasons = clubDiscountReasons(cloud.discountReasons);
+  if (localCatalogAhead(localReasons, cloudReasons, isDefaultDiscountCatalog)) return true;
+
+  const localPackages = normalizeClothingPackages(local.clothingPackages);
+  const cloudPackages = normalizeClothingPackages(cloud.clothingPackages);
+  if (localCatalogAhead(localPackages, cloudPackages, isDefaultClothingCatalog)) return true;
+
+  if (hasLocalOnlyRows(local.receiptNumberRanges, cloud.receiptNumberRanges)) return true;
+  if (hasLocalOnlyRows(local.receiptIssues, cloud.receiptIssues)) return true;
+
+  if (
+    local.sizeChart &&
+    sizeChartCount(local.sizeChart) > sizeChartCount(cloud.sizeChart) &&
+    JSON.stringify(local.sizeChart) !== JSON.stringify(cloud.sizeChart ?? null)
+  ) {
+    return true;
+  }
 
   return false;
 }
@@ -277,6 +368,33 @@ function cloudWouldLoseLocalData(local: AppData, cloud: AppData): boolean {
   const localW = appDataWeight(local);
   const cloudW = appDataWeight(cloud);
   return localW > 0 && localW > cloudW;
+}
+
+function mergeReceiptIssues(
+  local: ReceiptIssueRecord[] | undefined,
+  cloud: ReceiptIssueRecord[] | undefined,
+): ReceiptIssueRecord[] {
+  const map = new Map<string, ReceiptIssueRecord>();
+  const keyOf = (row: ReceiptIssueRecord) =>
+    `${row.series}:${row.number}`;
+  for (const row of normalizeReceiptIssues(cloud)) map.set(keyOf(row), row);
+  for (const row of normalizeReceiptIssues(local)) {
+    const key = keyOf(row);
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, row);
+      continue;
+    }
+    map.set(key, {
+      ...prev,
+      ...row,
+      voidedAt: row.voidedAt || prev.voidedAt,
+      voidReason: row.voidReason || prev.voidReason,
+      emailedAt: row.emailedAt || prev.emailedAt,
+      issuedAt: prev.issuedAt <= row.issuedAt ? prev.issuedAt : row.issuedAt,
+    });
+  }
+  return [...map.values()];
 }
 
 function mergeById<T extends { id: string }>(
@@ -342,6 +460,29 @@ function mergeClubSnapshots(
   next.revenues = (next.revenues ?? []).filter(
     (row) => !row.linkedTransactionId || !deleted.has(row.linkedTransactionId),
   );
+  next.discountReasons = mergeIdCatalog(
+    local.discountReasons,
+    cloud.discountReasons,
+    clubDiscountReasons,
+    isDefaultDiscountCatalog,
+    opts.preferLocal,
+  );
+  next.clothingPackages = mergeIdCatalog(
+    local.clothingPackages,
+    cloud.clothingPackages,
+    normalizeClothingPackages,
+    isDefaultClothingCatalog,
+    opts.preferLocal,
+  );
+  next.sizeChart = mergeSizeCharts(local.sizeChart, cloud.sizeChart, opts.preferLocal);
+  next.receiptNumberRanges = mergeIdCatalog(
+    local.receiptNumberRanges,
+    cloud.receiptNumberRanges,
+    normalizeReceiptRanges,
+    (list) => list.length === 0,
+    opts.preferLocal,
+  );
+  next.receiptIssues = mergeReceiptIssues(local.receiptIssues, cloud.receiptIssues);
   return next;
 }
 

@@ -9,6 +9,7 @@ import {
   KeyRound,
   Percent,
   Plus,
+  Receipt,
   Ruler,
   ShieldCheck,
   Shirt,
@@ -49,6 +50,7 @@ import { Button } from '../components/ui/Button';
 import { SizeChartPanel } from '../components/SizeChartPanel';
 import { ClothingPackagesPanel } from '../components/ClothingPackagesPanel';
 import { DiscountReasonsPanel } from '../components/DiscountReasonsPanel';
+import { ReceiptBookPanel } from '../components/ReceiptBookPanel';
 import { useAppData } from '../hooks/useAppData';
 import { getPreviewClubId } from '../platform/platformConfig';
 import { AssociationsPage } from './AssociationsPage';
@@ -72,6 +74,7 @@ type SettingsTab =
   | 'sizes'
   | 'clothing'
   | 'discounts'
+  | 'receipts'
   | 'terms'
   | 'amka'
   | 'backup';
@@ -105,6 +108,7 @@ const MORE_TABS: Array<{ id: SettingsTab; label: string; icon: typeof KeyRound }
   { id: 'sizes', label: 'Μεγεθολόγιο', icon: Ruler },
   { id: 'clothing', label: 'Πακέτο ρουχισμού', icon: Shirt },
   { id: 'discounts', label: 'Λόγοι έκπτωσης', icon: Percent },
+  { id: 'receipts', label: 'Αποδείξεις', icon: Receipt },
   { id: 'terms', label: 'Όροι', icon: FileText },
   { id: 'amka', label: 'GDPR', icon: ShieldCheck },
   { id: 'backup', label: 'Backup', icon: Database },
@@ -799,6 +803,7 @@ export function SettingsPage() {
       {tab === 'sizes' ? <SizeChartPanel /> : null}
       {tab === 'clothing' ? <ClothingPackagesPanel /> : null}
       {tab === 'discounts' ? <DiscountReasonsPanel /> : null}
+      {tab === 'receipts' ? <ReceiptBookPanel /> : null}
       {tab === 'terms' ? <TermsOfUsePanel /> : null}
       {tab === 'amka' ? <AmkaCompliancePanel /> : null}
       {tab === 'backup' ? <BackupPanel /> : null}

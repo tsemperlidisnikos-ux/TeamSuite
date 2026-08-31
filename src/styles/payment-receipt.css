@@ -76,6 +76,7 @@
 }
 
 .payment-receipt-meta-row input,
+.payment-receipt-meta-row select,
 .payment-receipt-line input,
 .payment-receipt-line textarea,
 .payment-receipt-amount-input {
@@ -94,6 +95,14 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   padding: 0.55rem 0.4rem;
+  border-bottom: 1px solid #111;
+}
+
+.payment-receipt-book-hint {
+  margin: 0;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.75rem;
+  color: #475569;
   border-bottom: 1px solid #111;
 }
 
@@ -204,7 +213,8 @@
   }
 
   .payment-receipt-modal .modal-header,
-  .payment-receipt-modal .modal-footer {
+  .payment-receipt-modal .modal-footer,
+  .payment-receipt-book-hint {
     display: none !important;
   }
 

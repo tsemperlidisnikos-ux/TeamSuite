@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as clothingPackagesService from '../api/services/clothingPackagesService';
 import { createId } from '../data/repository';
 import { Button } from './ui/Button';
@@ -19,12 +19,15 @@ export function ClothingPackagesPanel() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
+    if (dirtyRef.current) return;
     setDraft(toDraft(data.clothingPackages));
   }, [data.clothingPackages]);
 
   function removePackage(id: string) {
+    dirtyRef.current = true;
     setDraft((prev) => prev.filter((row) => row.id !== id));
     setMessage('');
   }
@@ -32,23 +35,29 @@ export function ClothingPackagesPanel() {
   function addPackage() {
     const name = newName.trim();
     if (!name) return;
+    dirtyRef.current = true;
     setDraft((prev) => [...prev, { id: createId('clp'), name }]);
     setNewName('');
     setMessage('');
   }
 
   async function handleSave() {
+    const rows = draft.map((row) => ({ ...row, name: row.name.trim() }));
+    const pending = newName.trim();
+    if (pending) rows.push({ id: createId('clp'), name: pending });
+    const next = rows.filter((row) => row.name);
     setSaving(true);
     setError('');
     setMessage('');
-    const result = await clothingPackagesService.saveClothingPackages(
-      draft.map((row) => ({ ...row, name: row.name.trim() })).filter((row) => row.name),
-    );
+    const result = await clothingPackagesService.saveClothingPackages(next);
     setSaving(false);
     if (!result.success) {
       setError(result.error ?? 'Σφάλμα αποθήκευσης');
       return;
     }
+    dirtyRef.current = false;
+    setDraft(toDraft(result.data));
+    setNewName('');
     setMessage('Τα πακέτα ρουχισμού αποθηκεύτηκαν.');
     refresh();
   }
@@ -91,13 +100,14 @@ export function ClothingPackagesPanel() {
                 <input
                   className="field-input"
                   value={row.name}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    dirtyRef.current = true;
                     setDraft((prev) =>
                       prev.map((item) =>
                         item.id === row.id ? { ...item, name: e.target.value } : item,
                       ),
-                    )
-                  }
+                    );
+                  }}
                 />
                 <button
                   type="button"

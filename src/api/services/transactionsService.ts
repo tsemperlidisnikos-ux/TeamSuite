@@ -4,6 +4,7 @@ import { transactionSchema, type TransactionInput } from '../../schemas';
 import type { AthleteTransaction } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import { rememberDeletedTransaction } from '../../utils/feeChargeKeys';
+import { voidReceiptIssuesForTransactionInData } from '../../utils/receiptBook';
 import {
   removeRevenuesForPaymentInData,
   syncRevenuesForPaymentInData,
@@ -88,6 +89,7 @@ export async function deleteTransaction(id: string) {
       data.suppressedFeeChargeKeys = remembered.suppressedFeeChargeKeys;
       removeRevenuesForPaymentInData(data, id);
       data.revenues = data.revenues.filter((r) => !r.description.includes(`(${id})`));
+      voidReceiptIssuesForTransactionInData(data, id);
     });
     const { flushClubMirrorPush } = await import('../../data/clubSync');
     await flushClubMirrorPush();

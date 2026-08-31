@@ -8,10 +8,12 @@ export async function getClothingPackages() {
 }
 
 export async function saveClothingPackages(packages: ClothingPackageDef[]) {
-  return apiClient(() => {
+  return apiClient(async () => {
     mutateData((data) => {
       data.clothingPackages = normalizeClothingPackages(packages);
     });
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
+    await flushClubMirrorPush();
     return getData().clothingPackages ?? [];
   });
 }

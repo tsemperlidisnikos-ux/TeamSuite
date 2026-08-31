@@ -38,7 +38,7 @@ import {
   studentClothingPackageIds,
 } from '../utils/clothingPackages';
 import {
-  defaultDiscountReasons,
+  clubDiscountReasons,
   discountReasonOptionLabel,
   discountReasonSummary,
   discountReasonsForAthlete,
@@ -178,7 +178,7 @@ function statusText(status: Student['status']) {
 
 function toForm(
   student: Student,
-  catalog: DiscountReasonDef[] = defaultDiscountReasons(),
+  catalog: DiscountReasonDef[] = [],
 ): StudentInput {
   return {
     firstName: student.firstName,
@@ -438,7 +438,7 @@ export function AthleteProfilePage() {
     [data.clothingPackages],
   );
   const discountCatalog = useMemo(
-    () => data.discountReasons ?? defaultDiscountReasons(),
+    () => clubDiscountReasons(data.discountReasons),
     [data.discountReasons],
   );
   const uniformSizeOptions = useMemo(() => {

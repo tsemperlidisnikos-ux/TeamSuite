@@ -1,5 +1,4 @@
 import type { AppData } from '../types';
-import { defaultDiscountReasons } from '../utils/discountReasons';
 
 export const seedData: AppData = {
   coaches: [],
@@ -47,7 +46,9 @@ export const seedData: AppData = {
       name: 'ΑΝΑΒΑΘΜΙΣΜΕΝΟ (DOUBLE FACE - SHORTS - TSHIRT - ΤΣΑΝΤΑ ΠΛΑΤΗΣ - ΖΑΚΕΤΑ ΦΟΥΤΕΡ ΚΟΥΚΟΥΛΑ - ΠΑΝΤΕΛΟΝΙ ΦΟΡΜΑΣ)',
     },
   ],
-  discountReasons: defaultDiscountReasons(),
+  discountReasons: [],
+  receiptNumberRanges: [],
+  receiptIssues: [],
   termsOfUseHtml: '',
   dpaHtml: '',
   retentionPolicyHtml: '',

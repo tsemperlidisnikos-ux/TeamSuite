@@ -1,15 +1,23 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Printer, Send } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import * as emailService from '../api/services/emailService';
+import * as receiptBookService from '../api/services/receiptBookService';
 import { getClubSmtp } from '../auth/clubs';
+import { useAppData } from '../hooks/useAppData';
 import { amountToGreekWords } from '../utils/amountToGreekWords';
 import {
   buildPaymentReceiptEmail,
   parentReceiptEmails,
   type PaymentReceiptDraft,
 } from '../utils/paymentReceiptEmail';
+import {
+  formatReceiptLabel,
+  issueForTransaction,
+  previewNextReceipt,
+  seriesOptions,
+} from '../utils/receiptBook';
 
 export type { PaymentReceiptDraft };
 
@@ -19,6 +27,7 @@ type PaymentReceiptModalProps = {
   clubName: string;
   clubId: string | null;
   athleteId?: string | null;
+  transactionId?: string | null;
   fatherEmail?: string | null;
   motherEmail?: string | null;
   initial: PaymentReceiptDraft;
@@ -42,15 +51,26 @@ export function PaymentReceiptModal({
   clubName,
   clubId,
   athleteId,
+  transactionId,
   fatherEmail,
   motherEmail,
   initial,
   onClose,
 }: PaymentReceiptModalProps) {
+  const { data, refresh } = useAppData();
   const [draft, setDraft] = useState<PaymentReceiptDraft>(emptyDraft);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const [sendOk, setSendOk] = useState('');
+
+  const options = useMemo(
+    () => seriesOptions(data.receiptNumberRanges, data.receiptIssues),
+    [data.receiptNumberRanges, data.receiptIssues],
+  );
+  const existing = useMemo(
+    () => issueForTransaction(data.receiptIssues, transactionId),
+    [data.receiptIssues, transactionId],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -58,10 +78,24 @@ export function PaymentReceiptModal({
     if (!next.amountWords.trim() && next.amount.trim()) {
       next.amountWords = amountToGreekWords(next.amount);
     }
+    if (existing && !existing.voidedAt) {
+      next.series = existing.series;
+      next.number = String(existing.number);
+    } else if (!next.series && options.length === 1) {
+      next.series = options[0].series;
+    }
+    if (next.series && !existing) {
+      const preview = previewNextReceipt(
+        next.series,
+        data.receiptNumberRanges,
+        data.receiptIssues,
+      );
+      next.number = preview.ok ? String(preview.number) : '';
+    }
     setDraft(next);
     setSendError('');
     setSendOk('');
-  }, [open, initial]);
+  }, [open, initial, existing, options, data.receiptNumberRanges, data.receiptIssues]);
 
   function setField<K extends keyof PaymentReceiptDraft>(key: K, value: PaymentReceiptDraft[K]) {
     setDraft((prev) => {
@@ -73,12 +107,57 @@ export function PaymentReceiptModal({
           amountWords: amountToGreekWords(amount),
         };
       }
+      if (key === 'series') {
+        const series = String(value);
+        const preview = previewNextReceipt(
+          series,
+          data.receiptNumberRanges,
+          data.receiptIssues,
+        );
+        return {
+          ...prev,
+          series,
+          number: existing && !existing.voidedAt
+            ? String(existing.number)
+            : preview.ok
+              ? String(preview.number)
+              : '',
+        };
+      }
       return { ...prev, [key]: value };
     });
   }
 
-  function handlePrint() {
-    window.print();
+  async function ensureIssued(emailed: boolean) {
+    if (!draft.series.trim()) {
+      return { ok: false as const, error: 'Ορίστε σειρά αποδείξεων στις Ρυθμίσεις → Αποδείξεις.' };
+    }
+    const result = await receiptBookService.allocateReceiptIssue({
+      series: draft.series,
+      transactionId,
+      athleteId,
+      emailed,
+    });
+    if (!result.success || !result.data) {
+      return { ok: false as const, error: result.error ?? 'Δεν εκδόθηκε αριθμός απόδειξης.' };
+    }
+    setDraft((prev) => ({
+      ...prev,
+      series: result.data!.series,
+      number: String(result.data!.number),
+    }));
+    refresh();
+    return { ok: true as const, issue: result.data };
+  }
+
+  async function handlePrint() {
+    setSendError('');
+    const issued = await ensureIssued(false);
+    if (!issued.ok) {
+      setSendError(issued.error);
+      return;
+    }
+    window.setTimeout(() => window.print(), 50);
   }
 
   async function handleSend() {
@@ -102,12 +181,23 @@ export function PaymentReceiptModal({
       return;
     }
 
+    setSending(true);
+    const issued = await ensureIssued(true);
+    if (!issued.ok) {
+      setSending(false);
+      setSendError(issued.error);
+      return;
+    }
+
     const message = buildPaymentReceiptEmail({
       clubName,
       logoUrl,
-      draft,
+      draft: {
+        ...draft,
+        series: issued.issue.series,
+        number: String(issued.issue.number),
+      },
     });
-    setSending(true);
     const sent: string[] = [];
     const failed: string[] = [];
     for (const to of recipients) {
@@ -133,10 +223,23 @@ export function PaymentReceiptModal({
     }
     setSendOk(
       sent.length === 1
-        ? `Η απόδειξη στάλθηκε στο ${sent[0]}.`
-        : `Η απόδειξη στάλθηκε σε πατέρα και μητέρα (${sent.join(', ')}).`,
+        ? `Η απόδειξη ${formatReceiptLabel(issued.issue.series, issued.issue.number)} στάλθηκε στο ${sent[0]}.`
+        : `Η απόδειξη ${formatReceiptLabel(issued.issue.series, issued.issue.number)} στάλθηκε σε πατέρα και μητέρα (${sent.join(', ')}).`,
     );
   }
+
+  const selectedOption = options.find((row) => row.series === draft.series);
+  const bookHint = existing && !existing.voidedAt
+    ? formatReceiptLabel(existing.series, existing.number)
+    : selectedOption?.blocked
+      ? selectedOption.series
+        ? `Η σειρά ${selectedOption.series} έφτασε στο όριο. Προσθέστε νέο εύρος στις Ρυθμίσεις → Αποδείξεις.`
+        : ''
+      : selectedOption?.next
+        ? `Επόμενος αριθμός: ${selectedOption.next} · απομένουν ${selectedOption.remaining}`
+        : options.length === 0
+          ? 'Ορίστε σειρά και εύρος αριθμών στις Ρυθμίσεις → Αποδείξεις.'
+          : '';
 
   return (
     <Modal
@@ -157,7 +260,7 @@ export function PaymentReceiptModal({
           <Button type="button" variant="secondary" disabled={sending} onClick={() => void handleSend()}>
             <Send size={16} /> {sending ? 'Αποστολή…' : 'Αποστολή'}
           </Button>
-          <Button type="button" onClick={handlePrint}>
+          <Button type="button" disabled={sending} onClick={() => void handlePrint()}>
             <Printer size={16} /> Εκτύπωση
           </Button>
         </>
@@ -187,21 +290,30 @@ export function PaymentReceiptModal({
               </label>
               <label>
                 <span>ΣΕΙΡΑ</span>
-                <input
-                  value={draft.series}
-                  onChange={(e) => setField('series', e.target.value)}
-                  placeholder="A"
-                />
+                {options.length > 1 ? (
+                  <select
+                    value={draft.series}
+                    onChange={(e) => setField('series', e.target.value)}
+                    disabled={Boolean(existing && !existing.voidedAt)}
+                  >
+                    <option value="">Επιλογή σειράς</option>
+                    {options.map((row) => (
+                      <option key={row.series} value={row.series}>
+                        {row.series}
+                        {row.next ? ` · επόμ. ${row.next}` : ' · εξαντλήθηκε'}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input value={draft.series} readOnly placeholder="—" />
+                )}
               </label>
               <label>
                 <span>Νο</span>
-                <input
-                  value={draft.number}
-                  onChange={(e) => setField('number', e.target.value)}
-                  placeholder="Αριθμός"
-                />
+                <input value={draft.number} readOnly placeholder="—" />
               </label>
             </div>
+            {bookHint ? <p className="payment-receipt-book-hint">{bookHint}</p> : null}
             <div className="payment-receipt-title">ΑΠΟΔΕΙΞΗ ΕΙΣΠΡΑΞΗΣ</div>
             <div className="payment-receipt-amount-box">
               <span className="payment-receipt-currency">€</span>

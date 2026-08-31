@@ -24,8 +24,9 @@ import { resolveCatalogSportName } from '../shared/sportsCatalog';
 import { pruneAmkaAccessLogs } from '../utils/amkaAccess';
 import { clearExpiredSeasonEnrollments } from '../utils/clubSeasons';
 import { defaultClothingPackages, normalizeClothingPackages } from '../utils/clothingPackages';
-import { defaultDiscountReasons, normalizeDiscountReasons } from '../utils/discountReasons';
+import { clubDiscountReasons } from '../utils/discountReasons';
 import { normalizeSizeChart } from '../utils/sizeChartOptions';
+import { normalizeReceiptIssues, normalizeReceiptRanges } from '../utils/receiptBook';
 
 let cache: AppData | null = null;
 let cacheClubId: string | null = null;
@@ -153,12 +154,32 @@ function ensureCollections(data: AppData): boolean {
     }
   }
   if (!data.discountReasons) {
-    data.discountReasons = defaultDiscountReasons();
+    data.discountReasons = [];
     changed = true;
   } else {
-    const nextReasons = normalizeDiscountReasons(data.discountReasons);
+    const nextReasons = clubDiscountReasons(data.discountReasons);
     if (JSON.stringify(nextReasons) !== JSON.stringify(data.discountReasons)) {
       data.discountReasons = nextReasons;
+      changed = true;
+    }
+  }
+  if (!data.receiptNumberRanges) {
+    data.receiptNumberRanges = [];
+    changed = true;
+  } else {
+    const nextRanges = normalizeReceiptRanges(data.receiptNumberRanges);
+    if (JSON.stringify(nextRanges) !== JSON.stringify(data.receiptNumberRanges)) {
+      data.receiptNumberRanges = nextRanges;
+      changed = true;
+    }
+  }
+  if (!data.receiptIssues) {
+    data.receiptIssues = [];
+    changed = true;
+  } else {
+    const nextIssues = normalizeReceiptIssues(data.receiptIssues);
+    if (JSON.stringify(nextIssues) !== JSON.stringify(data.receiptIssues)) {
+      data.receiptIssues = nextIssues;
       changed = true;
     }
   }

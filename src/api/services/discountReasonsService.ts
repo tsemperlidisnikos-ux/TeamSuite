@@ -1,13 +1,15 @@
 import { apiClient } from '../apiClient';
 import { getData, mutateData } from '../../data/repository';
 import type { DiscountReasonDef } from '../../types';
-import { normalizeDiscountReasons } from '../../utils/discountReasons';
+import { clubDiscountReasons } from '../../utils/discountReasons';
 
 export async function saveDiscountReasons(reasons: DiscountReasonDef[]) {
-  return apiClient(() => {
+  return apiClient(async () => {
     mutateData((data) => {
-      data.discountReasons = normalizeDiscountReasons(reasons);
+      data.discountReasons = clubDiscountReasons(reasons);
     });
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
+    await flushClubMirrorPush();
     return getData().discountReasons ?? [];
   });
 }

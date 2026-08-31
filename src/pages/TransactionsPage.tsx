@@ -25,6 +25,7 @@ import { PAYMENT_METHODS, normalizePaymentMethod } from '../shared/paymentMethod
 import { localDateIso } from '../utils/dates';
 import { formatCurrency, formatDate } from '../utils/labels';
 import { amountToGreekWords } from '../utils/amountToGreekWords';
+import { seriesOptions } from '../utils/receiptBook';
 import { canAccessAmka, formatAmkaForViewer } from '../utils/amkaAccess';
 import { sportsMatch } from '../utils/coachScope';
 import { studentClassIds } from '../utils/studentClasses';
@@ -156,9 +157,10 @@ export function TransactionsPage() {
   const [error, setError] = useState('');
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptAthlete, setReceiptAthlete] = useState<Student | null>(null);
+  const [receiptTransactionId, setReceiptTransactionId] = useState<string | null>(null);
   const [receiptDraft, setReceiptDraft] = useState<PaymentReceiptDraft>({
     date: '',
-    series: 'A',
+    series: '',
     number: '',
     amount: '',
     receivedFrom: '',
@@ -377,14 +379,20 @@ export function TransactionsPage() {
       return;
     }
 
-    if (payload.type === 'payment') {
+    if (payload.type === 'payment' && result.data) {
       const athlete =
         data.students.find((s) => s.id === payload.athleteId) ?? selected ?? null;
       const monthLabel = MONTHS.find((m) => m.value === payload.month)?.label ?? '';
+      const books = seriesOptions(data.receiptNumberRanges, data.receiptIssues);
+      const openSeries = books.find((row) => !row.blocked) ?? books[0];
       setReceiptDraft({
         date: toReceiptDate(localDateIso()),
-        series: 'A',
-        number: payload.receiptNumber || '',
+        series: result.data.receiptSeries || openSeries?.series || '',
+        number: result.data.receiptSeq
+          ? String(result.data.receiptSeq)
+          : openSeries?.next
+            ? String(openSeries.next)
+            : '',
         amount: formatReceiptAmount(payload.amount),
         receivedFrom: athlete
           ? `${athlete.lastName} ${athlete.firstName}`.trim()
@@ -396,6 +404,7 @@ export function TransactionsPage() {
           (monthLabel ? `Συνδρομή ${monthLabel} ${payload.year}` : ''),
       });
       setReceiptAthlete(athlete);
+      setReceiptTransactionId(result.data.id);
       setReceiptOpen(true);
     }
 
@@ -772,10 +781,14 @@ export function TransactionsPage() {
         clubName={clubName}
         clubId={clubId}
         athleteId={receiptAthlete?.id ?? null}
+        transactionId={receiptTransactionId}
         fatherEmail={receiptAthlete?.fatherEmail}
         motherEmail={receiptAthlete?.motherEmail}
         initial={receiptDraft}
-        onClose={() => setReceiptOpen(false)}
+        onClose={() => {
+          setReceiptOpen(false);
+          setReceiptTransactionId(null);
+        }}
       />
     </div>
   );

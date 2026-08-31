@@ -1507,6 +1507,24 @@ td.row-actions {
   align-items: center;
 }
 
+.receipt-book-add .field-input {
+  flex: 1 1 7rem;
+  min-width: 6rem;
+}
+
+.receipt-void-list {
+  margin-top: 1.25rem;
+}
+
+.receipt-void-list h4 {
+  margin: 0 0 0.35rem;
+}
+
+.receipt-void-row {
+  font-size: 0.92rem;
+  color: var(--text-muted, #64748b);
+}
+
 .discount-reason-add {
   align-items: stretch;
 }

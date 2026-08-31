@@ -67,3 +67,14 @@ export function formatMonth(monthKey: string): string {
     year: 'numeric',
   }).format(new Date(year, month - 1, 1));
 }
+
+/** Περίοδος YYYY-MM → MM-YYYY (π.χ. 2026-09 → 09-2026). */
+export function formatMonthYearNumeric(monthKey: string): string {
+  const trimmed = String(monthKey ?? '').trim();
+  if (!trimmed) return '';
+  const iso = trimmed.match(/^(\d{4})-(\d{1,2})$/);
+  if (iso) return `${iso[2].padStart(2, '0')}-${iso[1]}`;
+  const swapped = trimmed.match(/^(\d{1,2})-(\d{4})$/);
+  if (swapped) return `${swapped[1].padStart(2, '0')}-${swapped[2]}`;
+  return trimmed;
+}

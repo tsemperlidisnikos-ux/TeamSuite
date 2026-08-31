@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as discountReasonsService from '../api/services/discountReasonsService';
 import { createId } from '../data/repository';
 import { Button } from './ui/Button';
@@ -7,11 +7,11 @@ import type { DiscountReasonDef } from '../types';
 import { listActiveClubSportNames } from '../utils/clubSports';
 import {
   ALL_SPORTS_DISCOUNT_LABEL,
-  normalizeDiscountReasons,
+  clubDiscountReasons,
 } from '../utils/discountReasons';
 
 function toDraft(list: DiscountReasonDef[] | undefined): DiscountReasonDef[] {
-  return normalizeDiscountReasons(list);
+  return clubDiscountReasons(list);
 }
 
 export function DiscountReasonsPanel() {
@@ -24,6 +24,7 @@ export function DiscountReasonsPanel() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const dirtyRef = useRef(false);
 
   const sportOptions = useMemo(
     () => listActiveClubSportNames(data.sports),
@@ -31,6 +32,7 @@ export function DiscountReasonsPanel() {
   );
 
   useEffect(() => {
+    if (dirtyRef.current) return;
     setDraft(toDraft(data.discountReasons));
   }, [data.discountReasons]);
 
@@ -54,41 +56,62 @@ export function DiscountReasonsPanel() {
     }));
   }, [draft]);
 
+  function markDirty() {
+    dirtyRef.current = true;
+    setMessage('');
+  }
+
+  function rowsForSave(): DiscountReasonDef[] {
+    const rows = draft.map((row) => ({ ...row, name: row.name.trim() }));
+    const pending = newName.trim();
+    if (pending) {
+      rows.push({ id: createId('dsc'), name: pending, sport: newSport.trim() });
+    }
+    return rows.filter((row) => row.name);
+  }
+
   function addReason() {
     const name = newName.trim();
-    if (!name) return;
-    setDraft((prev) => [
-      ...prev,
-      { id: createId('dsc'), name, sport: newSport.trim() },
-    ]);
+    if (!name) {
+      setError('Γράψτε τον λόγο έκπτωσης και πατήστε Προσθήκη ή Αποθήκευση.');
+      return;
+    }
+    markDirty();
+    setDraft((prev) => [...prev, { id: createId('dsc'), name, sport: newSport.trim() }]);
     setNewName('');
-    setMessage('');
+    setError('');
   }
 
   function updateRow(id: string, patch: Partial<DiscountReasonDef>) {
+    markDirty();
     setDraft((prev) =>
       prev.map((row) => (row.id === id ? { ...row, ...patch } : row)),
     );
-    setMessage('');
   }
 
   function removeRow(id: string) {
+    markDirty();
     setDraft((prev) => prev.filter((row) => row.id !== id));
-    setMessage('');
   }
 
   async function handleSave() {
+    const rows = rowsForSave();
+    if (rows.length === 0 && !draft.length && !newName.trim()) {
+      setError('Γράψτε έναν λόγο έκπτωσης πριν την αποθήκευση.');
+      return;
+    }
     setSaving(true);
     setError('');
     setMessage('');
-    const result = await discountReasonsService.saveDiscountReasons(
-      draft.map((row) => ({ ...row, name: row.name.trim() })).filter((row) => row.name),
-    );
+    const result = await discountReasonsService.saveDiscountReasons(rows);
     setSaving(false);
     if (!result.success) {
       setError(result.error ?? 'Σφάλμα αποθήκευσης');
       return;
     }
+    dirtyRef.current = false;
+    setDraft(toDraft(result.data));
+    setNewName('');
     setMessage('Οι λόγοι έκπτωσης αποθηκεύτηκαν.');
     refresh();
   }
@@ -99,8 +122,9 @@ export function DiscountReasonsPanel() {
         <div>
           <h3>Λόγοι έκπτωσης</h3>
           <p className="lede">
-            Καταχωρήστε λόγους έκπτωσης ανά άθλημα. Στο προφίλ αθλητή εμφανίζονται σε
-            dropdown με checkbox, ανάλογα με τα αθλήματα του αθλητή.
+            Δεν υπάρχουν προεπιλεγμένοι λόγοι. Καταχωρήστε ό,τι ισχύει για τον σύλλογό σας
+            ανά άθλημα και πατήστε Αποθήκευση. Στο προφίλ αθλητή εμφανίζονται σε dropdown
+            με checkbox.
           </p>
         </div>
       </div>
@@ -124,7 +148,10 @@ export function DiscountReasonsPanel() {
             className="field-input"
             value={newName}
             placeholder="π.χ. Αδέλφια, Ετήσια συνδρομή…"
-            onChange={(e) => setNewName(e.target.value)}
+            onChange={(e) => {
+              setNewName(e.target.value);
+              setError('');
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();

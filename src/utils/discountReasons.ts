@@ -4,13 +4,12 @@ import { studentSports } from './studentSports';
 
 export const ALL_SPORTS_DISCOUNT_LABEL = 'Όλα τα αθλήματα';
 
+/** Παλιοί ενσωματωμένοι λόγοι — δεν εμφανίζονται πλέον από προεπιλογή. */
+const LEGACY_BUILTIN_DISCOUNT_IDS = ['annual', 'other', 'siblings', 'social'];
+
+/** Κενός κατάλογος: κάθε σύλλογος καταχωρεί τους δικούς του λόγους. */
 export function defaultDiscountReasons(): DiscountReasonDef[] {
-  return [
-    { id: 'siblings', name: 'Αδέλφια', sport: '' },
-    { id: 'annual', name: 'Ετήσια συνδρομή', sport: '' },
-    { id: 'social', name: 'Κοινωνικό κριτήριο', sport: '' },
-    { id: 'other', name: 'Άλλο', sport: '' },
-  ];
+  return [];
 }
 
 export function normalizeDiscountReasons(
@@ -30,6 +29,27 @@ export function normalizeDiscountReasons(
       sport: String(row?.sport ?? '').trim(),
     });
   }
+  return next;
+}
+
+export function isLegacyBuiltInDiscountCatalog(
+  list: DiscountReasonDef[] | undefined | null,
+): boolean {
+  const ids = normalizeDiscountReasons(list)
+    .map((row) => row.id)
+    .sort();
+  return (
+    ids.length === LEGACY_BUILTIN_DISCOUNT_IDS.length &&
+    ids.every((id, i) => id === LEGACY_BUILTIN_DISCOUNT_IDS[i])
+  );
+}
+
+/** Κατάλογος συλλόγου χωρίς τα παλιά προεπιλεγμένα. */
+export function clubDiscountReasons(
+  list: DiscountReasonDef[] | undefined | null,
+): DiscountReasonDef[] {
+  const next = normalizeDiscountReasons(list);
+  if (isLegacyBuiltInDiscountCatalog(next)) return [];
   return next;
 }
 
@@ -63,11 +83,16 @@ export function discountReasonsForAthlete(
 ): DiscountReasonDef[] {
   const sports = studentSports(athlete);
   const selected = new Set(selectedIds);
-  return catalog.filter((row) => {
-    if (selected.has(row.id)) return true;
-    if (!row.sport) return true;
-    if (sports.length === 0) return false;
-    return sports.some((sport) => clubSportsMatch(sport, row.sport));
+  const rank = (row: DiscountReasonDef) => {
+    if (selected.has(row.id)) return 0;
+    if (!row.sport) return 1;
+    if (sports.some((sport) => clubSportsMatch(sport, row.sport))) return 0;
+    return 2;
+  };
+  return [...catalog].sort((a, b) => {
+    const byRank = rank(a) - rank(b);
+    if (byRank !== 0) return byRank;
+    return a.name.localeCompare(b.name, 'el');
   });
 }
 

@@ -24,7 +24,7 @@ import {
 } from '../platform/financeCatalog';
 import { PAYMENT_METHODS } from '../shared/paymentMethods';
 import { localDateIso } from '../utils/dates';
-import { formatCurrency, formatDate } from '../utils/labels';
+import { formatCurrency, formatDate, formatMonthYearNumeric } from '../utils/labels';
 import type { PaymentMethod, Revenue } from '../types';
 
 const today = () => localDateIso();
@@ -524,7 +524,11 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
                   </td>
                   <td>{rev.clubName || '—'}</td>
                   <td>{rev.sport || '—'}</td>
-                  <td>{rev.subscriptionPeriod || '—'}</td>
+                  <td>
+                    {rev.subscriptionPeriod
+                      ? formatMonthYearNumeric(rev.subscriptionPeriod)
+                      : '—'}
+                  </td>
                   <td>{formatCurrency(rev.amount)}</td>
                   <td className="row-actions">
                     <button

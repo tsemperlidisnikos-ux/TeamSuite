@@ -24,6 +24,10 @@ export interface AthleteTransaction {
   athleteId: string;
   amount: number;
   receiptNumber: string;
+  /** Σειρά βιβλίου αποδείξεων (π.χ. Α). */
+  receiptSeries?: string;
+  /** Αύξων αριθμός βιβλίου αποδείξεων. */
+  receiptSeq?: number;
   type: TransactionType;
   month: number;
   year: number;
@@ -510,6 +514,27 @@ export interface DiscountReasonDef {
   sport: string;
 }
 
+/** Εύρος αριθμών αποδείξεων είσπραξης (π.χ. σειρά Α, 1–50). */
+export interface ReceiptNumberRange {
+  id: string;
+  series: string;
+  from: number;
+  to: number;
+}
+
+/** Εκδοθείσα ή ακυρωμένη απόδειξη — ο αριθμός δεν επαναχρησιμοποιείται. */
+export interface ReceiptIssueRecord {
+  id: string;
+  series: string;
+  number: number;
+  transactionId?: string | null;
+  athleteId?: string | null;
+  issuedAt: string;
+  emailedAt?: string | null;
+  voidedAt?: string | null;
+  voidReason?: string | null;
+}
+
 /** Πρότυπο χρεώσεων συνδρομών (Συνδρομές / Πληρωμές). */
 export interface FeeChargeTemplate {
   id: string;
@@ -735,8 +760,12 @@ export interface AppData {
   sizeChart: SizeChart;
   /** Πακέτα ρουχισμού που ορίζει ο σύλλογος. */
   clothingPackages?: ClothingPackageDef[];
-  /** Λόγοι έκπτωσης συνδρομής ανά άθλημα. */
+  /** Λόγοι έκπτωσης συνδρομής ανά άθλημα. Κενό μέχρι να τους ορίσει ο σύλλογος. */
   discountReasons?: DiscountReasonDef[];
+  /** Εύρη σειράς/αριθμών αποδείξεων είσπραξης. */
+  receiptNumberRanges?: ReceiptNumberRange[];
+  /** Εκδοθείσες/ακυρωμένες αποδείξεις (η αρίθμηση δεν γυρίζει πίσω). */
+  receiptIssues?: ReceiptIssueRecord[];
   /** HTML όρων χρήσης / πολιτικής απορρήτου (εγγραφή). */
   termsOfUseHtml?: string;
   /** Συμφωνία επεξεργασίας (DPA) συλλόγου–πλατφόρμας. */
