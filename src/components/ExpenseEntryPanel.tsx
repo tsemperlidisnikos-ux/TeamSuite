@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Trash2 } from 'lucide-react';
 import * as financeService from '../api/services/financeService';
+import { staffNameParts } from '../api/services/staffService';
 import { Button } from './ui/Button';
 import { useAppData } from '../hooks/useAppData';
 import type { ExpenseInput } from '../schemas';
@@ -10,6 +11,7 @@ import {
   matchExpenseTotal,
   personNameKind,
   requiresPersonName,
+  STAFF_EXPENSE_CLASS_NAME,
   usesMatchExpenseForm,
 } from '../shared/financeCategories';
 import {
@@ -120,7 +122,7 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
   const isCoachExpense = subcategory === 'ΠΡΟΠΟΝΗΤΕΣ / ΓΥΜΝΑΣΤΕΣ';
   const isStaffExpense = subcategory === 'ΠΡΟΣΩΠΙΚΟ';
   const showPersonFields = !isMatch && requiresPersonName(subcategory);
-  const showClassField = !isMatch && !isCoachExpense && !isStaffExpense;
+  const showClassField = !isMatch && !isCoachExpense;
   const nameKind = personNameKind(subcategory);
   const expenseCategories = getConfiguredExpenseCategories();
   const descriptions = getConfiguredExpenseDescriptions(subcategory);
@@ -134,9 +136,10 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
 
   const classOptions = useMemo(() => {
     const list = data.classes ?? [];
+    if (isStaffExpense && !sport) return [];
     if (!sport) return list;
     return list.filter((c) => sportsMatch(c.sport, sport));
-  }, [data.classes, sport]);
+  }, [data.classes, isStaffExpense, sport]);
 
   const selectedClassId = useMemo(() => {
     if (!className) return null;
@@ -176,9 +179,15 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
 
   const registryStaff = useMemo(() => {
     if (!isStaffExpense) return [];
-    return [...(data.staff ?? [])]
-      .filter((m) => m.active)
-      .sort((a, b) => a.fullName.localeCompare(b.fullName, 'el'));
+    return [...(data.staff ?? [])].sort((a, b) => {
+      if (a.active !== b.active) return a.active ? -1 : 1;
+      const left = staffNameParts(a);
+      const right = staffNameParts(b);
+      return `${left.lastName} ${left.firstName}`.localeCompare(
+        `${right.lastName} ${right.firstName}`,
+        'el',
+      );
+    });
   }, [data.staff, isStaffExpense]);
 
   useEffect(() => {
@@ -220,7 +229,7 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
     setStudentId('');
     setSurname('');
     setFirstName('');
-    setClassName('');
+    setClassName(next === 'ΠΡΟΣΩΠΙΚΟ' ? STAFF_EXPENSE_CLASS_NAME : '');
     setMatchDetails(emptyMatchDetails());
   }
 
@@ -264,9 +273,9 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
       setFirstName('');
       return;
     }
-    const parts = member.fullName.trim().split(/\s+/);
-    setSurname(parts[0] ?? member.fullName);
-    setFirstName(parts.slice(1).join(' '));
+    const names = staffNameParts(member);
+    setSurname(names.lastName || member.fullName);
+    setFirstName(names.firstName);
   }
 
   function setMatchField<K extends keyof MatchExpenseDetails>(
@@ -328,7 +337,11 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
       subcategory,
       clubName,
       sport,
-      className: isCoachExpense || isStaffExpense ? '' : className,
+      className: isCoachExpense
+        ? ''
+        : isStaffExpense
+          ? className.trim() || STAFF_EXPENSE_CLASS_NAME
+          : className,
       surname:
         showPersonFields || isCoachExpense || isStaffExpense ? surname.trim() : '',
       firstName:
@@ -618,7 +631,7 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
                 onChange={(e) => {
                   setClubName(e.target.value);
                   setSport('');
-                  setClassName('');
+                  setClassName(isStaffExpense ? STAFF_EXPENSE_CLASS_NAME : '');
                 }}
                 required
               >
@@ -637,6 +650,10 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
                 value={sport}
                 onChange={(e) => {
                   setSport(e.target.value);
+                  if (isStaffExpense) {
+                    setClassName(STAFF_EXPENSE_CLASS_NAME);
+                    return;
+                  }
                   setClassName('');
                   setStudentId('');
                   setSurname('');
@@ -663,15 +680,22 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
                   value={className}
                   onChange={(e) => {
                     setClassName(e.target.value);
+                    if (isStaffExpense) return;
                     setStudentId('');
                     setSurname('');
                     setFirstName('');
                   }}
-                  disabled={!sport}
+                  disabled={!isStaffExpense && !sport}
                 >
                   <option value="">
-                    {sport ? 'Επιλέξτε τμήμα...' : 'Επιλέξτε πρώτα άθλημα...'}
+                    {isStaffExpense || sport
+                      ? 'Επιλέξτε τμήμα...'
+                      : 'Επιλέξτε πρώτα άθλημα...'}
                   </option>
+                  {isStaffExpense &&
+                  !classOptions.some((c) => c.name === STAFF_EXPENSE_CLASS_NAME) ? (
+                    <option value={STAFF_EXPENSE_CLASS_NAME}>{STAFF_EXPENSE_CLASS_NAME}</option>
+                  ) : null}
                   {classOptions.map((c) => (
                     <option key={c.id} value={c.name}>
                       {c.ageGroup ? `${c.name} · ${c.ageGroup}` : c.name}
@@ -717,15 +741,21 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
                   required
                 >
                   <option value="">Επιλέξτε από μητρώο προσωπικού...</option>
-                  {registryStaff.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.fullName}
-                    </option>
-                  ))}
+                  {registryStaff.map((m) => {
+                    const names = staffNameParts(m);
+                    const label =
+                      `${names.lastName} ${names.firstName}`.trim() || m.fullName;
+                    return (
+                      <option key={m.id} value={m.id}>
+                        {label}
+                        {m.active ? '' : ' (ανενεργός)'}
+                      </option>
+                    );
+                  })}
                 </select>
                 {registryStaff.length === 0 ? (
                   <p className="ta-hint ta-hint--warn">
-                    Δεν υπάρχουν ενεργά μέλη προσωπικού στο μητρώο.
+                    Δεν υπάρχουν καταχωρήσεις στο μητρώο προσωπικού.
                   </p>
                 ) : null}
               </TitleAnalysisRow>

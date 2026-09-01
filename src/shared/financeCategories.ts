@@ -164,6 +164,9 @@ export function usesMatchExpenseForm(subcategory: string): boolean {
   return subcategory === 'ΑΓΩΝΕΣ';
 }
 
+/** Τμήμα εξόδου όταν η υποκατηγορία είναι Προσωπικό (ανεξάρτητα σωματείου). */
+export const STAFF_EXPENSE_CLASS_NAME = 'Προσωπικό';
+
 export function personNameKind(subcategory: string): 'athletes' | 'members' {
   return subcategory === 'ΣΥΝΔΡΟΜΕΣ ΜΕΛΩΝ' ? 'members' : 'athletes';
 }
