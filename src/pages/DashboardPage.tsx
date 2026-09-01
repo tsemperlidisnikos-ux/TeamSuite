@@ -11,6 +11,7 @@ import { clubOutstandingOwed } from '../api/services/feeChargesService';
 import { useAppData } from '../hooks/useAppData';
 import type { Coach, Student } from '../types';
 import { formatAmkaForViewer } from '../utils/amkaAccess';
+import { guardianDisplayName } from '../utils/greekSurname';
 import { localDateIso } from '../utils/dates';
 import { openAthleteHealthCardPreview } from '../utils/healthCardPreview';
 import { formatCurrency, studentStatusLabels } from '../utils/labels';
@@ -151,7 +152,7 @@ function DoctorDashboard() {
                       <strong>{student.firstName}</strong>
                     </td>
                     <td>{formatAmkaForViewer(student.amka, true)}</td>
-                    <td>{student.guardianName || '—'}</td>
+                    <td>{guardianDisplayName(student) || '—'}</td>
                     <td>
                       <span className={`badge badge-${student.status}`}>
                         {studentStatusLabels[student.status]}

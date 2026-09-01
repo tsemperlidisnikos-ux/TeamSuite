@@ -1,4 +1,4 @@
-import type { AcademyClass, AppData, RegistrationApplication, Student } from '../types';
+import { collapseDuplicateSurname, composeGivenAndSurname } from '../utils/greekSurname';
 import { localDateIso } from '../utils/dates';
 import {
   parsePublicJoinExtras,
@@ -140,9 +140,8 @@ export function buildStudentFromRegistrationApplication(
 ): Student {
   const gdprItems = app.gdprItems ?? gdprItemsFromPublicConsent(true, Boolean(app.amkaConsentAt));
   const guardianName =
-    app.guardianName.trim() ||
-    app.fatherFirstName?.trim() ||
-  `${app.fatherFirstName ?? ''} ${app.lastName}`.trim();
+    collapseDuplicateSurname(app.guardianName.trim()) ||
+    composeGivenAndSurname(app.fatherFirstName, app.lastName);
 
   return {
     id: athleteId,

@@ -57,6 +57,7 @@ import {
   MEDICAL_ACCESS_HINT,
 } from '../shared/termsDefaults';
 import { canAccessAmka, canAccessMedical, formatAmkaForViewer } from '../utils/amkaAccess';
+import { collapseDuplicateSurname, composeGivenAndSurname } from '../utils/greekSurname';
 import { announcementVisibleToAthlete } from '../utils/announcementAudience';
 import {
   classIdsOf,
@@ -813,10 +814,8 @@ export function AthleteProfilePage() {
         amkaHealthCard: amkaValue ? Boolean(form.gdprItems?.amkaHealthCard) : false,
       },
       guardianName:
-        form.guardianName ||
-        (form.fatherFirstName
-          ? `${form.fatherFirstName} ${form.lastName}`.trim()
-          : form.guardianName),
+        composeGivenAndSurname(form.fatherFirstName, form.lastName) ||
+        collapseDuplicateSurname(form.guardianName || ''),
       guardianPhone: form.guardianPhone || form.emergencyPhone || form.phone || '',
     };
     const result = await studentsService.updateStudent(student.id, payload);

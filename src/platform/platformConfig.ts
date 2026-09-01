@@ -29,7 +29,7 @@ export const FINANCE_TABS = [
 export type FinanceTabId = (typeof FINANCE_TABS)[number]['id'];
 
 export const ACADEMY_MODULES = [
-  { id: 'dashboard', label: 'Επισκόπηση', path: '/' },
+  { id: 'dashboard', label: 'Προεπισκόπηση', path: '/' },
   { id: 'calendar', label: 'Ημερολόγιο', path: '/calendar' },
   { id: 'athletes', label: 'Αθλητές', path: '/athletes' },
   { id: 'staff', label: 'Προσωπικό', path: '/staff' },
@@ -82,8 +82,9 @@ export const CLUB_ROLE_LABELS: Record<ClubRole, string> = {
   parent: 'Γονέας',
 };
 
-/** Δικαιώματα = πρόσβαση σε καρτέλες μενού (χωρίς dashboard). */
+/** Δικαιώματα = πρόσβαση σε καρτέλες μενού. */
 export const CLUB_PERMISSIONS = [
+  'dashboard',
   'calendar',
   'athletes',
   'staff',
@@ -110,6 +111,7 @@ export const CLUB_PERMISSIONS = [
 export type ClubPermission = (typeof CLUB_PERMISSIONS)[number];
 
 export const CLUB_PERMISSION_LABELS: Record<ClubPermission, string> = {
+  dashboard: 'Προεπισκόπηση',
   calendar: 'Ημερολόγιο',
   athletes: 'Αθλητές',
   staff: 'Προσωπικό',
@@ -134,12 +136,13 @@ export const CLUB_PERMISSION_LABELS: Record<ClubPermission, string> = {
 };
 
 /** Ο ιατρός έχει πρόσβαση μόνο σε Αθλητές — όχι οικονομικά/ρυθμίσεις. */
-export const DOCTOR_CLUB_PERMISSIONS: ClubPermission[] = ['athletes'];
+export const DOCTOR_CLUB_PERMISSIONS: ClubPermission[] = ['dashboard', 'athletes'];
 
 export const DEFAULT_CLUB_ROLE_PERMISSIONS: Record<ClubRole, ClubPermission[]> = {
   admin: [...CLUB_PERMISSIONS],
   doctor: [...DOCTOR_CLUB_PERMISSIONS],
   coach: [
+    'dashboard',
     'calendar',
     'athletes',
     'classes',
@@ -151,6 +154,7 @@ export const DEFAULT_CLUB_ROLE_PERMISSIONS: Record<ClubRole, ClubPermission[]> =
     'settings',
   ],
   secretariat: [
+    'dashboard',
     'calendar',
     'athletes',
     'staff',
@@ -169,9 +173,9 @@ export const DEFAULT_CLUB_ROLE_PERMISSIONS: Record<ClubRole, ClubPermission[]> =
     'settings',
     'finance',
   ],
-  staff: ['calendar'],
-  athlete: ['schedule', 'attendance', 'fees', 'announcements', 'settings'],
-  parent: ['fees', 'announcements', 'settings'],
+  staff: ['dashboard', 'calendar'],
+  athlete: ['dashboard', 'schedule', 'attendance', 'fees', 'announcements', 'settings'],
+  parent: ['dashboard', 'fees', 'announcements', 'settings'],
 };
 
 export type BackupFrequency = 'daily' | 'weekly' | 'monthly';
@@ -843,6 +847,7 @@ export function sameClubPermissionSet(
 
 /** Modules που προστέθηκαν αργότερα — παλιά snapshots χωρίς αυτά θεωρούνται defaults. */
 const LEGACY_ROLE_PERMISSION_MODULES: ClubPermission[] = [
+  'dashboard',
   'documentProtocol',
   'partnerBusinesses',
   'photos',
@@ -968,7 +973,6 @@ export function userCanAccessModule(
   moduleId: AcademyModuleId,
 ): boolean {
   if (user.role === 'platform_admin') return true;
-  if (moduleId === 'dashboard') return true;
   if (moduleId === 'rental') {
     return userHasClubPermission(user, 'rental') || userHasClubPermission(user, 'prints');
   }

@@ -10,7 +10,7 @@ import { createId, getData, mutateData } from '../../data/repository';
 import type { ParentAthleteLink, Student } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import { studentClassIds } from '../../utils/studentClasses';
-import { motherFullName } from '../../utils/greekSurname';
+import { collapseDuplicateSurname, composeGivenAndSurname, motherFullName } from '../../utils/greekSurname';
 
 export type ParentLinkRow = {
   linkId: string;
@@ -194,8 +194,8 @@ export async function listParentDirectory(clubId: string) {
         upsertGuardian(map, {
           email: student.fatherEmail,
           fullName:
-            [student.fatherFirstName, student.lastName].filter(Boolean).join(' ') ||
-            student.guardianName ||
+            composeGivenAndSurname(student.fatherFirstName, student.lastName) ||
+            collapseDuplicateSurname(student.guardianName || '') ||
             'Πατέρας',
           athlete,
         });
@@ -205,7 +205,7 @@ export async function listParentDirectory(clubId: string) {
           email: student.motherEmail,
           fullName:
             motherFullName(student.motherFirstName, student.lastName) ||
-            student.guardianName ||
+            collapseDuplicateSurname(student.guardianName || '') ||
             'Μητέρα',
           athlete,
           isMother: true,

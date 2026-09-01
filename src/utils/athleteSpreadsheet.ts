@@ -15,6 +15,7 @@ import { studentClothingPackageIds } from './clothingPackages';
 import { studentClassIds } from './studentClasses';
 import { studentCoachNames } from './studentCoaches';
 import { studentSports } from './studentSports';
+import { guardianDisplayName } from './greekSurname';
 
 export type AthleteSheetClass = { id: string; name: string };
 
@@ -339,7 +340,7 @@ export function studentToSheetRow(student: Student, classes: AthleteSheetClass[]
     adt: student.adt ?? '',
     sports: studentSports(student).join(', '),
     classes: classNames,
-    guardianName: student.guardianName ?? '',
+    guardianName: guardianDisplayName(student),
     guardianPhone: student.guardianPhone ?? '',
     fatherFirstName: student.fatherFirstName ?? '',
     fatherEmail: student.fatherEmail ?? '',

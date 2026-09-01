@@ -16,6 +16,7 @@ import type { StudentInput } from '../schemas';
 import type { RegistrationApplication, RegistrationApplicationKind, Student, StudentStatus } from '../types';
 import { formatJoinExtrasText } from '../shared/publicJoinExtras';
 import { formatAmkaForViewer } from '../utils/amkaAccess';
+import { guardianDisplayName } from '../utils/greekSurname';
 import {
   classIdsOf,
   visibleClassesForSession,
@@ -214,8 +215,8 @@ export function StudentsPage() {
         }
         if (!q) return true;
         const hay = isDoctor
-          ? `${s.firstName} ${s.lastName} ${s.amka ?? ''} ${s.adt ?? ''} ${s.guardianName}`.toLowerCase()
-          : `${s.firstName} ${s.lastName} ${s.email} ${s.guardianName}`.toLowerCase();
+          ? `${s.firstName} ${s.lastName} ${s.amka ?? ''} ${s.adt ?? ''} ${guardianDisplayName(s)}`.toLowerCase()
+          : `${s.firstName} ${s.lastName} ${s.email} ${guardianDisplayName(s)}`.toLowerCase();
         return hay.includes(q);
       })
       .sort((a, b) =>
@@ -883,10 +884,10 @@ export function StudentsPage() {
                   </td>
                   <td>
                     {isDoctor ? (
-                      student.guardianName || '—'
+                      guardianDisplayName(student) || '—'
                     ) : (
                       <>
-                        {student.guardianName || '—'}
+                        {guardianDisplayName(student) || '—'}
                         {student.guardianPhone ? (
                           <div className="muted">{student.guardianPhone}</div>
                         ) : null}

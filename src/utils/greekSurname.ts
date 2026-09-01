@@ -29,6 +29,25 @@ function inflectSurnameToken(word: string): string {
   );
 }
 
+function isPlaceholderToken(value: string): boolean {
+  return /^[-–—]+$/.test(value.trim());
+}
+
+function surnameStem(word: string): string {
+  const upper = word.trim().toLocaleUpperCase('el');
+  return upper.replace(/(ΠΟΥΛΟΣ|ΠΟΥΛΟΥ|ΟΣ|ΟΥ|ΗΣ|Η|ΑΣ|Α)$/u, '');
+}
+
+export function isSameGreekSurname(a: string, b: string): boolean {
+  const left = a.trim().toLocaleUpperCase('el');
+  const right = b.trim().toLocaleUpperCase('el');
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const s1 = surnameStem(left);
+  const s2 = surnameStem(right);
+  return s1.length >= 4 && s1 === s2;
+}
+
 export function feminineGreekSurname(lastName: string): string {
   const trimmed = lastName.trim();
   if (!trimmed) return trimmed;
@@ -46,8 +65,53 @@ export function feminineGreekSurname(lastName: string): string {
   return parts.join(' ');
 }
 
+/** Όνομα + επώνυμο χωρίς δεύτερο επώνυμο αν το όνομα το περιέχει ήδη. */
+export function composeGivenAndSurname(
+  givenName: string | undefined,
+  lastName: string | undefined,
+  options?: { feminine?: boolean },
+): string {
+  const givenRaw = (givenName ?? '').trim();
+  const given = givenRaw && !isPlaceholderToken(givenRaw) ? givenRaw : '';
+  const lastRaw = (lastName ?? '').trim();
+  const last = options?.feminine ? feminineGreekSurname(lastRaw) : lastRaw;
+  if (!given) return last;
+  if (!last) return given;
+  const givenLast = given.split(/\s+/).pop() ?? '';
+  if (isSameGreekSurname(givenLast, lastRaw) || isSameGreekSurname(givenLast, last)) {
+    return given;
+  }
+  return `${given} ${last}`.trim();
+}
+
+export function collapseDuplicateSurname(fullName: string): string {
+  const tokens = fullName
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part && !isPlaceholderToken(part));
+  while (tokens.length >= 2) {
+    const prev = tokens[tokens.length - 2] ?? '';
+    const last = tokens[tokens.length - 1] ?? '';
+    if (isSameGreekSurname(prev, last)) {
+      tokens.pop();
+      continue;
+    }
+    break;
+  }
+  return tokens.join(' ');
+}
+
+export function guardianDisplayName(student: {
+  fatherFirstName?: string;
+  lastName?: string;
+  guardianName?: string;
+}): string {
+  return (
+    composeGivenAndSurname(student.fatherFirstName, student.lastName) ||
+    collapseDuplicateSurname(student.guardianName ?? '')
+  );
+}
+
 export function motherFullName(firstName: string | undefined, lastName: string | undefined): string {
-  const first = (firstName ?? '').trim();
-  const last = feminineGreekSurname((lastName ?? '').trim());
-  return [first, last].filter(Boolean).join(' ');
+  return composeGivenAndSurname(firstName, lastName, { feminine: true });
 }

@@ -63,7 +63,7 @@ const academyItems: Array<{
   icon: NavIcon;
   end?: boolean;
 }> = [
-  { id: 'dashboard', to: '/', label: 'Επισκόπηση', icon: LayoutDashboard, end: true },
+  { id: 'dashboard', to: '/', label: 'Προεπισκόπηση', icon: LayoutDashboard, end: true },
   { id: 'calendar', to: '/calendar', label: 'Ημερολόγιο', icon: Calendar },
   { id: 'athletes', to: '/athletes', label: 'Αθλητές', icon: AthletesIcon },
   { id: 'staff', to: '/staff', label: 'Προσωπικό', icon: UsersRound },
