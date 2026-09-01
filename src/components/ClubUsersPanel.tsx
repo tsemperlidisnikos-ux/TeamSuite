@@ -51,6 +51,7 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
   const [permissions, setPermissions] = useState<ClubPermission[]>(() =>
     clubUsersService.defaultPermissionsForRole('coach'),
   );
+  const [financeOwnEntriesOnly, setFinanceOwnEntriesOnly] = useState(false);
   const [creating, setCreating] = useState(true);
   const [creatingFromRow, setCreatingFromRow] = useState(false);
 
@@ -148,6 +149,7 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
     setPermissions(clubUsersService.defaultPermissionsForRole(nextRole));
     if (nextRole !== 'athlete') setAthleteId('');
     if (nextRole !== 'coach') setCoachId('');
+    if (nextRole === 'admin' || nextRole === 'doctor') setFinanceOwnEntriesOnly(false);
   }
 
   function togglePermission(permission: ClubPermission) {
@@ -197,6 +199,7 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
     setAthleteId('');
     setCoachId('');
     applyRoleDefaults('coach');
+    setFinanceOwnEntriesOnly(false);
     setCreatingFromRow(false);
   }
 
@@ -211,6 +214,7 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
     setAthleteId('');
     setCoachId('');
     applyRoleDefaults('coach');
+    setFinanceOwnEntriesOnly(false);
     setError('');
     setMessage('');
   }
@@ -236,6 +240,9 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
         : (getEffectiveClubPermissions(user).filter((p) =>
             (CLUB_PERMISSIONS as readonly string[]).includes(p),
           ) as ClubPermission[]),
+    );
+    setFinanceOwnEntriesOnly(
+      nextRole !== 'admin' && nextRole !== 'doctor' && Boolean(user.financeOwnEntriesOnly),
     );
     setError('');
     setMessage('');
@@ -293,6 +300,7 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
         password: passwordValue || undefined,
         athleteId: role === 'athlete' ? athleteId || null : null,
         coachId: role === 'coach' ? coachId || null : null,
+        financeOwnEntriesOnly,
       });
       if (!result.success || !result.data) {
         setError(result.error ?? 'Αποτυχία ενημέρωσης');
@@ -323,6 +331,7 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
       permissions: savedPermissions,
       athleteId: role === 'athlete' ? athleteId || null : null,
       coachId: role === 'coach' ? coachId || null : null,
+      financeOwnEntriesOnly,
     });
     if (!result.success) {
       setError(result.error ?? 'Αποτυχία πρόσκλησης');
@@ -360,6 +369,7 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
     applyRoleDefaults(nextRole);
     setAthleteId(row.kind === 'athlete' ? row.entityId ?? '' : '');
     setCoachId(row.kind === 'coach' ? row.entityId ?? '' : '');
+    setFinanceOwnEntriesOnly(false);
     setError('');
     setMessage('');
     scrollToUserForm();
@@ -606,6 +616,25 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
               )}
             </div>
           </SettingsFormRow>
+
+          {role !== 'admin' && role !== 'doctor' ? (
+            <SettingsFormRow label="Οικονομικά (έσοδα / έξοδα)">
+              <label className="admin-check">
+                <input
+                  type="checkbox"
+                  checked={financeOwnEntriesOnly}
+                  onChange={(e) => setFinanceOwnEntriesOnly(e.target.checked)}
+                />
+                <span>Μόνο οι δικές του καταχωρήσεις</span>
+              </label>
+              <p className="ap-field-hint">
+                Ενεργοποιήστε το στο λογαριασμό με αυτό το email. Θα βλέπει στα Οικονομικά μόνο
+                έσοδα/έξοδα που καταχώρησε ο ίδιος. Οι συνδρομές αθλητών και οι εγγραφές άλλων
+                χρηστών μένουν εκτός της οθόνης του. Ο διαχειριστής τα βλέπει όλα. Χρειάζεται
+                δικαίωμα «Οικονομικά».
+              </p>
+            </SettingsFormRow>
+          ) : null}
 
           <div className="settings-form-actions admin-entry-actions">
             <Button type="submit">

@@ -29,6 +29,11 @@ export interface AppUser {
   coachId?: string | null;
   /** Προσαρμοσμένα δικαιώματα από τον σύλλογο· αν λείπει → defaults ρόλου από Platform Admin. */
   permissions?: string[] | null;
+  /**
+   * Αν true, στα Οικονομικά βλέπει μόνο έσοδα/έξοδα που καταχώρησε ο ίδιος
+   * (όχι συνδρομές αθλητών ούτε εγγραφές άλλων).
+   */
+  financeOwnEntriesOnly?: boolean;
 }
 
 const SESSION_KEY = 'teamsuite-session-v1';
@@ -520,6 +525,7 @@ export function updateUser(
       | 'permissions'
       | 'athleteId'
       | 'coachId'
+      | 'financeOwnEntriesOnly'
     >
   >,
 ): { success: boolean; data?: AppUser; error?: string } {

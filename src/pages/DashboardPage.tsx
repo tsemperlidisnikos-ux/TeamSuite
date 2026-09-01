@@ -19,6 +19,10 @@ import { getActiveSeason, seasonDisplayName } from '../utils/clubSeasons';
 import { studentClassIds, studentInClass } from '../utils/studentClasses';
 import { studentSports } from '../utils/studentSports';
 import { clubSportsMatch, listActiveClubSportNames } from '../utils/clubSports';
+import {
+  filterOwnFinanceEntries,
+  sessionSeesOnlyOwnFinance,
+} from '../utils/financeOwnEntries';
 
 type SportBucket = { key: string; label: string };
 
@@ -246,16 +250,19 @@ export function DashboardPage() {
     const activeStudents = students.filter((s) => s.status === 'active').length;
     const activeCoaches = coaches.filter((c) => c.active !== false).length;
 
-    const fromTransactions = (data.transactions ?? [])
-      .filter(
-        (t) =>
-          t.type === 'payment' &&
-          createdOnLocalDay(t.createdAt, today) &&
-          (!sportKey || studentIds.has(t.athleteId)),
-      )
-      .reduce((sum, t) => sum + t.amount, 0);
+    const ownOnly = sessionSeesOnlyOwnFinance();
+    const fromTransactions = ownOnly
+      ? 0
+      : (data.transactions ?? [])
+          .filter(
+            (t) =>
+              t.type === 'payment' &&
+              createdOnLocalDay(t.createdAt, today) &&
+              (!sportKey || studentIds.has(t.athleteId)),
+          )
+          .reduce((sum, t) => sum + t.amount, 0);
 
-    const fromAthleteRevenues = data.revenues
+    const fromAthleteRevenues = filterOwnFinanceEntries(data.revenues)
       .filter((r) => {
         if (r.linkedTransactionId) return false;
         if (r.date !== today || r.paymentStatus !== 'paid') return false;
@@ -294,6 +301,14 @@ export function DashboardPage() {
         ];
 
   const moneyStrip = useMemo(() => {
+    const ownOnly = sessionSeesOnlyOwnFinance();
+    if (ownOnly) {
+      const monthPrefix = today.slice(0, 7);
+      const monthCollections = filterOwnFinanceEntries(data.revenues)
+        .filter((r) => r.paymentStatus === 'paid' && r.date.slice(0, 7) === monthPrefix)
+        .reduce((sum, r) => sum + r.amount, 0);
+      return { monthCollections, outstanding: 0, cashBalance: 0 };
+    }
     const monthPrefix = today.slice(0, 7);
     const payments = (data.transactions ?? []).filter((t) => t.type === 'payment');
     const monthCollections = payments

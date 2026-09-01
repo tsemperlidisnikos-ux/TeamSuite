@@ -8,6 +8,11 @@ import {
 } from '../../schemas';
 import type { Expense, Revenue } from '../../types';
 import { paymentMethodLabel } from '../../shared/paymentMethods';
+import {
+  assertCanMutateFinanceEntry,
+  currentFinanceActor,
+  filterOwnFinanceEntries,
+} from '../../utils/financeOwnEntries';
 import { ensureAthletePaymentRevenuesSynced } from './athletePaymentRevenueBridge';
 import { assertFinanceMonthOpen } from './financePeriodService';
 import { ensureLegacyPaymentsMatched } from './paymentMatchingService';
@@ -16,7 +21,7 @@ export async function getRevenues() {
   return apiClient(() => {
     ensureLegacyPaymentsMatched();
     ensureAthletePaymentRevenuesSynced();
-    return getData().revenues;
+    return filterOwnFinanceEntries(getData().revenues);
   });
 }
 
@@ -24,9 +29,12 @@ export async function createRevenue(input: RevenueInput) {
   return apiClient(() => {
     const parsed = revenueSchema.parse(input);
     assertFinanceMonthOpen(parsed.date);
+    const actor = currentFinanceActor();
     const revenue: Revenue = {
       ...parsed,
       id: createId('rev'),
+      createdByUserId: actor?.userId,
+      createdByEmail: actor?.email,
     };
     mutateData((data) => {
       data.revenues.push(revenue);
@@ -43,8 +51,14 @@ export async function updateRevenue(id: string, input: RevenueInput) {
     mutateData((data) => {
       const index = data.revenues.findIndex((r) => r.id === id);
       if (index === -1) throw new Error('Η είσπραξη δεν βρέθηκε');
+      assertCanMutateFinanceEntry(data.revenues[index]);
       assertFinanceMonthOpen(data.revenues[index].date);
-      updated = { ...data.revenues[index], ...parsed };
+      updated = {
+        ...data.revenues[index],
+        ...parsed,
+        createdByUserId: data.revenues[index].createdByUserId,
+        createdByEmail: data.revenues[index].createdByEmail,
+      };
       data.revenues[index] = updated;
     });
     return updated!;
@@ -55,7 +69,10 @@ export async function deleteRevenue(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       const existing = data.revenues.find((r) => r.id === id);
-      if (existing) assertFinanceMonthOpen(existing.date);
+      if (existing) {
+        assertCanMutateFinanceEntry(existing);
+        assertFinanceMonthOpen(existing.date);
+      }
       data.revenues = data.revenues.filter((r) => r.id !== id);
     });
     return { id };
@@ -63,16 +80,19 @@ export async function deleteRevenue(id: string) {
 }
 
 export async function getExpenses() {
-  return apiClient(() => getData().expenses);
+  return apiClient(() => filterOwnFinanceEntries(getData().expenses));
 }
 
 export async function createExpense(input: ExpenseInput) {
   return apiClient(() => {
     const parsed = expenseSchema.parse(input);
     assertFinanceMonthOpen(parsed.date);
+    const actor = currentFinanceActor();
     const expense: Expense = {
       ...parsed,
       id: createId('exp'),
+      createdByUserId: actor?.userId,
+      createdByEmail: actor?.email,
     };
     mutateData((data) => {
       data.expenses.push(expense);
@@ -89,8 +109,14 @@ export async function updateExpense(id: string, input: ExpenseInput) {
     mutateData((data) => {
       const index = data.expenses.findIndex((e) => e.id === id);
       if (index === -1) throw new Error('Η δαπάνη δεν βρέθηκε');
+      assertCanMutateFinanceEntry(data.expenses[index]);
       assertFinanceMonthOpen(data.expenses[index].date);
-      updated = { ...data.expenses[index], ...parsed };
+      updated = {
+        ...data.expenses[index],
+        ...parsed,
+        createdByUserId: data.expenses[index].createdByUserId,
+        createdByEmail: data.expenses[index].createdByEmail,
+      };
       data.expenses[index] = updated;
     });
     return updated!;
@@ -101,7 +127,10 @@ export async function deleteExpense(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       const existing = data.expenses.find((e) => e.id === id);
-      if (existing) assertFinanceMonthOpen(existing.date);
+      if (existing) {
+        assertCanMutateFinanceEntry(existing);
+        assertFinanceMonthOpen(existing.date);
+      }
       data.expenses = data.expenses.filter((e) => e.id !== id);
     });
     return { id };
@@ -112,7 +141,10 @@ export async function getFinanceSummary() {
   return apiClient(() => {
     ensureLegacyPaymentsMatched();
     ensureAthletePaymentRevenuesSynced();
-    const { revenues, expenses, students, coaches, classes, cashAccounts } = getData();
+    const { revenues: allRevenues, expenses: allExpenses, students, coaches, classes, cashAccounts } =
+      getData();
+    const revenues = filterOwnFinanceEntries(allRevenues);
+    const expenses = filterOwnFinanceEntries(allExpenses);
     const paidRevenues = revenues.filter((r) => r.paymentStatus === 'paid');
     const totalRevenue = paidRevenues.reduce((sum, r) => sum + r.amount, 0);
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);

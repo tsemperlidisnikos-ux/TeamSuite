@@ -20,6 +20,10 @@ import { buildSeasonPresets } from '../shared/seasonPresets';
 import { localDateIso } from '../utils/dates';
 import type { MatchExpenseDetails } from '../types';
 import { formatCurrency, formatDate } from '../utils/labels';
+import {
+  filterOwnFinanceEntries,
+  sessionSeesOnlyOwnFinance,
+} from '../utils/financeOwnEntries';
 
 type ReportRow = {
   id: string;
@@ -169,7 +173,7 @@ export function FinanceReportsPanel() {
   const sports = useMemo(() => (data.sports ?? []).filter((s) => s.active), [data.sports]);
 
   const allRows = useMemo<ReportRow[]>(() => {
-    const incomeRows: ReportRow[] = data.revenues.map((rev) => ({
+    const incomeRows: ReportRow[] = filterOwnFinanceEntries(data.revenues).map((rev) => ({
       id: rev.id,
       date: rev.date,
       type: 'income',
@@ -184,7 +188,7 @@ export function FinanceReportsPanel() {
       paymentMethod: rev.paymentMethod,
       vatRate: rev.vatRate,
     }));
-    const expenseRows: ReportRow[] = data.expenses.map((exp) => ({
+    const expenseRows: ReportRow[] = filterOwnFinanceEntries(data.expenses).map((exp) => ({
       id: exp.id,
       date: exp.date,
       type: 'expense',
@@ -225,6 +229,7 @@ export function FinanceReportsPanel() {
   );
 
   const openChargeRows = useMemo(() => {
+    if (sessionSeesOnlyOwnFinance()) return [];
     const rows = feeChargesService.listClubOpenCharges();
     return rows.filter((row) => {
       if (applied.dateFrom && row.chargeDate && row.chargeDate < applied.dateFrom) return false;

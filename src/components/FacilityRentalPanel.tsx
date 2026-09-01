@@ -65,6 +65,7 @@ export function FacilityRentalPanel() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [notes, setNotes] = useState('');
+  const [specialDiscount, setSpecialDiscount] = useState('');
   const [saving, setSaving] = useState(false);
   const [booking, setBooking] = useState(false);
   const [message, setMessage] = useState('');
@@ -111,6 +112,12 @@ export function FacilityRentalPanel() {
   const selectedRule = selectedFacility
     ? ruleForFacility(draft, selectedFacility.id, selectedFacility)
     : null;
+  const baseAmount =
+    selectedSlot && selectedRule
+      ? bookingAmount(selectedRule, selectedSlot.startTime, selectedSlot.endTime, courtShare)
+      : 0;
+  const discountValue = Math.max(0, Number(specialDiscount.replace(',', '.')) || 0);
+  const payableAmount = Math.max(0, Math.round((baseAmount - discountValue) * 100) / 100);
   const upcoming = useMemo(
     () =>
       [...(data.rentalBookings ?? [])]
@@ -192,9 +199,8 @@ export function FacilityRentalPanel() {
       customerPhone,
       customerEmail,
       notes,
-      amount: selectedRule
-        ? bookingAmount(selectedRule, selectedSlot.startTime, selectedSlot.endTime, courtShare)
-        : 0,
+      amount: payableAmount,
+      specialDiscount: discountValue,
     };
     const result = await rentalBookingsService.createRentalBooking(payload, 'secretariat');
     setBooking(false);
@@ -207,6 +213,7 @@ export function FacilityRentalPanel() {
     setCustomerPhone('');
     setCustomerEmail('');
     setNotes('');
+    setSpecialDiscount('');
     setSelectedSlot(null);
     refresh();
   }
@@ -474,32 +481,49 @@ export function FacilityRentalPanel() {
         </label>
       </div>
 
-      <p className="field-label">Διαθέσιμες ώρες</p>
-      {slots.filter((s) => s.available).length === 0 ? (
-        <p className="muted">Δεν υπάρχουν ελεύθερες ώρες ενοικίασης για αυτή την ημερομηνία.</p>
-      ) : (
-        <div className="rental-slot-grid">
-          {slots.map((slot) => (
-            <button
-              key={`${slot.startTime}-${slot.endTime}`}
-              type="button"
-              disabled={!slot.available}
-              className={
-                selectedSlot?.startTime === slot.startTime && selectedSlot.endTime === slot.endTime
-                  ? 'rental-slot is-on'
-                  : slot.available
-                    ? 'rental-slot'
-                    : 'rental-slot is-busy'
-              }
-              title={slot.available ? '' : slot.reason}
-              onClick={() => setSelectedSlot({ startTime: slot.startTime, endTime: slot.endTime })}
-            >
-              {slot.startTime}–{slot.endTime}
-              {!slot.available ? <span>{slot.reason}</span> : null}
-            </button>
-          ))}
+      <div className="rental-slots-discount-row">
+        <div className="rental-slots-col">
+          <p className="field-label">Διαθέσιμες ώρες</p>
+          {slots.filter((s) => s.available).length === 0 ? (
+            <p className="muted">Δεν υπάρχουν ελεύθερες ώρες ενοικίασης για αυτή την ημερομηνία.</p>
+          ) : (
+            <div className="rental-slot-grid">
+              {slots.map((slot) => (
+                <button
+                  key={`${slot.startTime}-${slot.endTime}`}
+                  type="button"
+                  disabled={!slot.available}
+                  className={
+                    selectedSlot?.startTime === slot.startTime && selectedSlot.endTime === slot.endTime
+                      ? 'rental-slot is-on'
+                      : slot.available
+                        ? 'rental-slot'
+                        : 'rental-slot is-busy'
+                  }
+                  title={slot.available ? '' : slot.reason}
+                  onClick={() => setSelectedSlot({ startTime: slot.startTime, endTime: slot.endTime })}
+                >
+                  {slot.startTime}–{slot.endTime}
+                  {!slot.available ? <span>{slot.reason}</span> : null}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+        <label className="field rental-special-discount">
+          <span className="field-label">Ειδική έκπτωση (€)</span>
+          <input
+            className="field-input"
+            type="number"
+            min={0}
+            step="0.01"
+            inputMode="decimal"
+            value={specialDiscount}
+            onChange={(e) => setSpecialDiscount(e.target.value)}
+            placeholder="π.χ. 10"
+          />
+        </label>
+      </div>
       {occupied.length > 0 ? (
         <p className="muted">
           Κλειστά λόγω προγράμματος:{' '}
@@ -515,7 +539,10 @@ export function FacilityRentalPanel() {
       </label>
       {selectedSlot && selectedRule ? (
         <p>
-          Ποσό: {formatCurrency(bookingAmount(selectedRule, selectedSlot.startTime, selectedSlot.endTime, courtShare))}
+          Ποσό:{' '}
+          {discountValue > 0
+            ? `${formatCurrency(payableAmount)} (${formatCurrency(baseAmount)} − ${formatCurrency(discountValue)})`
+            : formatCurrency(payableAmount)}
         </p>
       ) : null}
       <div className="prints-filter-actions">

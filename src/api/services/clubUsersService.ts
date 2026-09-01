@@ -50,6 +50,7 @@ export type InviteClubUserInput = {
   permissions: ClubPermission[];
   athleteId?: string | null;
   coachId?: string | null;
+  financeOwnEntriesOnly?: boolean;
 };
 
 function canManageClubUsers(clubId: string): boolean {
@@ -332,6 +333,10 @@ export async function inviteClubUser(input: InviteClubUserInput) {
       permissions,
       athleteId: input.role === 'athlete' ? input.athleteId || null : null,
       coachId: input.role === 'coach' ? input.coachId || null : null,
+      financeOwnEntriesOnly:
+        input.role !== 'admin' && input.role !== 'doctor'
+          ? Boolean(input.financeOwnEntriesOnly)
+          : false,
     };
 
     saveUsers([...users, user]);
@@ -350,6 +355,7 @@ export async function updateClubUser(
     active?: boolean;
     athleteId?: string | null;
     coachId?: string | null;
+    financeOwnEntriesOnly?: boolean;
   },
 ) {
   return apiClient(async () => {
@@ -391,6 +397,12 @@ export async function updateClubUser(
     if (patch.coachId !== undefined || patch.role !== undefined) {
       nextPatch.coachId =
         nextRole === 'coach' ? patch.coachId ?? target.coachId ?? null : null;
+    }
+    if (patch.financeOwnEntriesOnly !== undefined || patch.role !== undefined) {
+      nextPatch.financeOwnEntriesOnly =
+        nextRole === 'admin' || nextRole === 'doctor'
+          ? false
+          : Boolean(patch.financeOwnEntriesOnly ?? target.financeOwnEntriesOnly);
     }
 
     const result = updateUser(userId, nextPatch);

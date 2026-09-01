@@ -18,6 +18,7 @@ import {
 } from '../platform/financeCatalog';
 import { localDateIso } from '../utils/dates';
 import { formatCurrency, formatDate } from '../utils/labels';
+import { filterOwnFinanceEntries } from '../utils/financeOwnEntries';
 import { sportsMatch } from '../utils/coachScope';
 import { studentClassIds, studentInClass } from '../utils/studentClasses';
 
@@ -205,7 +206,7 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
 
   const filteredExpenses = useMemo(
     () =>
-      [...data.expenses]
+      [...filterOwnFinanceEntries(data.expenses)]
         .filter((e) => (e.subcategory || '') === subcategory)
         .sort((a, b) => b.date.localeCompare(a.date)),
     [data.expenses, subcategory],

@@ -307,6 +307,7 @@ export const rentalBookingInputSchema = z.object({
   customerEmail: z.string().optional().default(''),
   notes: z.string().optional().default(''),
   amount: z.coerce.number().min(0).optional().default(0),
+  specialDiscount: z.coerce.number().min(0).optional().default(0),
 });
 
 export type RentalBookingInput = z.infer<typeof rentalBookingInputSchema>;

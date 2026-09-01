@@ -17,6 +17,7 @@ import {
   type AppearanceTheme,
   type FinanceTabId,
 } from '../platform/platformConfig';
+import { sessionSeesOnlyOwnFinance } from '../utils/financeOwnEntries';
 import {
   expenseCategoryLabels,
   formatCurrency,
@@ -52,15 +53,20 @@ function chartColors(theme: AppearanceTheme) {
 export function FinancePage() {
   const { refresh, version } = useAppData();
   const [platformTick, setPlatformTick] = useState(0);
+  const ownFinanceOnly = sessionSeesOnlyOwnFinance();
   const enabledTabs = useMemo(
     () => getEnabledFinanceTabs(),
     [platformTick],
   );
 
-  const availableTabs = useMemo(
-    () => FINANCE_TABS.filter((tab) => enabledTabs.includes(tab.id)),
-    [enabledTabs],
-  );
+  const availableTabs = useMemo(() => {
+    const hidden = ownFinanceOnly ? new Set(['accounts', 'budget']) : null;
+    return FINANCE_TABS.filter((tab) => {
+      if (!enabledTabs.includes(tab.id)) return false;
+      if (hidden?.has(tab.id)) return false;
+      return true;
+    });
+  }, [enabledTabs, ownFinanceOnly]);
 
   const [tab, setTab] = useState<Tab>(() => enabledTabs[0] ?? 'analysis');
   const [appearance, setAppearance] = useState(() => getAppearanceTheme());
@@ -115,7 +121,11 @@ export function FinancePage() {
     <div className="stack-lg finance-page">
       <PageHeader
         title="Οικονομικά"
-        subtitle="Έσοδα, έξοδα, προϋπολογισμός και αναφορές της ακαδημίας."
+        subtitle={
+          ownFinanceOnly
+            ? 'Βλέπετε μόνο έσοδα και έξοδα που καταχωρήσατε εσείς.'
+            : 'Έσοδα, έξοδα, προϋπολογισμός και αναφορές της ακαδημίας.'
+        }
       />
 
       <div className="tabs">

@@ -229,6 +229,8 @@ export interface Revenue {
   accountId?: string;
   vatRate?: number;
   linkedTransactionId?: string;
+  createdByUserId?: string;
+  createdByEmail?: string;
 }
 
 export interface MatchExpenseDetails {
@@ -266,6 +268,8 @@ export interface Expense {
   paymentMethod?: PaymentMethod;
   accountId?: string;
   vatRate?: number;
+  createdByUserId?: string;
+  createdByEmail?: string;
 }
 
 export interface CashAccount {
@@ -359,6 +363,8 @@ export interface RentalBooking {
   customerEmail: string;
   notes: string;
   amount: number;
+  /** Ειδική έκπτωση σε € (αφαιρείται από το ποσό ώρας). */
+  specialDiscount?: number;
   source: 'secretariat' | 'public';
   status: 'confirmed' | 'cancelled';
   createdAt: string;

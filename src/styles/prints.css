@@ -361,6 +361,25 @@
   font-size: 1.05rem;
 }
 
+.rental-slots-discount-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem 1.25rem;
+  margin-top: 0.35rem;
+}
+
+.rental-slots-col {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.rental-special-discount {
+  flex: 0 0 12rem;
+  margin-left: auto;
+}
+
 .rental-date-strip {
   margin-bottom: 0.85rem;
   max-height: 5.5rem;

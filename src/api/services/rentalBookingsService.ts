@@ -52,10 +52,14 @@ export async function createRentalBooking(
     );
     if (!check.ok) throw new Error(check.reason);
     const rule = ruleForFacility(data.rentalSettings, facility.id, facility);
+    const baseAmount = bookingAmount(rule, parsed.startTime, parsed.endTime, courtShare);
+    const discount = Math.max(0, parsed.specialDiscount ?? 0);
     const amount =
-      parsed.amount > 0
-        ? parsed.amount
-        : bookingAmount(rule, parsed.startTime, parsed.endTime, courtShare);
+      discount > 0
+        ? Math.max(0, Math.round((baseAmount - discount) * 100) / 100)
+        : parsed.amount > 0
+          ? parsed.amount
+          : baseAmount;
     const session = getSession();
     const booking: RentalBooking = {
       id: createId('rent'),
@@ -70,6 +74,7 @@ export async function createRentalBooking(
       customerEmail: (parsed.customerEmail ?? '').trim(),
       notes: parsed.notes ?? '',
       amount,
+      specialDiscount: discount,
       source,
       status: 'confirmed',
       createdAt: localDateTimeIso(),

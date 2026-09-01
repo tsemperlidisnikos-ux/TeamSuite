@@ -25,6 +25,7 @@ import {
 import { PAYMENT_METHODS } from '../shared/paymentMethods';
 import { localDateIso } from '../utils/dates';
 import { formatCurrency, formatDate, formatMonthYearNumeric } from '../utils/labels';
+import { filterOwnFinanceEntries } from '../utils/financeOwnEntries';
 import type { PaymentMethod, Revenue } from '../types';
 
 const today = () => localDateIso();
@@ -121,7 +122,7 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
 
   const filteredRevenues = useMemo(
     () =>
-      [...data.revenues]
+      [...filterOwnFinanceEntries(data.revenues)]
         .filter((r) => (r.subcategory || '') === subcategory)
         .sort((a, b) => b.date.localeCompare(a.date)),
     [data.revenues, subcategory],

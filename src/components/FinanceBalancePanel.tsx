@@ -34,6 +34,7 @@ import {
 } from '../shared/seasonPresets';
 import { localDateIso } from '../utils/dates';
 import { formatCurrency, formatDate } from '../utils/labels';
+import { filterOwnFinanceEntries } from '../utils/financeOwnEntries';
 import type { Expense, PaymentMethod, Revenue } from '../types';
 
 type PayBucket = 'cash' | 'card' | 'bank' | 'online';
@@ -351,7 +352,7 @@ export function FinanceBalancePanel() {
   const seasons = useMemo(() => seasonOptions(), []);
 
   const filteredIncome = useMemo(() => {
-    return data.revenues.filter((rev: Revenue) => {
+    return filterOwnFinanceEntries(data.revenues).filter((rev: Revenue) => {
       if (!matchesDate(rev.date, applied.dateFrom, applied.dateTo)) return false;
       if (applied.clubName && (rev.clubName || '') !== applied.clubName) return false;
       if (applied.sport && (rev.sport || '') !== applied.sport) return false;
@@ -376,7 +377,7 @@ export function FinanceBalancePanel() {
   }, [data.revenues, applied]);
 
   const filteredExpenses = useMemo(() => {
-    return data.expenses.filter((exp: Expense) => {
+    return filterOwnFinanceEntries(data.expenses).filter((exp: Expense) => {
       if (!matchesDate(exp.date, applied.dateFrom, applied.dateTo)) return false;
       if (applied.clubName && (exp.clubName || '') !== applied.clubName) return false;
       if (applied.sport && (exp.sport || '') !== applied.sport) return false;
