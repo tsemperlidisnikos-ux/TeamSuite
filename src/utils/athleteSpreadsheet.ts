@@ -28,6 +28,7 @@ type ColumnKey =
   | 'birthDate'
   | 'gender'
   | 'amka'
+  | 'adt'
   | 'sports'
   | 'classes'
   | 'guardianName'
@@ -106,6 +107,7 @@ const COLUMNS: Array<{ key: ColumnKey; header: string; aliases?: string[] }> = [
   { key: 'birthDate', header: 'Ημ. γέννησης', aliases: ['Ημερομηνία γέννησης'] },
   { key: 'gender', header: 'Φύλο' },
   { key: 'amka', header: 'ΑΜΚΑ' },
+  { key: 'adt', header: 'ΑΔΤ' },
   { key: 'sports', header: 'Αθλήματα', aliases: ['Άθλημα'] },
   { key: 'classes', header: 'Τμήματα', aliases: ['Τμήμα'] },
   { key: 'guardianName', header: 'Γονέας / κηδεμόνας', aliases: ['Γονέας'] },
@@ -334,6 +336,7 @@ export function studentToSheetRow(student: Student, classes: AthleteSheetClass[]
     birthDate: student.birthDate ?? '',
     gender: genderLabel(student.gender),
     amka: student.amka ?? '',
+    adt: student.adt ?? '',
     sports: studentSports(student).join(', '),
     classes: classNames,
     guardianName: student.guardianName ?? '',
@@ -495,6 +498,9 @@ function applyCell(
     }
     case 'amka':
       draft.amka = value;
+      return;
+    case 'adt':
+      draft.adt = value;
       return;
     case 'sports': {
       const list = splitList(value);

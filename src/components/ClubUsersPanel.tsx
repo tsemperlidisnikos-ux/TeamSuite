@@ -14,7 +14,6 @@ import {
   CLUB_PERMISSIONS,
   CLUB_ROLE_LABELS,
   CLUB_ROLES,
-  DOCTOR_CLUB_PERMISSIONS,
   getEffectiveClubPermissions,
   type ClubPermission,
   type ClubRole,
@@ -153,7 +152,6 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
   }
 
   function togglePermission(permission: ClubPermission) {
-    if (role === 'doctor' || role === 'admin') return;
     setPermissions((current) =>
       current.includes(permission)
         ? current.filter((p) => p !== permission)
@@ -235,11 +233,9 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
     setAthleteId(user.athleteId ?? '');
     setCoachId(user.coachId ?? '');
     setPermissions(
-      nextRole === 'doctor'
-        ? [...DOCTOR_CLUB_PERMISSIONS]
-        : (getEffectiveClubPermissions(user).filter((p) =>
-            (CLUB_PERMISSIONS as readonly string[]).includes(p),
-          ) as ClubPermission[]),
+      getEffectiveClubPermissions(user).filter((p) =>
+        (CLUB_PERMISSIONS as readonly string[]).includes(p),
+      ) as ClubPermission[],
     );
     setFinanceOwnEntriesOnly(
       nextRole !== 'admin' && nextRole !== 'doctor' && Boolean(user.financeOwnEntriesOnly),
@@ -285,12 +281,7 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
       return;
     }
 
-    const savedPermissions =
-      role === 'doctor'
-        ? [...DOCTOR_CLUB_PERMISSIONS]
-        : role === 'admin'
-          ? [...CLUB_PERMISSIONS]
-          : permissions;
+    const savedPermissions = permissions;
 
     if (editingId) {
       const result = await clubUsersService.updateClubUser(clubId, editingId, {
@@ -581,39 +572,21 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
           ) : null}
 
           <SettingsFormRow label="Δικαιώματα πρόσβασης">
-            {role === 'doctor' ? (
-              <p className="ap-field-hint">
-                Ο ιατρός έχει πρόσβαση μόνο σε Αθλητές. Οικονομικά, ρυθμίσεις και άλλες καρτέλες δεν
-                μπορούν να ενεργοποιηθούν.
-              </p>
-            ) : role === 'admin' ? (
-              <p className="ap-field-hint">
-                Ο διαχειριστής συλλόγου έχει by default όλα τα δικαιώματα ενεργά.
-              </p>
-            ) : (
-              <p className="ap-field-hint">
-                Προεπιλογή από Platform Admin για όλους τους συλλόγους. Αλλάξτε τα μόνο αν θέλετε
-                εξαίρεση για αυτόν τον χρήστη.
-              </p>
-            )}
+            <p className="ap-field-hint">
+              Προεπιλογή από Platform Admin για τον ρόλο. Αλλάξτε τα μόνο αν θέλετε εξαίρεση για
+              αυτόν τον χρήστη.
+            </p>
             <div className="club-users-permissions-grid">
-              {(role === 'doctor' ? DOCTOR_CLUB_PERMISSIONS : CLUB_PERMISSIONS).map(
-                (permission) => (
-                  <label key={permission} className="admin-check">
-                    <input
-                      type="checkbox"
-                      checked={
-                        role === 'doctor' || role === 'admin'
-                          ? true
-                          : permissions.includes(permission)
-                      }
-                      disabled={role === 'doctor' || role === 'admin'}
-                      onChange={() => togglePermission(permission)}
-                    />
-                    <span>{CLUB_PERMISSION_LABELS[permission]}</span>
-                  </label>
-                ),
-              )}
+              {CLUB_PERMISSIONS.map((permission) => (
+                <label key={permission} className="admin-check">
+                  <input
+                    type="checkbox"
+                    checked={permissions.includes(permission)}
+                    onChange={() => togglePermission(permission)}
+                  />
+                  <span>{CLUB_PERMISSION_LABELS[permission]}</span>
+                </label>
+              ))}
             </div>
           </SettingsFormRow>
 

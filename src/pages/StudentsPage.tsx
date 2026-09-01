@@ -47,6 +47,7 @@ const draftAthlete: StudentInput = {
   status: 'active',
   monthlyFee: 0,
   amka: '',
+  adt: '',
   gender: '',
   fatherFirstName: '',
   motherFirstName: '',
@@ -213,7 +214,7 @@ export function StudentsPage() {
         }
         if (!q) return true;
         const hay = isDoctor
-          ? `${s.firstName} ${s.lastName} ${s.amka ?? ''} ${s.guardianName}`.toLowerCase()
+          ? `${s.firstName} ${s.lastName} ${s.amka ?? ''} ${s.adt ?? ''} ${s.guardianName}`.toLowerCase()
           : `${s.firstName} ${s.lastName} ${s.email} ${s.guardianName}`.toLowerCase();
         return hay.includes(q);
       })

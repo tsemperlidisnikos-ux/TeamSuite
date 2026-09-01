@@ -1635,22 +1635,8 @@
   grid-column: 1 / -1;
 }
 
-/* ΑΜΚΑ μόνο του στη σειρά· πλάτος input ≈ 30% του πεδίου Όνομα. */
-.ap-field.ap-field-amka {
-  grid-column: 1 / -1;
-  width: calc((100% - 0.9rem) / 2 * 0.3);
-  max-width: calc((100% - 0.9rem) / 2 * 0.3);
-}
-
 .ap-field.ap-field-amka input {
   width: 100%;
-}
-
-@media (max-width: 640px) {
-  .ap-field.ap-field-amka {
-    width: 30%;
-    max-width: 30%;
-  }
 }
 
 @media (max-width: 900px) {

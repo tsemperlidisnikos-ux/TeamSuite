@@ -450,7 +450,6 @@ export function PlatformAdminPage() {
   }
 
   function toggleClubPermission(permission: ClubPermission) {
-    if (clubRole === 'admin' || clubRole === 'doctor') return;
     const current = config.clubRolePermissions?.[clubRole] ?? [];
     const nextList = current.includes(permission)
       ? current.filter((p) => p !== permission)
@@ -1400,15 +1399,10 @@ export function PlatformAdminPage() {
                   ))}
                 </div>
                 <div className="admin-check-list">
-                  {clubRole === 'admin' ? (
-                    <p className="admin-entry-note">
-                      Ο διαχειριστής συλλόγου έχει by default όλα τα δικαιώματα ενεργά.
-                    </p>
-                  ) : null}
                   {CLUB_PERMISSIONS.map((permission) => {
-                    const active =
-                      clubRole === 'admin' ||
-                      (config.clubRolePermissions?.[clubRole] ?? []).includes(permission);
+                    const active = (
+                      config.clubRolePermissions?.[clubRole] ?? []
+                    ).includes(permission);
                     return (
                       <label key={permission} className="admin-check">
                         <span>
@@ -1417,7 +1411,6 @@ export function PlatformAdminPage() {
                         <input
                           type="checkbox"
                           checked={active}
-                          disabled={clubRole === 'admin' || clubRole === 'doctor'}
                           onChange={() => toggleClubPermission(permission)}
                         />
                       </label>

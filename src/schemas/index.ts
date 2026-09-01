@@ -13,6 +13,7 @@ export const studentSchema = z.object({
   status: z.enum(['active', 'inactive', 'trial']),
   monthlyFee: z.coerce.number().min(0, 'Το μηνιαίο δίδακτρο πρέπει να είναι ≥ 0'),
   amka: z.string().optional(),
+  adt: z.string().optional(),
   gender: z.enum(['boy', 'girl', 'other', '']).optional(),
   fatherFirstName: z.string().optional(),
   motherFirstName: z.string().optional(),

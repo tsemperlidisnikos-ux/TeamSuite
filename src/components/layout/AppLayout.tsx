@@ -195,31 +195,18 @@ export function AppLayout() {
     if (session?.role === 'parent') {
       return { dashboard: 'Αρχική' };
     }
-    if (session?.role === 'doctor') {
-      return {
-        dashboard: 'Αρχική',
-        athletes: 'Αθλητές',
-      };
-    }
     return {};
   }, [session?.role]);
 
   const visibleAcademy = academyItems
     .filter((item) => enabledModules.has(item.id) && userCanAccessModule(accessUser, item.id))
-    .filter((item) => {
-      if (session?.role !== 'doctor') return true;
-      return item.id === 'dashboard' || item.id === 'athletes';
-    })
     .map((item) => {
       const label = roleNavLabels[item.id];
       return label ? { ...item, label } : item;
     });
-  const visibleAnalysis =
-    session?.role === 'doctor'
-      ? []
-      : analysisItems.filter(
-          (item) => enabledModules.has(item.id) && userCanAccessModule(accessUser, item.id),
-        );
+  const visibleAnalysis = analysisItems.filter(
+    (item) => enabledModules.has(item.id) && userCanAccessModule(accessUser, item.id),
+  );
 
   const headerGreeting = useMemo(() => {
     if (!session) return null;

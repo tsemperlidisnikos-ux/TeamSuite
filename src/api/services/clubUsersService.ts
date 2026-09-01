@@ -387,9 +387,6 @@ export async function updateClubUser(
     if (patch.active !== undefined) nextPatch.active = patch.active;
 
     const nextRole = patch.role ?? (target.role as ClubRole);
-    if (nextRole === 'doctor') {
-      nextPatch.permissions = null;
-    }
     if (patch.athleteId !== undefined || patch.role !== undefined) {
       nextPatch.athleteId =
         nextRole === 'athlete' ? patch.athleteId ?? target.athleteId ?? null : null;

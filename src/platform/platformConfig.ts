@@ -373,9 +373,6 @@ function sanitizeClubRolePermissions(
     // (π.χ. partnerBusinesses) που αγνοεί τις επιλογές του admin.
     result[role] = list.filter((p): p is ClubPermission => allowed.has(p));
   }
-  // Διαχειριστής συλλόγου: πάντα όλα τα δικαιώματα ενεργά.
-  result.admin = [...CLUB_PERMISSIONS];
-  result.doctor = [...DOCTOR_CLUB_PERMISSIONS];
   return result;
 }
 
@@ -831,9 +828,7 @@ export function getDefaultClubRolePermissions(): Record<ClubRole, ClubPermission
 }
 
 export function getPermissionsForClubRole(role: ClubRole): ClubPermission[] {
-  if (role === 'admin') return [...CLUB_PERMISSIONS];
-  if (role === 'doctor') return [...DOCTOR_CLUB_PERMISSIONS];
-  return [...(loadPlatformConfig().clubRolePermissions[role] ?? [])];
+  return [...(loadPlatformConfig().clubRolePermissions[role] ?? DEFAULT_CLUB_ROLE_PERMISSIONS[role])];
 }
 
 export function sameClubPermissionSet(
@@ -864,7 +859,7 @@ export function usesPlatformRolePermissionDefaults(
   permissions: readonly string[] | null | undefined,
 ): boolean {
   if (permissions == null) return true;
-  if (role === 'doctor' || role === 'platform_admin') return true;
+  if (role === 'platform_admin') return true;
   if (!isClubRole(role)) return false;
   if (permissions.length === 0) return true;
   if (sameClubPermissionSet(permissions, getPermissionsForClubRole(role))) return true;
@@ -890,7 +885,6 @@ export function permissionsToStoreForRole(
   role: ClubRole,
   permissions: readonly string[],
 ): ClubPermission[] | null {
-  if (role === 'doctor') return null;
   const assigned = permissionsForClubRoleAssignment(role, permissions);
   if (usesPlatformRolePermissionDefaults(role, assigned)) return null;
   return assigned;
@@ -903,9 +897,6 @@ export function clearStampedRoleDefaultPermissions<T extends { role: string; per
 ): T[] {
   return users.map((user) => {
     if (!isClubRole(user.role)) return user;
-    if (user.role === 'doctor') {
-      return user.permissions == null ? user : { ...user, permissions: null };
-    }
     if (user.permissions == null) return user;
     // κενό snapshot ή αντίγραφο defaults → ζωντανά Platform Admin
     if (user.permissions.length === 0) {
@@ -928,7 +919,6 @@ export function permissionsForClubRoleAssignment(
   role: ClubRole,
   permissions: readonly string[],
 ): ClubPermission[] {
-  if (role === 'doctor') return [...DOCTOR_CLUB_PERMISSIONS];
   const allowed = new Set<string>(CLUB_PERMISSIONS);
   return permissions.filter((p): p is ClubPermission => allowed.has(p));
 }
@@ -948,7 +938,6 @@ export function getEffectiveClubPermissions(user: {
   permissions?: string[] | null;
 }): ClubPermission[] {
   if (user.role === 'platform_admin') return [...CLUB_PERMISSIONS];
-  if (user.role === 'doctor') return [...DOCTOR_CLUB_PERMISSIONS];
   // null/undefined ή stamped αντίγραφο defaults → ζωντανά Platform Admin defaults
   if (usesPlatformRolePermissionDefaults(user.role, user.permissions)) {
     if (isClubRole(user.role)) return getPermissionsForClubRole(user.role);
@@ -979,9 +968,6 @@ export function userCanAccessModule(
   moduleId: AcademyModuleId,
 ): boolean {
   if (user.role === 'platform_admin') return true;
-  if (user.role === 'doctor') {
-    return moduleId === 'dashboard' || moduleId === 'athletes';
-  }
   if (moduleId === 'dashboard') return true;
   if (moduleId === 'rental') {
     return userHasClubPermission(user, 'rental') || userHasClubPermission(user, 'prints');

@@ -56,6 +56,8 @@ export interface Student {
   enrolledAt: string;
   // Academio-style profile
   amka?: string;
+  /** Αριθμός Δελτίου Ταυτότητας. */
+  adt?: string;
   gender?: Gender;
   fatherFirstName?: string;
   motherFirstName?: string;

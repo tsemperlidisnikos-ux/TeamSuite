@@ -193,6 +193,7 @@ function toForm(
     status: student.status,
     monthlyFee: student.monthlyFee,
     amka: student.amka ?? '',
+    adt: student.adt ?? '',
     gender: student.gender ?? '',
     fatherFirstName: student.fatherFirstName ?? '',
     motherFirstName: student.motherFirstName ?? '',
@@ -792,6 +793,7 @@ export function AthleteProfilePage() {
           ? { ...form.joinExtras, clothingPackage: joinClothing }
           : form.joinExtras,
       amka: amkaValue,
+      adt: (form.adt ?? '').trim(),
       amkaConsentAt: amkaValue
         ? form.amkaConsentAt || localDateIso()
         : '',
@@ -1429,7 +1431,7 @@ export function AthleteProfilePage() {
             <div className="ap-col">
               <ApCard title="Βασικά Στοιχεία">
                 <div className="ap-grid-2">
-                  <ApField label="ΑΜΚΑ" className="ap-field-amka ap-span-2">
+                  <ApField label="ΑΜΚΑ" className="ap-field-amka">
                     {amkaAllowed ? (
                       <>
                         {textInput(form.amka, (v) => setField('amka', v))}
@@ -1463,6 +1465,9 @@ export function AthleteProfilePage() {
                         readOnly
                       />
                     )}
+                  </ApField>
+                  <ApField label="ΑΔΤ">
+                    {textInput(form.adt ?? '', (v) => setField('adt', v), { upper: true })}
                   </ApField>
                   <ApField label="Επώνυμο">
                     {textInput(form.lastName, (v) => setField('lastName', v), { upper: true })}
