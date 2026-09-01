@@ -916,7 +916,7 @@ export function clearStampedRoleDefaultPermissions<T extends { role: string; per
 }
 
 export function permissionsForClubRoleAssignment(
-  role: ClubRole,
+  _role: ClubRole,
   permissions: readonly string[],
 ): ClubPermission[] {
   const allowed = new Set<string>(CLUB_PERMISSIONS);
