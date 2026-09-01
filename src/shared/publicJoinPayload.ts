@@ -1,3 +1,4 @@
+import type { AcademyClass, AppData, RegistrationApplication, Student } from '../types';
 import { collapseDuplicateSurname, composeGivenAndSurname } from '../utils/greekSurname';
 import { localDateIso } from '../utils/dates';
 import {
