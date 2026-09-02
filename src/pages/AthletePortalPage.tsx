@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo, useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   CalendarDays,
   CheckCircle2,
@@ -9,12 +9,12 @@ import {
   User,
   XCircle,
 } from 'lucide-react';
-import * as vivaService from '../api/services/vivaService';
+import * as onlineCheckoutService from '../api/services/onlineCheckoutService';
 import { getSession } from '../auth/auth';
-import { getClubViva } from '../auth/clubs';
 import { Button } from '../components/ui/Button';
 import { useAppData } from '../hooks/useAppData';
 import { getPreviewClubId } from '../platform/platformConfig';
+import { settleVivaReturn } from '../utils/vivaSettle';
 import { localDateIso } from '../utils/dates';
 import { formatCurrency, formatDate, dayNames } from '../utils/labels';
 import { announcementVisibleToAthlete } from '../utils/announcementAudience';
@@ -57,12 +57,13 @@ function shortDayBadge(iso: string): string {
 }
 
 export function AthletePortalPage() {
-  const { data } = useAppData();
+  const { data, refresh } = useAppData();
   const session = getSession();
   const clubId = getPreviewClubId() ?? session?.clubId ?? null;
-  const viva = clubId ? getClubViva(clubId) : null;
+  const readyPay = onlineCheckoutService.listReadyOnlineProviders(clubId);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [payError, setPayError] = useState('');
-  const [paying, setPaying] = useState(false);
+  const [paying, setPaying] = useState<string | null>(null);
 
   const athlete = useMemo(() => {
     if (session?.athleteId) {
@@ -76,6 +77,34 @@ export function AthletePortalPage() {
 
   const balance = athlete ? athleteBalance(athlete.id, data.transactions ?? []) : 0;
   const today = localDateIso();
+
+  useEffect(() => {
+    const txnId = searchParams.get('t');
+    const orderCode = searchParams.get('s');
+    const pay = searchParams.get('pay');
+    if ((!txnId && !orderCode) || !clubId) return;
+    let cancelled = false;
+    void (async () => {
+      const result = await settleVivaReturn({
+        clubId,
+        orderCode,
+        transactionId: txnId,
+        providerHint: pay === 'stripe' || pay === 'eurobank' || pay === 'viva' ? pay : null,
+      });
+      if (cancelled) return;
+      if (result.message) setPayError(result.settled ? '' : result.message);
+      if (result.settled) refresh();
+      const next = new URLSearchParams(searchParams);
+      next.delete('t');
+      next.delete('s');
+      next.delete('pay');
+      next.delete('cancel');
+      setSearchParams(next, { replace: true });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, setSearchParams, clubId, refresh]);
 
   const upcoming = useMemo(() => {
     if (!athlete) return [];
@@ -131,25 +160,23 @@ export function AthletePortalPage() {
     .filter(Boolean)
     .join(', ');
 
-  async function handlePay() {
+  async function handlePay(provider: (typeof readyPay)[number]['id']) {
     if (!clubId || !athlete || balance <= 0) return;
-    setPaying(true);
+    setPaying(provider);
     setPayError('');
-    const result = await vivaService.createVivaCheckout({
+    const result = await onlineCheckoutService.startOnlineCheckout({
       clubId,
+      provider,
       amountEuro: balance,
       athleteId: athlete.id,
       athleteName: `${athlete.lastName} ${athlete.firstName}`,
       customerEmail: athlete.email || session?.email || undefined,
       customerFullName: `${athlete.lastName} ${athlete.firstName}`,
-      merchantTrns: `Οφειλή ${athlete.lastName} ${athlete.firstName}`,
     });
-    setPaying(false);
-    if (!result.success || !result.data?.checkoutUrl) {
-      setPayError(result.error ?? 'Αποτυχία Viva');
-      return;
+    setPaying(null);
+    if (!result.success) {
+      setPayError(result.error ?? 'Αποτυχία πληρωμής');
     }
-    window.location.href = result.data.checkoutUrl;
   }
 
   return (
@@ -188,13 +215,22 @@ export function AthletePortalPage() {
                 })}
               </em>
               {payError ? <p className="form-error">{payError}</p> : null}
-              {balance > 0 && viva?.enabled ? (
-                <Button type="button" disabled={paying} onClick={() => void handlePay()}>
-                  <CreditCard size={16} /> {paying ? 'Μετάβαση…' : 'Πληρωμή με Viva'}
-                </Button>
+              {balance > 0 && readyPay.length > 0 ? (
+                readyPay.map((p) => (
+                  <Button
+                    key={p.id}
+                    type="button"
+                    disabled={paying === p.id}
+                    onClick={() => void handlePay(p.id)}
+                  >
+                    <CreditCard size={16} /> {paying === p.id ? 'Μετάβαση…' : `Πληρωμή ${p.label}`}
+                  </Button>
+                ))
               ) : (
                 <p className="aport-balance-hint">
-                  {balance <= 0 ? 'Δεν υπάρχει οφειλή.' : 'Το Viva δεν είναι ενεργό.'}
+                  {balance <= 0
+                    ? 'Δεν υπάρχει οφειλή.'
+                    : 'Δεν υπάρχει ενεργός online τρόπος πληρωμής.'}
                 </p>
               )}
               <Link to="/fees" className="aport-history-link">

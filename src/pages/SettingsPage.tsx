@@ -22,6 +22,7 @@ import {
   getClubById,
   getClubSmtp,
   getClubViva,
+  clubAllowsOnlineProvider,
   isMaskedOrBlankSecret,
   smtpHasStoredSecret,
   updateClubLogo,
@@ -46,6 +47,8 @@ import { SmtpSetupGuideButton, SmtpSetupGuideModal } from '../components/SmtpSet
 import { ClubPublicRegistrationPanel } from '../components/ClubPublicRegistrationPanel';
 import { ClubUsersPanel } from '../components/ClubUsersPanel';
 import { ClubVivaPanel } from '../components/ClubVivaPanel';
+import { ClubStripePanel } from '../components/ClubStripePanel';
+import { ClubEurobankPanel } from '../components/ClubEurobankPanel';
 import { Button } from '../components/ui/Button';
 import { SizeChartPanel } from '../components/SizeChartPanel';
 import { ClothingPackagesPanel } from '../components/ClothingPackagesPanel';
@@ -66,6 +69,8 @@ type SettingsTab =
   | 'users'
   | 'email'
   | 'viva'
+  | 'stripe'
+  | 'eurobank'
   | 'publicRegistration'
   | 'password'
   | 'associations'
@@ -98,6 +103,8 @@ const PRIMARY_TABS: Array<{ id: SettingsTab; label: string }> = [
   { id: 'users', label: 'Χρήστες' },
   { id: 'email', label: 'Email' },
   { id: 'viva', label: 'Viva' },
+  { id: 'eurobank', label: 'Eurobank' },
+  { id: 'stripe', label: 'Stripe' },
   { id: 'publicRegistration', label: 'Εγγραφή' },
 ];
 
@@ -367,7 +374,13 @@ export function SettingsPage() {
     setError('');
   }
 
-  const tabs = PRIMARY_TABS.filter((t) => (t.id === 'users' ? canManageUsers : true));
+  const tabs = PRIMARY_TABS.filter((t) => {
+    if (t.id === 'users') return canManageUsers;
+    if (t.id === 'viva') return clubAllowsOnlineProvider(clubId, 'viva');
+    if (t.id === 'eurobank') return clubAllowsOnlineProvider(clubId, 'eurobank');
+    if (t.id === 'stripe') return clubAllowsOnlineProvider(clubId, 'stripe');
+    return true;
+  });
 
   return (
     <div className="set-page">
@@ -805,6 +818,8 @@ export function SettingsPage() {
       {tab === 'users' && clubId ? <ClubUsersPanel clubId={clubId} mode="users" /> : null}
       {tab === 'email' && clubId ? <ClubEmailPanel clubId={clubId} /> : null}
       {tab === 'viva' && clubId ? <ClubVivaPanel clubId={clubId} /> : null}
+      {tab === 'eurobank' && clubId ? <ClubEurobankPanel clubId={clubId} /> : null}
+      {tab === 'stripe' && clubId ? <ClubStripePanel clubId={clubId} /> : null}
       {tab === 'publicRegistration' && clubId ? (
         <div className="set-embed">
           <div className="set-embed-head">

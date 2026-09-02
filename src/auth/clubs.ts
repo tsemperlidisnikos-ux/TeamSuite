@@ -6,6 +6,10 @@ import {
   sanitizeClubBackupSchedule,
   type ClubBackupSchedule,
 } from './clubBackupSchedule';
+import {
+  normalizeOnlinePaymentProviders,
+  type OnlinePaymentProviderId,
+} from '../shared/onlinePayments';
 
 export interface ClubSmtpSettings {
   enabled: boolean;
@@ -39,6 +43,19 @@ export interface ClubVivaSettings {
   environment: 'demo' | 'live';
 }
 
+export interface ClubStripeSettings {
+  enabled: boolean;
+  publishableKey: string;
+  secretKey: string;
+}
+
+export interface ClubEurobankSettings {
+  enabled: boolean;
+  merchantId: string;
+  secretKey: string;
+  environment: 'demo' | 'live';
+}
+
 export interface ClubPublicRegistrationSettings {
   enabled: boolean;
   /** Άμεση εμφάνιση στη λίστα αθλητών (χωρίς έγκριση). */
@@ -51,8 +68,6 @@ export interface ClubPublicRegistrationSettings {
   /** Email ειδοποίησης νέας αίτησης (fallback: admin / SMTP username). */
   notifyEmail?: string;
 }
-
-export type { ClubBackupSchedule };
 
 export interface Club {
   id: string;
@@ -77,6 +92,10 @@ export interface Club {
   smtp?: ClubSmtpSettings;
   smtpSendLog?: ClubSmtpSendLog[];
   viva?: ClubVivaSettings;
+  stripe?: ClubStripeSettings;
+  eurobank?: ClubEurobankSettings;
+  /** Online πάροχοι που επιτρέπει ο Platform Admin. */
+  onlinePaymentProviders?: OnlinePaymentProviderId[];
   publicRegistration?: ClubPublicRegistrationSettings;
   /** ISO timestamp αποδοχής DPA από τον σύλλογο. */
   dpaAcceptedAt?: string | null;
@@ -116,6 +135,7 @@ export function getClubs(): Club[] {
       athleteLicenseUsed: c.athleteLicenseUsed ?? 0,
       licensePackageId: c.licensePackageId ?? null,
       backupSchedule: sanitizeClubBackupSchedule(c.backupSchedule),
+      onlinePaymentProviders: normalizeOnlinePaymentProviders(c.onlinePaymentProviders),
     }));
   } catch {
     return [];
@@ -131,6 +151,15 @@ export { saveClubs };
 export function getClubById(clubId: string | null | undefined): Club | null {
   if (!clubId) return null;
   return getClubs().find((c) => c.id === clubId) ?? null;
+}
+
+export function clubAllowsOnlineProvider(
+  clubId: string | null | undefined,
+  provider: OnlinePaymentProviderId,
+): boolean {
+  const club = getClubById(clubId);
+  if (!club) return false;
+  return normalizeOnlinePaymentProviders(club.onlinePaymentProviders).includes(provider);
 }
 
 function pickMediaUrl(
@@ -206,6 +235,32 @@ export function mergeSmtpSettings(
   });
 }
 
+function mergeKeyedSecretSettings<T extends { secretKey?: string }>(
+  incoming: T | undefined,
+  existing: T | undefined,
+  secretField: 'secretKey',
+): T | undefined {
+  if (!incoming && !existing) return undefined;
+  if (!incoming) return existing;
+  if (!existing) {
+    if (isMaskedOrBlankSecret(incoming[secretField])) {
+      return { ...incoming, [secretField]: '' };
+    }
+    return incoming;
+  }
+  const incomingSecret = incoming[secretField];
+  const existingSecret = existing[secretField];
+  return {
+    ...existing,
+    ...incoming,
+    [secretField]: isMaskedOrBlankSecret(incomingSecret)
+      ? isMaskedOrBlankSecret(existingSecret)
+        ? ''
+        : existingSecret
+      : incomingSecret,
+  };
+}
+
 /** Same preservation for Viva client secrets. */
 export function mergeVivaSettings(
   incoming: ClubVivaSettings | undefined,
@@ -244,6 +299,8 @@ export function mergeClubCatalog(localClubs: Club[], incomingClubs: Club[]): Clu
         ...incoming,
         smtp: mergeSmtpSettings(incoming.smtp, undefined),
         viva: mergeVivaSettings(incoming.viva, undefined),
+        stripe: mergeKeyedSecretSettings(incoming.stripe, undefined, 'secretKey'),
+        eurobank: mergeKeyedSecretSettings(incoming.eurobank, undefined, 'secretKey'),
       };
     }
     return {
@@ -252,6 +309,11 @@ export function mergeClubCatalog(localClubs: Club[], incomingClubs: Club[]): Clu
       logoUrl: pickMediaUrl(incoming.logoUrl, local.logoUrl),
       smtp: mergeSmtpSettings(incoming.smtp, local.smtp),
       viva: mergeVivaSettings(incoming.viva, local.viva),
+      stripe: mergeKeyedSecretSettings(incoming.stripe, local.stripe, 'secretKey'),
+      eurobank: mergeKeyedSecretSettings(incoming.eurobank, local.eurobank, 'secretKey'),
+      onlinePaymentProviders: normalizeOnlinePaymentProviders(
+        incoming.onlinePaymentProviders ?? local.onlinePaymentProviders,
+      ),
       smtpSendLog: incoming.smtpSendLog ?? local.smtpSendLog,
       publicRegistration:
         incoming.publicRegistration || local.publicRegistration
@@ -373,6 +435,7 @@ export async function provisionClub(input: {
     createdAt: localDateIso(),
     athleteLicenseLimit: 10,
     athleteLicenseUsed: 0,
+    onlinePaymentProviders: ['viva'],
     dpaAcceptedAt: input.dpaAcceptedAt || new Date().toISOString(),
   };
 
@@ -419,6 +482,7 @@ export function updateClubLicenses(
     licensePackageId?: string | null;
     usageStartsOn?: string | null;
     usageEndsOn?: string | null;
+    onlinePaymentProviders?: OnlinePaymentProviderId[];
   },
 ): ApiResult<Club> {
   const clubs = getClubs();
@@ -449,6 +513,10 @@ export function updateClubLicenses(
         : input.licensePackageId,
     usageStartsOn,
     usageEndsOn,
+    onlinePaymentProviders:
+      input.onlinePaymentProviders === undefined
+        ? clubs[index].onlinePaymentProviders
+        : normalizeOnlinePaymentProviders(input.onlinePaymentProviders),
   };
   saveClubs(clubs);
   window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
@@ -718,6 +786,10 @@ export function updateClubViva(
   const index = clubs.findIndex((c) => c.id === clubId);
   if (index < 0) return fail('Ο σύλλογος δεν βρέθηκε');
 
+  if (data.enabled && !clubAllowsOnlineProvider(clubId, 'viva')) {
+    return fail('Ο διαχειριστής πλατφόρμας δεν έχει επιτρέψει Viva για αυτόν τον σύλλογο.');
+  }
+
   const previous = clubs[index].viva;
   const kept =
     previous?.clientSecret && !isMaskedOrBlankSecret(previous.clientSecret)
@@ -746,6 +818,110 @@ export function updateClubViva(
   };
 
   clubs[index] = { ...clubs[index], viva };
+  saveClubs(clubs);
+  window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
+  return ok(clubs[index]);
+}
+
+export function getDefaultClubStripe(): ClubStripeSettings {
+  return { enabled: false, publishableKey: '', secretKey: '' };
+}
+
+export function getClubStripe(clubId: string | null | undefined): ClubStripeSettings {
+  const club = getClubById(clubId);
+  const merged = { ...getDefaultClubStripe(), ...(club?.stripe ?? {}) };
+  if (merged.secretKey === '********') merged.secretKey = '';
+  return merged;
+}
+
+const clubStripeSchema = z.object({
+  enabled: z.boolean(),
+  publishableKey: z.string().optional().default(''),
+  secretKey: z.string().optional().default(''),
+});
+
+export function updateClubStripe(
+  clubId: string,
+  input: z.infer<typeof clubStripeSchema>,
+): ApiResult<Club> {
+  const parsed = clubStripeSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? 'Μη έγκυρες ρυθμίσεις Stripe');
+  const data = parsed.data;
+  const clubs = getClubs();
+  const index = clubs.findIndex((c) => c.id === clubId);
+  if (index < 0) return fail('Ο σύλλογος δεν βρέθηκε');
+  if (data.enabled && !clubAllowsOnlineProvider(clubId, 'stripe')) {
+    return fail('Ο διαχειριστής πλατφόρμας δεν έχει επιτρέψει Stripe για αυτόν τον σύλλογο.');
+  }
+  const previous = clubs[index].stripe;
+  const kept =
+    previous?.secretKey && !isMaskedOrBlankSecret(previous.secretKey) ? previous.secretKey : '';
+  const secretKey = isMaskedOrBlankSecret(data.secretKey) ? kept : data.secretKey;
+  if (data.enabled) {
+    if (!data.publishableKey.trim().startsWith('pk_')) {
+      return fail('Συμπληρώστε Publishable Key (pk_test_ ή pk_live_).');
+    }
+    if (!secretKey.trim().startsWith('sk_')) {
+      return fail('Συμπληρώστε Secret Key (sk_test_ ή sk_live_).');
+    }
+  }
+  const stripe: ClubStripeSettings = {
+    enabled: data.enabled,
+    publishableKey: data.publishableKey.trim(),
+    secretKey,
+  };
+  clubs[index] = { ...clubs[index], stripe };
+  saveClubs(clubs);
+  window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
+  return ok(clubs[index]);
+}
+
+export function getDefaultClubEurobank(): ClubEurobankSettings {
+  return { enabled: false, merchantId: '', secretKey: '', environment: 'demo' };
+}
+
+export function getClubEurobank(clubId: string | null | undefined): ClubEurobankSettings {
+  const club = getClubById(clubId);
+  const merged = { ...getDefaultClubEurobank(), ...(club?.eurobank ?? {}) };
+  if (merged.secretKey === '********') merged.secretKey = '';
+  return merged;
+}
+
+const clubEurobankSchema = z.object({
+  enabled: z.boolean(),
+  merchantId: z.string().optional().default(''),
+  secretKey: z.string().optional().default(''),
+  environment: z.enum(['demo', 'live']),
+});
+
+export function updateClubEurobank(
+  clubId: string,
+  input: z.infer<typeof clubEurobankSchema>,
+): ApiResult<Club> {
+  const parsed = clubEurobankSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? 'Μη έγκυρες ρυθμίσεις Eurobank');
+  const data = parsed.data;
+  const clubs = getClubs();
+  const index = clubs.findIndex((c) => c.id === clubId);
+  if (index < 0) return fail('Ο σύλλογος δεν βρέθηκε');
+  if (data.enabled && !clubAllowsOnlineProvider(clubId, 'eurobank')) {
+    return fail('Ο διαχειριστής πλατφόρμας δεν έχει επιτρέψει Eurobank για αυτόν τον σύλλογο.');
+  }
+  const previous = clubs[index].eurobank;
+  const kept =
+    previous?.secretKey && !isMaskedOrBlankSecret(previous.secretKey) ? previous.secretKey : '';
+  const secretKey = isMaskedOrBlankSecret(data.secretKey) ? kept : data.secretKey;
+  if (data.enabled) {
+    if (!data.merchantId.trim()) return fail('Συμπληρώστε Merchant ID Eurobank.');
+    if (!secretKey.trim()) return fail('Συμπληρώστε Secret Key Eurobank.');
+  }
+  const eurobank: ClubEurobankSettings = {
+    enabled: data.enabled,
+    merchantId: data.merchantId.trim(),
+    secretKey,
+    environment: data.environment,
+  };
+  clubs[index] = { ...clubs[index], eurobank };
   saveClubs(clubs);
   window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
   return ok(clubs[index]);

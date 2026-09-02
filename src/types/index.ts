@@ -17,7 +17,7 @@ export type RevenueCategory =
   | 'other';
 export type Gender = 'boy' | 'girl' | 'other' | '';
 export type TransactionType = 'charge' | 'payment';
-export type PaymentMethod = 'cash' | 'transfer' | 'card' | 'viva' | 'other' | '';
+export type PaymentMethod = 'cash' | 'transfer' | 'card' | 'viva' | 'stripe' | 'eurobank' | 'other' | '';
 
 export interface AthleteTransaction {
   id: string;

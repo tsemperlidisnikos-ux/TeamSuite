@@ -1,7 +1,7 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
 import { resolveActiveClubId } from '../../data/store';
-import { getClubById, getClubSmtp, getClubViva } from '../../auth/clubs';
+import { getClubById, getClubSmtp } from '../../auth/clubs';
 import { feeChargeTemplateSchema, type FeeChargeTemplateInput } from '../../schemas';
 import type {
   AthleteTransaction,
@@ -782,9 +782,10 @@ export async function runDueFeeReminders(clubId: string) {
     }
 
     const club = getClubById(clubId);
-    const viva = getClubViva(clubId);
+    const { listReadyOnlineProviders } = await import('./onlineCheckoutService');
     const payUrl = feePaymentLoginUrl();
     const clubName = club?.name ?? 'TeamSuite';
+    const vivaEnabled = listReadyOnlineProviders(clubId).length > 0;
 
     let sent = 0;
     let skipped = 0;
@@ -806,7 +807,7 @@ export async function runDueFeeReminders(clubId: string) {
         balance: row.balance,
         daysOverdue: row.daysOverdue,
         payUrl,
-        vivaEnabled: Boolean(viva.enabled),
+        vivaEnabled,
       });
 
       const send = await sendClubEmail({

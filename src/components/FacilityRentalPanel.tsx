@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ClipboardCopy, Download, ExternalLink, QrCode } from 'lucide-react';
+import { ClipboardCopy, Download, ExternalLink } from 'lucide-react';
 import * as rentalBookingsService from '../api/services/rentalBookingsService';
 import { getSession } from '../auth/auth';
 import { getClubById, getClubPublicRegistration, slugifyClubName } from '../auth/clubs';
@@ -311,9 +311,6 @@ export function FacilityRentalPanel() {
               </p>
               <Button type="button" variant="secondary" onClick={() => void downloadQr()}>
                 <Download size={16} /> Λήψη PNG
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => window.print()}>
-                <QrCode size={16} /> Εκτύπωση σελίδας
               </Button>
               <p className="settings-hint">
                 Το QR δείχνει το δημόσιο URL ενοικίασης (το slug ορίζεται στις Ρυθμίσεις → Εγγραφή).

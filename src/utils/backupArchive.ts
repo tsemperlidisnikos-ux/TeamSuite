@@ -55,6 +55,18 @@ export function redactClubForBackup(club: Club): Club {
           clientSecret: '',
         }
       : club.viva,
+    stripe: club.stripe
+      ? {
+          ...club.stripe,
+          secretKey: '',
+        }
+      : club.stripe,
+    eurobank: club.eurobank
+      ? {
+          ...club.eurobank,
+          secretKey: '',
+        }
+      : club.eurobank,
     // Send log can contain recipient emails — omit from file backups.
     smtpSendLog: undefined,
   };
@@ -95,6 +107,22 @@ export function mergeClubsPreservingSecrets(
               : club.viva.clientSecret,
           }
         : prev.viva,
+      stripe: club.stripe
+        ? {
+            ...club.stripe,
+            secretKey: isBlankSecret(club.stripe.secretKey)
+              ? (prev.stripe?.secretKey ?? '')
+              : club.stripe.secretKey,
+          }
+        : prev.stripe,
+      eurobank: club.eurobank
+        ? {
+            ...club.eurobank,
+            secretKey: isBlankSecret(club.eurobank.secretKey)
+              ? (prev.eurobank?.secretKey ?? '')
+              : club.eurobank.secretKey,
+          }
+        : prev.eurobank,
       smtpSendLog: club.smtpSendLog ?? prev.smtpSendLog,
     };
   });

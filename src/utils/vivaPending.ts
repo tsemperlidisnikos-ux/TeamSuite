@@ -6,6 +6,7 @@ export type VivaPendingPayment = {
   amountEuro: number;
   athleteName: string;
   createdAt: string;
+  provider?: 'viva' | 'stripe' | 'eurobank';
 };
 
 const KEY = 'academyhub-viva-pending-v1';

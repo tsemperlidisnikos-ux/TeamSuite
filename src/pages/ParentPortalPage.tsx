@@ -9,10 +9,10 @@ import {
   LayoutGrid,
   Users,
 } from 'lucide-react';
-import * as vivaService from '../api/services/vivaService';
+import * as onlineCheckoutService from '../api/services/onlineCheckoutService';
 import * as feeChargesService from '../api/services/feeChargesService';
 import { getSession } from '../auth/auth';
-import { getClubById, getClubViva } from '../auth/clubs';
+import { getClubById } from '../auth/clubs';
 import { Button } from '../components/ui/Button';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
@@ -75,7 +75,7 @@ export function ParentPortalPage() {
   const session = getSession();
   const clubId = getPreviewClubId() ?? session?.clubId ?? null;
   const club = clubId ? getClubById(clubId) : null;
-  const viva = clubId ? getClubViva(clubId) : null;
+  const readyPay = onlineCheckoutService.listReadyOnlineProviders(clubId);
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
   const tab: ParentTab = TABS.some((item) => item.id === rawTab)
@@ -91,10 +91,13 @@ export function ParentPortalPage() {
     if ((!txnId && !orderCode) || !clubId) return;
     let cancelled = false;
     void (async () => {
+      const pay = searchParams.get('pay');
       const result = await settleVivaReturn({
         clubId,
         orderCode,
         transactionId: txnId,
+        providerHint:
+          pay === 'stripe' || pay === 'eurobank' || pay === 'viva' ? pay : null,
       });
       if (cancelled) return;
       setMessage(result.message);
@@ -102,6 +105,8 @@ export function ParentPortalPage() {
       const next = new URLSearchParams(searchParams);
       next.delete('t');
       next.delete('s');
+      next.delete('pay');
+      next.delete('cancel');
       if (!next.get('tab')) next.set('tab', 'payments');
       setSearchParams(next, { replace: true });
     })();
@@ -217,27 +222,30 @@ export function ParentPortalPage() {
 
   const nextTraining = upcomingTrainings[0] ?? null;
 
-  async function handlePay(athleteId: string, amount: number, athleteName: string) {
+  async function handlePay(
+    athleteId: string,
+    amount: number,
+    athleteName: string,
+    provider: (typeof readyPay)[number]['id'],
+  ) {
     if (!clubId) return;
     setPayError('');
-    setPayingId(athleteId);
+    setPayingId(`${athleteId}:${provider}`);
     const athlete = linkedAthletes.find((a) => a.id === athleteId);
     const email = athlete?.motherEmail || athlete?.email || session?.email || '';
-    const result = await vivaService.createVivaCheckout({
+    const result = await onlineCheckoutService.startOnlineCheckout({
       clubId,
+      provider,
       amountEuro: amount,
       athleteId,
       athleteName,
       customerEmail: email,
       customerFullName: session?.fullName ?? athleteName,
-      merchantTrns: `Οφειλή ${athleteName}`,
     });
     setPayingId(null);
-    if (!result.success || !result.data?.checkoutUrl) {
-      setPayError(result.error ?? 'Αποτυχία έναρξης πληρωμής Viva');
-      return;
+    if (!result.success) {
+      setPayError(result.error ?? 'Αποτυχία έναρξης πληρωμής');
     }
-    window.location.href = result.data.checkoutUrl;
   }
 
   function handleDownloadSchedule() {
@@ -473,21 +481,27 @@ export function ParentPortalPage() {
                         </strong>
                       </td>
                       <td className="row-actions">
-                        {balance > 0 && viva?.enabled ? (
-                          <Button
-                            type="button"
-                            disabled={payingId === athlete.id}
-                            onClick={() =>
-                              void handlePay(
-                                athlete.id,
-                                balance,
-                                `${athlete.lastName} ${athlete.firstName}`,
-                              )
-                            }
-                          >
-                            {payingId === athlete.id ? 'Μετάβαση…' : 'Πληρωμή Viva'}
-                          </Button>
-                        ) : null}
+                        {balance > 0 && readyPay.length > 0
+                          ? readyPay.map((p) => (
+                              <Button
+                                key={p.id}
+                                type="button"
+                                disabled={payingId === `${athlete.id}:${p.id}`}
+                                onClick={() =>
+                                  void handlePay(
+                                    athlete.id,
+                                    balance,
+                                    `${athlete.lastName} ${athlete.firstName}`,
+                                    p.id,
+                                  )
+                                }
+                              >
+                                {payingId === `${athlete.id}:${p.id}`
+                                  ? 'Μετάβαση…'
+                                  : `Πληρωμή ${p.label}`}
+                              </Button>
+                            ))
+                          : null}
                       </td>
                     </tr>
                   ))}
@@ -531,9 +545,10 @@ export function ParentPortalPage() {
               <p className="muted settings-hint">Δεν υπάρχουν ανοιχτές χρεώσεις ανά μήνα.</p>
             )}
 
-            {!viva?.enabled ? (
+            {readyPay.length === 0 ? (
               <p className="muted settings-hint">
-                Η online πληρωμή θα εμφανιστεί όταν ο σύλλογος ενεργοποιήσει το Viva Wallet.
+                Η online πληρωμή θα εμφανιστεί όταν ο διαχειριστής πλατφόρμας επιτρέψει πάροχο
+                (Viva / Eurobank / Stripe) και ο σύλλογος τον ενεργοποιήσει στις Ρυθμίσεις.
               </p>
             ) : null}
           </section>

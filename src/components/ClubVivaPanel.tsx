@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  clubAllowsOnlineProvider,
   getClubById,
   getClubViva,
   updateClubViva,
@@ -15,6 +16,7 @@ type Props = {
 
 export function ClubVivaPanel({ clubId }: Props) {
   const club = getClubById(clubId);
+  const allowed = clubAllowsOnlineProvider(clubId, 'viva');
   const [form, setForm] = useState<ClubVivaSettings>(() => getClubViva(clubId));
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -63,6 +65,12 @@ export function ClubVivaPanel({ clubId }: Props) {
         Συνδέστε Client ID, Client Secret και Source Code από το Viva banking app για online πληρωμές
         (Smart Checkout) του συλλόγου «{club?.name ?? '—'}».
       </p>
+      {!allowed ? (
+        <p className="form-error">
+          Ο διαχειριστής πλατφόρμας δεν έχει επιτρέψει Viva για αυτόν τον σύλλογο. Τα κλειδιά
+          αποθηκεύονται, αλλά οι γονείς δεν θα βλέπουν πληρωμή Viva.
+        </p>
+      ) : null}
 
       <div className="settings-form">
         <SettingsFormRow label="Ενεργές online πληρωμές" htmlFor="viva-enabled">

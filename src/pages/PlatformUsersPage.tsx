@@ -26,6 +26,11 @@ import {
   type Club,
 } from '../auth/clubs';
 import {
+  ONLINE_PAYMENT_PROVIDERS,
+  normalizeOnlinePaymentProviders,
+  type OnlinePaymentProviderId,
+} from '../shared/onlinePayments';
+import {
   formatLicenseEuro,
   listAssignableLicensePackages,
   resolveClubLicensePackage,
@@ -214,6 +219,7 @@ export function PlatformUsersPage() {
   const [licensePackageId, setLicensePackageId] = useState('');
   const [usageStartsOn, setUsageStartsOn] = useState('');
   const [usageEndsOn, setUsageEndsOn] = useState('');
+  const [onlineProviders, setOnlineProviders] = useState<OnlinePaymentProviderId[]>(['viva']);
   const activePackages = useMemo(() => listAssignableLicensePackages(), []);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -308,6 +314,7 @@ export function PlatformUsersPage() {
     }
     setUsageStartsOn(club.usageStartsOn ?? '');
     setUsageEndsOn(club.usageEndsOn ?? '');
+    setOnlineProviders(normalizeOnlinePaymentProviders(club.onlinePaymentProviders));
     setError('');
     setMessage('');
   }
@@ -337,6 +344,7 @@ export function PlatformUsersPage() {
       licensePackageId: licensePackageId || null,
       usageStartsOn: usageStartsOn || null,
       usageEndsOn: usageEndsOn || null,
+      onlinePaymentProviders: onlineProviders,
     });
     if (!result.success || !result.data) {
       setError(result.error ?? 'Αποτυχία ενημέρωσης αδειών');
@@ -579,6 +587,28 @@ export function PlatformUsersPage() {
                 <input type="date" value={usageEndsOn} onChange={(e) => setUsageEndsOn(e.target.value)} />
               </label>
             </div>
+            <fieldset className="platform-online-pay">
+              <legend>Online πληρωμές συλλόγου</legend>
+              <p className="platform-online-pay-hint">
+                Επιλέξτε ποιους παρόχους μπορεί να ενεργοποιήσει ο σύλλογος στις Ρυθμίσεις. Μπορείτε
+                περισσότερους από έναν.
+              </p>
+              {ONLINE_PAYMENT_PROVIDERS.map((p) => (
+                <label key={p.id} className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={onlineProviders.includes(p.id)}
+                    onChange={(e) => {
+                      setOnlineProviders((prev) => {
+                        if (e.target.checked) return [...prev, p.id];
+                        return prev.filter((id) => id !== p.id);
+                      });
+                    }}
+                  />
+                  {p.label}
+                </label>
+              ))}
+            </fieldset>
             <div className="platform-modal-actions">
               <button
                 type="button"

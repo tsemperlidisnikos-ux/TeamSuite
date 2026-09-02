@@ -95,11 +95,13 @@ export function FeesPage() {
 
     let cancelled = false;
     void (async () => {
+      const pay = searchParams.get('pay');
       const { settleVivaReturn } = await import('../utils/vivaSettle');
       const result = await settleVivaReturn({
         clubId,
         orderCode,
         transactionId: txnId,
+        providerHint: pay === 'stripe' || pay === 'eurobank' || pay === 'viva' ? pay : null,
       });
       if (cancelled) return;
       setMessage(result.message);

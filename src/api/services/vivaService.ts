@@ -1,5 +1,5 @@
 import { apiClient } from '../apiClient';
-import { getClubById, getClubViva } from '../../auth/clubs';
+import { getClubById, getClubViva, clubAllowsOnlineProvider } from '../../auth/clubs';
 import { localDateTimeIso } from '../../utils/dates';
 import { addVivaPending } from '../../utils/vivaPending';
 
@@ -19,6 +19,9 @@ export async function createVivaCheckout(input: CreateVivaPaymentInput) {
     const club = getClubById(input.clubId);
     if (!viva.enabled) {
       throw new Error('Οι online πληρωμές Viva δεν είναι ενεργές για τον σύλλογο.');
+    }
+    if (!clubAllowsOnlineProvider(input.clubId, 'viva')) {
+      throw new Error('Ο διαχειριστής πλατφόρμας δεν έχει επιτρέψει Viva για αυτόν τον σύλλογο.');
     }
     if (!viva.clientId || !viva.clientSecret || !viva.sourceCode) {
       throw new Error('Συμπληρώστε Client ID, Client Secret και Source Code στις Ρυθμίσεις → Viva.');
@@ -77,6 +80,7 @@ export async function createVivaCheckout(input: CreateVivaPaymentInput) {
         amountEuro: input.amountEuro,
         athleteName: input.athleteName || input.customerFullName || 'Αθλητής',
         createdAt: localDateTimeIso(),
+        provider: 'viva',
       });
     }
 

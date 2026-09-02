@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { ClipboardCopy, Download, ImagePlus, QrCode, Trash2 } from 'lucide-react';
+import { ClipboardCopy, Download, ImagePlus, Trash2 } from 'lucide-react';
 import * as publicClubCloudService from '../api/services/publicClubCloudService';
 import {
   getClubById,
@@ -304,9 +304,6 @@ export function ClubPublicRegistrationPanel({ clubId, onOpenGdpr }: Props) {
             <div className="public-reg-qr-actions">
               <Button type="button" variant="secondary" onClick={() => void handleDownloadQr()}>
                 <Download size={16} /> Λήψη PNG
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => window.print()}>
-                <QrCode size={16} /> Εκτύπωση σελίδας
               </Button>
               <p className="settings-hint">
                 Το QR δείχνει πάντα το τρέχον URL (μετά την αλλαγή slug πάτα Αποθήκευση).

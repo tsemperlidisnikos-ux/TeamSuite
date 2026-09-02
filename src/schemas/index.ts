@@ -177,7 +177,7 @@ export const revenueSchema = z.object({
   firstName: z.string().optional().default(''),
   subscriptionPeriod: z.string().optional().default(''),
   notes: z.string().optional().default(''),
-  paymentMethod: z.enum(['cash', 'transfer', 'card', 'viva', 'other', '']).optional(),
+  paymentMethod: z.enum(['cash', 'transfer', 'card', 'viva', 'stripe', 'eurobank', 'other', '']).optional(),
   accountId: z.string().optional(),
   vatRate: z.coerce.number().min(0).max(100).optional(),
   linkedTransactionId: z.string().optional(),
@@ -213,7 +213,7 @@ export const expenseSchema = z.object({
   studentId: z.string().optional(),
   notes: z.string().optional().default(''),
   matchDetails: matchExpenseDetailsSchema.optional(),
-  paymentMethod: z.enum(['cash', 'transfer', 'card', 'viva', 'other', '']).optional(),
+  paymentMethod: z.enum(['cash', 'transfer', 'card', 'viva', 'stripe', 'eurobank', 'other', '']).optional(),
   accountId: z.string().optional(),
   vatRate: z.coerce.number().min(0).max(100).optional(),
 });
@@ -232,7 +232,7 @@ export const transactionSchema = z.object({
   type: z.enum(['charge', 'payment']),
   month: z.coerce.number().int().min(1).max(12),
   year: z.coerce.number().int().min(2000),
-  paymentMethod: z.enum(['cash', 'transfer', 'card', 'viva', 'other', '']),
+  paymentMethod: z.enum(['cash', 'transfer', 'card', 'viva', 'stripe', 'eurobank', 'other', '']),
   comments: z.string().optional().default(''),
   allocatesChargeId: z.string().nullable().optional(),
 });
