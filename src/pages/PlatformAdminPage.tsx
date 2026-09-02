@@ -60,6 +60,7 @@ import {
   mergeClubsPreservingSecrets,
   mergeUsersPreservingPasswords,
   pickAppDataForRestore,
+  confirmClubBackupRestore,
   readBackupFile,
 } from '../utils/backupArchive';
 import {
@@ -645,16 +646,19 @@ export function PlatformAdminPage() {
     setClubRestoring(true);
     try {
       const clubName = clubs.find((c) => c.id === restoreClubId)?.name ?? restoreClubId;
-      const confirmed = window.confirm(
-        `Επαναφορά μόνο στον σύλλογο «${clubName}». Τα δεδομένα αυτού του συλλόγου θα αντικατασταθούν. ` +
-          'Οι υπόλοιποι σύλλογοι δεν επηρεάζονται. Συνέχεια;',
-      );
-      if (!confirmed) return;
-
       const parsed = await readBackupFile(file);
       const clubData = pickAppDataForRestore(parsed, restoreClubId);
       if (!clubData) {
         throw new Error('Το backup δεν περιέχει δεδομένα συλλόγου για επαναφορά.');
+      }
+      if (
+        !confirmClubBackupRestore({
+          payload: parsed,
+          targetClubId: restoreClubId,
+          targetClubName: clubName,
+        })
+      ) {
+        return;
       }
 
       const expectedStudents = clubData.students?.length ?? 0;
@@ -1549,8 +1553,10 @@ export function PlatformAdminPage() {
                 </div>
                 <form onSubmit={handleClubBackupImport} className="admin-import-form">
                   <p className="admin-entry-note">
-                    <strong>Επαναφορά συλλόγου</strong> — δέχεται club-only backup JSON ή full platform
-                    backup (θα χρησιμοποιηθούν μόνο τα δεδομένα του επιλεγμένου συλλόγου).
+                    <strong>Επαναφορά συλλόγου</strong> — δέχεται club-only backup JSON. Αν το αρχείο
+                    είναι άλλου συλλόγου, απαιτείται επιβεβαίωση σε δύο βήματα (πληκτρολογήστε
+                    ΜΕΤΑΦΟΡΑ). Μετά την επαναφορά το cloud mirror του επιλεγμένου συλλόγου
+                    αντικαθίσταται.
                   </p>
                   <input
                     name="clubBackupFile"

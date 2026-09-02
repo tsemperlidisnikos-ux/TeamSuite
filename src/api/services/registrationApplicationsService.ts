@@ -9,6 +9,13 @@ import type {
   RegistrationApplicationKind,
   Student,
 } from '../../types';
+import {
+  athleteLicenseCapMessage,
+  clubAthleteLicenseLimit,
+  countActiveAthleteLicenses,
+  syncClubAthleteLicenseUsed,
+  wouldConsumeAthleteLicense,
+} from '../../utils/athleteLicenseCap';
 import * as emailService from './emailService';
 
 function clubNameForSession(): string {
@@ -148,8 +155,19 @@ export async function approveRegistrationApplication(
           comments: app.notes?.trim() || 'Δημόσια εγγραφή (έγκριση)',
         },
       );
+      const limit = clubAthleteLicenseLimit();
+      if (
+        wouldConsumeAthleteLicense(athlete.status) &&
+        limit > 0 &&
+        countActiveAthleteLicenses(data.students) >= limit
+      ) {
+        throw new Error(
+          athleteLicenseCapMessage(countActiveAthleteLicenses(data.students), limit),
+        );
+      }
       data.students = [athlete, ...data.students];
       athleteId = athlete.id;
+      syncClubAthleteLicenseUsed(data.students);
 
       application = {
         ...app,

@@ -229,6 +229,82 @@ function clubIdsInPayload(payload: BackupPayload): string[] {
   return [...ids];
 }
 
+export type BackupClubIdentity = {
+  sourceClubId: string | null;
+  sourceClubName: string;
+  exportedAt: string;
+  studentCount: number;
+  classCount: number;
+};
+
+/** Σύλλογος προέλευσης ενός club backup (όνομα, id, μέγεθος). */
+export function describeBackupClub(payload: BackupPayload): BackupClubIdentity {
+  const ids = clubIdsInPayload(payload);
+  const sourceClubId = payload.sourceClubId?.trim() || ids[0] || payload.clubs?.[0]?.id || null;
+  const named =
+    payload.clubs?.find((c) => c.id === sourceClubId) ?? payload.clubs?.[0] ?? null;
+  let data: AppData | null = null;
+  try {
+    data = pickAppDataForRestore(payload, sourceClubId);
+  } catch {
+    data = payload.appData ?? null;
+  }
+  return {
+    sourceClubId,
+    sourceClubName: named?.name?.trim() || sourceClubId || 'άγνωστος σύλλογος',
+    exportedAt: payload.exportedAt?.trim() || '',
+    studentCount: data?.students?.length ?? 0,
+    classCount: data?.classes?.length ?? 0,
+  };
+}
+
+const CROSS_CLUB_RESTORE_TOKEN = 'ΜΕΤΑΦΟΡΑ';
+
+/**
+ * Επιβεβαίωση επαναφοράς club JSON.
+ * Ίδιος σύλλογος: ένα confirm. Άλλος σύλλογος / άγνωστο αρχείο: δύο βήματα (confirm + πληκτρολόγηση ΜΕΤΑΦΟΡΑ).
+ */
+export function confirmClubBackupRestore(input: {
+  payload: BackupPayload;
+  targetClubId: string;
+  targetClubName: string;
+}): boolean {
+  const src = describeBackupClub(input.payload);
+  const targetName = input.targetClubName.trim() || input.targetClubId;
+  const sameClub = Boolean(src.sourceClubId && src.sourceClubId === input.targetClubId);
+  const summary =
+    `Αρχείο από: «${src.sourceClubName}»` +
+    (src.exportedAt ? `\nΗμερομηνία backup: ${src.exportedAt}` : '') +
+    `\nΑθλητές στο αρχείο: ${src.studentCount}` +
+    `\nΤμήματα στο αρχείο: ${src.classCount}` +
+    `\n\nΕπαναφορά στον: «${targetName}»` +
+    `\n\nΤα τρέχοντα δεδομένα του «${targetName}» θα αντικατασταθούν. ` +
+    `Αν ολοκληρωθεί και το cloud, θα αντικατασταθεί και το mirror αυτού του συλλόγου.`;
+
+  if (sameClub) {
+    return window.confirm(`${summary}\n\nΣυνέχεια;`);
+  }
+
+  const unknown = !src.sourceClubId;
+  const mismatch =
+    (unknown
+      ? 'ΠΡΟΣΟΧΗ: δεν αναγνωρίζεται με βεβαιότητα ο σύλλογος του αρχείου.\n\n'
+      : 'ΠΡΟΣΟΧΗ: το αρχείο ανήκει σε ΑΛΛΟΝ σύλλογο.\n\n') +
+    summary +
+    `\n\nΑυτό θα αντιγράψει τα δεδομένα του «${src.sourceClubName}» πάνω στον «${targetName}». ` +
+    `Δεν είναι επαναφορά του ίδιου συλλόγου.\n\n` +
+    `Θέλετε να συνεχίσετε με μεταφορά σε άλλον σύλλογο;`;
+
+  if (!window.confirm(mismatch)) return false;
+
+  const typed = window.prompt(
+    `Για επιβεβαίωση πληκτρολογήστε ${CROSS_CLUB_RESTORE_TOKEN}.\n` +
+      `Από: ${src.sourceClubName}\n` +
+      `Προς: ${targetName}`,
+  );
+  return (typed ?? '').trim().toLocaleUpperCase('el-GR') === CROSS_CLUB_RESTORE_TOKEN;
+}
+
 /**
  * Reject platform-wide / multi-tenant archives when restoring from club Settings.
  * Prevents accidental (or malicious) cross-tenant data import.

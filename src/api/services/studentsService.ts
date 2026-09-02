@@ -9,6 +9,14 @@ import { normalizeStudentSports } from '../../utils/studentSports';
 import { applySubscriptionDiscountToCharges } from './feeChargesService';
 import { stripJoinFormSnapshotForStudent } from '../../utils/publicJoinFormSnapshots';
 import { toUpperEl } from '../../utils/upperText';
+import { resolveActiveClubId } from '../../data/store';
+import {
+  athleteLicenseCapMessage,
+  clubAthleteLicenseLimit,
+  countActiveAthleteLicenses,
+  syncClubAthleteLicenseUsed,
+  wouldConsumeAthleteLicense,
+} from '../../utils/athleteLicenseCap';
 
 function withUpperIdentity(input: StudentInput): StudentInput {
   return {
@@ -42,7 +50,18 @@ export async function createStudent(input: StudentInput) {
       enrolledAt: localDateIso(),
     };
     mutateData((data) => {
+      const limit = clubAthleteLicenseLimit();
+      if (
+        wouldConsumeAthleteLicense(student.status) &&
+        limit > 0 &&
+        countActiveAthleteLicenses(data.students) >= limit
+      ) {
+        throw new Error(
+          athleteLicenseCapMessage(countActiveAthleteLicenses(data.students), limit),
+        );
+      }
       data.students.push(student);
+      syncClubAthleteLicenseUsed(data.students);
     });
     const { flushClubMirrorPush } = await import('../../data/clubSync');
     await flushClubMirrorPush();
@@ -60,16 +79,28 @@ export async function updateStudent(id: string, input: StudentInput) {
     mutateData((data) => {
       const index = data.students.findIndex((s) => s.id === id);
       if (index === -1) throw new Error('Ο αθλητής δεν βρέθηκε');
+      const previous = data.students[index];
       updated = {
-        ...data.students[index],
+        ...previous,
         ...parsed,
         ...classes,
         ...sports,
         ...coaches,
       };
+      const limit = clubAthleteLicenseLimit();
+      if (
+        wouldConsumeAthleteLicense(updated.status, previous.status) &&
+        limit > 0 &&
+        countActiveAthleteLicenses(data.students) >= limit
+      ) {
+        throw new Error(
+          athleteLicenseCapMessage(countActiveAthleteLicenses(data.students), limit),
+        );
+      }
       data.students[index] = updated;
       if (!data.transactions) data.transactions = [];
       applySubscriptionDiscountToCharges(updated, data.transactions);
+      syncClubAthleteLicenseUsed(data.students);
     });
     return updated!;
   });
@@ -84,6 +115,7 @@ export async function deleteStudent(id: string) {
       if (!deleted.includes(id)) {
         data.deletedStudentIds = [...deleted, id].slice(-5000);
       }
+      syncClubAthleteLicenseUsed(data.students);
     });
     const { flushClubMirrorPush } = await import('../../data/clubSync');
     await flushClubMirrorPush();
@@ -162,10 +194,23 @@ export async function importStudents(rows: StudentImportRow[]) {
 
     let created = 0;
     let updated = 0;
+    let licenseSkipped = 0;
     mutateData((data) => {
       if (!data.transactions) data.transactions = [];
+      const limit = clubAthleteLicenseLimit();
       for (const item of prepared) {
         if (item.mode === 'create') {
+          if (
+            wouldConsumeAthleteLicense(item.student.status) &&
+            limit > 0 &&
+            countActiveAthleteLicenses(data.students) >= limit
+          ) {
+            licenseSkipped += 1;
+            failed.push(
+              `${item.label}: υπέρβαση αδειών (${countActiveAthleteLicenses(data.students)} / ${limit})`,
+            );
+            continue;
+          }
           data.students.push(item.student);
           created += 1;
           continue;
@@ -179,22 +224,34 @@ export async function importStudents(rows: StudentImportRow[]) {
         const classes = normalizeStudentClasses(parsed.classIds, parsed.classId);
         const sports = normalizeStudentSports(parsed.sports, parsed.sport);
         const coaches = normalizeStudentCoaches(parsed.coachNames, parsed.coachName);
-        const next: Student = {
+        let next: Student = {
           ...data.students[index],
           ...parsed,
           ...classes,
           ...sports,
           ...coaches,
         };
+        if (
+          wouldConsumeAthleteLicense(next.status, data.students[index].status) &&
+          limit > 0 &&
+          countActiveAthleteLicenses(data.students) >= limit
+        ) {
+          next = { ...next, status: data.students[index].status };
+          licenseSkipped += 1;
+          failed.push(
+            `${item.label}: ενημερώθηκε χωρίς ενεργοποίηση — υπέρβαση αδειών (${countActiveAthleteLicenses(data.students)} / ${limit})`,
+          );
+        }
         data.students[index] = next;
         applySubscriptionDiscountToCharges(next, data.transactions);
         updated += 1;
       }
+      syncClubAthleteLicenseUsed(data.students);
     });
 
     const { flushClubMirrorPush } = await import('../../data/clubSync');
     await flushClubMirrorPush();
-    return { created, updated, failed };
+    return { created, updated, failed, licenseSkipped };
   });
 }
 
@@ -224,6 +281,21 @@ export async function bulkPatchStudents(patch: StudentBulkPatch) {
     let updated = 0;
     const missing: string[] = [];
     mutateData((data) => {
+      const limit = clubAthleteLicenseLimit();
+      if (hasStatus && patch.status === 'active' && limit > 0) {
+        const selected = data.students.filter((s) => ids.includes(s.id));
+        const extra = selected.filter((s) => s.status !== 'active').length;
+        const used = countActiveAthleteLicenses(data.students);
+        if (used + extra > limit) {
+          throw new Error(
+            athleteLicenseCapMessage(
+              used,
+              limit,
+              `Η μαζική ενεργοποίηση χρειάζεται ${extra} θέσεις.`,
+            ),
+          );
+        }
+      }
       const wanted = new Set(ids);
       for (let i = 0; i < data.students.length; i += 1) {
         const current = data.students[i];
@@ -248,6 +320,7 @@ export async function bulkPatchStudents(patch: StudentBulkPatch) {
         updated += 1;
       }
       for (const id of wanted) missing.push(id);
+      syncClubAthleteLicenseUsed(data.students);
     });
 
     // Άμεσο push στο παρασκήνιο — χωρίς να μπλοκάρει το κουμπί Εφαρμογή.

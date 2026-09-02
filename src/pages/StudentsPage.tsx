@@ -34,6 +34,7 @@ import { studentClassIds } from '../utils/studentClasses';
 import { studentHasSport, studentSports } from '../utils/studentSports';
 import { downloadXlsx } from '../utils/xlsxDownload';
 import { parseSpreadsheetGrid } from '../utils/xlsxParse';
+import { remainingAthleteLicenseSeats } from '../utils/athleteLicenseCap';
 
 const draftAthlete: StudentInput = {
   firstName: '',
@@ -339,6 +340,18 @@ export function StudentsPage() {
       }
       const creates = plan.actions.filter((a) => a.mode === 'create').length;
       const updates = plan.actions.filter((a) => a.mode === 'update').length;
+      const activeCreates = plan.actions.filter(
+        (a) => a.mode === 'create' && a.input.status === 'active',
+      ).length;
+      const remaining = remainingAthleteLicenseSeats(data.students);
+      const licenseNote =
+        remaining !== null && activeCreates > remaining
+          ? `\n\nΌριο αδειών: απομένουν ${remaining} θέσεις ενεργών αθλητών. ` +
+            `Θα δημιουργηθούν μέχρι ${remaining} νέοι ενεργοί· οι υπόλοιποι θα απορριφθούν. ` +
+            'Οι ενημερώσεις υπαρχόντων θα εφαρμοστούν.'
+          : remaining !== null
+            ? `\n\nΌριο αδειών: απομένουν ${remaining} θέσεις ενεργών αθλητών.`
+            : '';
       const warnings = plan.errors.length
         ? `\n\nΠαραλείφθηκαν γραμμές με σφάλμα:\n${plan.errors.slice(0, 12).join('\n')}${
             plan.errors.length > 12 ? `\n… και άλλες ${plan.errors.length - 12}` : ''
@@ -347,6 +360,7 @@ export function StudentsPage() {
       const ok = window.confirm(
         `Θα δημιουργηθούν ${creates} νέοι αθλητές και θα ενημερωθούν ${updates} υπάρχοντες.\n` +
           'Για νέους αθλητές αφήστε κενό το πεδίο Κωδικός. Οι φωτογραφίες και τα JPEG φόρμας δεν εισάγονται.' +
+          licenseNote +
           warnings +
           '\n\nΣυνέχεια;',
       );
@@ -359,14 +373,17 @@ export function StudentsPage() {
       }
       refresh();
       const extraFail = result.data.failed.length
-        ? `\n\nΔεν αποθηκεύτηκαν:\n${result.data.failed.slice(0, 12).join('\n')}${
+        ? `\n\nΔεν αποθηκεύτηκαν ή περιορίστηκαν:\n${result.data.failed.slice(0, 12).join('\n')}${
             result.data.failed.length > 12
               ? `\n… και άλλες ${result.data.failed.length - 12}`
               : ''
           }`
         : '';
+      const licenseFail = result.data.licenseSkipped
+        ? `\n\nΠαραλείφθηκαν ${result.data.licenseSkipped} γραμμές λόγω ορίου αδειών.`
+        : '';
       window.alert(
-        `Η εισαγωγή ολοκληρώθηκε (${result.data.created} νέοι, ${result.data.updated} ενημερώσεις).${extraFail}`,
+        `Η εισαγωγή ολοκληρώθηκε (${result.data.created} νέοι, ${result.data.updated} ενημερώσεις).${licenseFail}${extraFail}`,
       );
     } catch (err) {
       window.alert(err instanceof Error ? err.message : 'Αποτυχία ανάγνωσης αρχείου.');

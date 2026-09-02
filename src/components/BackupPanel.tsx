@@ -35,6 +35,7 @@ import {
   downloadBackupJson,
   formatBackupError,
   pickAppDataForRestore,
+  confirmClubBackupRestore,
   readBackupFile,
 } from '../utils/backupArchive';
 
@@ -312,6 +313,17 @@ export function BackupPanel() {
         throw new Error('Το backup δεν περιέχει δεδομένα συλλόγου.');
       }
 
+      const targetName = getClubById(activeClubId)?.name ?? activeClubId;
+      if (
+        !confirmClubBackupRestore({
+          payload: parsed,
+          targetClubId: activeClubId,
+          targetClubName: targetName,
+        })
+      ) {
+        return;
+      }
+
       const expectedStudents = clubData.students?.length ?? 0;
       replaceClubData(activeClubId, clubData);
 
@@ -510,7 +522,9 @@ export function BackupPanel() {
               ) : (
                 ' (θα χρησιμοποιηθεί ο σύλλογος του λογαριασμού σας)'
               )}
-              . Δεν αλλάζει τους λογαριασμούς σύνδεσης. Απορρίπτει πλήρη backup πλατφόρμας.
+              . Δεν αλλάζει τους λογαριασμούς σύνδεσης. Απορρίπτει πλήρη backup πλατφόρμας. Αν το
+              αρχείο είναι άλλου συλλόγου, χρειάζεται δεύτερη επιβεβαίωση (πληκτρολογήστε
+              ΜΕΤΑΦΟΡΑ).
             </p>
           </div>
           <div className="settings-form-row-content settings-backup-panel">
