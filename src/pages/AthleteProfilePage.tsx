@@ -247,7 +247,7 @@ function toForm(
             medical: true,
           }
         : {}),
-      amkaHealthCard: Boolean(student.gdprItems?.amkaHealthCard),
+      amkaHealthCard: student.gdprItems?.amkaHealthCard ?? true,
     },
     amkaConsentAt: student.amkaConsentAt ?? '',
     healthCardSealedAt: student.healthCardSealedAt ?? '',
