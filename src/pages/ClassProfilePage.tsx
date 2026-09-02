@@ -24,6 +24,7 @@ import {
   athleteBirthYear,
   athleteClassStatusLabel,
   athleteFinancialClear,
+  athleteHealthCardValid,
   classAgeRangeLabel,
   classGenderLabels,
   classToFormInput,
@@ -366,7 +367,7 @@ export function ClassProfilePage() {
                   data.transactions,
                   seasonStart,
                 );
-                const healthOk = Boolean(student.healthCard || student.healthCardStatus);
+                const healthOk = athleteHealthCardValid(student);
                 return (
                   <tr key={student.id}>
                     <td>
@@ -389,7 +390,7 @@ export function ClassProfilePage() {
                       </Link>
                     </td>
                     <td>
-                      <span className="badge badge-trial">
+                      <span className={`badge badge-${student.status}`}>
                         {athleteClassStatusLabel(student, rosterClass, data.clubSeasons)}
                       </span>
                     </td>

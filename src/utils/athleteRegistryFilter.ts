@@ -3,6 +3,7 @@ import { maskAmka } from './amkaAccess';
 import { normalizeSportKey } from './sport';
 import { studentClassIds, studentMatchesTeamFilter } from './studentClasses';
 import { studentHasSport } from './studentSports';
+import { athleteHealthCardValid } from './classHelpers';
 
 export type TriState = '' | 'yes' | 'no';
 
@@ -152,7 +153,7 @@ export function filterAthleteRegistry(
     if (
       !triStateMatch(
         filters.doctorCheck,
-        Boolean(athlete.healthCard || athlete.healthCardStatus === 'Έγκυρη'),
+        athleteHealthCardValid(athlete),
       )
     ) {
       return false;
@@ -270,9 +271,7 @@ export function mapAthleteRegistryRow(
     teams: className || '',
     registration_card_no: athlete.registrationNumber || '',
     photo: yesNo(Boolean(athlete.photoUrl)),
-    health_card: yesNo(
-      Boolean(athlete.healthCard || athlete.healthCardStatus === 'Έγκυρη'),
-    ),
+    health_card: yesNo(athleteHealthCardValid(athlete)),
     uniform_receipt: yesNo(Boolean(athlete.uniformReceived)),
     uniform_size: athlete.uniformSize || '—',
     registration_fee: yesNo(

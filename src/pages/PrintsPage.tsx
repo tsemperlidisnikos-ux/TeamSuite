@@ -19,6 +19,7 @@ import {
 import { PAYMENT_METHODS, paymentMethodLabel } from '../shared/paymentMethods';
 import { sizeChartOptGroups } from '../utils/sizeChartOptions';
 import { localDateIso } from '../utils/dates';
+import { athleteHealthCardValid } from '../utils/classHelpers';
 import { canAccessAmka } from '../utils/amkaAccess';
 import { sportsMatch } from '../utils/coachScope';
 import {
@@ -1400,17 +1401,21 @@ function MedicalExpirySection() {
         if (gender && s.gender !== gender) return false;
         if (active === 'yes' && s.status !== 'active') return false;
         if (active === 'no' && s.status === 'active') return false;
-        if (window === 'none') return !s.healthCard;
+        if (window === 'none') return !athleteHealthCardValid(s);
         if (window === 'all') return true;
         if (window === 'expired') return s.healthCardStatus === 'Ληγμένη';
-        return Boolean(s.healthCard || s.healthCardStatus === 'Έγκυρη');
+        return athleteHealthCardValid(s);
       })
       .map((s, index) => ({
         id: s.id,
         index: String(index + 1),
         last_name: s.lastName,
         first_name: s.firstName,
-        status: s.healthCardStatus || (s.healthCard ? 'Έγκυρη' : 'Χωρίς'),
+        status: athleteHealthCardValid(s)
+          ? s.healthCardStatus || 'Έγκυρη'
+          : s.healthCardStatus === 'Όχι' || s.healthCard === false
+            ? 'Όχι'
+            : s.healthCardStatus || 'Χωρίς',
         team: studentClassNames(s, data.classes),
       }));
     void refDate;
@@ -2086,7 +2091,7 @@ function SimpleReportSection({
             index: String(i + 1),
             last_name: s.lastName,
             first_name: s.firstName,
-            health: s.healthCard ? 'Ναι' : 'Όχι',
+            health: athleteHealthCardValid(s) ? 'Ναι' : 'Όχι',
             team: studentClassNames(s, data.classes),
           })),
       );

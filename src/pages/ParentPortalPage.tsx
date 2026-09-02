@@ -23,6 +23,7 @@ import { formatCurrency, formatDate } from '../utils/labels';
 import { localDateIso } from '../utils/dates';
 import { announcementVisibleToParent } from '../utils/announcementAudience';
 import { studentClassIds } from '../utils/studentClasses';
+import { athleteHealthCardValid } from '../utils/classHelpers';
 import { downloadIcsFile } from '../utils/icsCalendar';
 
 type ParentTab = 'overview' | 'schedule' | 'payments' | 'documents';
@@ -44,26 +45,29 @@ function athleteBalance(
 }
 
 function healthDocStatus(
-  athlete: { healthCard?: boolean; healthCardExpires?: string },
+  athlete: { healthCard?: boolean; healthCardStatus?: string; healthCardExpires?: string },
   today: string,
 ): { label: string; tone: 'default' | 'positive' | 'warn' | 'negative' } {
   const exp = athlete.healthCardExpires?.trim();
+  if (!athleteHealthCardValid(athlete)) {
+    if (athlete.healthCardStatus === 'Όχι' || athlete.healthCard === false) {
+      return { label: 'Κάρτα υγείας: Όχι', tone: 'warn' };
+    }
+    return { label: 'Χωρίς καταχώριση', tone: 'warn' };
+  }
   if (exp && exp < today) {
     return { label: 'Ληγμένη ιατρική', tone: 'negative' };
   }
   if (exp) {
     const soon = new Date(`${exp}T12:00:00`);
     const now = new Date(`${today}T12:00:00`);
-    const days = Math.ceil((soon.getTime() - now.getTime()) / (86400000));
+    const days = Math.ceil((soon.getTime() - now.getTime()) / 86400000);
     if (days <= 30) {
       return { label: `Λήγει ${formatDate(exp)}`, tone: 'warn' };
     }
     return { label: `Έγκυρη έως ${formatDate(exp)}`, tone: 'positive' };
   }
-  if (athlete.healthCard) {
-    return { label: 'Κάρτα υγείας ενεργή', tone: 'positive' };
-  }
-  return { label: 'Χωρίς καταχώριση', tone: 'warn' };
+  return { label: 'Κάρτα υγείας ενεργή', tone: 'positive' };
 }
 
 export function ParentPortalPage() {

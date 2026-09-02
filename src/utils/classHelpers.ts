@@ -2,6 +2,7 @@ import type { AcademyClass, AttendanceRecord, AthleteTransaction, ClubSeason, St
 import { isClassInActiveSeason } from './clubSeasons';
 import { localDateIso } from './dates';
 import { seasonDisplayName } from './clubSeasons';
+import { studentStatusLabels } from './labels';
 
 export const classGenderLabels = {
   male: 'Άρρεν',
@@ -95,9 +96,10 @@ export function athleteClassStatusLabel(
   cls: AcademyClass,
   seasons: ClubSeason[] | undefined | null,
 ): string {
-  if (student.status === 'inactive') return 'Ανενεργός';
+  if (student.status === 'inactive') return studentStatusLabels.inactive;
+  if (student.status === 'trial') return studentStatusLabels.trial;
   const activeSeason = isClassInActiveSeason(cls, seasons);
-  if (activeSeason && !cls.manualInactive) return 'Ενεργός';
+  if (activeSeason && !cls.manualInactive) return studentStatusLabels.active;
   return 'Ενεργός Προηγ. Σεζόν';
 }
 
@@ -116,6 +118,14 @@ export const studentGenderLabels = {
   other: 'Άλλο',
   '': '—',
 } as const;
+
+export function athleteHealthCardValid(
+  student: Pick<Student, 'healthCard' | 'healthCardStatus'>,
+): boolean {
+  if (student.healthCard === true) return true;
+  if (student.healthCard === false) return false;
+  return student.healthCardStatus === 'Έγκυρη';
+}
 
 export function studentBirthYear(student: Pick<Student, 'birthDate'>): number | null {
   if (!student.birthDate || student.birthDate.length < 4) return null;

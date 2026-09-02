@@ -15,7 +15,7 @@ import { guardianDisplayName } from '../utils/greekSurname';
 import { localDateIso } from '../utils/dates';
 import { openAthleteHealthCardPreview } from '../utils/healthCardPreview';
 import { formatCurrency, studentStatusLabels } from '../utils/labels';
-import { isClassListedActive } from '../utils/classHelpers';
+import { athleteHealthCardValid, isClassListedActive } from '../utils/classHelpers';
 import { getActiveSeason, seasonDisplayName } from '../utils/clubSeasons';
 import { studentClassIds, studentInClass } from '../utils/studentClasses';
 import { studentSports } from '../utils/studentSports';
@@ -76,7 +76,7 @@ function DoctorDashboard() {
   );
 
   const withAmka = athletes.filter((s) => Boolean((s.amka ?? '').trim())).length;
-  const withHealthCard = athletes.filter((s) => Boolean(s.healthCard)).length;
+  const withHealthCard = athletes.filter((s) => athleteHealthCardValid(s)).length;
 
   async function handleHealthCard(student: Student) {
     setBusyId(student.id);
