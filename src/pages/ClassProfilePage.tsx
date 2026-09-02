@@ -7,13 +7,17 @@ import {
   Pencil,
   Plus,
   Printer,
+  SquarePen,
   X,
 } from 'lucide-react';
 import { ClassFormModal, saveClassForm } from '../components/ClassFormModal';
 import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
 import { useAppData } from '../hooks/useAppData';
 import type { ClassInput } from '../schemas';
-import type { Student } from '../types';
+import type { Gender, Student, StudentStatus } from '../types';
+import * as studentsService from '../api/services/studentsService';
+import { activeClubSportSelectOptions } from '../utils/clubSports';
 import {
   athleteAge,
   athleteAttendanceStats,
@@ -95,6 +99,13 @@ export function ClassProfilePage() {
   const [addGender, setAddGender] = useState<'' | 'boy' | 'girl'>('');
   const [addBirthYear, setAddBirthYear] = useState('');
   const [addSearch, setAddSearch] = useState('');
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState<'' | StudentStatus>('');
+  const [bulkGender, setBulkGender] = useState<'' | Gender>('');
+  const [bulkSport, setBulkSport] = useState('');
+  const [bulkHealthCard, setBulkHealthCard] = useState<'' | 'yes' | 'no'>('');
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<ClassInput | null>(null);
@@ -153,6 +164,16 @@ export function ClassProfilePage() {
   const pageCount = Math.max(1, Math.ceil(roster.length / pageSize));
   const safePage = Math.min(page, pageCount);
   const pageRows = roster.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const bulkSportOptions = useMemo(
+    () =>
+      activeClubSportSelectOptions(data.sports, {
+        includeEmpty: true,
+        emptyLabel: 'Χωρίς αλλαγή',
+        retain: bulkSport ? [bulkSport] : [],
+      }),
+    [data.sports, bulkSport],
+  );
 
   const today = localDateIso();
   const todayDow = new Date().getDay();
@@ -242,12 +263,78 @@ export function ClassProfilePage() {
     refresh();
   }
 
+  function toggleSelected(id: string) {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function toggleAllRoster() {
+    const ids = roster.map((s) => s.id);
+    const allOn = ids.length > 0 && ids.every((id) => selected.includes(id));
+    setSelected(allOn ? [] : ids);
+  }
+
+  function openBulkEdit() {
+    const ids = selected.length > 0 ? selected : roster.map((s) => s.id);
+    if (ids.length === 0) {
+      window.alert('Δεν υπάρχουν αθλητές στο τμήμα.');
+      return;
+    }
+    if (selected.length === 0) setSelected(ids);
+    setBulkStatus('');
+    setBulkGender('');
+    setBulkSport('');
+    setBulkHealthCard('');
+    setBulkOpen(true);
+  }
+
+  async function handleBulkEdit() {
+    if (selected.length === 0) return;
+    const patch: studentsService.StudentBulkPatch = { ids: selected };
+    if (bulkStatus) patch.status = bulkStatus;
+    if (bulkGender) patch.gender = bulkGender;
+    if (bulkSport) patch.sport = bulkSport;
+    if (bulkHealthCard === 'yes') patch.healthCard = true;
+    if (bulkHealthCard === 'no') patch.healthCard = false;
+    if (
+      !patch.status &&
+      patch.gender === undefined &&
+      !patch.sport &&
+      patch.healthCard === undefined
+    ) {
+      window.alert('Επιλέξτε τουλάχιστον ένα πεδίο για αλλαγή.');
+      return;
+    }
+    setBulkSaving(true);
+    const result = await studentsService.bulkPatchStudents(patch);
+    setBulkSaving(false);
+    if (!result.success || !result.data) {
+      window.alert(result.error ?? 'Αποτυχία μαζικής αλλαγής');
+      return;
+    }
+    const missing = result.data.missing.length;
+    setBulkOpen(false);
+    setSelected([]);
+    refresh();
+    window.alert(
+      `Ενημερώθηκαν ${result.data.updated} αθλητές.` +
+        (missing ? `\n${missing} επιλογές δεν βρέθηκαν.` : ''),
+    );
+  }
+
   function renderRosterTable(rows: Student[], rosterClass: NonNullable<typeof cls>) {
     return (
       <div className="table-wrap classes-table-wrap class-roster-table-wrap">
         <table className="data-table classes-table class-roster-table">
           <thead>
             <tr>
+              <th>
+                <input
+                  type="checkbox"
+                  checked={roster.length > 0 && roster.every((s) => selected.includes(s.id))}
+                  onChange={toggleAllRoster}
+                  aria-label="Επιλογή όλων στο τμήμα"
+                />
+              </th>
               <th>Αρ. Μητρώου</th>
               <th>Επώνυμο</th>
               <th>Όνομα</th>
@@ -267,7 +354,7 @@ export function ClassProfilePage() {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={14} className="classes-empty muted">
+                <td colSpan={15} className="classes-empty muted">
                   Δεν υπάρχουν αθλητές στο τμήμα
                 </td>
               </tr>
@@ -282,6 +369,14 @@ export function ClassProfilePage() {
                 const healthOk = Boolean(student.healthCard || student.healthCardStatus);
                 return (
                   <tr key={student.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(student.id)}
+                        onChange={() => toggleSelected(student.id)}
+                        aria-label={`Επιλογή ${student.lastName} ${student.firstName}`}
+                      />
+                    </td>
                     <td>{student.registrationNumber || '—'}</td>
                     <td>
                       <Link to={`/athletes/${student.id}`} className="classes-name-link">
@@ -359,9 +454,24 @@ export function ClassProfilePage() {
       {tab === 'athletes' ? (
         <div className="class-athletes-tab-head">
           <h2>{roster.length} αθλητές στο τμήμα</h2>
-          <Button type="button" onClick={() => setAddOpen((o) => !o)}>
-            <Plus size={16} /> Προσθήκη αθλητών
-          </Button>
+          <div className="class-athletes-tab-actions">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={roster.length === 0}
+              onClick={openBulkEdit}
+            >
+              <SquarePen size={16} /> Μαζική αλλαγή
+              {selected.length > 0
+                ? ` (${selected.length})`
+                : roster.length > 0
+                  ? ` (${roster.length})`
+                  : ''}
+            </Button>
+            <Button type="button" onClick={() => setAddOpen((o) => !o)}>
+              <Plus size={16} /> Προσθήκη αθλητών
+            </Button>
+          </div>
         </div>
       ) : null}
 
@@ -449,6 +559,14 @@ export function ClassProfilePage() {
       {tab === 'overview' ? (
         <div className="class-roster-toolbar">
           <div className="class-roster-toolbar-left">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={roster.length === 0}
+              onClick={openBulkEdit}
+            >
+              <SquarePen size={16} /> Μαζική αλλαγή
+            </Button>
             <Button type="button" variant="secondary" disabled>
               <Filter size={16} /> Φίλτρα
             </Button>
@@ -623,6 +741,84 @@ export function ClassProfilePage() {
           onSave={() => void handleSave()}
         />
       ) : null}
+
+      <Modal
+        open={bulkOpen}
+        title="Μαζική αλλαγή"
+        onClose={() => !bulkSaving && setBulkOpen(false)}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={bulkSaving}
+              onClick={() => setBulkOpen(false)}
+            >
+              Άκυρο
+            </Button>
+            <Button type="button" disabled={bulkSaving} onClick={() => void handleBulkEdit()}>
+              {bulkSaving ? 'Εφαρμογή...' : 'Εφαρμογή'}
+            </Button>
+          </>
+        }
+      >
+        <p className="muted">
+          Θα ενημερωθούν {selected.length} αθλητές του τμήματος «{cls.name}». Αφήστε «Χωρίς αλλαγή»
+          στα πεδία που δεν θέλετε να πειράξετε.
+        </p>
+        <label className="field">
+          <span className="field-label">Κατάσταση</span>
+          <select
+            className="field-input"
+            value={bulkStatus}
+            onChange={(e) => setBulkStatus(e.target.value as '' | StudentStatus)}
+          >
+            <option value="">Χωρίς αλλαγή</option>
+            <option value="active">Ενεργός</option>
+            <option value="trial">Δοκιμαστικός</option>
+            <option value="inactive">Ανενεργός</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Φύλο</span>
+          <select
+            className="field-input"
+            value={bulkGender}
+            onChange={(e) => setBulkGender(e.target.value as '' | Gender)}
+          >
+            <option value="">Χωρίς αλλαγή</option>
+            <option value="girl">Κορίτσι</option>
+            <option value="boy">Αγόρι</option>
+            <option value="other">Άλλο</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Άθλημα</span>
+          <select
+            className="field-input"
+            value={bulkSport}
+            onChange={(e) => setBulkSport(e.target.value)}
+          >
+            {bulkSportOptions.map((opt) => (
+              <option key={opt.value || 'keep'} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Κάρτα υγείας</span>
+          <select
+            className="field-input"
+            value={bulkHealthCard}
+            onChange={(e) => setBulkHealthCard(e.target.value as '' | 'yes' | 'no')}
+          >
+            <option value="">Χωρίς αλλαγή</option>
+            <option value="no">Όχι</option>
+            <option value="yes">Έγκυρη</option>
+          </select>
+        </label>
+      </Modal>
     </div>
   );
 }
