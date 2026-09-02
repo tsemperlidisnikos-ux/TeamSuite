@@ -1,4 +1,4 @@
-import type { PublicJoinExtras } from '../shared/publicJoinExtras';
+import type { PublicJoinExtras } from '../shared/publicJoinExtras.js';
 
 export type StudentStatus = 'active' | 'inactive' | 'trial';
 export type PaymentStatus = 'paid' | 'pending' | 'overdue';

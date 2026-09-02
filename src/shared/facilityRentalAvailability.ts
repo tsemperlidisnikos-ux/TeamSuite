@@ -1,4 +1,4 @@
-import { FACILITY_TIME_LAYOUTS } from '../utils/facilityHours';
+import { FACILITY_TIME_LAYOUTS } from '../utils/facilityHours.js';
 import type {
   Facility,
   FacilityRentalRule,
@@ -8,7 +8,7 @@ import type {
   RentalSettings,
   ScheduleSlot,
   Training,
-} from '../types';
+} from '../types/index.js';
 
 export type { Facility, RentalBooking, RentalCourtShare };
 

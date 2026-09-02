@@ -191,7 +191,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const facility = (payload.facilities ?? []).find((f) => f.id === facilityId);
   if (!facility) return res.status(400).json({ ok: false, error: 'Το γήπεδο δεν βρέθηκε.' });
   const check = slotIsFree(payload, facility, date, startTime, endTime, courtShare);
-  if (!check.ok) return res.status(409).json({ ok: false, error: check.reason });
+  if (check.ok === false) {
+    return res.status(409).json({ ok: false, error: check.reason });
+  }
   const rule = ruleForFacility(settings, facility.id, facility);
   const booking: RentalBooking = {
     id: `rent_${randomBytes(6).toString('hex')}`,

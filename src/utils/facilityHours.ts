@@ -1,4 +1,4 @@
-import type { Facility } from '../types';
+import type { Facility } from '../types/index.js';
 
 export const FACILITY_TIME_LAYOUTS: Array<{
   id: Facility['timeLayout'];
