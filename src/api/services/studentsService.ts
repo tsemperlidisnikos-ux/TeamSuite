@@ -90,3 +90,96 @@ export async function deleteJoinFormSnapshotForStudent(id: string) {
     return { id, changed };
   });
 }
+
+export type StudentImportRow = {
+  mode: 'create' | 'update';
+  input: StudentInput;
+  existingId?: string;
+  label: string;
+};
+
+/** Μαζική εισαγωγή: μία εγγραφή στο store και ένα cloud push στο τέλος. */
+export async function importStudents(rows: StudentImportRow[]) {
+  return apiClient(async () => {
+    const enrolledAt = localDateIso();
+    const prepared: Array<
+      | { mode: 'create'; student: Student; label: string }
+      | { mode: 'update'; id: string; parsed: StudentInput; label: string }
+    > = [];
+    const failed: string[] = [];
+
+    for (const row of rows) {
+      try {
+        if (row.mode === 'create') {
+          const parsed = studentCreateSchema.parse(row.input);
+          const classes = normalizeStudentClasses(parsed.classIds, parsed.classId);
+          const sports = normalizeStudentSports(parsed.sports, parsed.sport);
+          const coaches = normalizeStudentCoaches(parsed.coachNames, parsed.coachName);
+          prepared.push({
+            mode: 'create',
+            label: row.label,
+            student: {
+              ...parsed,
+              ...classes,
+              ...sports,
+              ...coaches,
+              id: createId('stu'),
+              enrolledAt,
+            },
+          });
+          continue;
+        }
+        if (!row.existingId) {
+          failed.push(`${row.label}: λείπει κωδικός για ενημέρωση`);
+          continue;
+        }
+        prepared.push({
+          mode: 'update',
+          id: row.existingId,
+          parsed: studentSchema.parse(row.input),
+          label: row.label,
+        });
+      } catch (err) {
+        failed.push(
+          `${row.label}: ${err instanceof Error ? err.message : 'μη έγκυρα στοιχεία'}`,
+        );
+      }
+    }
+
+    let created = 0;
+    let updated = 0;
+    mutateData((data) => {
+      if (!data.transactions) data.transactions = [];
+      for (const item of prepared) {
+        if (item.mode === 'create') {
+          data.students.push(item.student);
+          created += 1;
+          continue;
+        }
+        const index = data.students.findIndex((s) => s.id === item.id);
+        if (index === -1) {
+          failed.push(`${item.label}: ο αθλητής δεν βρέθηκε`);
+          continue;
+        }
+        const parsed = item.parsed;
+        const classes = normalizeStudentClasses(parsed.classIds, parsed.classId);
+        const sports = normalizeStudentSports(parsed.sports, parsed.sport);
+        const coaches = normalizeStudentCoaches(parsed.coachNames, parsed.coachName);
+        const next: Student = {
+          ...data.students[index],
+          ...parsed,
+          ...classes,
+          ...sports,
+          ...coaches,
+        };
+        data.students[index] = next;
+        applySubscriptionDiscountToCharges(next, data.transactions);
+        updated += 1;
+      }
+    });
+
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
+    await flushClubMirrorPush();
+    return { created, updated, failed };
+  });
+}

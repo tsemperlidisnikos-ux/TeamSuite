@@ -311,19 +311,23 @@ export function StudentsPage() {
           '\n\nΣυνέχεια;',
       );
       if (!ok) return;
-      for (const action of plan.actions) {
-        const result =
-          action.mode === 'create'
-            ? await studentsService.createStudent(action.input)
-            : await studentsService.updateStudent(action.existingId!, action.input);
-        if (!result.success) {
-          window.alert(result.error ?? `Αποτυχία εισαγωγής: ${action.label}`);
-          refresh();
-          return;
-        }
+      const result = await studentsService.importStudents(plan.actions);
+      if (!result.success || !result.data) {
+        window.alert(result.error ?? 'Αποτυχία εισαγωγής');
+        refresh();
+        return;
       }
       refresh();
-      window.alert(`Η εισαγωγή ολοκληρώθηκε (${creates} νέοι, ${updates} ενημερώσεις).`);
+      const extraFail = result.data.failed.length
+        ? `\n\nΔεν αποθηκεύτηκαν:\n${result.data.failed.slice(0, 12).join('\n')}${
+            result.data.failed.length > 12
+              ? `\n… και άλλες ${result.data.failed.length - 12}`
+              : ''
+          }`
+        : '';
+      window.alert(
+        `Η εισαγωγή ολοκληρώθηκε (${result.data.created} νέοι, ${result.data.updated} ενημερώσεις).${extraFail}`,
+      );
     } catch (err) {
       window.alert(err instanceof Error ? err.message : 'Αποτυχία ανάγνωσης αρχείου.');
     } finally {
