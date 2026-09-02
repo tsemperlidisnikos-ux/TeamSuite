@@ -1,7 +1,7 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
 import { studentCreateSchema, studentSchema, type StudentInput } from '../../schemas';
-import type { Student } from '../../types';
+import type { Gender, Student, StudentStatus } from '../../types';
 import { localDateIso } from '../../utils/dates';
 import { normalizeStudentClasses } from '../../utils/studentClasses';
 import { normalizeStudentCoaches } from '../../utils/studentCoaches';
@@ -181,5 +181,63 @@ export async function importStudents(rows: StudentImportRow[]) {
     const { flushClubMirrorPush } = await import('../../data/clubSync');
     await flushClubMirrorPush();
     return { created, updated, failed };
+  });
+}
+
+export type StudentBulkPatch = {
+  ids: string[];
+  status?: StudentStatus;
+  gender?: Gender;
+  sport?: string;
+  /** true = Έγκυρη, false = Όχι (και καθαρισμός ημερομηνίας λήξης). */
+  healthCard?: boolean;
+};
+
+/** Μαζική ενημέρωση επιλεγμένων πεδίων: μία εγγραφή στο store και ένα cloud push. */
+export async function bulkPatchStudents(patch: StudentBulkPatch) {
+  return apiClient(async () => {
+    const ids = [...new Set(patch.ids.filter(Boolean))];
+    if (ids.length === 0) throw new Error('Δεν επιλέχθηκαν αθλητές');
+    const hasStatus = patch.status !== undefined;
+    const hasGender = patch.gender !== undefined;
+    const sportValue = patch.sport?.trim() ?? '';
+    const hasSport = patch.sport !== undefined;
+    const hasHealthCard = patch.healthCard !== undefined;
+    if (!hasStatus && !hasGender && !hasSport && !hasHealthCard) {
+      throw new Error('Δεν επιλέχθηκε πεδίο για αλλαγή');
+    }
+
+    let updated = 0;
+    const missing: string[] = [];
+    mutateData((data) => {
+      const wanted = new Set(ids);
+      for (let i = 0; i < data.students.length; i += 1) {
+        const current = data.students[i];
+        if (!wanted.has(current.id)) continue;
+        wanted.delete(current.id);
+        let next: Student = { ...current };
+        if (hasStatus) next = { ...next, status: patch.status! };
+        if (hasGender) next = { ...next, gender: patch.gender };
+        if (hasSport) {
+          next = { ...next, ...normalizeStudentSports(sportValue ? [sportValue] : [], sportValue) };
+        }
+        if (hasHealthCard) {
+          const on = Boolean(patch.healthCard);
+          next = {
+            ...next,
+            healthCard: on,
+            healthCardStatus: on ? 'Έγκυρη' : 'Όχι',
+            ...(on ? {} : { healthCardExpires: '' }),
+          };
+        }
+        data.students[i] = next;
+        updated += 1;
+      }
+      for (const id of wanted) missing.push(id);
+    });
+
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
+    await flushClubMirrorPush();
+    return { updated, missing };
   });
 }

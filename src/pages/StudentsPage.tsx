@@ -13,7 +13,7 @@ import { SpreadsheetImportHelpModal } from '../components/SpreadsheetImportHelpM
 import { useAppData } from '../hooks/useAppData';
 import { getPreviewClubId } from '../platform/platformConfig';
 import type { StudentInput } from '../schemas';
-import type { RegistrationApplication, RegistrationApplicationKind, Student, StudentStatus } from '../types';
+import type { Gender, RegistrationApplication, RegistrationApplicationKind, Student, StudentStatus } from '../types';
 import { formatJoinExtrasText } from '../shared/publicJoinExtras';
 import { formatAmkaForViewer } from '../utils/amkaAccess';
 import { guardianDisplayName } from '../utils/greekSurname';
@@ -31,7 +31,7 @@ import {
   studentToSheetRow,
 } from '../utils/athleteSpreadsheet';
 import { studentClassIds } from '../utils/studentClasses';
-import { studentHasSport } from '../utils/studentSports';
+import { studentHasSport, studentSports } from '../utils/studentSports';
 import { downloadXlsx } from '../utils/xlsxDownload';
 import { parseSpreadsheetGrid } from '../utils/xlsxParse';
 
@@ -140,6 +140,7 @@ export function StudentsPage() {
   const allowedClassIds = useMemo(() => classIdsOf(visibleClasses), [visibleClasses]);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [classFilter, setClassFilter] = useState('');
   const sportFilter = (searchParams.get('sport') ?? '').trim();
   const [creating, setCreating] = useState(false);
   const [busyAppId, setBusyAppId] = useState<string | null>(null);
@@ -150,7 +151,10 @@ export function StudentsPage() {
   const [healthCardBusyId, setHealthCardBusyId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkStatus, setBulkStatus] = useState<StudentStatus>('inactive');
+  const [bulkStatus, setBulkStatus] = useState<'' | StudentStatus>('');
+  const [bulkGender, setBulkGender] = useState<'' | Gender>('');
+  const [bulkSport, setBulkSport] = useState('');
+  const [bulkHealthCard, setBulkHealthCard] = useState<'' | 'yes' | 'no'>('');
   const [bulkSaving, setBulkSaving] = useState(false);
   const [joinFormApp, setJoinFormApp] = useState<RegistrationApplication | null>(null);
   const [joinFormImage, setJoinFormImage] = useState<string | null>(null);
@@ -194,6 +198,22 @@ export function StudentsPage() {
     [data.sports, sportFilter],
   );
 
+  const bulkSportOptions = useMemo(
+    () =>
+      activeClubSportSelectOptions(data.sports, {
+        includeEmpty: true,
+        emptyLabel: 'Χωρίς αλλαγή',
+        retain: bulkSport ? [bulkSport] : [],
+      }),
+    [data.sports, bulkSport],
+  );
+
+  const classOptions = useMemo(
+    () =>
+      [...visibleClasses].sort((a, b) => a.name.localeCompare(b.name, 'el')),
+    [visibleClasses],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const scoped = visibleStudentsForSession(data.students, allowedClassIds, session);
@@ -204,6 +224,7 @@ export function StudentsPage() {
         } else if (s.status === 'inactive') {
           return false;
         }
+        if (classFilter && !studentClassIds(s).includes(classFilter)) return false;
         if (sportFilter) {
           const classSports = studentClassIds(s).map(
             (id) => data.classes.find((c) => c.id === id)?.sport,
@@ -222,7 +243,7 @@ export function StudentsPage() {
       .sort((a, b) =>
         `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
       );
-  }, [data.students, data.classes, query, sportFilter, statusFilter, isDoctor, allowedClassIds, session]);
+  }, [data.students, data.classes, query, classFilter, sportFilter, statusFilter, isDoctor, allowedClassIds, session]);
 
   function setSportFilter(value: string) {
     const next = new URLSearchParams(searchParams);
@@ -243,33 +264,47 @@ export function StudentsPage() {
     );
   }
 
-  function openBulkStatus() {
+  function openBulkEdit() {
     if (selected.length === 0) return;
-    setBulkStatus(statusFilter === 'inactive' ? 'active' : 'inactive');
+    setBulkStatus('');
+    setBulkGender('');
+    setBulkSport('');
+    setBulkHealthCard('');
     setBulkOpen(true);
   }
 
-  async function handleBulkStatus() {
+  async function handleBulkEdit() {
     if (selected.length === 0) return;
-    setBulkSaving(true);
-    for (const id of selected) {
-      const student = data.students.find((s) => s.id === id);
-      if (!student) continue;
-      const { id: _id, enrolledAt: _enrolled, ...rest } = student;
-      const result = await studentsService.updateStudent(id, {
-        ...rest,
-        status: bulkStatus,
-      } as StudentInput);
-      if (!result.success) {
-        setBulkSaving(false);
-        window.alert(result.error ?? 'Αποτυχία μαζικής αλλαγής');
-        return;
-      }
+    const patch: studentsService.StudentBulkPatch = { ids: selected };
+    if (bulkStatus) patch.status = bulkStatus;
+    if (bulkGender) patch.gender = bulkGender;
+    if (bulkSport) patch.sport = bulkSport;
+    if (bulkHealthCard === 'yes') patch.healthCard = true;
+    if (bulkHealthCard === 'no') patch.healthCard = false;
+    if (
+      !patch.status &&
+      patch.gender === undefined &&
+      !patch.sport &&
+      patch.healthCard === undefined
+    ) {
+      window.alert('Επιλέξτε τουλάχιστον ένα πεδίο για αλλαγή.');
+      return;
     }
+    setBulkSaving(true);
+    const result = await studentsService.bulkPatchStudents(patch);
     setBulkSaving(false);
+    if (!result.success || !result.data) {
+      window.alert(result.error ?? 'Αποτυχία μαζικής αλλαγής');
+      return;
+    }
+    const missing = result.data.missing.length;
     setBulkOpen(false);
     setSelected([]);
     refresh();
+    window.alert(
+      `Ενημερώθηκαν ${result.data.updated} αθλητές.` +
+        (missing ? `\n${missing} επιλογές δεν βρέθηκαν.` : ''),
+    );
   }
 
   async function handleHealthCard(studentId: string) {
@@ -739,6 +774,21 @@ export function StudentsPage() {
           </select>
         </label>
         <label className="field">
+          <span className="field-label">Τμήμα</span>
+          <select
+            className="field-input"
+            value={classFilter}
+            onChange={(e) => setClassFilter(e.target.value)}
+          >
+            <option value="">Όλα τα τμήματα</option>
+            {classOptions.map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
           <span className="field-label">Κατάσταση</span>
           <select
             className="field-input"
@@ -756,9 +806,9 @@ export function StudentsPage() {
             type="button"
             variant="secondary"
             disabled={selected.length === 0}
-            onClick={openBulkStatus}
+            onClick={openBulkEdit}
           >
-            <SquarePen size={16} /> Μαζική αλλαγή κατάστασης
+            <SquarePen size={16} /> Μαζική αλλαγή
           </Button>
         ) : null}
         <Button
@@ -880,7 +930,7 @@ export function StudentsPage() {
                     )}
                     {!isDoctor ? <div className="muted">{student.email}</div> : null}
                   </td>
-                  <td>{student.sport || '—'}</td>
+                  <td>{studentSports(student).join(', ') || '—'}</td>
                   <td>
                     {isDoctor
                       ? formatAmkaForViewer(student.amka, true)
@@ -1005,7 +1055,7 @@ export function StudentsPage() {
       />
       <Modal
         open={bulkOpen}
-        title="Μαζική αλλαγή κατάστασης"
+        title="Μαζική αλλαγή"
         onClose={() => !bulkSaving && setBulkOpen(false)}
         footer={
           <>
@@ -1017,24 +1067,66 @@ export function StudentsPage() {
             >
               Άκυρο
             </Button>
-            <Button type="button" disabled={bulkSaving} onClick={() => void handleBulkStatus()}>
+            <Button type="button" disabled={bulkSaving} onClick={() => void handleBulkEdit()}>
               {bulkSaving ? 'Εφαρμογή...' : 'Εφαρμογή'}
             </Button>
           </>
         }
       >
+        <p className="muted">
+          Θα ενημερωθούν {selected.length} επιλεγμένοι αθλητές. Αφήστε «Χωρίς αλλαγή» στα πεδία που
+          δεν θέλετε να πειράξετε. Μετά το τέλος σεζόν: επιλογή όλων → κάρτα υγείας Όχι.
+        </p>
         <label className="field">
-          <span className="field-label">
-            Νέα κατάσταση για {selected.length} εγγραφές
-          </span>
+          <span className="field-label">Κατάσταση</span>
           <select
             className="field-input"
             value={bulkStatus}
-            onChange={(e) => setBulkStatus(e.target.value as StudentStatus)}
+            onChange={(e) => setBulkStatus(e.target.value as '' | StudentStatus)}
           >
+            <option value="">Χωρίς αλλαγή</option>
             <option value="active">Ενεργός</option>
             <option value="trial">Δοκιμαστικός</option>
             <option value="inactive">Ανενεργός</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Φύλο</span>
+          <select
+            className="field-input"
+            value={bulkGender}
+            onChange={(e) => setBulkGender(e.target.value as '' | Gender)}
+          >
+            <option value="">Χωρίς αλλαγή</option>
+            <option value="girl">Κορίτσι</option>
+            <option value="boy">Αγόρι</option>
+            <option value="other">Άλλο</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Άθλημα</span>
+          <select
+            className="field-input"
+            value={bulkSport}
+            onChange={(e) => setBulkSport(e.target.value)}
+          >
+            {bulkSportOptions.map((opt) => (
+              <option key={opt.value || 'keep'} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Κάρτα υγείας</span>
+          <select
+            className="field-input"
+            value={bulkHealthCard}
+            onChange={(e) => setBulkHealthCard(e.target.value as '' | 'yes' | 'no')}
+          >
+            <option value="">Χωρίς αλλαγή</option>
+            <option value="no">Όχι</option>
+            <option value="yes">Έγκυρη</option>
           </select>
         </label>
       </Modal>
