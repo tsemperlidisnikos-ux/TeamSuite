@@ -62,7 +62,9 @@ import {
   pickAppDataForRestore,
   confirmClubBackupRestore,
   readBackupFile,
+  withTargetClubSubscriptionUnchanged,
 } from '../utils/backupArchive';
+import { syncClubAthleteLicenseUsed } from '../utils/athleteLicenseCap';
 import {
   ACADEMY_MODULES,
   CLUB_PERMISSION_LABELS,
@@ -669,14 +671,22 @@ export function PlatformAdminPage() {
         (parsed.scope === 'club' && parsed.clubs?.length === 1 ? parsed.clubs[0] : undefined);
       if (backupClub) {
         const existing = getClubs();
+        const target = existing.find((c) => c.id === restoreClubId);
+        const sameClub = Boolean(parsed.sourceClubId && parsed.sourceClubId === restoreClubId);
+        const incoming = withTargetClubSubscriptionUnchanged(
+          { ...backupClub, id: restoreClubId },
+          target ?? { ...backupClub, id: restoreClubId },
+          sameClub || !target,
+        );
         const mergedOne = mergeClubsPreservingSecrets(
-          [{ ...backupClub, id: restoreClubId }],
+          [incoming],
           existing.filter((c) => c.id === restoreClubId),
         )[0];
         if (mergedOne) {
           saveClubs(existing.map((c) => (c.id === restoreClubId ? mergedOne : c)));
         }
       }
+      syncClubAthleteLicenseUsed(clubData.students ?? [], restoreClubId);
 
       const sourceIds = new Set(
         [parsed.sourceClubId, restoreClubId, ...(parsed.clubs?.map((c) => c.id) ?? [])].filter(

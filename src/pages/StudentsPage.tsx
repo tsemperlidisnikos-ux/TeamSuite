@@ -559,6 +559,13 @@ export function StudentsPage() {
         }
       />
 
+      {!isDoctor && remainingAthleteLicenseSeats(data.students) === 0 ? (
+        <p className="form-error" role="status">
+          Το πακέτο αδειών είναι γεμάτο. Δεν μπορείτε να προσθέσετε νέους ενεργούς αθλητές μέχρι
+          αύξηση πακέτου από τον διαχειριστή πλατφόρμας. Οι ενημερώσεις υπαρχόντων επιτρέπονται.
+        </p>
+      ) : null}
+
       {!isDoctor && pendingApplications.length > 0 ? (
         <section className="panel registration-apps-panel">
           <div className="registration-apps-head">

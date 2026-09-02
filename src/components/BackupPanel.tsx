@@ -38,6 +38,7 @@ import {
   confirmClubBackupRestore,
   readBackupFile,
 } from '../utils/backupArchive';
+import { syncClubAthleteLicenseUsed } from '../utils/athleteLicenseCap';
 
 function resolveTargetClubId(): string | null {
   const preview = getPreviewClubId();
@@ -326,6 +327,7 @@ export function BackupPanel() {
 
       const expectedStudents = clubData.students?.length ?? 0;
       replaceClubData(activeClubId, clubData);
+      syncClubAthleteLicenseUsed(clubData.students ?? [], activeClubId);
 
       if (isDemoClubName(getClubById(activeClubId)?.name)) {
         markDemoShowcaseApplied(activeClubId);

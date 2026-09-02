@@ -6,6 +6,10 @@ import { loadStore } from '../data/store';
 import { loadPlatformConfig } from '../platform/platformConfig';
 import type { AppData } from '../types';
 import { localDateIso, localDateTimeIso } from './dates';
+import {
+  clubAthleteLicenseLimit,
+  countActiveAthleteLicenses,
+} from './athleteLicenseCap';
 
 export const BACKUP_JSON_FILENAME = 'academyhub-backup.json';
 const MAX_BACKUP_FILE_BYTES = 50 * 1024 * 1024;
@@ -234,6 +238,7 @@ export type BackupClubIdentity = {
   sourceClubName: string;
   exportedAt: string;
   studentCount: number;
+  activeStudentCount: number;
   classCount: number;
 };
 
@@ -254,15 +259,54 @@ export function describeBackupClub(payload: BackupPayload): BackupClubIdentity {
     sourceClubName: named?.name?.trim() || sourceClubId || 'άγνωστος σύλλογος',
     exportedAt: payload.exportedAt?.trim() || '',
     studentCount: data?.students?.length ?? 0,
+    activeStudentCount: countActiveAthleteLicenses(data?.students ?? []),
     classCount: data?.classes?.length ?? 0,
   };
 }
 
 const CROSS_CLUB_RESTORE_TOKEN = 'ΜΕΤΑΦΟΡΑ';
+const LICENSE_OVERFLOW_TOKEN = 'ΥΠΕΡΒΑΣΗ';
+
+function confirmBackupLicenseOverflow(input: {
+  activeInFile: number;
+  targetClubId: string;
+  targetClubName: string;
+  sameClub: boolean;
+}): boolean {
+  const limit = clubAthleteLicenseLimit(input.targetClubId);
+  if (limit <= 0 || input.activeInFile <= limit) return true;
+
+  const over =
+    `Το αρχείο έχει ${input.activeInFile} ενεργούς αθλητές, ενώ το πακέτο του «${input.targetClubName}» επιτρέπει ${limit}.`;
+
+  if (input.sameClub) {
+    return window.confirm(
+      `${over}\n\nΗ επαναφορά του ίδιου συλλόγου επιτρέπεται (ανάκτηση δεδομένων). ` +
+        `Μετά την επαναφορά δεν θα μπορείτε να προσθέσετε νέους ενεργούς αθλητές μέχρι αύξηση πακέτου από τον διαχειριστή πλατφόρμας.\n\nΣυνέχεια;`,
+    );
+  }
+
+  if (
+    !window.confirm(
+      `${over}\n\nΗ μεταφορά σε άλλον σύλλογο θα ξεπεράσει το πακέτο. ` +
+        `Προτιμήστε πρώτα αύξηση αδειών στον προορισμό. Αν συνεχίσετε, οι νέοι ενεργοί θα μπλοκάρονται μέχρι αύξηση πακέτου.\n\nΣυνέχεια;`,
+    )
+  ) {
+    return false;
+  }
+
+  const typed = window.prompt(
+    `Για επιβεβαίωση πληκτρολογήστε ${LICENSE_OVERFLOW_TOKEN}.\n` +
+      `Ενεργοί στο αρχείο: ${input.activeInFile}\n` +
+      `Όριο προορισμού: ${limit}`,
+  );
+  return (typed ?? '').trim().toLocaleUpperCase('el-GR') === LICENSE_OVERFLOW_TOKEN;
+}
 
 /**
  * Επιβεβαίωση επαναφοράς club JSON.
  * Ίδιος σύλλογος: ένα confirm. Άλλος σύλλογος / άγνωστο αρχείο: δύο βήματα (confirm + πληκτρολόγηση ΜΕΤΑΦΟΡΑ).
+ * Αν το αρχείο ξεπερνά το πακέτο αδειών: επιπλέον προειδοποίηση (και ΥΠΕΡΒΑΣΗ σε μεταφορά).
  */
 export function confirmClubBackupRestore(input: {
   payload: BackupPayload;
@@ -275,34 +319,59 @@ export function confirmClubBackupRestore(input: {
   const summary =
     `Αρχείο από: «${src.sourceClubName}»` +
     (src.exportedAt ? `\nΗμερομηνία backup: ${src.exportedAt}` : '') +
-    `\nΑθλητές στο αρχείο: ${src.studentCount}` +
+    `\nΑθλητές στο αρχείο: ${src.studentCount} (${src.activeStudentCount} ενεργοί)` +
     `\nΤμήματα στο αρχείο: ${src.classCount}` +
     `\n\nΕπαναφορά στον: «${targetName}»` +
     `\n\nΤα τρέχοντα δεδομένα του «${targetName}» θα αντικατασταθούν. ` +
     `Αν ολοκληρωθεί και το cloud, θα αντικατασταθεί και το mirror αυτού του συλλόγου.`;
 
   if (sameClub) {
-    return window.confirm(`${summary}\n\nΣυνέχεια;`);
+    if (!window.confirm(`${summary}\n\nΣυνέχεια;`)) return false;
+  } else {
+    const unknown = !src.sourceClubId;
+    const mismatch =
+      (unknown
+        ? 'ΠΡΟΣΟΧΗ: δεν αναγνωρίζεται με βεβαιότητα ο σύλλογος του αρχείου.\n\n'
+        : 'ΠΡΟΣΟΧΗ: το αρχείο ανήκει σε ΑΛΛΟΝ σύλλογο.\n\n') +
+      summary +
+      `\n\nΑυτό θα αντιγράψει τα δεδομένα του «${src.sourceClubName}» πάνω στον «${targetName}». ` +
+      `Δεν είναι επαναφορά του ίδιου συλλόγου.\n\n` +
+      `Θέλετε να συνεχίσετε με μεταφορά σε άλλον σύλλογο;`;
+
+    if (!window.confirm(mismatch)) return false;
+
+    const typed = window.prompt(
+      `Για επιβεβαίωση πληκτρολογήστε ${CROSS_CLUB_RESTORE_TOKEN}.\n` +
+        `Από: ${src.sourceClubName}\n` +
+        `Προς: ${targetName}`,
+    );
+    if ((typed ?? '').trim().toLocaleUpperCase('el-GR') !== CROSS_CLUB_RESTORE_TOKEN) {
+      return false;
+    }
   }
 
-  const unknown = !src.sourceClubId;
-  const mismatch =
-    (unknown
-      ? 'ΠΡΟΣΟΧΗ: δεν αναγνωρίζεται με βεβαιότητα ο σύλλογος του αρχείου.\n\n'
-      : 'ΠΡΟΣΟΧΗ: το αρχείο ανήκει σε ΑΛΛΟΝ σύλλογο.\n\n') +
-    summary +
-    `\n\nΑυτό θα αντιγράψει τα δεδομένα του «${src.sourceClubName}» πάνω στον «${targetName}». ` +
-    `Δεν είναι επαναφορά του ίδιου συλλόγου.\n\n` +
-    `Θέλετε να συνεχίσετε με μεταφορά σε άλλον σύλλογο;`;
+  return confirmBackupLicenseOverflow({
+    activeInFile: src.activeStudentCount,
+    targetClubId: input.targetClubId,
+    targetClubName: targetName,
+    sameClub,
+  });
+}
 
-  if (!window.confirm(mismatch)) return false;
-
-  const typed = window.prompt(
-    `Για επιβεβαίωση πληκτρολογήστε ${CROSS_CLUB_RESTORE_TOKEN}.\n` +
-      `Από: ${src.sourceClubName}\n` +
-      `Προς: ${targetName}`,
-  );
-  return (typed ?? '').trim().toLocaleUpperCase('el-GR') === CROSS_CLUB_RESTORE_TOKEN;
+/** Σε μεταφορά άλλου συλλόγου, μην αντιγράψεις πακέτο/όριο αδειών του αρχείου πάνω στον προορισμό. */
+export function withTargetClubSubscriptionUnchanged(
+  incoming: Club,
+  target: Club,
+  sameClub: boolean,
+): Club {
+  if (sameClub) return incoming;
+  return {
+    ...incoming,
+    athleteLicenseLimit: target.athleteLicenseLimit,
+    licensePackageId: target.licensePackageId,
+    usageStartsOn: target.usageStartsOn,
+    usageEndsOn: target.usageEndsOn,
+  };
 }
 
 /**

@@ -140,6 +140,26 @@
   background: color-mix(in srgb, var(--accent, #2563eb) 85%, #0f172a);
 }
 
+.set-license-notice {
+  margin: 0.85rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.set-license-notice--full {
+  color: var(--warn, #b54708);
+  background: color-mix(in srgb, var(--warn, #b54708) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warn, #b54708) 35%, var(--line));
+}
+
+.set-license-notice--over {
+  color: var(--danger, #b42318);
+  background: color-mix(in srgb, var(--danger, #b42318) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--danger, #b42318) 35%, var(--line));
+}
+
 .set-logo-drop {
   display: grid;
   place-items: center;

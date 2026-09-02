@@ -59,6 +59,7 @@ import { FacilitiesPage } from './FacilitiesPage';
 import { SeasonsPage } from './SeasonsPage';
 import { SportsPage } from './SportsPage';
 import { TermsOfUsePanel } from './TermsOfUsePanel';
+import { remainingAthleteLicenseSeats } from '../utils/athleteLicenseCap';
 
 type SettingsTab =
   | 'club'
@@ -133,6 +134,10 @@ export function SettingsPage() {
 
   const activeAthleteLicenses = data.students.filter((s) => s.status === 'active').length;
   const licenseLimit = club?.athleteLicenseLimit ?? 0;
+  const licenseRemaining =
+    clubId ? remainingAthleteLicenseSeats(data.students, clubId) : null;
+  const licenseFull = licenseRemaining === 0;
+  const licenseOver = licenseLimit > 0 && activeAthleteLicenses > licenseLimit;
   const licensePackage = club ? resolveClubLicensePackage(club) : null;
   const licensePct =
     licenseLimit > 0
@@ -457,6 +462,20 @@ export function SettingsPage() {
                 >
                   <i style={{ width: `${licensePct}%` }} />
                 </div>
+              ) : null}
+              {licenseOver ? (
+                <p className="set-license-notice set-license-notice--over" role="status">
+                  Οι ενεργοί αθλητές ({activeAthleteLicenses}) ξεπερνούν το πακέτο ({licenseLimit}).
+                  Δεν μπορείτε να προσθέσετε νέους ενεργούς μέχρι ο διαχειριστής πλατφόρμας να αυξήσει
+                  τις άδειες. Οι υπάρχοντες αθλητές δεν διαγράφονται.
+                </p>
+              ) : licenseFull ? (
+                <p className="set-license-notice set-license-notice--full" role="status">
+                  Το πακέτο αδειών είναι γεμάτο ({activeAthleteLicenses} / {licenseLimit} ενεργοί).
+                  Ζητήστε αύξηση πακέτου από τον διαχειριστή πλατφόρμας για να προσθέσετε νέους
+                  ενεργούς αθλητές. Μπορείτε ακόμα να ενημερώνετε υπάρχοντες ή να προσθέτετε
+                  δοκιμαστικούς / ανενεργούς.
+                </p>
               ) : null}
             </section>
 
