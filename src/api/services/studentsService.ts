@@ -207,7 +207,7 @@ export type StudentBulkPatch = {
   healthCard?: boolean;
 };
 
-/** Μαζική ενημέρωση επιλεγμένων πεδίων: μία εγγραφή στο store και ένα cloud push. */
+/** Μαζική ενημέρωση επιλεγμένων πεδίων (τοπικά άμεσα· cloud sync στο παρασκήνιο). */
 export async function bulkPatchStudents(patch: StudentBulkPatch) {
   return apiClient(async () => {
     const ids = [...new Set(patch.ids.filter(Boolean))];
@@ -250,8 +250,10 @@ export async function bulkPatchStudents(patch: StudentBulkPatch) {
       for (const id of wanted) missing.push(id);
     });
 
-    const { flushClubMirrorPush } = await import('../../data/clubSync');
-    await flushClubMirrorPush();
+    // Άμεσο push στο παρασκήνιο — χωρίς να μπλοκάρει το κουμπί Εφαρμογή.
+    void import('../../data/clubSync').then(({ flushClubMirrorPush }) => {
+      void flushClubMirrorPush();
+    });
     return { updated, missing };
   });
 }
