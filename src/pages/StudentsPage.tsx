@@ -265,7 +265,12 @@ export function StudentsPage() {
   }
 
   function openBulkEdit() {
-    if (selected.length === 0) return;
+    const ids = selected.length > 0 ? selected : filtered.map((s) => s.id);
+    if (ids.length === 0) {
+      window.alert('Δεν υπάρχουν αθλητές στη λίστα. Φιλτράρετε τμήμα ή επιλέξτε γραμμές.');
+      return;
+    }
+    if (selected.length === 0) setSelected(ids);
     setBulkStatus('');
     setBulkGender('');
     setBulkSport('');
@@ -520,9 +525,19 @@ export function StudentsPage() {
         }
         actions={
           isDoctor ? undefined : (
-            <Button type="button" disabled={creating} onClick={() => void handleCreate()}>
-              <Plus size={16} /> {creating ? 'Δημιουργία...' : 'Νέος αθλητής'}
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={filtered.length === 0 && selected.length === 0}
+                onClick={openBulkEdit}
+              >
+                <SquarePen size={16} /> Μαζική αλλαγή
+              </Button>
+              <Button type="button" disabled={creating} onClick={() => void handleCreate()}>
+                <Plus size={16} /> {creating ? 'Δημιουργία...' : 'Νέος αθλητής'}
+              </Button>
+            </>
           )
         }
       />
@@ -805,10 +820,15 @@ export function StudentsPage() {
           <Button
             type="button"
             variant="secondary"
-            disabled={selected.length === 0}
+            disabled={filtered.length === 0 && selected.length === 0}
             onClick={openBulkEdit}
           >
             <SquarePen size={16} /> Μαζική αλλαγή
+            {selected.length > 0
+              ? ` (${selected.length})`
+              : filtered.length > 0
+                ? ` (${filtered.length})`
+                : ''}
           </Button>
         ) : null}
         <Button
@@ -847,6 +867,12 @@ export function StudentsPage() {
           </div>
         ) : null}
       </div>
+      {!isDoctor ? (
+        <p className="lede">
+          Μαζική αλλαγή: επιλέξτε <strong>Τμήμα</strong> και πατήστε το κουμπί πάνω δεξιά (ή δίπλα
+          στα φίλτρα). Αν δεν τσεκάρετε γραμμές, ενημερώνονται όλοι όσοι φαίνονται στη λίστα.
+        </p>
+      ) : null}
 
       <div className="panel table-wrap">
         <table>
@@ -1074,8 +1100,11 @@ export function StudentsPage() {
         }
       >
         <p className="muted">
-          Θα ενημερωθούν {selected.length} επιλεγμένοι αθλητές. Αφήστε «Χωρίς αλλαγή» στα πεδία που
-          δεν θέλετε να πειράξετε. Μετά το τέλος σεζόν: επιλογή όλων → κάρτα υγείας Όχι.
+          Θα ενημερωθούν {selected.length} αθλητές
+          {classFilter
+            ? ` του τμήματος «${classOptions.find((c) => c.id === classFilter)?.name ?? ''}»`
+            : ''}
+          . Αφήστε «Χωρίς αλλαγή» στα πεδία που δεν θέλετε να πειράξετε.
         </p>
         <label className="field">
           <span className="field-label">Κατάσταση</span>

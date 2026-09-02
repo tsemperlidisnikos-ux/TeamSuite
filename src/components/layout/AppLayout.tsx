@@ -395,7 +395,7 @@ export function AppLayout() {
             <div className="preview-banner">
               <div>
                 <strong>Preview συλλόγου</strong>
-                <span>{club?.name ?? previewClubId} · μόνο προβολή</span>
+                <span>{club?.name ?? previewClubId}</span>
               </div>
               <button
                 type="button"
