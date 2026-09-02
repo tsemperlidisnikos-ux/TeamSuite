@@ -9,7 +9,6 @@ import { normalizeStudentSports } from '../../utils/studentSports';
 import { applySubscriptionDiscountToCharges } from './feeChargesService';
 import { stripJoinFormSnapshotForStudent } from '../../utils/publicJoinFormSnapshots';
 import { toUpperEl } from '../../utils/upperText';
-import { resolveActiveClubId } from '../../data/store';
 import {
   athleteLicenseCapMessage,
   clubAthleteLicenseLimit,
