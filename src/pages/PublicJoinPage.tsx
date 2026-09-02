@@ -28,6 +28,7 @@ import {
 } from '../shared/publicJoinExtras';
 import type { SizeChart } from '../types';
 import { renderPublicJoinFormSnapshot } from '../utils/publicJoinFormSnapshot';
+import { toUpperEl } from '../utils/upperText';
 import { sizeChartOptGroups } from '../utils/sizeChartOptions';
 
 type JoinClubView = {
@@ -43,6 +44,29 @@ type JoinClubView = {
   sports: string[];
   sizeChart: SizeChart;
 };
+
+function UpperJoinInput({
+  value,
+  onChange,
+  required,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+}) {
+  return (
+    <input
+      className="field-input field-input-upper"
+      value={value}
+      lang="el"
+      autoCapitalize="characters"
+      autoCorrect="off"
+      spellCheck={false}
+      required={required}
+      onChange={(e) => onChange(toUpperEl(e.target.value))}
+    />
+  );
+}
 
 function fromRemote(club: RemotePublicClub): JoinClubView {
   return {
@@ -432,21 +456,11 @@ export function PublicJoinPage() {
             </label>
             <label className="field">
               <span className="field-label">Όνομα *</span>
-              <input
-                className="field-input"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-              />
+              <UpperJoinInput value={firstName} onChange={setFirstName} required />
             </label>
             <label className="field">
               <span className="field-label">Επώνυμο *</span>
-              <input
-                className="field-input"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                required
-              />
+              <UpperJoinInput value={lastName} onChange={setLastName} required />
             </label>
             <label className="field">
               <span className="field-label">Ημερομηνία γέννησης *</span>
@@ -494,21 +508,11 @@ export function PublicJoinPage() {
             </label>
             <label className="field">
               <span className="field-label">Πατρώνυμο *</span>
-              <input
-                className="field-input"
-                value={fatherFirstName}
-                onChange={(e) => setFatherFirstName(e.target.value)}
-                required
-              />
+              <UpperJoinInput value={fatherFirstName} onChange={setFatherFirstName} required />
             </label>
             <label className="field">
               <span className="field-label">Μητρώνυμο *</span>
-              <input
-                className="field-input"
-                value={motherFirstName}
-                onChange={(e) => setMotherFirstName(e.target.value)}
-                required
-              />
+              <UpperJoinInput value={motherFirstName} onChange={setMotherFirstName} required />
             </label>
             <label className="field">
               <span className="field-label">Email πατρός *</span>
@@ -552,12 +556,7 @@ export function PublicJoinPage() {
             </label>
             <label className="field">
               <span className="field-label">Διεύθυνση *</span>
-              <input
-                className="field-input"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                required
-              />
+              <UpperJoinInput value={address} onChange={setAddress} required />
             </label>
             <label className="field">
               <span className="field-label">Τ.Κ. *</span>
@@ -570,21 +569,11 @@ export function PublicJoinPage() {
             </label>
             <label className="field">
               <span className="field-label">Πόλη *</span>
-              <input
-                className="field-input"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                required
-              />
+              <UpperJoinInput value={city} onChange={setCity} required />
             </label>
             <label className="field">
               <span className="field-label">Νομός *</span>
-              <input
-                className="field-input"
-                value={county}
-                onChange={(e) => setCounty(e.target.value)}
-                required
-              />
+              <UpperJoinInput value={county} onChange={setCounty} required />
             </label>
             <label className="field">
               <span className="field-label">Άθλημα *</span>

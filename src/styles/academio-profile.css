@@ -1729,6 +1729,10 @@
   cursor: default;
 }
 
+.ap-input-upper {
+  text-transform: uppercase;
+}
+
 .ap-textarea {
   resize: vertical;
   min-height: 4.5rem;

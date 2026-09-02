@@ -8,6 +8,20 @@ import { normalizeStudentCoaches } from '../../utils/studentCoaches';
 import { normalizeStudentSports } from '../../utils/studentSports';
 import { applySubscriptionDiscountToCharges } from './feeChargesService';
 import { stripJoinFormSnapshotForStudent } from '../../utils/publicJoinFormSnapshots';
+import { toUpperEl } from '../../utils/upperText';
+
+function withUpperIdentity(input: StudentInput): StudentInput {
+  return {
+    ...input,
+    firstName: toUpperEl(input.firstName),
+    lastName: toUpperEl(input.lastName),
+    fatherFirstName: input.fatherFirstName != null ? toUpperEl(input.fatherFirstName) : input.fatherFirstName,
+    motherFirstName: input.motherFirstName != null ? toUpperEl(input.motherFirstName) : input.motherFirstName,
+    address: input.address != null ? toUpperEl(input.address) : input.address,
+    city: input.city != null ? toUpperEl(input.city) : input.city,
+    county: input.county != null ? toUpperEl(input.county) : input.county,
+  };
+}
 
 export async function getStudents() {
   return apiClient(() => getData().students);
@@ -15,7 +29,7 @@ export async function getStudents() {
 
 export async function createStudent(input: StudentInput) {
   return apiClient(async () => {
-    const parsed = studentCreateSchema.parse(input);
+    const parsed = withUpperIdentity(studentCreateSchema.parse(input));
     const classes = normalizeStudentClasses(parsed.classIds, parsed.classId);
     const sports = normalizeStudentSports(parsed.sports, parsed.sport);
     const coaches = normalizeStudentCoaches(parsed.coachNames, parsed.coachName);
@@ -38,7 +52,7 @@ export async function createStudent(input: StudentInput) {
 
 export async function updateStudent(id: string, input: StudentInput) {
   return apiClient(() => {
-    const parsed = studentSchema.parse(input);
+    const parsed = withUpperIdentity(studentSchema.parse(input));
     const classes = normalizeStudentClasses(parsed.classIds, parsed.classId);
     const sports = normalizeStudentSports(parsed.sports, parsed.sport);
     const coaches = normalizeStudentCoaches(parsed.coachNames, parsed.coachName);
@@ -111,7 +125,7 @@ export async function importStudents(rows: StudentImportRow[]) {
     for (const row of rows) {
       try {
         if (row.mode === 'create') {
-          const parsed = studentCreateSchema.parse(row.input);
+          const parsed = withUpperIdentity(studentCreateSchema.parse(row.input));
           const classes = normalizeStudentClasses(parsed.classIds, parsed.classId);
           const sports = normalizeStudentSports(parsed.sports, parsed.sport);
           const coaches = normalizeStudentCoaches(parsed.coachNames, parsed.coachName);
@@ -136,7 +150,7 @@ export async function importStudents(rows: StudentImportRow[]) {
         prepared.push({
           mode: 'update',
           id: row.existingId,
-          parsed: studentSchema.parse(row.input),
+          parsed: withUpperIdentity(studentSchema.parse(row.input)),
           label: row.label,
         });
       } catch (err) {

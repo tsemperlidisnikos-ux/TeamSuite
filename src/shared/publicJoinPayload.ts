@@ -1,5 +1,6 @@
 import type { AcademyClass, AppData, RegistrationApplication, Student } from '../types';
 import { collapseDuplicateSurname, composeGivenAndSurname } from '../utils/greekSurname';
+import { toUpperEl } from '../utils/upperText';
 import { localDateIso } from '../utils/dates';
 import {
   parsePublicJoinExtras,
@@ -146,8 +147,8 @@ export function buildStudentFromRegistrationApplication(
 
   return {
     id: athleteId,
-    firstName: app.firstName,
-    lastName: app.lastName,
+    firstName: toUpperEl(app.firstName),
+    lastName: toUpperEl(app.lastName),
     email: app.athleteEmail || app.email || app.fatherEmail || '',
     phone: app.phone || '',
     birthDate: app.birthDate || '',
@@ -168,15 +169,15 @@ export function buildStudentFromRegistrationApplication(
     gdprItems,
     amka: app.amka || '',
     amkaConsentAt: app.amkaConsentAt || '',
-    fatherFirstName: app.fatherFirstName || '',
-    motherFirstName: app.motherFirstName || '',
+    fatherFirstName: toUpperEl(app.fatherFirstName || ''),
+    motherFirstName: toUpperEl(app.motherFirstName || ''),
     fatherEmail: app.fatherEmail || '',
     motherEmail: app.motherEmail || '',
     motherPhone: app.motherPhone || '',
-    address: app.address || '',
+    address: toUpperEl(app.address || ''),
     postalCode: app.postalCode || '',
-    city: app.city || '',
-    county: app.county || '',
+    city: toUpperEl(app.city || ''),
+    county: toUpperEl(app.county || ''),
     uniformSize: app.uniformSize || '',
     joinExtras: app.joinExtras,
     registrationFormImageUrl: app.formSnapshotUrl || '',
@@ -219,8 +220,8 @@ export function registrationApplicationFromPublicJoin(
 ): RegistrationApplication {
   return {
     id: meta.id,
-    firstName: input.firstName,
-    lastName: input.lastName,
+    firstName: toUpperEl(input.firstName),
+    lastName: toUpperEl(input.lastName),
     birthDate: input.birthDate,
     gender: input.gender,
     guardianName: input.guardianName,
@@ -235,15 +236,15 @@ export function registrationApplicationFromPublicJoin(
     amka: input.amka?.trim() || '',
     phone: input.phone?.trim() || '',
     athleteEmail: input.athleteEmail?.trim() || '',
-    fatherFirstName: input.fatherFirstName?.trim() || '',
-    motherFirstName: input.motherFirstName?.trim() || '',
+    fatherFirstName: toUpperEl(input.fatherFirstName?.trim() || ''),
+    motherFirstName: toUpperEl(input.motherFirstName?.trim() || ''),
     fatherEmail: input.fatherEmail?.trim() || '',
     motherEmail: input.motherEmail?.trim() || '',
     motherPhone: input.motherPhone?.trim() || '',
-    address: input.address?.trim() || '',
+    address: toUpperEl(input.address?.trim() || ''),
     postalCode: input.postalCode?.trim() || '',
-    city: input.city?.trim() || '',
-    county: input.county?.trim() || '',
+    city: toUpperEl(input.city?.trim() || ''),
+    county: toUpperEl(input.county?.trim() || ''),
     sport: input.sport?.trim() || '',
     uniformSize: input.uniformSize?.trim() || '',
     joinExtras: parsePublicJoinExtras(input.joinExtras),

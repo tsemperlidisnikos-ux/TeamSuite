@@ -58,6 +58,7 @@ import {
 } from '../shared/termsDefaults';
 import { canAccessAmka, canAccessMedical, formatAmkaForViewer } from '../utils/amkaAccess';
 import { collapseDuplicateSurname, composeGivenAndSurname } from '../utils/greekSurname';
+import { toUpperEl } from '../utils/upperText';
 import { announcementVisibleToAthlete } from '../utils/announcementAudience';
 import {
   classIdsOf,
@@ -182,8 +183,8 @@ function toForm(
   catalog: DiscountReasonDef[] = [],
 ): StudentInput {
   return {
-    firstName: student.firstName,
-    lastName: student.lastName,
+    firstName: toUpperEl(student.firstName),
+    lastName: toUpperEl(student.lastName),
     email: student.email,
     phone: student.phone,
     birthDate: student.birthDate,
@@ -196,14 +197,14 @@ function toForm(
     amka: student.amka ?? '',
     adt: student.adt ?? '',
     gender: student.gender ?? '',
-    fatherFirstName: student.fatherFirstName ?? '',
-    motherFirstName: student.motherFirstName ?? '',
+    fatherFirstName: toUpperEl(student.fatherFirstName ?? ''),
+    motherFirstName: toUpperEl(student.motherFirstName ?? ''),
     fatherEmail: student.fatherEmail ?? '',
     motherEmail: student.motherEmail ?? '',
     motherPhone: student.motherPhone ?? '',
-    address: student.address ?? '',
+    address: toUpperEl(student.address ?? ''),
     postalCode: student.postalCode ?? '',
-    city: student.city ?? '',
+    city: toUpperEl(student.city ?? ''),
     clubName: student.clubName ?? '',
     registrationNumber: student.registrationNumber ?? '',
     ...(() => {
@@ -254,7 +255,7 @@ function toForm(
     placeOfBirth: student.placeOfBirth ?? '',
     nationality: student.nationality ?? '',
     communicationLanguage: student.communicationLanguage ?? 'Ελληνικά',
-    county: student.county ?? '',
+    county: toUpperEl(student.county ?? ''),
     jerseyNumber: student.jerseyNumber ?? '',
     position: student.position ?? '',
     athleticLevel: student.athleticLevel ?? '',
@@ -1180,12 +1181,16 @@ export function AthleteProfilePage() {
   ) => (
     <input
       type={opts?.type ?? 'text'}
-      className={inputClass}
+      className={opts?.upper ? `${inputClass} ap-input-upper` : inputClass}
       value={value ?? ''}
       disabled={disabled}
       placeholder={opts?.placeholder}
+      lang={opts?.upper ? 'el' : undefined}
+      autoCapitalize={opts?.upper ? 'characters' : undefined}
+      autoCorrect={opts?.upper ? 'off' : undefined}
+      spellCheck={opts?.upper ? false : undefined}
       onChange={(e) =>
-        onChange(opts?.upper ? e.target.value.toUpperCase() : e.target.value)
+        onChange(opts?.upper ? toUpperEl(e.target.value) : e.target.value)
       }
     />
   );

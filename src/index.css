@@ -1190,6 +1190,10 @@ td.row-actions {
   color: var(--ink);
 }
 
+.field-input-upper {
+  text-transform: uppercase;
+}
+
 .field-error,
 .form-error {
   color: var(--danger);
@@ -3031,6 +3035,10 @@ html[data-appearance] .settings-backup-schedule-status {
   color: var(--ink);
   opacity: 1;
   cursor: default;
+}
+
+.ap-input-upper {
+  text-transform: uppercase;
 }
 
 .ap-text {
