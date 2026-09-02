@@ -27,6 +27,8 @@ import './styles/payment-receipt.css'
 /* Theme overrides last so appearance contrast wins over feature CSS */
 import './styles/appearance-ocean-slate.css'
 import './styles/appearance-graphite-ember.css'
+import './styles/appearance-aegean-navy.css'
+import './styles/appearance-ivory-club.css'
 import './styles/appearance-login-split.css'
 import { migratePlaintextPasswords } from './auth/auth'
 import { startBackupScheduleRunner } from './data/backupScheduleRunner'

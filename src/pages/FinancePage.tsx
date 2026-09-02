@@ -42,6 +42,22 @@ function chartColors(theme: AppearanceTheme) {
       grid: 'rgba(244, 238, 232, 0.12)',
     };
   }
+  if (theme === 'ivory-club') {
+    return {
+      pie: ['#5c1a24', '#7a2430', '#b8860b', '#8a6a4a', '#6b5a52', '#067647'],
+      revenue: '#7a2430',
+      expense: '#b8860b',
+      grid: 'rgba(44, 28, 24, 0.1)',
+    };
+  }
+  if (theme === 'aegean-navy') {
+    return {
+      pie: ['#0b1f3a', '#2a9bb5', '#d4a017', '#4a7c9b', '#64748b', '#067647'],
+      revenue: '#2a9bb5',
+      expense: '#d4a017',
+      grid: 'rgba(11, 31, 58, 0.1)',
+    };
+  }
   return {
     pie: ['#1c2b3a', '#2a9bb5', '#c45c26', '#4a7c9b', '#64748b', '#067647'],
     revenue: '#2a9bb5',

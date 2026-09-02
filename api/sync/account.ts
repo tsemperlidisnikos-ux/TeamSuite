@@ -477,6 +477,8 @@ const APPEARANCE_THEME_IDS = [
   'indigo-steel',
   'pitch-heritage',
   'graphite-ember',
+  'aegean-navy',
+  'ivory-club',
 ] as const;
 
 function sanitizeAppearanceThemeId(value: unknown): (typeof APPEARANCE_THEME_IDS)[number] {

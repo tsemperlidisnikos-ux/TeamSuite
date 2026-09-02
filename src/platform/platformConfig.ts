@@ -232,7 +232,11 @@ export function defaultBackupSchedules(): PlatformBackupSchedules {
 }
 
 /** Εμφάνιση εφαρμογής — ορίζεται από Platform Admin. */
-export type AppearanceTheme = 'ocean-slate' | 'graphite-ember';
+export type AppearanceTheme =
+  | 'ocean-slate'
+  | 'graphite-ember'
+  | 'aegean-navy'
+  | 'ivory-club';
 
 export const APPEARANCE_THEMES: Array<{
   id: AppearanceTheme;
@@ -249,10 +253,26 @@ export const APPEARANCE_THEMES: Array<{
     label: 'Graphite Ember',
     description: 'Κάρβουνο shell + πορτοκαλί ember accents.',
   },
+  {
+    id: 'aegean-navy',
+    label: 'Aegean Navy',
+    description: 'Navy chrome + sky teal accents, φωτεινό content.',
+  },
+  {
+    id: 'ivory-club',
+    label: 'Ivory Club',
+    description: 'Μπορντό chrome + κρεμ επιφάνειες, χρυσό accent.',
+  },
 ];
 
+const APPEARANCE_THEME_IDS = new Set<AppearanceTheme>(
+  APPEARANCE_THEMES.map((theme) => theme.id),
+);
+
 export function sanitizeAppearanceTheme(value: unknown): AppearanceTheme {
-  if (value === 'graphite-ember') return 'graphite-ember';
+  if (typeof value === 'string' && APPEARANCE_THEME_IDS.has(value as AppearanceTheme)) {
+    return value as AppearanceTheme;
+  }
   /* ocean-slate default; legacy themes migrate here */
   return 'ocean-slate';
 }
@@ -282,7 +302,7 @@ export type PlatformConfig = {
   /** Λογότυπο εφαρμογής (κεφαλίδα SS) ανά σύλλογο. Override του appLogoUrl. */
   clubAppLogos?: Record<string, string>;
   appName?: string;
-  /** ocean-slate | graphite-ember */
+  /** ocean-slate | graphite-ember | aegean-navy | ivory-club */
   appearanceTheme?: AppearanceTheme;
   backupSchedules?: PlatformBackupSchedules;
 };

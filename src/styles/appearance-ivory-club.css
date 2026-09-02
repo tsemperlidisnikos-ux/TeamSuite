@@ -1,0 +1,651 @@
+/**
+ * Ivory Club — burgundy chrome + cream surfaces, gold accent.
+ * Applied when html[data-appearance="ivory-club"].
+ */
+
+html[data-appearance='ivory-club'] {
+  --chip-bg: rgba(122, 36, 48, 0.12);
+  --ocean-ink: #2c1c18;
+  --ocean-muted: #6b5a52;
+}
+
+/* ---- Typography ---- */
+html[data-appearance='ivory-club'] .page-header h1,
+html[data-appearance='ivory-club'] .topbar h1,
+html[data-appearance='ivory-club'] h1 {
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+html[data-appearance='ivory-club'] .page-header p,
+html[data-appearance='ivory-club'] .lede,
+html[data-appearance='ivory-club'] .muted {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ivory-club'] .eyebrow {
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+
+html[data-appearance='ivory-club'] .panel-head h2,
+html[data-appearance='ivory-club'] .dashboard-sport-title,
+html[data-appearance='ivory-club'] .feed-list strong {
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .feed-list span {
+  color: var(--ocean-muted);
+}
+
+/* ---- Tables ---- */
+html[data-appearance='ivory-club'] .table-wrap,
+html[data-appearance='ivory-club'] .panel .table-wrap {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+html[data-appearance='ivory-club'] .panel .table-wrap.dashboard-preview-scroll {
+  overflow: auto;
+}
+
+html[data-appearance='ivory-club'] table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] thead th {
+  background: var(--table-head-bg);
+  color: #4a322c;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--line);
+  padding: 0.7rem 0.85rem;
+}
+
+html[data-appearance='ivory-club'] tbody td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.7rem 0.85rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-appearance='ivory-club'] tbody tr:hover {
+  background: var(--table-row-hover);
+}
+
+html[data-appearance='ivory-club'] tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+html[data-appearance='ivory-club'] .panel.table-wrap,
+html[data-appearance='ivory-club'] .panel.table-wrap table,
+html[data-appearance='ivory-club'] .panel.table-wrap strong {
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .panel.table-wrap .muted {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ivory-club'] .panel.table-wrap thead th {
+  color: #4a322c;
+}
+
+html[data-appearance='ivory-club'] .panel.table-wrap tbody td {
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .panel.table-wrap .btn-secondary {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-appearance='ivory-club'] .panel.table-wrap .btn-secondary:hover {
+  background: var(--brand-soft);
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
+}
+
+/* ---- Forms / fields ---- */
+html[data-appearance='ivory-club'] select,
+html[data-appearance='ivory-club'] .field-input,
+html[data-appearance='ivory-club'] .field select,
+html[data-appearance='ivory-club'] input[type='text'],
+html[data-appearance='ivory-club'] input[type='email'],
+html[data-appearance='ivory-club'] input[type='number'],
+html[data-appearance='ivory-club'] input[type='password'],
+html[data-appearance='ivory-club'] input[type='date'],
+html[data-appearance='ivory-club'] input[type='time'],
+html[data-appearance='ivory-club'] input[type='search'],
+html[data-appearance='ivory-club'] input[type='tel'],
+html[data-appearance='ivory-club'] input[type='url'],
+html[data-appearance='ivory-club'] textarea {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field-bg);
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] select option,
+html[data-appearance='ivory-club'] select optgroup {
+  background: #ffffff;
+  color: #2c1c18;
+}
+
+html[data-appearance='ivory-club'] .field-input:focus,
+html[data-appearance='ivory-club'] input:focus,
+html[data-appearance='ivory-club'] select:focus,
+html[data-appearance='ivory-club'] textarea:focus {
+  outline: 2px solid rgba(122, 36, 48, 0.35);
+  border-color: var(--brand);
+}
+
+html[data-appearance='ivory-club'] .field-label,
+html[data-appearance='ivory-club'] label > span {
+  color: #5c453c;
+  font-weight: 650;
+}
+
+html[data-appearance='ivory-club'] .settings-hint,
+html[data-appearance='ivory-club'] .field .hint {
+  color: var(--ocean-muted);
+}
+
+/* ---- Panels / cards / stats ---- */
+html[data-appearance='ivory-club'] .panel,
+html[data-appearance='ivory-club'] .stat-card,
+html[data-appearance='ivory-club'] .entity-card,
+html[data-appearance='ivory-club'] .schedule-day,
+html[data-appearance='ivory-club'] .money-strip-item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+html[data-appearance='ivory-club'] .stat-card strong,
+html[data-appearance='ivory-club'] .stat-card .stat-value,
+html[data-appearance='ivory-club'] .money-strip-item strong {
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .stat-card span,
+html[data-appearance='ivory-club'] .money-strip-item span {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ivory-club'] .money-strip-item.is-accent strong {
+  color: var(--brand-dark);
+}
+
+/* ---- Buttons ---- */
+html[data-appearance='ivory-club'] .btn-primary {
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #ffffff;
+  box-shadow: var(--brand-button-shadow);
+}
+
+html[data-appearance='ivory-club'] .btn-secondary {
+  background: #ffffff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+html[data-appearance='ivory-club'] .btn-secondary:hover {
+  background: var(--brand-soft);
+}
+
+html[data-appearance='ivory-club'] .btn-ghost {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ivory-club'] .btn-danger,
+html[data-appearance='ivory-club'] .btn-danger-outline {
+  color: var(--danger);
+}
+
+html[data-appearance='ivory-club'] .page-header-actions .btn-primary {
+  color: #ffffff;
+}
+
+/* ---- Modals / cards ---- */
+html[data-appearance='ivory-club'] .login-card,
+html[data-appearance='ivory-club'] .ssr-card,
+html[data-appearance='ivory-club'] .training-modal,
+html[data-appearance='ivory-club'] .modal,
+html[data-appearance='ivory-club'] .modal-panel,
+html[data-appearance='ivory-club'] .modal-card,
+html[data-appearance='ivory-club'] .ui-modal,
+html[data-appearance='ivory-club'] .ann-modal,
+html[data-appearance='ivory-club'] .photos-modal,
+html[data-appearance='ivory-club'] .public-join-card,
+html[data-appearance='ivory-club'] .join-form {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+html[data-appearance='ivory-club'] .login-card label,
+html[data-appearance='ivory-club'] .login-card label > span,
+html[data-appearance='ivory-club'] .ssr-card label,
+html[data-appearance='ivory-club'] .ssr-card label > span,
+html[data-appearance='ivory-club'] .ssr-card .ssr-label,
+html[data-appearance='ivory-club'] .ssr-card .ssr-check,
+html[data-appearance='ivory-club'] .ssr-card .ssr-check span,
+html[data-appearance='ivory-club'] .ssr-card .ssr-terms,
+html[data-appearance='ivory-club'] .ssr-card .ssr-terms > span,
+html[data-appearance='ivory-club'] .ssr-card legend,
+html[data-appearance='ivory-club'] .ssr-card h2,
+html[data-appearance='ivory-club'] .training-modal label,
+html[data-appearance='ivory-club'] .training-modal label > span,
+html[data-appearance='ivory-club'] .modal label,
+html[data-appearance='ivory-club'] .modal label > span,
+html[data-appearance='ivory-club'] .modal h2,
+html[data-appearance='ivory-club'] .modal #modal-title,
+html[data-appearance='ivory-club'] .public-join-card label,
+html[data-appearance='ivory-club'] .public-join-card label > span,
+html[data-appearance='ivory-club'] .join-form label,
+html[data-appearance='ivory-club'] .join-form label > span {
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .ssr-card .ssr-terms,
+html[data-appearance='ivory-club'] .ssr-card .ssr-secure,
+html[data-appearance='ivory-club'] .modal .muted,
+html[data-appearance='ivory-club'] .modal .settings-hint {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ivory-club'] .ssr-card .ssr-link {
+  color: var(--brand-dark);
+}
+
+/* Fee charge modal — light surfaces, dark text */
+html[data-appearance='ivory-club'] .modal.fee-charge-modal {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .modal-header,
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .modal-footer {
+  background: #faf4ea;
+  border-color: var(--line);
+}
+
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .modal-header h2,
+html[data-appearance='ivory-club'] .modal.fee-charge-modal #modal-title,
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .fee-charge-section h3,
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .fee-charge-form {
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .field-label,
+html[data-appearance='ivory-club'] .modal.fee-charge-modal label > span,
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .field > span,
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .fee-month-chip span {
+  color: #5c453c;
+}
+
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .settings-hint,
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .muted,
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .fee-charge-section .muted,
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .fee-charge-form .muted {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .fee-month-chip {
+  background: #f7f1e6;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .fee-month-chip:has(input:checked),
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .fee-month-chip.is-active {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+  color: var(--brand-dark);
+}
+
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .field-input,
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .fee-charge-section select,
+html[data-appearance='ivory-club'] .modal.fee-charge-modal .fee-charge-section input:not([type='checkbox']) {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+/* ---- Fees / transactions contrast ---- */
+html[data-appearance='ivory-club'] .fees-page,
+html[data-appearance='ivory-club'] .transactions-page,
+html[data-appearance='ivory-club'] .tx-page,
+html[data-appearance='ivory-club'] .fees-table,
+html[data-appearance='ivory-club'] .tx-table {
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .fees-page .muted,
+html[data-appearance='ivory-club'] .transactions-page .muted,
+html[data-appearance='ivory-club'] .tx-page .muted,
+html[data-appearance='ivory-club'] .status-pill,
+html[data-appearance='ivory-club'] .badge,
+html[data-appearance='ivory-club'] .chip {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ivory-club'] .status-pill.is-paid,
+html[data-appearance='ivory-club'] .badge.is-positive,
+html[data-appearance='ivory-club'] .chip.is-success {
+  color: #067647;
+  background: rgba(6, 118, 71, 0.1);
+}
+
+html[data-appearance='ivory-club'] .status-pill.is-due,
+html[data-appearance='ivory-club'] .status-pill.is-pending,
+html[data-appearance='ivory-club'] .badge.is-warn {
+  color: #9a3412;
+  background: rgba(181, 71, 8, 0.12);
+}
+
+html[data-appearance='ivory-club'] .status-pill.is-overdue,
+html[data-appearance='ivory-club'] .badge.is-danger {
+  color: #b42318;
+  background: rgba(180, 35, 24, 0.1);
+}
+
+/* ---- Announcements ---- */
+html[data-appearance='ivory-club'] .announcements-page .page-header h1,
+html[data-appearance='ivory-club'] .ann-card,
+html[data-appearance='ivory-club'] .ann-card h3,
+html[data-appearance='ivory-club'] .ann-card strong {
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .ann-card,
+html[data-appearance='ivory-club'] .ann-list-item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+html[data-appearance='ivory-club'] .ann-card .muted,
+html[data-appearance='ivory-club'] .ann-meta,
+html[data-appearance='ivory-club'] .ann-audience {
+  color: var(--ocean-muted);
+}
+
+/* ---- Portals ---- */
+html[data-appearance='ivory-club'] .athlete-portal,
+html[data-appearance='ivory-club'] .coach-portal,
+html[data-appearance='ivory-club'] .parent-portal,
+html[data-appearance='ivory-club'] .parent-portal .panel {
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .athlete-portal .muted,
+html[data-appearance='ivory-club'] .coach-portal .muted,
+html[data-appearance='ivory-club'] .parent-portal .muted {
+  color: var(--ocean-muted);
+}
+
+/* ---- Attendance ---- */
+html[data-appearance='ivory-club'] .att-select select,
+html[data-appearance='ivory-club'] .att-select select:focus {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-appearance='ivory-club'] .att-select--date input[type='date'],
+html[data-appearance='ivory-club'] .att-select--date input[type='date']:focus {
+  background: #fff;
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .att-select {
+  background: #fff;
+  border-color: var(--line);
+}
+
+html[data-appearance='ivory-club'] .att-select:focus-within {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(122, 36, 48, 0.2);
+}
+
+/* ---- Login (light card on slate hero) ---- */
+html[data-appearance='ivory-club'] .login-page {
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .login-hero-panel {
+  background: var(--chrome-1);
+  color: var(--chrome-fg);
+}
+
+html[data-appearance='ivory-club'] .login-hero-title,
+html[data-appearance='ivory-club'] .login-hero-name,
+html[data-appearance='ivory-club'] .login-hero-features li {
+  color: var(--chrome-fg);
+}
+
+html[data-appearance='ivory-club'] .login-hero-features li span,
+html[data-appearance='ivory-club'] .login-hero-copy {
+  color: var(--chrome-muted);
+}
+
+html[data-appearance='ivory-club'] .login-card {
+  background: #ffffff;
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .login-card input,
+html[data-appearance='ivory-club'] .login-card select,
+html[data-appearance='ivory-club'] .login-card textarea {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-appearance='ivory-club'] .login-submit,
+html[data-appearance='ivory-club'] .login-card .btn-primary {
+  background: var(--login-submit);
+  color: var(--login-submit-fg);
+}
+
+/* ---- Public join ---- */
+html[data-appearance='ivory-club'] .public-join-page,
+html[data-appearance='ivory-club'] .public-join-card,
+html[data-appearance='ivory-club'] .public-join-card h2,
+html[data-appearance='ivory-club'] .public-join-kind,
+html[data-appearance='ivory-club'] .public-join-kind legend,
+html[data-appearance='ivory-club'] .public-join-choice-card,
+html[data-appearance='ivory-club'] .public-join-choice-card legend,
+html[data-appearance='ivory-club'] .public-join-choice-body,
+html[data-appearance='ivory-club'] .public-join-choice-option,
+html[data-appearance='ivory-club'] .public-join-terms,
+html[data-appearance='ivory-club'] .public-join-terms summary,
+html[data-appearance='ivory-club'] .public-join-terms span,
+html[data-appearance='ivory-club'] .public-join-terms-body {
+  color: var(--ink);
+}
+
+html[data-appearance='ivory-club'] .public-join-card .lede,
+html[data-appearance='ivory-club'] .public-join-card .muted,
+html[data-appearance='ivory-club'] .public-join-card .field-label {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ivory-club'] .public-join-page .btn-primary {
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #ffffff;
+}
+
+/* ---- Shell density ---- */
+html[data-appearance='ivory-club'] .sidebar {
+  padding: 0.95rem 0.9rem;
+  gap: 1rem;
+}
+
+html[data-appearance='ivory-club'] .nav-link {
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  font-size: 1.05rem;
+}
+
+html[data-appearance='ivory-club'] .page {
+  padding: 0.75rem 1.35rem 1.85rem;
+}
+
+html[data-appearance='ivory-club'] .page-header {
+  margin-bottom: 0.85rem;
+}
+
+html[data-appearance='ivory-club'] .btn {
+  border-radius: 8px;
+}
+
+/* ---- Tabs / filters ---- */
+html[data-appearance='ivory-club'] .tabs button,
+html[data-appearance='ivory-club'] .segmented button,
+html[data-appearance='ivory-club'] .filter-chip {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ivory-club'] .tabs button.is-active,
+html[data-appearance='ivory-club'] .tabs button[aria-selected='true'],
+html[data-appearance='ivory-club'] .segmented button.is-active,
+html[data-appearance='ivory-club'] .filter-chip.is-active {
+  color: var(--brand-dark);
+  background: var(--brand-soft);
+}
+
+/* ---- Links on content ---- */
+html[data-appearance='ivory-club'] .main-area a.text-link,
+html[data-appearance='ivory-club'] .page a:not(.btn):not(.nav-link):not([class*='-btn']):not(.cal-block):not(.ssr-submit) {
+  color: var(--brand-dark);
+}
+
+html[data-appearance='ivory-club'] .cal-new-btn,
+html[data-appearance='ivory-club'] a.cal-new-btn:link,
+html[data-appearance='ivory-club'] a.cal-new-btn:visited,
+html[data-appearance='ivory-club'] a.cal-new-btn:hover,
+html[data-appearance='ivory-club'] a.cal-new-btn:active {
+  background: var(--brand-dark);
+  color: #ffffff;
+}
+
+html[data-appearance='ivory-club'] .att-select select option,
+html[data-appearance='ivory-club'] .att-select select optgroup {
+  background: #ffffff;
+  color: #2c1c18;
+}
+
+/* Fee charge hero — slate + teal instead of navy/amber */
+html[data-appearance='ivory-club'] .fee-charge-hero {
+  background: linear-gradient(135deg, #5c1a24 0%, #4a322c 55%, #5c1a24 100%);
+  color: #f7f1e6;
+  border-color: rgba(122, 36, 48, 0.35);
+}
+
+html[data-appearance='ivory-club'] .fee-charge-hero .field-label,
+html[data-appearance='ivory-club'] .fee-charge-hero label > span,
+html[data-appearance='ivory-club'] .fee-charge-hero .field > span,
+html[data-appearance='ivory-club'] .fee-charge-hero .check-row,
+html[data-appearance='ivory-club'] .fee-charge-hero .check-row span,
+html[data-appearance='ivory-club'] .fee-charge-hero .admin-check,
+html[data-appearance='ivory-club'] .fee-charge-hero .admin-check span {
+  color: #f0e6d8 !important;
+}
+
+html[data-appearance='ivory-club'] .fee-charge-hero .field-input,
+html[data-appearance='ivory-club'] .fee-charge-hero select,
+html[data-appearance='ivory-club'] .fee-charge-hero input:not([type='checkbox']) {
+  background: #ffffff !important;
+  color: #2c1c18 !important;
+  border: 1px solid #e2d5c6 !important;
+}
+
+html[data-appearance='ivory-club'] .fee-charge-note {
+  color: rgba(240, 244, 248, 0.82) !important;
+}
+
+html[data-appearance='ivory-club'] .modal.fee-charge-modal.modal--fullscreen .modal-body {
+  background: #f7f1e6;
+}
+
+html[data-appearance='ivory-club'] .ssr-page {
+  --ssr-navy: #4a141c;
+  --ssr-navy-2: #5c1a24;
+  --ssr-amber: #7a2430;
+  --ssr-amber-hot: #c45c6a;
+  --ssr-ink: #2c1c18;
+  --ssr-muted: #6b5a52;
+  background: #5c1a24;
+  color: #f7f1e6;
+}
+
+html[data-appearance='ivory-club'] .ssr-card {
+  background: #ffffff;
+  color: var(--ssr-ink);
+}
+
+html[data-appearance='ivory-club'] .ssr-card-icon {
+  background: #5c1a24;
+  border-color: #7a2430;
+  box-shadow: 0 0 0 3px rgba(122, 36, 48, 0.18);
+  color: #fff;
+}
+
+/* ---- Empty / placeholder ---- */
+html[data-appearance='ivory-club'] .empty-state,
+html[data-appearance='ivory-club'] .empty-state p,
+html[data-appearance='ivory-club'] .placeholder {
+  color: var(--ocean-muted);
+}
+
+html[data-appearance='ivory-club'] .admin-zone-title,
+html[data-appearance='ivory-club'] .admin-workspace-tab.is-active {
+  background: #5c1a24;
+  color: #f0e6d8;
+}
+
+html[data-appearance='ivory-club'] .admin-zone-card-head {
+  background: #f3eadc;
+}
+
+html[data-appearance='ivory-club'] .admin-drill-col {
+  background: #f3eadc;
+}
+
+html[data-appearance='ivory-club'] .admin-drill-btn.is-active {
+  background: #f0e0d6;
+  border-left-color: #7a2430;
+}
+
+html[data-appearance='ivory-club'] .admin-drill-btn.is-active svg {
+  color: #7a2430;
+}
+
+html[data-appearance='ivory-club'] .cport-role-pill,
+html[data-appearance='ivory-club'] .aport-pill {
+  color: var(--ocean-ink);
+  background: rgba(122, 36, 48, 0.16);
+  border: 1px solid #7a2430;
+}
+
+
+html[data-appearance='ivory-club'] .app-header,
+html[data-appearance='ivory-club'] .sidebar {
+  background: var(--chrome-1);
+}
+
+html[data-appearance='ivory-club'] .fee-charge-hero {
+  background: linear-gradient(135deg, #5c1a24 0%, #7a2430 55%, #b8860b 100%);
+  color: #f7f1e6;
+  border-color: rgba(184, 134, 11, 0.35);
+}

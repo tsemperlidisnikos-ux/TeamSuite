@@ -122,6 +122,86 @@ html[data-appearance='graphite-ember'] {
   --field-bg: #16181c;
 }
 
+/* Aegean Navy — navy chrome + sky teal, light content */
+html[data-appearance='aegean-navy'] {
+  --bg: #f3f6fb;
+  --bg-deep: #e6edf5;
+  --surface: #ffffff;
+  --ink: #0f1d33;
+  --muted: #4a5d70;
+  --line: rgba(11, 31, 58, 0.12);
+  --brand: #2a9bb5;
+  --brand-dark: #1e7a8f;
+  --brand-soft: rgba(42, 155, 181, 0.14);
+  --accent: #d4a017;
+  --accent-soft: rgba(212, 160, 23, 0.18);
+  --danger: #b42318;
+  --warn: #b54708;
+  --positive: #067647;
+  --shadow: 0 14px 32px rgba(11, 31, 58, 0.1);
+  --radius: 12px;
+  --sidebar: 260px;
+  --chrome-1: #0b1f3a;
+  --chrome-2: #102848;
+  --chrome-3: #081428;
+  --chrome-fg: #f0f4f8;
+  --chrome-muted: rgba(240, 244, 248, 0.72);
+  --chrome-faint: rgba(240, 244, 248, 0.48);
+  --body-glow-1: rgba(42, 155, 181, 0.1);
+  --body-glow-2: rgba(11, 31, 58, 0.08);
+  --body-top: #f5f8fb;
+  --login-bg: #0b1f3a;
+  --login-submit: #2a9bb5;
+  --login-submit-fg: #ffffff;
+  --brand-button-shadow: 0 10px 22px rgba(42, 155, 181, 0.28);
+  --font-body: 'Manrope', sans-serif;
+  --font-display: 'Sora', sans-serif;
+  --app-header-h-token: 80px;
+  --table-head-bg: #e8eef4;
+  --table-row-hover: rgba(42, 155, 181, 0.07);
+  --field-bg: #ffffff;
+}
+
+/* Ivory Club — burgundy chrome + cream, gold accent */
+html[data-appearance='ivory-club'] {
+  --bg: #f7f1e6;
+  --bg-deep: #efe4d4;
+  --surface: #fffaf3;
+  --ink: #2c1c18;
+  --muted: #6b5a52;
+  --line: rgba(44, 28, 24, 0.12);
+  --brand: #7a2430;
+  --brand-dark: #5c1a24;
+  --brand-soft: rgba(122, 36, 48, 0.12);
+  --accent: #b8860b;
+  --accent-soft: rgba(184, 134, 11, 0.18);
+  --danger: #b42318;
+  --warn: #b54708;
+  --positive: #067647;
+  --shadow: 0 14px 32px rgba(44, 28, 24, 0.08);
+  --radius: 14px;
+  --sidebar: 260px;
+  --chrome-1: #5c1a24;
+  --chrome-2: #6e2230;
+  --chrome-3: #4a141c;
+  --chrome-fg: #f7f1e6;
+  --chrome-muted: rgba(247, 241, 230, 0.72);
+  --chrome-faint: rgba(247, 241, 230, 0.48);
+  --body-glow-1: rgba(184, 134, 11, 0.12);
+  --body-glow-2: rgba(92, 26, 36, 0.08);
+  --body-top: #faf6ee;
+  --login-bg: #5c1a24;
+  --login-submit: #7a2430;
+  --login-submit-fg: #fffaf3;
+  --brand-button-shadow: 0 10px 22px rgba(92, 26, 36, 0.28);
+  --font-body: 'Manrope', sans-serif;
+  --font-display: 'Sora', sans-serif;
+  --app-header-h-token: 80px;
+  --table-head-bg: #f0e6d8;
+  --table-row-hover: rgba(122, 36, 48, 0.07);
+  --field-bg: #fffaf3;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -176,7 +256,7 @@ strong {
   justify-content: space-between;
   gap: 1.15rem;
   padding: 0.85rem 1.5rem;
-  background: #000;
+  background: var(--chrome-1);
   color: var(--chrome-fg);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -361,7 +441,7 @@ strong {
   top: var(--app-header-h);
   height: calc(100vh - var(--app-header-h));
   padding: 1.25rem;
-  background: #000;
+  background: var(--chrome-1);
   color: var(--chrome-fg);
   display: flex;
   flex-direction: column;
@@ -478,6 +558,30 @@ html[data-appearance='graphite-ember'] .nav-link.active {
 
 html[data-appearance='graphite-ember'] .nav-link:hover {
   background: rgba(232, 93, 44, 0.16);
+  color: #fff;
+}
+
+html[data-appearance='aegean-navy'] .nav-link.active {
+  background: var(--brand);
+  color: #ffffff;
+  font-weight: 750;
+  box-shadow: none;
+}
+
+html[data-appearance='aegean-navy'] .nav-link:hover {
+  background: rgba(42, 155, 181, 0.22);
+  color: #fff;
+}
+
+html[data-appearance='ivory-club'] .nav-link.active {
+  background: rgba(247, 241, 230, 0.14);
+  color: #fffaf3;
+  font-weight: 750;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+html[data-appearance='ivory-club'] .nav-link:hover {
+  background: rgba(247, 241, 230, 0.1);
   color: #fff;
 }
 
@@ -5287,6 +5391,23 @@ html[data-appearance] .settings-backup-schedule-status {
   color: var(--muted);
 }
 
+.platform-modal .platform-online-pay .checkbox-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.platform-modal .platform-online-pay .checkbox-row input[type='checkbox'] {
+  width: auto;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  accent-color: #2563eb;
+}
+
 .packages-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -6254,7 +6375,7 @@ a.money-strip-item {
   padding: 0.85rem 0.9rem;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   text-align: left;
 }

@@ -297,6 +297,84 @@ html[data-appearance='graphite-ember'] .login-submit:not(.login-submit-secondary
   color: #140c08;
 }
 
+/* ---- Aegean Navy: navy chrome + teal ---- */
+html[data-appearance='aegean-navy'] .login-hero-panel {
+  background: #0b1f3a;
+}
+
+html[data-appearance='aegean-navy'] .login-hero-glow {
+  background:
+    radial-gradient(ellipse 70% 55% at 12% 8%, rgba(42, 155, 181, 0.28), transparent 58%),
+    radial-gradient(ellipse 65% 50% at 88% 92%, rgba(212, 160, 23, 0.14), transparent 55%),
+    radial-gradient(circle at 40% 45%, rgba(255, 255, 255, 0.03), transparent 42%);
+}
+
+html[data-appearance='aegean-navy'] .login-hero-watermark {
+  color: rgba(255, 255, 255, 0.025);
+}
+
+html[data-appearance='aegean-navy'] .login-hero-360,
+html[data-appearance='aegean-navy'] .login-hero-accent {
+  color: #2a9bb5;
+  background-color: #2a9bb5;
+}
+
+html[data-appearance='aegean-navy'] .login-hero-360 {
+  background: none;
+}
+
+html[data-appearance='aegean-navy'] .login-form-panel {
+  background: #f3f6fb;
+}
+
+html[data-appearance='aegean-navy'] .login-text-link,
+html[data-appearance='aegean-navy'] .login-footer-link a {
+  color: #1e7a8f;
+}
+
+/* ---- Ivory Club: burgundy + cream ---- */
+html[data-appearance='ivory-club'] .login-hero-panel {
+  background: #5c1a24;
+}
+
+html[data-appearance='ivory-club'] .login-hero-glow {
+  background:
+    radial-gradient(ellipse 70% 55% at 12% 8%, rgba(184, 134, 11, 0.28), transparent 58%),
+    radial-gradient(ellipse 65% 50% at 88% 92%, rgba(122, 36, 48, 0.35), transparent 55%),
+    radial-gradient(circle at 40% 45%, rgba(255, 255, 255, 0.04), transparent 42%);
+}
+
+html[data-appearance='ivory-club'] .login-hero-watermark {
+  color: rgba(247, 241, 230, 0.06);
+}
+
+html[data-appearance='ivory-club'] .login-hero-360 {
+  color: #d4a017;
+}
+
+html[data-appearance='ivory-club'] .login-hero-accent {
+  background: #d4a017;
+}
+
+html[data-appearance='ivory-club'] .login-form-panel {
+  background: #f7f1e6;
+}
+
+html[data-appearance='ivory-club'] .login-card {
+  background: #fffaf3;
+  border-color: rgba(44, 28, 24, 0.1);
+}
+
+html[data-appearance='ivory-club'] .login-text-link,
+html[data-appearance='ivory-club'] .login-footer-link a {
+  color: #7a2430;
+}
+
+html[data-appearance='ivory-club'] .login-submit:not(.login-submit-secondary) {
+  background: #7a2430;
+  color: #fffaf3;
+}
+
 @media (max-width: 900px) {
   html[data-appearance='ocean-slate'] .login-page,
   html[data-appearance='graphite-ember'] .login-page,
