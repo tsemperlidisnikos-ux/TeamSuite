@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ClipboardCopy, ExternalLink } from 'lucide-react';
+import { ClipboardCopy, Download, ExternalLink, QrCode } from 'lucide-react';
 import * as rentalBookingsService from '../api/services/rentalBookingsService';
 import { getSession } from '../auth/auth';
 import { getClubById, getClubPublicRegistration, slugifyClubName } from '../auth/clubs';
@@ -50,6 +50,9 @@ export function FacilityRentalPanel() {
   const rentPath = slug ? `/rent/${slug}` : '';
   const rentUrl =
     typeof window !== 'undefined' && rentPath ? `${window.location.origin}${rentPath}` : rentPath;
+  const qrImageUrl = rentUrl
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=10&data=${encodeURIComponent(rentUrl)}`
+    : '';
 
   const facilities = useMemo(() => listActiveFacilities(data.facilities), [data.facilities]);
   const settings = data.rentalSettings ?? emptyRentalSettings();
@@ -181,6 +184,28 @@ export function FacilityRentalPanel() {
     }
   }
 
+  async function downloadQr() {
+    if (!qrImageUrl) return;
+    try {
+      const response = await fetch(qrImageUrl);
+      if (!response.ok) throw new Error('QR fetch failed');
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      const slugPart = (slug || 'club').replace(/[^a-z0-9-]/gi, '-');
+      anchor.href = objectUrl;
+      anchor.download = `rent-${slugPart}-qr.png`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+      setMessage('Το QR ενοικίασης κατέβηκε.');
+    } catch {
+      window.open(qrImageUrl, '_blank', 'noopener,noreferrer');
+      setMessage('Άνοιξε το QR σε νέα καρτέλα — αποθήκευσέ το από εκεί.');
+    }
+  }
+
   async function submitBooking() {
     if (!selectedFacility || !selectedSlot) {
       setError('Επιλέξτε διαθέσιμη ώρα.');
@@ -269,6 +294,33 @@ export function FacilityRentalPanel() {
             </a>
           ) : null}
         </div>
+        {qrImageUrl ? (
+          <div className="public-reg-qr-row rental-public-qr">
+            <div className="public-reg-qr-preview">
+              <img
+                src={qrImageUrl}
+                alt={`QR ενοικίασης ${club?.name ?? ''}`}
+                width={180}
+                height={180}
+              />
+            </div>
+            <div className="public-reg-qr-actions">
+              <p className="lede public-reg-inline-lede">
+                Σκάναρε με το κινητό για τη δημόσια κράτηση γηπέδου. Χρήσιμο για αφίσες / Viber /
+                WhatsApp.
+              </p>
+              <Button type="button" variant="secondary" onClick={() => void downloadQr()}>
+                <Download size={16} /> Λήψη PNG
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => window.print()}>
+                <QrCode size={16} /> Εκτύπωση σελίδας
+              </Button>
+              <p className="settings-hint">
+                Το QR δείχνει το δημόσιο URL ενοικίασης (το slug ορίζεται στις Ρυθμίσεις → Εγγραφή).
+              </p>
+            </div>
+          </div>
+        ) : null}
         <label className="field">
           <span className="field-label">Σημείωση στο δημόσιο link</span>
           <input
