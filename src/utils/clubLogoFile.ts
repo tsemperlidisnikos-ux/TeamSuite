@@ -39,6 +39,38 @@ export async function optimizeLogoDataUrl(file: File): Promise<string> {
   return optimized;
 }
 
+/** Landscape cover for public rental / facility photos (keeps more detail than logos). */
+export async function optimizeCoverImageDataUrl(file: File): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Αποτυχία ανάγνωσης αρχείου.'));
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.readAsDataURL(file);
+  });
+
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const element = new Image();
+    element.onload = () => resolve(element);
+    element.onerror = () => reject(new Error('Αποτυχία επεξεργασίας φωτογραφίας.'));
+    element.src = dataUrl;
+  });
+  const maxEdge = 1400;
+  const scale = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Αδυναμία επεξεργασίας φωτογραφίας.');
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const qualities = [0.82, 0.72, 0.62];
+  const maxLength = 900_000;
+  for (const quality of qualities) {
+    const optimized = canvas.toDataURL('image/jpeg', quality);
+    if (optimized.length <= maxLength) return optimized;
+  }
+  throw new Error('Η φωτογραφία παραμένει υπερβολικά μεγάλη. Χρησιμοποιήστε μικρότερο αρχείο.');
+}
+
 export async function saveClubLogoFromFile(
   clubId: string,
   file: File,

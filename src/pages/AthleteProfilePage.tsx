@@ -27,6 +27,7 @@ import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { AppPopupLayer } from '../components/ui/AppPopupLayer';
 import { useAppData } from '../hooks/useAppData';
+import { useT } from '../i18n/LocaleContext';
 import type { StudentInput } from '../schemas';
 import type { DiscountReasonDef, Gender, RegistrationApplication, Student } from '../types';
 import { formatJoinExtrasLines } from '../shared/publicJoinExtras';
@@ -146,12 +147,12 @@ const BLOOD_TYPE_LABEL: Record<string, string> = {
   'O-': 'O-',
 };
 
-function seasonMonths(startYear: number) {
+function seasonMonths(startYear: number, t: (text: string) => string) {
   return MONTH_LABELS.map((label, index) => {
     const year = index < 5 ? startYear : startYear + 1;
     const month = ((index + 7) % 12) + 1;
     const key = `${year}-${String(month).padStart(2, '0')}`;
-    return { label: `${label} ${year}`, key, year, month };
+    return { label: `${t(label)} ${year}`, key, year, month };
   });
 }
 
@@ -286,9 +287,10 @@ function ApField({
   children: ReactNode;
   className?: string;
 }) {
+  const { t } = useT();
   return (
     <label className={`ap-field ${className}`.trim()}>
-      <span className="ap-field-label">{label}</span>
+      <span className="ap-field-label">{t(label)}</span>
       {children}
     </label>
   );
@@ -305,10 +307,11 @@ function ApCard({
   className?: string;
   actions?: ReactNode;
 }) {
+  const { t } = useT();
   return (
     <section className={`ap-card ${className}`.trim()}>
       <div className="ap-card-head">
-        <h3 className="ap-card-title">{title}</h3>
+        <h3 className="ap-card-title">{t(title)}</h3>
         {actions ? <div className="ap-card-actions">{actions}</div> : null}
       </div>
       {children}
@@ -384,6 +387,7 @@ function ApMultiCheckDropdown({
 }
 
 export function AthleteProfilePage() {
+  const { t } = useT();
   const { athleteId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -532,7 +536,7 @@ export function AthleteProfilePage() {
     };
   }, []);
 
-  const months = useMemo(() => seasonMonths(seasonStart), [seasonStart]);
+  const months = useMemo(() => seasonMonths(seasonStart, t), [seasonStart, t]);
 
   const clubOptions = useMemo(() => {
     const options: Array<{ value: string; label: string }> = [{ value: '', label: '—' }];
@@ -1204,7 +1208,7 @@ export function AthleteProfilePage() {
     >
       {YES_NO.map((o) => (
         <option key={o.value} value={o.value}>
-          {o.label}
+          {t(o.label)}
         </option>
       ))}
     </select>
@@ -1225,15 +1229,15 @@ export function AthleteProfilePage() {
       <nav className="ap-breadcrumb" aria-label="Breadcrumb">
         {isSelfAthlete ? (
           <button type="button" className="ap-crumb-link" onClick={() => navigate('/')}>
-            Αρχική
+            {t('Αρχική')}
           </button>
         ) : (
           <button type="button" className="ap-crumb-link" onClick={() => navigate('/athletes')}>
-            Αθλητές
+            {t('Αθλητές')}
           </button>
         )}
         <span className="ap-crumb-sep">›</span>
-        <span>Προφίλ Αθλητή</span>
+        <span>{t('Προφίλ Αθλητή')}</span>
       </nav>
 
       <header className="ap-hero">
@@ -1255,7 +1259,7 @@ export function AthleteProfilePage() {
                       e.target.value = '';
                     }}
                   />
-                  Αλλαγή
+                  {t('Αλλαγή')}
                 </label>
                 {form.photoUrl ? (
                   <button
@@ -1263,7 +1267,7 @@ export function AthleteProfilePage() {
                     className="ap-hero-photo-delete"
                     onClick={() => setField('photoUrl', null)}
                   >
-                    Διαγραφή
+                    {t('Διαγραφή')}
                   </button>
                 ) : null}
               </div>
@@ -1276,11 +1280,11 @@ export function AthleteProfilePage() {
                 {form.lastName} {form.firstName}
               </h1>
               <span className={`ap-status-badge ap-status-badge--${form.status}`}>
-                {statusBadgeLabel(form.status)}
+                {t(statusBadgeLabel(form.status))}
               </span>
             </div>
             <p className="ap-hero-meta">
-              <span>Κωδ. Αθλητή: {form.registrationNumber || student.id.slice(-8).toUpperCase()}</span>
+              <span>{t('Κωδ. Αθλητή:')} {form.registrationNumber || student.id.slice(-8).toUpperCase()}</span>
               <span className="ap-hero-dot">·</span>
               <span>Ημ/νία Εγγραφής: {formatDate(student.enrolledAt)}</span>
             </p>
@@ -1423,7 +1427,7 @@ export function AthleteProfilePage() {
             onClick={() => setProfileTab(id)}
           >
             <Icon size={15} aria-hidden />
-            <span>{label}</span>
+            <span>{t(label)}</span>
           </button>
         ))}
       </div>
@@ -2211,7 +2215,7 @@ export function AthleteProfilePage() {
                     });
                 }}
               >
-                {progressSaving ? 'Αποθήκευση…' : 'Αποθήκευση αναφοράς'}
+                {progressSaving ? t('Αποθήκευση…') : t('Αποθήκευση αναφοράς')}
               </Button>
             </div>
           </ApCard>
@@ -2286,7 +2290,7 @@ export function AthleteProfilePage() {
                 Ακύρωση
               </Button>
               <Button type="button" disabled={saving} onClick={() => void handleSave()}>
-                {saving ? 'Αποθήκευση…' : 'Αποθήκευση Αλλαγών'}
+                {saving ? t('Αποθήκευση…') : t('Αποθήκευση Αλλαγών')}
               </Button>
             </>
           ) : (

@@ -293,6 +293,7 @@ export const facilitySchema = z.object({
   sports: z.array(z.string().min(1)).min(1, 'Επιλέξτε τουλάχιστον ένα άθλημα'),
   timeLayout: z.enum(FACILITY_TIME_LAYOUT_IDS).default('08:00-00:00-15'),
   sortOrder: z.coerce.number().int().min(0).max(999).default(1),
+  photoUrl: z.string().nullable().optional(),
 });
 
 export type FacilityInput = z.infer<typeof facilitySchema>;
@@ -303,6 +304,7 @@ export const rentalBookingInputSchema = z.object({
   startTime: z.string().min(4, 'Ώρα έναρξης υποχρεωτική'),
   endTime: z.string().min(4, 'Ώρα λήξης υποχρεωτική'),
   courtShare: z.enum(['full', 'half']).default('full'),
+  useLockerRoom: z.boolean().optional().default(false),
   customerName: z.string().min(2, 'Το ονοματεπώνυμο είναι υποχρεωτικό'),
   customerPhone: z.string().min(6, 'Το τηλέφωνο είναι υποχρεωτικό'),
   customerEmail: z.string().optional().default(''),
@@ -316,6 +318,12 @@ export type RentalBookingInput = z.infer<typeof rentalBookingInputSchema>;
 export const rentalSettingsSchema = z.object({
   publicEnabled: z.boolean().default(false),
   notes: z.string().optional().default(''),
+  heroImageUrl: z.string().nullable().optional(),
+  photoLook: z
+    .enum(['g', 'h', 'i'])
+    .optional()
+    .default('g')
+    .transform(() => 'g' as const),
   rules: z.array(
     z.object({
       facilityId: z.string().min(1),
@@ -331,6 +339,8 @@ export const rentalSettingsSchema = z.object({
       hourlyRate: z.coerce.number().min(0).optional().default(0),
       hourlyRateFull: z.coerce.number().min(0).optional().default(0),
       hourlyRateHalf: z.coerce.number().min(0).optional().default(0),
+      lockerRoomAvailable: z.boolean().optional().default(false),
+      lockerRoomFee: z.coerce.number().min(0).optional().default(0),
     }),
   ),
 });

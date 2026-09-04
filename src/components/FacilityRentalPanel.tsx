@@ -1,15 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ClipboardCopy, Download, ExternalLink } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { ClipboardCopy, Download, ExternalLink, ImagePlus, Trash2 } from 'lucide-react';
 import * as rentalBookingsService from '../api/services/rentalBookingsService';
+import * as facilitiesService from '../api/services/facilitiesService';
 import { getSession } from '../auth/auth';
 import { getClubById, getClubPublicRegistration, slugifyClubName } from '../auth/clubs';
 import { Button } from './ui/Button';
 import { useAppData } from '../hooks/useAppData';
+import { useT } from '../i18n/LocaleContext';
 import { getPreviewClubId } from '../platform/platformConfig';
+import type { FacilityInput, RentalBookingInput } from '../schemas';
 import type { Facility, FacilityRentalRule, RentalCourtShare, RentalSettings } from '../types';
 import { localDateIso } from '../utils/dates';
 import { formatCurrency } from '../utils/labels';
 import { listActiveFacilities } from '../utils/facilityHours';
+import { optimizeCoverImageDataUrl } from '../utils/clubLogoFile';
 import {
   RENTAL_SLOT_OPTIONS,
   RENTAL_WEEKDAYS,
@@ -18,10 +22,10 @@ import {
   defaultRuleForFacility,
   emptyRentalSettings,
   listRentalSlots,
+  lockerRoomFeeAmount,
   occupancyForDate,
   ruleForFacility,
 } from '../shared/facilityRentalAvailability';
-import type { RentalBookingInput } from '../schemas';
 
 function nextDays(count: number): string[] {
   const today = new Date();
@@ -40,6 +44,7 @@ function formatDayChip(iso: string): string {
 }
 
 export function FacilityRentalPanel() {
+  const { t } = useT();
   const { data, refresh } = useAppData();
   const session = getSession();
   const clubId = getPreviewClubId() ?? session?.clubId ?? null;
@@ -64,7 +69,9 @@ export function FacilityRentalPanel() {
     null,
   );
   const [courtShare, setCourtShare] = useState<RentalCourtShare>('full');
-  const [customerName, setCustomerName] = useState('');
+  const [useLockerRoom, setUseLockerRoom] = useState(false);
+  const [customerLastName, setCustomerLastName] = useState('');
+  const [customerFirstName, setCustomerFirstName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [notes, setNotes] = useState('');
@@ -73,6 +80,9 @@ export function FacilityRentalPanel() {
   const [booking, setBooking] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [panelTab, setPanelTab] = useState<'public' | 'availability' | 'bookings'>('availability');
+  const heroFileRef = useRef<HTMLInputElement>(null);
+  const facilityPhotoRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     setDraft(data.rentalSettings ?? emptyRentalSettings());
@@ -117,7 +127,8 @@ export function FacilityRentalPanel() {
     : null;
   const baseAmount =
     selectedSlot && selectedRule
-      ? bookingAmount(selectedRule, selectedSlot.startTime, selectedSlot.endTime, courtShare)
+      ? bookingAmount(selectedRule, selectedSlot.startTime, selectedSlot.endTime, courtShare) +
+        lockerRoomFeeAmount(selectedRule, useLockerRoom)
       : 0;
   const discountValue = Math.max(0, Number(specialDiscount.replace(',', '.')) || 0);
   const payableAmount = Math.max(0, Math.round((baseAmount - discountValue) * 100) / 100);
@@ -164,13 +175,80 @@ export function FacilityRentalPanel() {
     setSaving(true);
     setError('');
     setMessage('');
-    const result = await rentalBookingsService.saveRentalSettings(draft);
+    const result = await rentalBookingsService.saveRentalSettings({ ...draft, photoLook: 'g' });
     setSaving(false);
     if (!result.success) {
       setError(result.error ?? 'Αποτυχία αποθήκευσης.');
       return;
     }
     setMessage('Οι ρυθμίσεις ενοικίασης αποθηκεύτηκαν.');
+    refresh();
+  }
+
+  async function readCoverFile(file: File): Promise<string> {
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Επιλέξτε εικόνα (JPG, PNG, WEBP).');
+    }
+    if (file.size > 2_000_000) {
+      throw new Error('Η φωτογραφία πρέπει να είναι έως 2MB.');
+    }
+    return optimizeCoverImageDataUrl(file);
+  }
+
+  async function handleHeroFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      const dataUrl = await readCoverFile(file);
+      setDraft((prev) => ({ ...prev, heroImageUrl: dataUrl }));
+      setError('');
+      setMessage('Η φωτογραφία δημόσιου link ενημερώθηκε — πατήστε Αποθήκευση διαθεσιμότητας.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Αποτυχία ανάγνωσης φωτογραφίας.');
+    }
+  }
+
+  async function handleFacilityPhoto(facility: Facility, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      const dataUrl = await readCoverFile(file);
+      const result = await facilitiesService.updateFacility(facility.id, {
+        name: facility.name,
+        active: facility.active,
+        sports: facility.sports,
+        timeLayout: (facility.timeLayout as FacilityInput['timeLayout']) || '08:00-00:00-15',
+        sortOrder: facility.sortOrder,
+        photoUrl: dataUrl,
+      });
+      if (!result.success) {
+        setError(result.error ?? 'Αποτυχία αποθήκευσης φωτογραφίας γηπέδου.');
+        return;
+      }
+      setError('');
+      setMessage(`Η φωτογραφία του «${facility.name}» αποθηκεύτηκε.`);
+      refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Αποτυχία ανάγνωσης φωτογραφίας.');
+    }
+  }
+
+  async function removeFacilityPhoto(facility: Facility) {
+    const result = await facilitiesService.updateFacility(facility.id, {
+      name: facility.name,
+      active: facility.active,
+      sports: facility.sports,
+      timeLayout: (facility.timeLayout as FacilityInput['timeLayout']) || '08:00-00:00-15',
+      sortOrder: facility.sortOrder,
+      photoUrl: null,
+    });
+    if (!result.success) {
+      setError(result.error ?? 'Αποτυχία αφαίρεσης φωτογραφίας.');
+      return;
+    }
+    setMessage(`Αφαιρέθηκε η φωτογραφία του «${facility.name}».`);
     refresh();
   }
 
@@ -220,7 +298,8 @@ export function FacilityRentalPanel() {
       startTime: selectedSlot.startTime,
       endTime: selectedSlot.endTime,
       courtShare,
-      customerName,
+      useLockerRoom: useLockerRoom && Boolean(selectedRule?.lockerRoomAvailable),
+      customerName: `${customerLastName.trim()} ${customerFirstName.trim()}`.trim(),
       customerPhone,
       customerEmail,
       notes,
@@ -234,17 +313,19 @@ export function FacilityRentalPanel() {
       return;
     }
     setMessage('Η κράτηση καταχωρήθηκε.');
-    setCustomerName('');
+    setCustomerLastName('');
+    setCustomerFirstName('');
     setCustomerPhone('');
     setCustomerEmail('');
     setNotes('');
     setSpecialDiscount('');
     setSelectedSlot(null);
+    setUseLockerRoom(false);
     refresh();
   }
 
   async function cancelBooking(id: string) {
-    if (!confirm('Ακύρωση κράτησης;')) return;
+    if (!confirm(t('Ακύρωση κράτησης;'))) return;
     const result = await rentalBookingsService.cancelRentalBooking(id);
     if (!result.success) {
       setError(result.error ?? 'Αποτυχία ακύρωσης.');
@@ -274,61 +355,137 @@ export function FacilityRentalPanel() {
       {error ? <p className="form-error">{error}</p> : null}
       {message ? <p className="muted">{message}</p> : null}
 
+      <div className="tabs rental-panel-tabs">
+        <button
+          type="button"
+          className={panelTab === 'public' ? 'tab active' : 'tab'}
+          onClick={() => setPanelTab('public')}
+        >
+          {t('Δημόσιο link')}
+        </button>
+        <button
+          type="button"
+          className={panelTab === 'availability' ? 'tab active' : 'tab'}
+          onClick={() => setPanelTab('availability')}
+        >
+          {t('Διαθεσιμότητα')}
+        </button>
+        <button
+          type="button"
+          className={panelTab === 'bookings' ? 'tab active' : 'tab'}
+          onClick={() => setPanelTab('bookings')}
+        >
+          {t('Κρατήσεις')}
+        </button>
+      </div>
+
+      {panelTab === 'public' ? (
       <div className="rental-public-box">
+        <div className="rental-public-toolbar">
         <label className="checkbox-row">
           <input
             type="checkbox"
             checked={draft.publicEnabled}
             onChange={(e) => setDraft((prev) => ({ ...prev, publicEnabled: e.target.checked }))}
           />
-          Δημόσιο link ενεργό
+          {t('Δημόσιο link ενεργό')}
         </label>
         <div className="rental-public-url">
-          <input className="field-input" readOnly value={rentUrl || 'Ορίστε slug στις Ρυθμίσεις → Δημόσια εγγραφή'} />
+          <input className="field-input" readOnly value={rentUrl || t('Ορίστε slug στις Ρυθμίσεις → Δημόσια εγγραφή')} />
           <Button type="button" variant="secondary" onClick={() => void copyLink()} disabled={!rentUrl}>
-            <ClipboardCopy size={16} /> Αντιγραφή
+            <ClipboardCopy size={16} /> {t('Αντιγραφή')}
           </Button>
           {rentUrl ? (
             <a className="btn btn-secondary" href={rentUrl} target="_blank" rel="noreferrer">
-              <ExternalLink size={16} /> Άνοιγμα
+              <ExternalLink size={16} /> {t('Άνοιγμα')}
             </a>
           ) : null}
         </div>
+        </div>
+        <div className="rental-public-media">
         {qrImageUrl ? (
-          <div className="public-reg-qr-row rental-public-qr">
+          <div className="rental-public-media-qr">
             <div className="public-reg-qr-preview">
               <img
                 src={qrImageUrl}
                 alt={`QR ενοικίασης ${club?.name ?? ''}`}
-                width={180}
-                height={180}
+                width={132}
+                height={132}
               />
             </div>
             <div className="public-reg-qr-actions">
               <p className="lede public-reg-inline-lede">
-                Σκάναρε με το κινητό για τη δημόσια κράτηση γηπέδου. Χρήσιμο για αφίσες / Viber /
-                WhatsApp.
+                {t(
+                  'Σκάναρε με το κινητό για τη δημόσια κράτηση γηπέδου. Χρήσιμο για αφίσες / Viber / WhatsApp.',
+                )}
               </p>
               <Button type="button" variant="secondary" onClick={() => void downloadQr()}>
-                <Download size={16} /> Λήψη PNG
+                <Download size={16} /> {t('Λήψη PNG')}
               </Button>
               <p className="settings-hint">
-                Το QR δείχνει το δημόσιο URL ενοικίασης (το slug ορίζεται στις Ρυθμίσεις → Εγγραφή).
+                {t('Το QR δείχνει το δημόσιο URL ενοικίασης (το slug ορίζεται στις Ρυθμίσεις → Εγγραφή).')}
               </p>
             </div>
           </div>
         ) : null}
+        <div className="public-reg-photo-row rental-public-media-photo">
+          <div className="public-reg-photo-preview rental-hero-preview">
+            {draft.heroImageUrl ? (
+              <img src={draft.heroImageUrl} alt="Φωτογραφία δημόσιας ενοικίασης" />
+            ) : (
+              <span>{t('Χωρίς φωτογραφία κεφαλίδας')}</span>
+            )}
+          </div>
+          <div className="public-reg-photo-actions">
+            <input
+              ref={heroFileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              hidden
+              onChange={(e) => void handleHeroFile(e)}
+            />
+            <Button type="button" variant="secondary" onClick={() => heroFileRef.current?.click()}>
+              <ImagePlus size={16} /> {t('Φωτογραφία δημόσιου link')}
+            </Button>
+            {draft.heroImageUrl ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setDraft((prev) => ({ ...prev, heroImageUrl: null }));
+                  setMessage('Η φωτογραφία αφαιρέθηκε — πατήστε Αποθήκευση διαθεσιμότητας.');
+                }}
+              >
+                <Trash2 size={16} /> {t('Αφαίρεση')}
+              </Button>
+            ) : null}
+            <p className="settings-hint">
+              {t('Εμφανίζεται στην κεφαλίδα του /rent. JPG / PNG / WEBP · οριζόντια φωτογραφία γηπέδου.')}
+            </p>
+          </div>
+        </div>
+        </div>
+        <div className="rental-public-footer">
         <label className="field">
-          <span className="field-label">Σημείωση στο δημόσιο link</span>
+          <span className="field-label">{t('Σημείωση στο δημόσιο link')}</span>
           <input
             className="field-input"
             value={draft.notes}
             onChange={(e) => setDraft((prev) => ({ ...prev, notes: e.target.value }))}
-            placeholder="π.χ. Ελάχιστη διάρκεια 1 ώρα. Πληρωμή στη γραμματεία."
+            placeholder={t('π.χ. Ελάχιστη διάρκεια 1 ώρα. Πληρωμή στη γραμματεία.')}
           />
         </label>
+        <div className="prints-filter-actions">
+          <Button type="button" onClick={() => void saveSettings()} disabled={saving}>
+            {saving ? t('Αποθήκευση…') : t('Αποθήκευση')}
+          </Button>
+        </div>
+        </div>
       </div>
+      ) : null}
 
+      {panelTab === 'availability' ? (
+      <>
       <div className="rental-facility-list">
         {facilities.map((facility) => {
           const rule = ruleOf(facility);
@@ -346,6 +503,42 @@ export function FacilityRentalPanel() {
                 </label>
                 <span className="muted">{facility.sports.join(', ')}</span>
               </div>
+              <div className="rental-facility-photo-row">
+                <div className="rental-facility-photo-preview">
+                  {facility.photoUrl ? (
+                    <img src={facility.photoUrl} alt={facility.name} />
+                  ) : (
+                    <span>{t('Χωρίς φωτο')}</span>
+                  )}
+                </div>
+                <div className="public-reg-photo-actions">
+                  <input
+                    ref={(el) => {
+                      facilityPhotoRefs.current[facility.id] = el;
+                    }}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    hidden
+                    onChange={(e) => void handleFacilityPhoto(facility, e)}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => facilityPhotoRefs.current[facility.id]?.click()}
+                  >
+                    <ImagePlus size={16} /> {t('Φωτογραφία γηπέδου')}
+                  </Button>
+                  {facility.photoUrl ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => void removeFacilityPhoto(facility)}
+                    >
+                      <Trash2 size={16} /> {t('Αφαίρεση')}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
               <div className="rental-day-row">
                 {RENTAL_WEEKDAYS.map((day) => (
                   <button
@@ -355,13 +548,13 @@ export function FacilityRentalPanel() {
                     onClick={() => toggleDay(facility.id, day.value)}
                     disabled={!rule.enabled}
                   >
-                    {day.label}
+                    {t(day.label)}
                   </button>
                 ))}
               </div>
               <div className="rental-hours-row">
                 <label className="field">
-                  <span className="field-label">Από</span>
+                  <span className="field-label">{t('Από')}</span>
                   <input
                     className="field-input"
                     type="time"
@@ -371,7 +564,7 @@ export function FacilityRentalPanel() {
                   />
                 </label>
                 <label className="field">
-                  <span className="field-label">Έως</span>
+                  <span className="field-label">{t('Έως')}</span>
                   <input
                     className="field-input"
                     type="time"
@@ -381,7 +574,7 @@ export function FacilityRentalPanel() {
                   />
                 </label>
                 <label className="field">
-                  <span className="field-label">Διάρκεια</span>
+                  <span className="field-label">{t('Διάρκεια')}</span>
                   <select
                     className="field-input"
                     value={rule.slotMinutes}
@@ -392,13 +585,13 @@ export function FacilityRentalPanel() {
                   >
                     {RENTAL_SLOT_OPTIONS.map((n) => (
                       <option key={n} value={n}>
-                        {n} λεπτά
+                        {n} {t('λεπτά')}
                       </option>
                     ))}
                   </select>
                 </label>
                 <label className="field">
-                  <span className="field-label">€/ώρα ολόκληρο</span>
+                  <span className="field-label">{t('€/ώρα ολόκληρο')}</span>
                   <input
                     className="field-input"
                     type="number"
@@ -413,7 +606,7 @@ export function FacilityRentalPanel() {
                   />
                 </label>
                 <label className="field">
-                  <span className="field-label">€/ώρα μισό</span>
+                  <span className="field-label">{t('€/ώρα μισό')}</span>
                   <input
                     className="field-input"
                     type="number"
@@ -426,6 +619,31 @@ export function FacilityRentalPanel() {
                     }
                   />
                 </label>
+                <label className="checkbox-row rental-locker-setting">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(rule.lockerRoomAvailable)}
+                    disabled={!rule.enabled}
+                    onChange={(e) =>
+                      patchRule(facility.id, { lockerRoomAvailable: e.target.checked })
+                    }
+                  />
+                  {t('Χρήση αποδυτηρίου')}
+                </label>
+                <label className="field">
+                  <span className="field-label">{t('€ αποδυτήριο')}</span>
+                  <input
+                    className="field-input"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={rule.lockerRoomFee || ''}
+                    disabled={!rule.enabled || !rule.lockerRoomAvailable}
+                    onChange={(e) =>
+                      patchRule(facility.id, { lockerRoomFee: Number(e.target.value) || 0 })
+                    }
+                  />
+                </label>
               </div>
             </article>
           );
@@ -434,11 +652,15 @@ export function FacilityRentalPanel() {
 
       <div className="prints-filter-actions">
         <Button type="button" onClick={() => void saveSettings()} disabled={saving}>
-          {saving ? 'Αποθήκευση…' : 'Αποθήκευση διαθεσιμότητας'}
+          {saving ? t('Αποθήκευση…') : t('Αποθήκευση διαθεσιμότητας')}
         </Button>
       </div>
+      </>
+      ) : null}
 
-      <h3 className="rental-subhead">Καταχώρηση κράτησης</h3>
+      {panelTab === 'bookings' ? (
+      <>
+      <h3 className="rental-subhead">{t('Καταχώρηση κράτησης')}</h3>
       <div className="rental-date-strip">
         {nextDays(14).map((iso) => (
           <button
@@ -455,14 +677,16 @@ export function FacilityRentalPanel() {
         ))}
       </div>
       <div className="rental-book-grid">
+        <div className="rental-book-top">
         <label className="field">
-          <span className="field-label">Γήπεδο</span>
+          <span className="field-label">{t('Γήπεδο')}</span>
           <select
             className="field-input"
             value={facilityId}
             onChange={(e) => {
               setFacilityId(e.target.value);
               setSelectedSlot(null);
+              setUseLockerRoom(false);
             }}
           >
             {facilities.map((f) => (
@@ -472,8 +696,8 @@ export function FacilityRentalPanel() {
             ))}
           </select>
         </label>
-        <div className="field">
-          <span className="field-label">Τμήμα γηπέδου</span>
+        <div className="field rental-share-field">
+          <span className="field-label">{t('Τμήμα γηπέδου')}</span>
           <div className="rental-day-row">
             <button
               type="button"
@@ -483,7 +707,7 @@ export function FacilityRentalPanel() {
                 setSelectedSlot(null);
               }}
             >
-              Ολόκληρο
+              {t('Ολόκληρο')}
               {selectedRule?.hourlyRateFull
                 ? ` · ${formatCurrency(selectedRule.hourlyRateFull)}/ώρα`
                 : ''}
@@ -496,30 +720,53 @@ export function FacilityRentalPanel() {
                 setSelectedSlot(null);
               }}
             >
-              Μισό
+              {t('Μισό')}
               {selectedRule?.hourlyRateHalf
                 ? ` · ${formatCurrency(selectedRule.hourlyRateHalf)}/ώρα`
                 : ''}
             </button>
           </div>
         </div>
+        {selectedRule?.lockerRoomAvailable ? (
+          <label className="checkbox-row rental-locker-row">
+            <input
+              type="checkbox"
+              checked={useLockerRoom}
+              onChange={(e) => setUseLockerRoom(e.target.checked)}
+            />
+            {t('Χρήση αποδυτηρίου')}
+            {selectedRule.lockerRoomFee
+              ? ` · +${formatCurrency(selectedRule.lockerRoomFee)}`
+              : ''}
+          </label>
+        ) : null}
+        </div>
+        <div className="rental-book-contact">
         <label className="field">
-          <span className="field-label">Ονοματεπώνυμο</span>
+          <span className="field-label">{t('Επώνυμο')}</span>
           <input
             className="field-input"
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
+            value={customerLastName}
+            onChange={(e) => setCustomerLastName(e.target.value)}
           />
         </label>
         <label className="field">
-          <span className="field-label">Τηλέφωνο</span>
+          <span className="field-label">{t('Όνομα')}</span>
+          <input
+            className="field-input"
+            value={customerFirstName}
+            onChange={(e) => setCustomerFirstName(e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span className="field-label">{t('Τηλέφωνο')}</span>
           <input
             className="field-input"
             value={customerPhone}
             onChange={(e) => setCustomerPhone(e.target.value)}
           />
         </label>
-        <label className="field">
+        <label className="field rental-book-email">
           <span className="field-label">Email</span>
           <input
             className="field-input"
@@ -528,11 +775,12 @@ export function FacilityRentalPanel() {
             onChange={(e) => setCustomerEmail(e.target.value)}
           />
         </label>
+        </div>
       </div>
 
       <div className="rental-slots-discount-row">
         <div className="rental-slots-col">
-          <p className="field-label">Διαθέσιμες ώρες</p>
+          <span className="field-label">{t('Διαθέσιμες ώρες')}</span>
           {slots.filter((s) => s.available).length === 0 ? (
             <p className="muted">Δεν υπάρχουν ελεύθερες ώρες ενοικίασης για αυτή την ημερομηνία.</p>
           ) : (
@@ -560,7 +808,7 @@ export function FacilityRentalPanel() {
           )}
         </div>
         <label className="field rental-special-discount">
-          <span className="field-label">Ειδική έκπτωση (€)</span>
+          <span className="field-label">{t('Ειδική έκπτωση (€)')}</span>
           <input
             className="field-input"
             type="number"
@@ -583,7 +831,7 @@ export function FacilityRentalPanel() {
       ) : null}
 
       <label className="field">
-        <span className="field-label">Σημείωση κράτησης</span>
+        <span className="field-label">{t('Σημείωση κράτησης')}</span>
         <input className="field-input" value={notes} onChange={(e) => setNotes(e.target.value)} />
       </label>
       {selectedSlot && selectedRule ? (
@@ -596,7 +844,7 @@ export function FacilityRentalPanel() {
       ) : null}
       <div className="prints-filter-actions">
         <Button type="button" onClick={() => void submitBooking()} disabled={booking}>
-          {booking ? 'Καταχώρηση…' : 'Καταχώρηση κράτησης'}
+          {booking ? t('Καταχώρηση…') : t('Καταχώρηση κράτησης')}
         </Button>
       </div>
 
@@ -605,20 +853,21 @@ export function FacilityRentalPanel() {
         <table className="page-table">
           <thead>
             <tr>
-              <th>Ημερομηνία</th>
-              <th>Ώρα</th>
-              <th>Γήπεδο</th>
-              <th>Τμήμα</th>
-              <th>Όνομα</th>
-              <th>Τηλ.</th>
-              <th>Πηγή</th>
+              <th>{t('Ημερομηνία')}</th>
+              <th>{t('Ώρα')}</th>
+              <th>{t('Γήπεδο')}</th>
+              <th>{t('Τμήμα')}</th>
+              <th>{t('Αποδυτήρια')}</th>
+              <th>{t('Όνομα')}</th>
+              <th>{t('Τηλ.')}</th>
+              <th>{t('Πηγή')}</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {upcoming.length === 0 ? (
               <tr>
-                <td colSpan={8}>Δεν υπάρχουν κρατήσεις.</td>
+                <td colSpan={9}>Δεν υπάρχουν κρατήσεις.</td>
               </tr>
             ) : (
               upcoming.map((row) => (
@@ -628,13 +877,14 @@ export function FacilityRentalPanel() {
                     {row.startTime}–{row.endTime}
                   </td>
                   <td>{row.facilityName}</td>
-                  <td>{courtShareLabel(row.courtShare)}</td>
+                  <td>{t(courtShareLabel(row.courtShare))}</td>
+                  <td>{row.useLockerRoom ? 'Ναι' : '—'}</td>
                   <td>{row.customerName}</td>
                   <td>{row.customerPhone}</td>
-                  <td>{row.source === 'public' ? 'Δημόσιο link' : 'Γραμματεία'}</td>
+                  <td>{row.source === 'public' ? t('Δημόσιο link') : t('Γραμματεία')}</td>
                   <td>
                     <Button type="button" variant="ghost" onClick={() => void cancelBooking(row.id)}>
-                      Ακύρωση
+                      {t('Ακύρωση')}
                     </Button>
                   </td>
                 </tr>
@@ -643,6 +893,8 @@ export function FacilityRentalPanel() {
           </tbody>
         </table>
       </div>
+      </>
+      ) : null}
     </div>
   );
 }

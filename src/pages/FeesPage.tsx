@@ -10,6 +10,7 @@ import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/ui/PageHeader';
 import { useAppData } from '../hooks/useAppData';
+import { useT } from '../i18n/LocaleContext';
 import { getPreviewClubId, loadPlatformConfig } from '../platform/platformConfig';
 import type { FeeChargeTemplateInput } from '../schemas';
 import type { FeeChargeTemplate } from '../types';
@@ -46,6 +47,7 @@ function toggleMonth(list: number[], month: number): number[] {
 }
 
 export function FeesPage() {
+  const { t } = useT();
   const { data, refresh } = useAppData();
   const [searchParams, setSearchParams] = useSearchParams();
   const session = getSession();
@@ -416,11 +418,12 @@ export function FeesPage() {
   }
 
   function templateSummary(tpl: FeeChargeTemplate): string {
-    const sport = tpl.sport || 'Όλα';
-    const applies =
-      feeChargesService.feeAppliesToLabel(tpl.appliesTo ?? 'all', club?.customChargeLabel);
+    const sport = tpl.sport || t('Όλα');
+    const applies = t(
+      feeChargesService.feeAppliesToLabel(tpl.appliesTo ?? 'all', club?.customChargeLabel),
+    );
     const months = tpl.months.length;
-    return `${tpl.season} · ${sport} · ${applies} · ${formatCurrency(tpl.monthlyAmount)} · ${months} μήνες`;
+    return `${tpl.season} · ${sport} · ${applies} · ${formatCurrency(tpl.monthlyAmount)} · ${months} ${t('μήνες')}`;
   }
 
   return (
@@ -431,13 +434,13 @@ export function FeesPage() {
         actions={
           <div className="fees-actions">
             <Button type="button" variant="secondary" onClick={openCreateCharges}>
-              <Receipt size={16} /> Προβολή / Δημιουργία χρεώσεων
+              <Receipt size={16} /> {t('Προβολή / Δημιουργία χρεώσεων')}
             </Button>
             <Button type="button" variant="secondary" onClick={openReminders}>
-              <Bell size={16} /> Υπενθύμιση οφειλών
+              <Bell size={16} /> {t('Υπενθύμιση οφειλών')}
             </Button>
             <Button type="button" onClick={openNewCharge}>
-              <Plus size={16} /> Νέα χρέωση
+              <Plus size={16} /> {t('Νέα χρέωση')}
             </Button>
           </div>
         }
@@ -448,16 +451,18 @@ export function FeesPage() {
 
       <section className="stats-grid cols-3">
         <article className="stat-card tone-warn">
-          <span className="stat-label">Οφειλές</span>
+          <span className="stat-label">{t('Οφειλές')}</span>
           <strong className="stat-value">{formatCurrency(totals.owed)}</strong>
-          <span className="stat-hint">{totals.athletesWithDebt} αθλητές</span>
+          <span className="stat-hint">
+            {totals.athletesWithDebt} {t('αθλητές')}
+          </span>
         </article>
         <article className="stat-card tone-positive">
-          <span className="stat-label">Πιστωτικά</span>
+          <span className="stat-label">{t('Πιστωτικά')}</span>
           <strong className="stat-value">{formatCurrency(totals.credit)}</strong>
         </article>
         <article className="stat-card">
-          <span className="stat-label">Ενεργοί αθλητές</span>
+          <span className="stat-label">{t('Ενεργοί αθλητές')}</span>
           <strong className="stat-value">{String(rows.length)}</strong>
         </article>
       </section>
@@ -467,10 +472,10 @@ export function FeesPage() {
           className="tx-search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Αναζήτηση αθλητή..."
+          placeholder={t('Αναζήτηση αθλητή...')}
         />
         <Link className="btn btn-secondary" to="/transactions">
-          Μετάβαση σε Συναλλαγές
+          {t('Μετάβαση σε Συναλλαγές')}
         </Link>
       </div>
 
@@ -478,12 +483,12 @@ export function FeesPage() {
         <table>
           <thead>
             <tr>
-              <th>Επώνυμο</th>
-              <th>Όνομα</th>
-              <th>Τμήμα</th>
-              <th>Μηνιαία συνδρομή</th>
-              <th>Υπόλοιπο</th>
-              <th>Τελευταία πληρωμή</th>
+              <th>{t('Επώνυμο')}</th>
+              <th>{t('Όνομα')}</th>
+              <th>{t('Τμήμα')}</th>
+              <th>{t('Μηνιαία συνδρομή')}</th>
+              <th>{t('Υπόλοιπο')}</th>
+              <th>{t('Τελευταία πληρωμή')}</th>
               <th></th>
             </tr>
           </thead>
@@ -529,7 +534,7 @@ export function FeesPage() {
                     </Button>
                   ) : null}
                   <Link className="btn btn-secondary" to={`/athletes/${athlete.id}`}>
-                    Προφίλ
+                    {t('Προφίλ')}
                   </Link>
                 </td>
               </tr>
@@ -540,17 +545,17 @@ export function FeesPage() {
 
       <Modal
         open={panel === 'newCharge'}
-        title="Νέα χρέωση"
+        title={t('Νέα χρέωση')}
         onClose={() => setPanel('list')}
         fullscreen
         className="fee-charge-modal"
         footer={
           <>
             <Button variant="secondary" type="button" onClick={() => setPanel('list')}>
-              Ακύρωση
+              {t('Ακύρωση')}
             </Button>
             <Button type="button" disabled={saving} onClick={() => void handleSaveTemplate()}>
-              Αποθήκευση
+              {t('Αποθήκευση')}
             </Button>
           </>
         }
@@ -559,7 +564,7 @@ export function FeesPage() {
           <div className="fee-charge-hero">
             <div className="fee-charge-hero-grid">
               <label className="field">
-                <span className="field-label">Σεζόν</span>
+                <span className="field-label">{t('Σεζόν')}</span>
                 <select
                   className="field-input"
                   value={form.season}
@@ -573,7 +578,7 @@ export function FeesPage() {
                 </select>
               </label>
               <label className="field">
-                <span className="field-label">Άθλημα</span>
+                <span className="field-label">{t('Άθλημα')}</span>
                 <select
                   className="field-input"
                   value={form.sport}
@@ -603,9 +608,9 @@ export function FeesPage() {
           </div>
 
           <section className="fee-charge-section">
-            <h3>Εγγραφή</h3>
+            <h3>{t('Εγγραφή')}</h3>
             <label className="field">
-              <span className="field-label">Εγγραφή (€)</span>
+              <span className="field-label">{t('Εγγραφή (€)')}</span>
               <input
                 className="field-input"
                 type="number"
@@ -623,10 +628,10 @@ export function FeesPage() {
           </section>
 
           <section className="fee-charge-section">
-            <h3>Μηνιαία συνδρομή</h3>
+            <h3>{t('Μηνιαία συνδρομή')}</h3>
             <div className="fee-charge-hero-grid">
               <label className="field">
-                <span className="field-label">Τύπος</span>
+                <span className="field-label">{t('Τύπος')}</span>
                 <input
                   className="field-input"
                   value={form.typeLabel}
@@ -634,7 +639,7 @@ export function FeesPage() {
                 />
               </label>
               <label className="field">
-                <span className="field-label">Μηνιαίο ποσό (€)</span>
+                <span className="field-label">{t('Μηνιαίο ποσό (€)')}</span>
                 <input
                   className="field-input"
                   type="number"
@@ -647,7 +652,7 @@ export function FeesPage() {
                 />
               </label>
               <label className="field">
-                <span className="field-label">Ισχύει για</span>
+                <span className="field-label">{t('Ισχύει για')}</span>
                 <select
                   className="field-input"
                   value={form.appliesTo}
@@ -662,7 +667,7 @@ export function FeesPage() {
                 >
                   {feeAppliesToOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label}
+                      {t(option.label)}
                     </option>
                   ))}
                 </select>
@@ -670,13 +675,13 @@ export function FeesPage() {
             </div>
             {form.appliesTo === 'class' ? (
               <label className="field">
-                <span className="field-label">Τμήμα</span>
+                <span className="field-label">{t('Τμήμα')}</span>
                 <select
                   className="field-input"
                   value={form.classId ?? ''}
                   onChange={(e) => setForm({ ...form, classId: e.target.value || null })}
                 >
-                  <option value="">Επιλέξτε τμήμα…</option>
+                  <option value="">{t('Επιλέξτε τμήμα…')}</option>
                   {data.classes
                     .filter((cls) => {
                       if (!form.sport) return true;
@@ -693,7 +698,7 @@ export function FeesPage() {
             ) : null}
 
             <div className="field">
-              <span className="field-label">Μήνες χρέωσης</span>
+              <span className="field-label">{t('Μήνες χρέωσης')}</span>
               <div className="fee-month-grid">
                 {feeChargesService.FEE_SEASON_MONTHS.map((item) => (
                   <label key={item.month} className="fee-month-chip">
@@ -704,7 +709,7 @@ export function FeesPage() {
                         setForm({ ...form, months: toggleMonth(form.months, item.month) })
                       }
                     />
-                    <span>{item.label}</span>
+                    <span>{t(item.label)}</span>
                   </label>
                 ))}
               </div>
@@ -714,7 +719,7 @@ export function FeesPage() {
             </div>
 
             <label className="field fee-reminder-field">
-              <span className="field-label">Υπενθύμιση (ημέρες μετά την οφειλή)</span>
+              <span className="field-label">{t('Υπενθύμιση (ημέρες μετά την οφειλή)')}</span>
               <input
                 className="field-input"
                 type="number"
@@ -728,9 +733,9 @@ export function FeesPage() {
           </section>
 
           <section className="fee-charge-section">
-            <h3>Εισιτήριο Διαρκείας</h3>
+            <h3>{t('Εισιτήριο Διαρκείας')}</h3>
             <label className="field">
-              <span className="field-label">Συνολικό ποσό (€)</span>
+              <span className="field-label">{t('Συνολικό ποσό (€)')}</span>
               <input
                 className="field-input"
                 type="number"
@@ -743,7 +748,7 @@ export function FeesPage() {
               />
             </label>
             <div className="field">
-              <span className="field-label">Μήνες εισιτηρίου</span>
+              <span className="field-label">{t('Μήνες εισιτηρίου')}</span>
               <div className="fee-month-grid">
                 {feeChargesService.FEE_SEASON_MONTHS.map((item) => (
                   <label key={`ticket-${item.month}`} className="fee-month-chip">
@@ -757,7 +762,7 @@ export function FeesPage() {
                         })
                       }
                     />
-                    <span>{item.label}</span>
+                    <span>{t(item.label)}</span>
                   </label>
                 ))}
               </div>
@@ -774,17 +779,17 @@ export function FeesPage() {
 
       <Modal
         open={panel === 'createCharges'}
-        title="Δημιουργία χρεώσεων"
+        title={t('Δημιουργία χρεώσεων')}
         onClose={() => setPanel('list')}
         fullscreen
         className="fee-charge-modal"
         footer={
           <>
             <Button variant="secondary" type="button" onClick={() => setPanel('list')}>
-              Κλείσιμο
+              {t('Κλείσιμο')}
             </Button>
             <Button type="button" disabled={saving} onClick={() => void handleGenerateCharges()}>
-              Δημιουργία χρεώσεων
+              {t('Δημιουργία χρεώσεων')}
             </Button>
           </>
         }
@@ -796,7 +801,7 @@ export function FeesPage() {
           </p>
           {templates.length === 0 ? (
             <div className="empty-state">
-              <h3>Δεν υπάρχουν πρότυπα</h3>
+              <h3>{t('Δεν υπάρχουν πρότυπα')}</h3>
               <p>Πάτα «Νέα χρέωση» για να ορίσεις το πρώτο πρότυπο.</p>
               <Button type="button" onClick={openNewCharge}>
                 <Plus size={16} /> Νέα χρέωση
@@ -805,7 +810,7 @@ export function FeesPage() {
           ) : (
             <>
               <label className="field">
-                <span className="field-label">Πρότυπο</span>
+                <span className="field-label">{t('Πρότυπο')}</span>
                 <select
                   className="field-input"
                   value={selectedTemplateId}
@@ -837,12 +842,12 @@ export function FeesPage() {
                           onChange={(e) => toggleAllTemplates(e.target.checked)}
                         />
                       </th>
-                      <th>Σεζόν</th>
-                      <th>Άθλημα</th>
-                      <th>Μηνιαίο</th>
-                      <th>Εγγραφή</th>
-                      <th>Εισιτήριο</th>
-                      <th>Αυτόματο</th>
+                      <th>{t('Σεζόν')}</th>
+                      <th>{t('Άθλημα')}</th>
+                      <th>{t('Μηνιαίο')}</th>
+                      <th>{t('Εγγραφή')}</th>
+                      <th>{t('Εισιτήριο')}</th>
+                      <th>{t('Αυτόματο')}</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -860,18 +865,18 @@ export function FeesPage() {
                             />
                           </td>
                           <td>{tpl.season}</td>
-                          <td>{tpl.sport || 'Όλα'}</td>
+                          <td>{tpl.sport || t('Όλα')}</td>
                           <td>{formatCurrency(tpl.monthlyAmount)}</td>
                           <td>{formatCurrency(tpl.registrationFee)}</td>
                           <td>{formatCurrency(tpl.seasonTicketAmount)}</td>
-                          <td>{tpl.autoGenerate ? 'Ναι' : 'Όχι'}</td>
+                          <td>{tpl.autoGenerate ? t('Ναι') : t('Όχι')}</td>
                           <td className="row-actions">
                             <button
                               type="button"
                               className="btn btn-ghost"
                               onClick={() => void handleDeleteTemplate(tpl.id)}
                             >
-                              Διαγραφή
+                              {t('Διαγραφή')}
                             </button>
                           </td>
                         </tr>
@@ -893,12 +898,12 @@ export function FeesPage() {
 
       <Modal
         open={panel === 'reminders'}
-        title="Υπενθύμιση οφειλών"
+        title={t('Υπενθύμιση οφειλών')}
         onClose={() => setPanel('list')}
         wide
         footer={
           <Button variant="secondary" type="button" onClick={() => setPanel('list')}>
-            Κλείσιμο
+            {t('Κλείσιμο')}
           </Button>
         }
       >

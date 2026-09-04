@@ -568,7 +568,6 @@ export function PlatformAdminPage() {
   function handleEndPreview() {
     endPreview();
     flash('Το preview τερματίστηκε.');
-    setTick((n) => n + 1);
   }
 
   function handleBackupExport() {

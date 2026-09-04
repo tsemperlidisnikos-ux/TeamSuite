@@ -10,6 +10,7 @@ import { IncomeEntryPanel } from '../components/IncomeEntryPanel';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { useAppData } from '../hooks/useAppData';
+import { useT } from '../i18n/LocaleContext';
 import {
   FINANCE_TABS,
   getAppearanceTheme,
@@ -67,6 +68,7 @@ function chartColors(theme: AppearanceTheme) {
 }
 
 export function FinancePage() {
+  const { t } = useT();
   const { refresh, version } = useAppData();
   const [platformTick, setPlatformTick] = useState(0);
   const ownFinanceOnly = sessionSeesOnlyOwnFinance();
@@ -152,7 +154,7 @@ export function FinancePage() {
             className={`tab ${tab === id ? 'active' : ''}`}
             onClick={() => setTab(id)}
           >
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>

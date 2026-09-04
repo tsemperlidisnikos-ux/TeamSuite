@@ -50,6 +50,7 @@ import {
 } from '../../platform/platformConfig';
 import { useAppData } from '../../hooks/useAppData';
 import { useCloudMirrorAutoPull } from '../../hooks/useCloudMirrorAutoPull';
+import { useT } from '../../i18n/LocaleContext';
 import * as publicClubCloudService from '../../api/services/publicClubCloudService';
 import { publishAppLogo, publishClubAppLogo } from '../../api/services/platformBrandingService';
 import { optimizeLogoDataUrl } from '../../utils/clubLogoFile';
@@ -76,7 +77,6 @@ const academyItems: Array<{
   { id: 'attendance', to: '/attendance', label: 'Παρουσίες', icon: ClipboardCheck },
   { id: 'announcements', to: '/announcements', label: 'Ανακοινώσεις', icon: Megaphone },
   { id: 'prints', to: '/prints', label: 'Εκτυπώσεις', icon: Printer },
-  { id: 'rental', to: '/rental', label: 'Ενοικίαση', icon: KeyRound },
   { id: 'photos', to: '/photos', label: 'Φωτογραφίες', icon: Images },
   { id: 'warehouse', to: '/warehouse', label: 'Αποθήκη', icon: Package },
   { id: 'fees', to: '/fees', label: 'Συνδρομές / Πληρωμές', icon: CreditCard },
@@ -91,16 +91,18 @@ const academyItems: Array<{
   { id: 'settings', to: '/settings', label: 'Ρυθμίσεις', icon: Settings },
 ];
 
-const analysisItems: Array<{
+const provisionsItems: Array<{
   id: AcademyModuleId;
   to: string;
   label: string;
   icon: NavIcon;
 }> = [
+  { id: 'rental', to: '/rental', label: 'Ενοικίαση', icon: KeyRound },
   { id: 'finance', to: '/finance', label: 'Οικονομικά', icon: Wallet },
 ];
 
 export function AppLayout() {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [clubTick, setClubTick] = useState(0);
   const [platformTick, setPlatformTick] = useState(0);
@@ -204,7 +206,7 @@ export function AppLayout() {
       const label = roleNavLabels[item.id];
       return label ? { ...item, label } : item;
     });
-  const visibleAnalysis = analysisItems.filter(
+  const visibleProvisions = provisionsItems.filter(
     (item) => enabledModules.has(item.id) && userCanAccessModule(accessUser, item.id),
   );
 
@@ -250,7 +252,7 @@ export function AppLayout() {
             className="icon-btn mobile-only"
             type="button"
             onClick={() => setOpen(true)}
-            aria-label="Άνοιγμα μενού"
+            aria-label={t('Άνοιγμα μενού')}
           >
             <Menu size={18} />
           </button>
@@ -271,15 +273,15 @@ export function AppLayout() {
             aria-label={
               canUploadAppLogo
                 ? clubId
-                  ? 'Αλλαγή λογότυπου εφαρμογής για αυτόν τον σύλλογο'
-                  : 'Αλλαγή λογότυπου εφαρμογής'
+                  ? t('Αλλαγή λογότυπου εφαρμογής για αυτόν τον σύλλογο')
+                  : t('Αλλαγή λογότυπου εφαρμογής')
                 : appName
             }
             title={
               canUploadAppLogo
                 ? clubId
-                  ? 'Platform Admin: λογότυπο εφαρμογής μόνο για αυτόν τον σύλλογο'
-                  : 'Platform Admin: καθολικό λογότυπο εφαρμογής'
+                  ? t('Platform Admin: λογότυπο εφαρμογής μόνο για αυτόν τον σύλλογο')
+                  : t('Platform Admin: καθολικό λογότυπο εφαρμογής')
                 : appName
             }
           >
@@ -301,12 +303,12 @@ export function AppLayout() {
           ) : null}
         </div>
 
-        {headerGreeting ? <p className="app-header-greeting">{headerGreeting}</p> : null}
+        {headerGreeting ? <p className="app-header-greeting">{t(headerGreeting)}</p> : null}
 
         <div className="app-header-user">
           <div>
-            <strong>{session?.fullName ?? 'Χρήστης'}</strong>
-            <span>{session ? roleLabels[session.role] : ''}</span>
+            <strong>{session?.fullName ?? t('Χρήστης')}</strong>
+            <span>{session ? t(roleLabels[session.role]) : ''}</span>
           </div>
           <div className="sidebar-user-actions">
             {isPlatformAdmin() ? (
@@ -317,13 +319,13 @@ export function AppLayout() {
                   endPreview();
                   navigate('/platform');
                 }}
-                aria-label="Διαχείριση πλατφόρμας"
-                title="Διαχείριση πλατφόρμας"
+                aria-label={t('Διαχείριση πλατφόρμας')}
+                title={t('Διαχείριση πλατφόρμας')}
               >
                 <UsersRound size={16} />
               </button>
             ) : null}
-            <button type="button" className="icon-btn" onClick={handleLogout} aria-label="Αποσύνδεση">
+            <button type="button" className="icon-btn" onClick={handleLogout} aria-label={t('Αποσύνδεση')}>
               <LogOut size={16} />
             </button>
           </div>
@@ -337,7 +339,7 @@ export function AppLayout() {
               className="icon-btn"
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Κλείσιμο μενού"
+              aria-label={t('Κλείσιμο μενού')}
             >
               <X size={18} />
             </button>
@@ -355,8 +357,8 @@ export function AppLayout() {
               session?.role === 'coach' ||
               session?.role === 'parent' ||
               session?.role === 'doctor'
-                ? 'Μενού'
-                : 'Ακαδημία'}
+                ? t('Μενού')
+                : t('Ακαδημία')}
             </p>
             {visibleAcademy.map((item) => (
               <NavLink
@@ -367,16 +369,16 @@ export function AppLayout() {
                 onClick={() => setOpen(false)}
               >
                 <item.icon size={18} />
-                <span className="nav-link-label">{item.label}</span>
+                <span className="nav-link-label">{t(item.label)}</span>
                 {item.id === 'athletes' && pendingRegistrationCount > 0 ? (
-                  <span className="nav-badge" title="Εκκρεμείς αιτήσεις εγγραφής">
+                  <span className="nav-badge" title={t('Εκκρεμείς αιτήσεις εγγραφής')}>
                     {pendingRegistrationCount > 99 ? '99+' : pendingRegistrationCount}
                   </span>
                 ) : null}
               </NavLink>
             ))}
-            {visibleAnalysis.length > 0 ? <p className="nav-section">Ανάλυση</p> : null}
-            {visibleAnalysis.map((item) => (
+            {visibleProvisions.length > 0 ? <p className="nav-section">{t('Παροχές')}</p> : null}
+            {visibleProvisions.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -384,7 +386,7 @@ export function AppLayout() {
                 onClick={() => setOpen(false)}
               >
                 <item.icon size={18} />
-                {item.label}
+                {t(item.label)}
               </NavLink>
             ))}
           </nav>
@@ -394,7 +396,7 @@ export function AppLayout() {
           {previewClubId && isPlatformAdmin() ? (
             <div className="preview-banner">
               <div>
-                <strong>Preview συλλόγου</strong>
+                <strong>{t('Preview συλλόγου')}</strong>
                 <span>{club?.name ?? previewClubId}</span>
               </div>
               <button
@@ -405,7 +407,7 @@ export function AppLayout() {
                   navigate('/platform');
                 }}
               >
-                Τέλος preview
+                {t('Τέλος preview')}
               </button>
             </div>
           ) : null}

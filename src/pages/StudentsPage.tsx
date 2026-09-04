@@ -11,6 +11,7 @@ import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/ui/PageHeader';
 import { SpreadsheetImportHelpModal } from '../components/SpreadsheetImportHelpModal';
 import { useAppData } from '../hooks/useAppData';
+import { useT } from '../i18n/LocaleContext';
 import { getPreviewClubId } from '../platform/platformConfig';
 import type { StudentInput } from '../schemas';
 import type { Gender, RegistrationApplication, RegistrationApplicationKind, Student, StudentStatus } from '../types';
@@ -124,6 +125,7 @@ function exportAthletesXlsx(rows: Student[], classes: { id: string; name: string
 }
 
 export function StudentsPage() {
+  const { t } = useT();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data, refresh } = useAppData();
@@ -537,8 +539,8 @@ export function StudentsPage() {
           sportFilter
             ? `Αθλητές ${sportFilter}`
             : isDoctor
-              ? 'Μητρώο αθλητών για κάρτα υγείας (ΑΜΚΑ / γονέας).'
-              : 'Μητρώο αθλητών, γονείς και σύνδεση με τμήματα.'
+              ? t('Μητρώο αθλητών για κάρτα υγείας (ΑΜΚΑ / γονέας).')
+              : t('Μητρώο αθλητών, γονείς και σύνδεση με τμήματα.')
         }
         actions={
           isDoctor ? undefined : (
@@ -549,10 +551,10 @@ export function StudentsPage() {
                 disabled={filtered.length === 0 && selected.length === 0}
                 onClick={openBulkEdit}
               >
-                <SquarePen size={16} /> Μαζική αλλαγή
+                <SquarePen size={16} /> {t('Μαζική αλλαγή')}
               </Button>
               <Button type="button" disabled={creating} onClick={() => void handleCreate()}>
-                <Plus size={16} /> {creating ? 'Δημιουργία...' : 'Νέος αθλητής'}
+                <Plus size={16} /> {creating ? t('Δημιουργία...') : t('Νέος αθλητής')}
               </Button>
             </>
           )
@@ -569,7 +571,7 @@ export function StudentsPage() {
       {!isDoctor && pendingApplications.length > 0 ? (
         <section className="panel registration-apps-panel">
           <div className="registration-apps-head">
-            <h3>Εκκρεμείς αιτήσεις εγγραφής</h3>
+            <h3>{t('Εκκρεμείς αιτήσεις εγγραφής')}</h3>
             <span className="badge badge-pending">{pendingApplications.length}</span>
           </div>
           <p className="lede">
@@ -589,7 +591,7 @@ export function StudentsPage() {
                     <div className="registration-app-edit">
                       <div className="public-join-grid">
                         <label className="field">
-                          <span className="field-label">Επώνυμο</span>
+                          <span className="field-label">{t('Επώνυμο')}</span>
                           <input
                             className="field-input"
                             value={editDraft.lastName}
@@ -599,7 +601,7 @@ export function StudentsPage() {
                           />
                         </label>
                         <label className="field">
-                          <span className="field-label">Όνομα</span>
+                          <span className="field-label">{t('Όνομα')}</span>
                           <input
                             className="field-input"
                             value={editDraft.firstName}
@@ -609,7 +611,7 @@ export function StudentsPage() {
                           />
                         </label>
                         <label className="field">
-                          <span className="field-label">Γονέας</span>
+                          <span className="field-label">{t('Γονέας')}</span>
                           <input
                             className="field-input"
                             value={editDraft.guardianName}
@@ -619,7 +621,7 @@ export function StudentsPage() {
                           />
                         </label>
                         <label className="field">
-                          <span className="field-label">Τηλέφωνο</span>
+                          <span className="field-label">{t('Τηλέφωνο')}</span>
                           <input
                             className="field-input"
                             value={editDraft.guardianPhone}
@@ -639,7 +641,7 @@ export function StudentsPage() {
                           />
                         </label>
                         <label className="field">
-                          <span className="field-label">Τμήμα</span>
+                          <span className="field-label">{t('Τμήμα')}</span>
                           <select
                             className="field-input"
                             value={editDraft.classId}
@@ -656,7 +658,7 @@ export function StudentsPage() {
                           </select>
                         </label>
                         <label className="field">
-                          <span className="field-label">Τύπος</span>
+                          <span className="field-label">{t('Τύπος')}</span>
                           <select
                             className="field-input"
                             value={editDraft.kind}
@@ -673,7 +675,7 @@ export function StudentsPage() {
                           </select>
                         </label>
                         <label className="field">
-                          <span className="field-label">Σχόλια</span>
+                          <span className="field-label">{t('Σχόλια')}</span>
                           <input
                             className="field-input"
                             value={editDraft.notes}
@@ -799,7 +801,7 @@ export function StudentsPage() {
           />
         </label>
         <label className="field">
-          <span className="field-label">Άθλημα</span>
+          <span className="field-label">{t('Άθλημα')}</span>
           <select
             className="field-input"
             value={sportFilter}
@@ -813,13 +815,13 @@ export function StudentsPage() {
           </select>
         </label>
         <label className="field">
-          <span className="field-label">Τμήμα</span>
+          <span className="field-label">{t('Τμήμα')}</span>
           <select
             className="field-input"
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
           >
-            <option value="">Όλα τα τμήματα</option>
+            <option value=""> {t('Όλα τα τμήματα')}</option>
             {classOptions.map((cls) => (
               <option key={cls.id} value={cls.id}>
                 {cls.name}
@@ -828,16 +830,16 @@ export function StudentsPage() {
           </select>
         </label>
         <label className="field">
-          <span className="field-label">Κατάσταση</span>
+          <span className="field-label">{t('Κατάσταση')}</span>
           <select
             className="field-input"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="">Όλα</option>
-            <option value="active">Ενεργός</option>
-            <option value="trial">Δοκιμαστικός</option>
-            <option value="inactive">Ανενεργός</option>
+            <option value="active">{t('Ενεργός')}</option>
+            <option value="trial">{t('Δοκιμαστικός')}</option>
+            <option value="inactive">{t('Ανενεργός')}</option>
           </select>
         </label>
         {!isDoctor ? (
@@ -847,7 +849,7 @@ export function StudentsPage() {
             disabled={filtered.length === 0 && selected.length === 0}
             onClick={openBulkEdit}
           >
-            <SquarePen size={16} /> Μαζική αλλαγή
+            <SquarePen size={16} /> {t('Μαζική αλλαγή')}
             {selected.length > 0
               ? ` (${selected.length})`
               : filtered.length > 0
@@ -860,7 +862,7 @@ export function StudentsPage() {
           variant="secondary"
           onClick={() => exportAthletesXlsx(filtered, data.classes)}
         >
-          <Download size={16} /> Εξαγωγή
+          <Download size={16} /> {t('Εξαγωγή')}
         </Button>
         {!isDoctor ? (
           <div className="toolbar-import">
@@ -910,12 +912,12 @@ export function StudentsPage() {
                   aria-label="Επιλογή όλων"
                 />
               </th>
-              <th>Επώνυμο</th>
-              <th>Όνομα</th>
-              <th>Άθλημα</th>
-              <th>{isDoctor ? 'ΑΜΚΑ' : 'Τμήμα'}</th>
-              <th>Γονέας</th>
-              <th>Κατάσταση</th>
+              <th>{t('Επώνυμο')}</th>
+              <th>{t('Όνομα')}</th>
+              <th>{t('Άθλημα')}</th>
+              <th>{isDoctor ? 'ΑΜΚΑ' : t('Τμήμα')}</th>
+              <th>{t('Γονέας')}</th>
+              <th>{t('Κατάσταση')}</th>
               <th></th>
             </tr>
           </thead>
@@ -1000,7 +1002,7 @@ export function StudentsPage() {
                   </td>
                   <td>
                     <span className={`badge badge-${student.status}`}>
-                      {studentStatusLabels[student.status]}
+                      {t(studentStatusLabels[student.status])}
                     </span>
                   </td>
                   <td className="row-actions" onClick={(e) => e.stopPropagation()}>
@@ -1105,7 +1107,7 @@ export function StudentsPage() {
       />
       <Modal
         open={bulkOpen}
-        title="Μαζική αλλαγή"
+        title={t('Μαζική αλλαγή')}
         onClose={() => !bulkSaving && setBulkOpen(false)}
         footer={
           <>
@@ -1115,10 +1117,10 @@ export function StudentsPage() {
               disabled={bulkSaving}
               onClick={() => setBulkOpen(false)}
             >
-              Άκυρο
+              {t('Άκυρο')}
             </Button>
             <Button type="button" disabled={bulkSaving} onClick={() => void handleBulkEdit()}>
-              {bulkSaving ? 'Εφαρμογή...' : 'Εφαρμογή'}
+              {bulkSaving ? t('Εφαρμογή...') : t('Εφαρμογή')}
             </Button>
           </>
         }
@@ -1131,20 +1133,20 @@ export function StudentsPage() {
           . Αφήστε «Χωρίς αλλαγή» στα πεδία που δεν θέλετε να πειράξετε.
         </p>
         <label className="field">
-          <span className="field-label">Κατάσταση</span>
+          <span className="field-label">{t('Κατάσταση')}</span>
           <select
             className="field-input"
             value={bulkStatus}
             onChange={(e) => setBulkStatus(e.target.value as '' | StudentStatus)}
           >
             <option value="">Χωρίς αλλαγή</option>
-            <option value="active">Ενεργός</option>
-            <option value="trial">Δοκιμαστικός</option>
-            <option value="inactive">Ανενεργός</option>
+            <option value="active">{t('Ενεργός')}</option>
+            <option value="trial">{t('Δοκιμαστικός')}</option>
+            <option value="inactive">{t('Ανενεργός')}</option>
           </select>
         </label>
         <label className="field">
-          <span className="field-label">Φύλο</span>
+          <span className="field-label">{t('Φύλο')}</span>
           <select
             className="field-input"
             value={bulkGender}
@@ -1157,7 +1159,7 @@ export function StudentsPage() {
           </select>
         </label>
         <label className="field">
-          <span className="field-label">Άθλημα</span>
+          <span className="field-label">{t('Άθλημα')}</span>
           <select
             className="field-input"
             value={bulkSport}
@@ -1171,7 +1173,7 @@ export function StudentsPage() {
           </select>
         </label>
         <label className="field">
-          <span className="field-label">Κάρτα υγείας</span>
+          <span className="field-label">{t('Κάρτα υγείας')}</span>
           <select
             className="field-input"
             value={bulkHealthCard}

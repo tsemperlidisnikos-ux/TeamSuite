@@ -6,25 +6,39 @@ import { rentalBookingInputSchema, rentalSettingsSchema, type RentalBookingInput
 import type { RentalBooking, RentalSettings } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import { syncAuthHeaders } from '../syncAuth';
+import { persistClubImageDataUrl } from './sessionService';
 import {
   bookingAmount,
   emptyRentalSettings,
+  lockerRoomFeeAmount,
   ruleForFacility,
   slotIsFree,
 } from '../../shared/facilityRentalAvailability';
 
 export async function saveRentalSettings(input: RentalSettings) {
-  return apiClient(() => {
+  return apiClient(async () => {
     const parsed = rentalSettingsSchema.parse(input);
+    const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
+    const heroImageUrl =
+      parsed.heroImageUrl === undefined
+        ? undefined
+        : parsed.heroImageUrl?.startsWith('data:') && clubId
+          ? await persistClubImageDataUrl(clubId, parsed.heroImageUrl, 'rent-hero.jpg')
+          : parsed.heroImageUrl ?? null;
     mutateData((data) => {
       data.rentalSettings = {
         publicEnabled: parsed.publicEnabled,
         notes: parsed.notes ?? '',
+        heroImageUrl:
+          heroImageUrl === undefined ? data.rentalSettings?.heroImageUrl ?? null : heroImageUrl,
+        photoLook: 'g',
         rules: parsed.rules.map((rule) => ({
           ...rule,
           hourlyRate: rule.hourlyRateFull || rule.hourlyRate || 0,
           hourlyRateFull: rule.hourlyRateFull || rule.hourlyRate || 0,
           hourlyRateHalf: rule.hourlyRateHalf || 0,
+          lockerRoomAvailable: Boolean(rule.lockerRoomAvailable),
+          lockerRoomFee: Number(rule.lockerRoomFee) || 0,
         })),
       };
     });
@@ -52,7 +66,10 @@ export async function createRentalBooking(
     );
     if (!check.ok) throw new Error(check.reason);
     const rule = ruleForFacility(data.rentalSettings, facility.id, facility);
-    const baseAmount = bookingAmount(rule, parsed.startTime, parsed.endTime, courtShare);
+    const useLockerRoom = Boolean(parsed.useLockerRoom);
+    const baseAmount =
+      bookingAmount(rule, parsed.startTime, parsed.endTime, courtShare) +
+      lockerRoomFeeAmount(rule, useLockerRoom);
     const discount = Math.max(0, parsed.specialDiscount ?? 0);
     const amount =
       discount > 0
@@ -69,6 +86,7 @@ export async function createRentalBooking(
       startTime: parsed.startTime,
       endTime: parsed.endTime,
       courtShare,
+      useLockerRoom,
       customerName: parsed.customerName.trim(),
       customerPhone: parsed.customerPhone.trim(),
       customerEmail: (parsed.customerEmail ?? '').trim(),

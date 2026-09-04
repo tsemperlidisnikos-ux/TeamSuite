@@ -6,6 +6,7 @@ import {
   sanitizeClubBackupSchedule,
   type ClubBackupSchedule,
 } from './clubBackupSchedule';
+import { normalizeAppLocale, type AppLocale } from '../i18n/locale';
 import {
   normalizeOnlinePaymentProviders,
   type OnlinePaymentProviderId,
@@ -103,6 +104,8 @@ export interface Club {
   backupSchedule?: ClubBackupSchedule | null;
   /** Τίτλος προσαρμοσμένης χρέωσης στο προφίλ αθλητή (Ναι/Όχι) και στις χρεώσεις. */
   customChargeLabel?: string;
+  /** Αποθηκευμένη τιμή (πάντα ελληνικά). */
+  locale?: AppLocale;
 }
 
 const CLUBS_KEY = 'academyhub-clubs-v1';
@@ -136,6 +139,7 @@ export function getClubs(): Club[] {
       licensePackageId: c.licensePackageId ?? null,
       backupSchedule: sanitizeClubBackupSchedule(c.backupSchedule),
       onlinePaymentProviders: normalizeOnlinePaymentProviders(c.onlinePaymentProviders),
+      locale: normalizeAppLocale(c.locale),
     }));
   } catch {
     return [];
@@ -374,6 +378,7 @@ export function ensureSessionClub(
     createdAt: localDateIso(),
     athleteLicenseLimit: isDemo ? 100 : 10,
     athleteLicenseUsed: 0,
+    locale: 'el',
   };
 
   saveClubs([...getClubs(), stub]);
@@ -437,6 +442,7 @@ export async function provisionClub(input: {
     athleteLicenseUsed: 0,
     onlinePaymentProviders: ['viva'],
     dpaAcceptedAt: input.dpaAcceptedAt || new Date().toISOString(),
+    locale: 'el',
   };
 
   saveUsers([...users, user]);

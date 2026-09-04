@@ -254,6 +254,35 @@ export async function updateCloudClubLogo(clubId: string, logoUrl: string | null
   });
 }
 
+/** Upload a club image (hero / facility) as a public URL when the value is a data URL. */
+export async function persistClubImageDataUrl(
+  clubId: string,
+  value: string | null | undefined,
+  fileName: string,
+): Promise<string | null> {
+  const raw = value?.trim() || null;
+  if (!raw) return null;
+  if (!raw.startsWith('data:')) return raw;
+  const parsed = parseImageDataUrl(raw);
+  if (!parsed) throw new Error('Μη έγκυρη εικόνα.');
+  const type = parsed.contentType === 'image/jpg' ? 'image/jpeg' : parsed.contentType;
+  if (!CLOUD_IMAGE_TYPES.includes(type as (typeof CLOUD_IMAGE_TYPES)[number])) {
+    throw new Error('Υποστηρίζονται JPG, PNG, WEBP ή GIF.');
+  }
+  if (!getSessionToken()) return raw;
+  const uploaded = await uploadClubPhotoBlob({
+    clubId,
+    fileName,
+    contentType: type,
+    dataBase64: parsed.dataBase64,
+  });
+  if (!uploaded.success || !uploaded.data?.url) {
+    // Local Vite has no /api/sync; keep the data URL so the photo still saves.
+    return raw;
+  }
+  return withMediaCacheBust(uploaded.data.url);
+}
+
 /** Store club logo as a public HTTPS URL so every browser sees the same file after login. */
 export async function persistClubLogoToCloud(clubId: string, logoUrl: string | null) {
   return apiClient(async () => {

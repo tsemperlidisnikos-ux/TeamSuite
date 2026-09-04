@@ -17,6 +17,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { getSession } from '../auth/auth';
+import { useT } from '../i18n/LocaleContext';
 import {
   ensureSessionClub,
   getClubById,
@@ -123,6 +124,7 @@ const MORE_TABS: Array<{ id: SettingsTab; label: string; icon: typeof KeyRound }
 ];
 
 export function SettingsPage() {
+  const { t } = useT();
   const session = getSession();
   const clubId = getPreviewClubId() ?? session?.clubId ?? null;
   const { data } = useAppData();
@@ -385,10 +387,10 @@ export function SettingsPage() {
   return (
     <div className="set-page">
       <header className="set-page-head">
-        <h1>Ρυθμίσεις</h1>
+        <h1>{t('Ρυθμίσεις')}</h1>
       </header>
 
-      <nav className="set-tabs" aria-label="Κατηγορίες ρυθμίσεων">
+      <nav className="set-tabs" aria-label={t('Κατηγορίες ρυθμίσεων')}>
         {tabs.map((item) => (
           <button
             key={item.id}
@@ -396,7 +398,7 @@ export function SettingsPage() {
             className={tab === item.id ? 'is-active' : ''}
             onClick={() => setTab(item.id)}
           >
-            {item.label}
+            {t(item.label)}
           </button>
         ))}
         <div className="set-tabs-more">
@@ -408,10 +410,10 @@ export function SettingsPage() {
                 type="button"
                 className={tab === item.id ? 'is-active' : ''}
                 onClick={() => setTab(item.id)}
-                title={item.label}
+                title={t(item.label)}
               >
                 <Icon size={14} />
-                <span>{item.label}</span>
+                <span>{t(item.label)}</span>
               </button>
             );
           })}

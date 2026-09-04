@@ -257,7 +257,9 @@ export function CalendarPage() {
       const share = courtShareLabel(booking.courtShare);
       push(date, {
         id: booking.id,
-        title: `Ενοικίαση · ${booking.facilityName || 'Γήπεδο'} (${share})`,
+        title: `Ενοικίαση · ${booking.facilityName || 'Γήπεδο'} (${share}${
+          booking.useLockerRoom ? ' · αποδυτήρια' : ''
+        })`,
         time: booking.startTime || '',
         endTime: booking.endTime || '',
         kind: 'rental',

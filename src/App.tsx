@@ -7,6 +7,7 @@ import { RequireAthletesOrOwnProfile } from './auth/RequireAthletesOrOwnProfile'
 import { RequirePlatformAdmin } from './auth/RequirePlatformAdmin';
 import { AppLayout } from './components/layout/AppLayout';
 import { ConsentBanner } from './components/ConsentBanner';
+import { LocaleProvider } from './i18n/LocaleContext';
 import { getPreviewClubId } from './platform/platformConfig';
 
 const LoginPage = lazy(() =>
@@ -146,6 +147,7 @@ function HomeRoute() {
 export default function App() {
   return (
     <BrowserRouter>
+      <LocaleProvider>
       <ConsentBanner />
       <Suspense fallback={<PageFallback />}>
         <Routes>
@@ -372,6 +374,7 @@ export default function App() {
           </Route>
         </Routes>
       </Suspense>
+      </LocaleProvider>
     </BrowserRouter>
   );
 }

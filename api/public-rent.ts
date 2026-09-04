@@ -17,6 +17,7 @@ import {
   ruleForFacility,
   slotIsFree,
   bookingAmount,
+  lockerRoomFeeAmount,
 } from '../src/shared/facilityRentalAvailability.js';
 import type {
   Facility,
@@ -43,10 +44,16 @@ async function resolveBySlug(slug: string): Promise<{
   clubId: string;
   name: string;
   logoUrl: string | null;
+  heroImageUrl: string | null;
 } | null> {
   const pub = await loadPublicClubBySlug(slug);
   if (pub) {
-    return { clubId: pub.clubId, name: pub.name, logoUrl: pub.logoUrl ?? null };
+    return {
+      clubId: pub.clubId,
+      name: pub.name,
+      logoUrl: pub.logoUrl ?? null,
+      heroImageUrl: pub.heroImageUrl ?? null,
+    };
   }
   const bundle = await loadAccountBundle();
   const clubs = Array.isArray(bundle?.clubs) ? bundle!.clubs : [];
@@ -56,10 +63,15 @@ async function resolveBySlug(slug: string): Promise<{
     if (slugOfClub(raw) !== slug) continue;
     const id = String(raw.id ?? '').trim();
     if (!id) continue;
+    const registration =
+      raw.publicRegistration && typeof raw.publicRegistration === 'object'
+        ? (raw.publicRegistration as Record<string, unknown>)
+        : null;
     return {
       clubId: id,
       name: String(raw.name ?? ''),
       logoUrl: typeof raw.logoUrl === 'string' ? raw.logoUrl : null,
+      heroImageUrl: typeof registration?.heroImageUrl === 'string' ? registration.heroImageUrl : null,
     };
   }
   return null;
@@ -112,8 +124,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           slug,
           name: club.name,
           logoUrl: club.logoUrl,
+          heroImageUrl: settings.heroImageUrl || club.heroImageUrl || club.logoUrl,
           notes: settings.notes,
           publicEnabled: false,
+          photoLook: 'g',
           facilities: [],
         },
       });
@@ -131,6 +145,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         facilityId: item.id,
         hourlyRateFull: rule.hourlyRateFull,
         hourlyRateHalf: rule.hourlyRateHalf,
+        lockerRoomAvailable: Boolean(rule.lockerRoomAvailable),
+        lockerRoomFee: Number(rule.lockerRoomFee) || 0,
       };
     });
     return res.status(200).json({
@@ -141,9 +157,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         slug,
         name: club.name,
         logoUrl: club.logoUrl,
+        heroImageUrl: settings.heroImageUrl || club.heroImageUrl || club.logoUrl,
         notes: settings.notes,
         publicEnabled: true,
-        facilities,
+        photoLook: 'g',
+        facilities: facilities.map((item) => ({
+          id: item.id,
+          name: item.name,
+          active: item.active,
+          sports: item.sports,
+          timeLayout: item.timeLayout,
+          sortOrder: item.sortOrder,
+          photoUrl: item.photoUrl ?? null,
+        })),
         prices,
       },
       slots,
@@ -173,6 +199,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const customerPhone = String(body.customerPhone ?? '').trim();
   const customerEmail = String(body.customerEmail ?? '').trim();
   const notes = String(body.notes ?? '').trim();
+  const useLockerRoomRequested = body.useLockerRoom === true || body.useLockerRoom === 'true';
   if (!slug || !facilityId || !date || !startTime || !endTime) {
     return res.status(400).json({ ok: false, error: 'Συμπληρώστε γήπεδο, ημερομηνία και ώρα.' });
   }
@@ -195,6 +222,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(409).json({ ok: false, error: check.reason });
   }
   const rule = ruleForFacility(settings, facility.id, facility);
+  const useLockerRoom = Boolean(useLockerRoomRequested);
   const booking: RentalBooking = {
     id: `rent_${randomBytes(6).toString('hex')}`,
     facilityId: facility.id,
@@ -203,11 +231,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     startTime,
     endTime,
     courtShare,
+    useLockerRoom,
     customerName,
     customerPhone,
     customerEmail,
     notes,
-    amount: bookingAmount(rule, startTime, endTime, courtShare),
+    amount:
+      bookingAmount(rule, startTime, endTime, courtShare) +
+      lockerRoomFeeAmount(rule, useLockerRoom),
     source: 'public',
     status: 'confirmed',
     createdAt: new Date().toISOString(),

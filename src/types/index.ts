@@ -325,6 +325,8 @@ export interface Facility {
   /** π.χ. 08:00-00:00-15 */
   timeLayout: string;
   sortOrder: number;
+  /** Φωτογραφία γηπέδου στο δημόσιο link ενοικίασης. */
+  photoUrl?: string | null;
 }
 
 export interface RentalWindow {
@@ -342,6 +344,10 @@ export interface FacilityRentalRule {
   hourlyRate: number;
   hourlyRateFull: number;
   hourlyRateHalf: number;
+  /** Το γήπεδο προσφέρει αποδυτήρια στην ενοικίαση. */
+  lockerRoomAvailable?: boolean;
+  /** Επιπλέον χρέωση (€) αν επιλεγεί χρήση αποδυτηρίου. */
+  lockerRoomFee?: number;
 }
 
 export type RentalCourtShare = 'full' | 'half';
@@ -350,6 +356,10 @@ export interface RentalSettings {
   publicEnabled: boolean;
   notes: string;
   rules: FacilityRentalRule[];
+  /** Κεφαλίδα δημόσιου link ενοικίασης. */
+  heroImageUrl?: string | null;
+  /** Στυλ καρτών γηπέδου στη δημόσια σελίδα (Cinematic). */
+  photoLook?: 'g';
 }
 
 export interface RentalBooking {
@@ -360,6 +370,7 @@ export interface RentalBooking {
   startTime: string;
   endTime: string;
   courtShare: RentalCourtShare;
+  useLockerRoom?: boolean;
   customerName: string;
   customerPhone: string;
   customerEmail: string;

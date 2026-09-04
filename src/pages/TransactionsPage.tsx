@@ -18,6 +18,7 @@ import {
   type PaymentReceiptDraft,
 } from '../components/PaymentReceiptModal';
 import { useAppData } from '../hooks/useAppData';
+import { useT } from '../i18n/LocaleContext';
 import { getAppLogoUrl, getPreviewClubId } from '../platform/platformConfig';
 import type { TransactionInput } from '../schemas';
 import type { AthleteTransaction, Student } from '../types';
@@ -64,11 +65,11 @@ const MONTHS = [
 
 const SEASON_MONTHS = [8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7];
 
-function seasonMonthRows(startYear: number) {
+function seasonMonthRows(startYear: number, t: (text: string) => string) {
   return SEASON_MONTHS.map((month) => {
     const year = month >= 8 ? startYear : startYear + 1;
     const label = MONTHS.find((m) => m.value === month)?.label ?? String(month);
-    return { month, year, label: `${label} ${year}`, key: `${year}-${month}` };
+    return { month, year, label: `${t(label)} ${year}`, key: `${year}-${month}` };
   });
 }
 
@@ -144,6 +145,7 @@ function PanelHeader({
 }
 
 export function TransactionsPage() {
+  const { t } = useT();
   const { data, refresh } = useAppData();
   const [searchParams, setSearchParams] = useSearchParams();
   const transactions = data.transactions ?? [];
@@ -263,7 +265,7 @@ export function TransactionsPage() {
   );
 
   const monthRows = useMemo(() => {
-    const rows = seasonMonthRows(seasonStart);
+    const rows = seasonMonthRows(seasonStart, t);
     return rows.map((row) => {
       const monthTx = selectedTx.filter(
         (t) => txMonth(t) === row.month && txYear(t) === row.year,
@@ -291,7 +293,7 @@ export function TransactionsPage() {
         absent: attendance.filter((a) => !a.present).length,
       };
     });
-  }, [seasonStart, selectedTx, selected, data.attendance]);
+  }, [seasonStart, selectedTx, selected, data.attendance, t]);
 
   const totals = useMemo(
     () =>
@@ -382,7 +384,7 @@ export function TransactionsPage() {
     if (payload.type === 'payment' && result.data) {
       const athlete =
         data.students.find((s) => s.id === payload.athleteId) ?? selected ?? null;
-      const monthLabel = MONTHS.find((m) => m.value === payload.month)?.label ?? '';
+      const monthLabel = t(MONTHS.find((m) => m.value === payload.month)?.label ?? '');
       const books = seriesOptions(data.receiptNumberRanges, data.receiptIssues);
       const openSeries = books.find((row) => !row.blocked) ?? books[0];
       setReceiptDraft({
@@ -420,8 +422,8 @@ export function TransactionsPage() {
     <div className="tx-page">
       <header className="tx-page-header">
         <div>
-          <h1>Συναλλαγές</h1>
-          <p>Χρεώσεις, πληρωμές και υπόλοιπα αθλητών ανά σεζόν.</p>
+          <h1>{t('Συναλλαγές')}</h1>
+          <p>{t('Χρεώσεις, πληρωμές και υπόλοιπα αθλητών ανά σεζόν.')}</p>
         </div>
         <span className="tx-page-icon">
           <ArrowLeftRight size={20} />
@@ -438,13 +440,13 @@ export function TransactionsPage() {
             />
             <div className="tx-filters">
               <label className="tx-filter-field" htmlFor="tx-sport">
-                <span>Άθλημα</span>
+                <span>{t('Άθλημα')}</span>
                 <select
                   id="tx-sport"
                   value={sport}
                   onChange={(e) => setSport(e.target.value)}
                 >
-                  <option value="">Όλα τα αθλήματα</option>
+                  <option value="">{t('Όλα τα αθλήματα')}</option>
                   {sportOptions.map((name) => (
                     <option key={name} value={name}>
                       {name}
@@ -458,12 +460,12 @@ export function TransactionsPage() {
                 <thead>
                   <tr>
                     <th>ΑΜΚΑ</th>
-                    <th>Αρ. Δελτίου</th>
-                    <th>Επώνυμο</th>
-                    <th>Όνομα</th>
-                    <th>Πατρώνυμο</th>
-                    <th>Ημ. Γέννησης</th>
-                    <th>Υπόλοιπο σεζόν</th>
+                    <th>{t('Αρ. Δελτίου')}</th>
+                    <th>{t('Επώνυμο')}</th>
+                    <th>{t('Όνομα')}</th>
+                    <th>{t('Πατρώνυμο')}</th>
+                    <th>{t('Ημ. Γέννησης')}</th>
+                    <th>{t('Υπόλοιπο σεζόν')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -497,14 +499,16 @@ export function TransactionsPage() {
                 className="tx-search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Αναζήτηση αθλητών..."
+                placeholder={t('Αναζήτηση αθλητών...')}
               />
-              <span>{filteredAthletes.length} Εγγραφές</span>
+              <span>
+                {filteredAthletes.length} {t('Εγγραφές')}
+              </span>
             </div>
           </section>
 
           <section className="tx-panel">
-            <PanelHeader title={editingId ? 'Επεξεργασία κίνησης' : 'Νέα κίνηση'} />
+            <PanelHeader title={editingId ? t('Επεξεργασία κίνησης') : t('Νέα κίνηση')} />
             <form
               className="tx-form athlete-payment-form"
               onSubmit={(e) => {
@@ -514,7 +518,7 @@ export function TransactionsPage() {
             >
               <div className="tx-form-grid">
                 <label className="tx-field">
-                  <span>Ονοματεπώνυμο</span>
+                  <span>{t('Ονοματεπώνυμο')}</span>
                   <input
                     type="text"
                     value={
@@ -524,25 +528,25 @@ export function TransactionsPage() {
                     }
                     readOnly
                     disabled
-                    placeholder="Επιλέξτε αθλητή από τη λίστα"
+                    placeholder={t('Επιλέξτε αθλητή από τη λίστα')}
                   />
                 </label>
 
                 <label className="tx-field">
-                  <span>Τύπος κίνησης</span>
+                  <span>{t('Τύπος κίνησης')}</span>
                   <select
                     value={form.type}
                     onChange={(e) =>
                       setForm({ ...form, type: e.target.value as TransactionInput['type'] })
                     }
                   >
-                    <option value="charge">Χρέωση</option>
-                    <option value="payment">Πληρωμή</option>
+                    <option value="charge">{t('Χρέωση')}</option>
+                    <option value="payment">{t('Πληρωμή')}</option>
                   </select>
                 </label>
 
                 <label className="tx-field">
-                  <span>Ποσό (€)</span>
+                  <span>{t('Ποσό (€)')}</span>
                   <input
                     type="number"
                     min="0"
@@ -555,7 +559,7 @@ export function TransactionsPage() {
                 <div className="tx-field">
                   <div className="tx-field-row">
                     <label className="tx-field-col">
-                      <span>Μήνας</span>
+                      <span>{t('Μήνας')}</span>
                       <select
                         value={form.month}
                         onChange={(e) => {
@@ -575,7 +579,7 @@ export function TransactionsPage() {
                       </select>
                     </label>
                     <label className="tx-field-col">
-                      <span>Έτος</span>
+                      <span>{t('Έτος')}</span>
                       <select
                         value={form.year}
                         onChange={(e) => setForm({ ...form, year: Number(e.target.value) })}
@@ -591,7 +595,7 @@ export function TransactionsPage() {
                 </div>
 
                 <label className="tx-field">
-                  <span>Αρ. Απόδειξης</span>
+                  <span>{t('Αρ. Απόδειξης')}</span>
                   <input
                     type="text"
                     value={form.receiptNumber}
@@ -600,7 +604,7 @@ export function TransactionsPage() {
                 </label>
 
                 <label className="tx-field">
-                  <span>Τρόπος πληρωμής</span>
+                  <span>{t('Τρόπος πληρωμής')}</span>
                   <select
                     value={form.paymentMethod}
                     onChange={(e) =>
@@ -620,7 +624,7 @@ export function TransactionsPage() {
                 </label>
 
                 <label className="tx-field tx-field-notes">
-                  <span>Σχόλια</span>
+                  <span>{t('Σχόλια')}</span>
                   <textarea
                     rows={2}
                     maxLength={90}
@@ -636,11 +640,11 @@ export function TransactionsPage() {
               <div className="tx-form-actions">
                 {editingId ? (
                   <button type="button" className="tx-cancel-btn" onClick={cancelEdit}>
-                    <X size={16} /> Ακύρωση
+                    <X size={16} /> {t('Ακύρωση')}
                   </button>
                 ) : null}
                 <button type="submit" className="tx-save-btn" disabled={saving}>
-                  {saving ? 'Αποθήκευση...' : editingId ? 'Ενημέρωση' : 'Αποθήκευση'}
+                  {saving ? t('Αποθήκευση...') : editingId ? t('Ενημέρωση') : t('Αποθήκευση')}
                 </button>
               </div>
             </form>
@@ -655,23 +659,23 @@ export function TransactionsPage() {
               onNext={() => changeSeason(seasonStart + 1)}
             />
             <p className="tx-hint">
-              Εμφανίζονται μόνο καταχωρημένες χρεώσεις και πληρωμές της επιλεγμένης σεζόν.
+              {t('Εμφανίζονται μόνο καταχωρημένες χρεώσεις και πληρωμές της επιλεγμένης σεζόν.')}
             </p>
             <div className="tx-table-wrap">
               <table className="tx-table tx-finance-table">
                 <thead>
                   <tr>
-                    <th rowSpan={2}>Μήνας/Έτος</th>
-                    <th colSpan={3}>ΟΙΚΟΝΟΜΙΚΑ ΣΤΟΙΧΕΙΑ</th>
-                    <th colSpan={3}>ΠΑΡΟΥΣΙΟΛΟΓΙΟ</th>
+                    <th rowSpan={2}>{t('Μήνας/Έτος')}</th>
+                    <th colSpan={3}>{t('ΟΙΚΟΝΟΜΙΚΑ ΣΤΟΙΧΕΙΑ')}</th>
+                    <th colSpan={3}>{t('ΠΑΡΟΥΣΙΟΛΟΓΙΟ')}</th>
                   </tr>
                   <tr>
-                    <th>Χρέωση</th>
-                    <th>Πληρωμή</th>
-                    <th className="tx-balance-col">Υπόλοιπο</th>
-                    <th>Προπονήσεις</th>
-                    <th>Παρουσίες</th>
-                    <th>Απουσίες</th>
+                    <th>{t('Χρέωση')}</th>
+                    <th>{t('Πληρωμή')}</th>
+                    <th className="tx-balance-col">{t('Υπόλοιπο')}</th>
+                    <th>{t('Προπονήσεις')}</th>
+                    <th>{t('Παρουσίες')}</th>
+                    <th>{t('Απουσίες')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -733,9 +737,9 @@ export function TransactionsPage() {
                     {selectedTx.map((tx) => (
                       <tr key={tx.id} className={editingId === tx.id ? 'is-selected' : ''}>
                         <td>{formatDate(tx.createdAt.slice(0, 10))}</td>
-                        <td>{tx.type === 'charge' ? 'Χρέωση' : 'Πληρωμή'}</td>
+                        <td>{tx.type === 'charge' ? t('Χρέωση') : t('Πληρωμή')}</td>
                         <td>
-                          {MONTHS.find((m) => m.value === tx.month)?.label} {tx.year}
+                          {t(MONTHS.find((m) => m.value === tx.month)?.label ?? '')} {tx.year}
                         </td>
                         <td>{tx.receiptNumber || '—'}</td>
                         <td>{formatCurrency(tx.amount)}</td>

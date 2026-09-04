@@ -51,7 +51,7 @@ export type RentalSlot = {
 };
 
 export function emptyRentalSettings(): RentalSettings {
-  return { publicEnabled: false, notes: '', rules: [] };
+  return { publicEnabled: false, notes: '', rules: [], heroImageUrl: null, photoLook: 'g' };
 }
 
 export function minutesOf(hhmm: string): number {
@@ -93,17 +93,22 @@ export function defaultRuleForFacility(facility: Facility): FacilityRentalRule {
     hourlyRate: 0,
     hourlyRateFull: 0,
     hourlyRateHalf: 0,
+    lockerRoomAvailable: false,
+    lockerRoomFee: 0,
   };
 }
 
 export function normalizeRentalRule(rule: FacilityRentalRule): FacilityRentalRule {
   const full = Number(rule.hourlyRateFull) > 0 ? Number(rule.hourlyRateFull) : Number(rule.hourlyRate) || 0;
   const half = Number(rule.hourlyRateHalf);
+  const fee = Number(rule.lockerRoomFee);
   return {
     ...rule,
     hourlyRate: full,
     hourlyRateFull: full,
     hourlyRateHalf: Number.isFinite(half) && half >= 0 ? half : 0,
+    lockerRoomAvailable: Boolean(rule.lockerRoomAvailable),
+    lockerRoomFee: Number.isFinite(fee) && fee >= 0 ? fee : 0,
     slotMinutes: rule.slotMinutes || 60,
     windows: rule.windows?.length
       ? rule.windows
@@ -127,6 +132,8 @@ export function ruleForFacility(
     hourlyRate: 0,
     hourlyRateFull: 0,
     hourlyRateHalf: 0,
+    lockerRoomAvailable: false,
+    lockerRoomFee: 0,
   };
 }
 
@@ -399,4 +406,24 @@ export function bookingAmount(
 
 export function courtShareLabel(share: RentalCourtShare | undefined): string {
   return share === 'half' ? 'Μισό γήπεδο' : 'Ολόκληρο γήπεδο';
+}
+
+export function lockerRoomFeeAmount(
+  rule: FacilityRentalRule | null | undefined,
+  useLockerRoom: boolean,
+): number {
+  if (!useLockerRoom) return 0;
+  const fee = Number(rule?.lockerRoomFee) || 0;
+  return fee > 0 ? Math.round(fee * 100) / 100 : 0;
+}
+
+export function bookingTotalAmount(
+  rule: FacilityRentalRule,
+  startTime: string,
+  endTime: string,
+  courtShare: RentalCourtShare = 'full',
+  useLockerRoom = false,
+): number {
+  const base = bookingAmount(rule, startTime, endTime, courtShare);
+  return Math.round((base + lockerRoomFeeAmount(rule, useLockerRoom)) * 100) / 100;
 }

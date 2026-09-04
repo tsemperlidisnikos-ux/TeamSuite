@@ -57,6 +57,6 @@ export const seedData: AppData = {
   cashAccounts: [],
   closedFinanceMonths: [],
   matches: [],
-  rentalSettings: { publicEnabled: false, notes: '', rules: [] },
+  rentalSettings: { publicEnabled: false, notes: '', rules: [], heroImageUrl: null, photoLook: 'g' },
   rentalBookings: [],
 };
