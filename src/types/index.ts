@@ -801,4 +801,6 @@ export interface AppData {
   rentalBookings?: RentalBooking[];
   /** Πρωτόκολλο εισερχόμενων/εξερχόμενων εγγράφων. */
   documentProtocolEntries?: DocumentProtocolEntry[];
+  /** Τοπικό ρολόι τελευταίας αλλαγής στο browser — για να μην σβήνει εισαγωγή από παλιό cloud. */
+  localWrittenAt?: number;
 }

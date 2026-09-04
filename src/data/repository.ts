@@ -396,6 +396,7 @@ export function mutateData(updater: (data: AppData) => void): AppData {
   updater(data);
   cache = data;
   cacheClubId = resolveActiveClubId();
+  data.localWrittenAt = Date.now();
   saveStore(data);
   notifyAppDataChanged();
   scheduleClubMirrorPush(cacheClubId);
@@ -424,6 +425,7 @@ export function clubHasStoredData(clubId: string): boolean {
 export function mutateClubData(clubId: string, updater: (data: AppData) => void): AppData {
   const data = getClubData(clubId);
   updater(data);
+  data.localWrittenAt = Date.now();
   writeClubStoreExclusive(clubId, data);
   if (resolveActiveClubId() === clubId) {
     cache = structuredClone(data);

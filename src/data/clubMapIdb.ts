@@ -62,6 +62,24 @@ export function studentCount(data: AppData | undefined): number {
   return data?.students?.length ?? 0;
 }
 
+function inactiveCount(data: AppData | undefined): number {
+  return (data?.students ?? []).filter((s) => s.status === 'inactive').length;
+}
+
+export function pickRicherClubData(left: AppData, right: AppData): AppData {
+  const leftN = studentCount(left);
+  const rightN = studentCount(right);
+  if (rightN >= leftN + 20) return right;
+  if (leftN >= rightN + 20) return left;
+  const leftAt = Number(left.localWrittenAt) || 0;
+  const rightAt = Number(right.localWrittenAt) || 0;
+  if (rightAt !== leftAt) return rightAt > leftAt ? right : left;
+  const leftInactive = inactiveCount(left);
+  const rightInactive = inactiveCount(right);
+  if (rightInactive !== leftInactive) return rightInactive > leftInactive ? right : left;
+  return left;
+}
+
 /** Keep the richer roster per club so a small localStorage copy cannot hide 1600+ αθλητές. */
 export function mergeClubMapsPreferRicher(a: ClubDataMap, b: ClubDataMap): ClubDataMap {
   const ids = new Set([...Object.keys(a), ...Object.keys(b)]);
@@ -77,7 +95,7 @@ export function mergeClubMapsPreferRicher(a: ClubDataMap, b: ClubDataMap): ClubD
       out[id] = left;
       continue;
     }
-    out[id] = studentCount(right) > studentCount(left) ? right : left;
+    out[id] = pickRicherClubData(left, right);
   }
   return out;
 }

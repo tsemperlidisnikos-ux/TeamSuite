@@ -175,26 +175,7 @@ function mergeLocalPreferredForPush(local: AppData, cloud: AppData): AppData {
 }
 
 async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
-  const existing = await backendSyncService.pullClubMirror(id);
   let base = baseUpdatedAt;
-  if (existing.success && existing.data?.payload && existing.data.durable !== false) {
-    const { getClubData, replaceClubData } = await import('./repository');
-    const local = getClubData(id);
-    const cloud = existing.data.payload;
-    const merged = mergeLocalPreferredForPush(local, cloud);
-    replaceClubData(id, merged, { skipCloudPush: true });
-    base = existing.data.updatedAt ?? base;
-    if (
-      cloudRosterShouldReplace(local, cloud) &&
-      !hasLocalOnlyRows(local.students, cloud.students)
-    ) {
-      setLastSyncAt(id, existing.data.updatedAt ?? new Date().toISOString());
-      clearClubMirrorDirty(id);
-      await maybePushAccountBundle();
-      return { success: true as const, data: { updatedAt: existing.data.updatedAt ?? null }, error: null };
-    }
-  }
-
   let result = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: base });
 
   if (!result.success) {
@@ -504,7 +485,20 @@ function mergeClubSnapshots(
   }
 
   const next = structuredClone(cloud);
-  next.students = mergeById(local.students, cloud.students, deletedStudents, opts.preferLocal);
+  const localWrittenAt = Number(local.localWrittenAt) || 0;
+  const cloudWrittenAt = Number(cloud.localWrittenAt) || 0;
+  const preferLocalStudents =
+    !cloudRosterShouldReplace(local, cloud) &&
+    (opts.preferLocal || localWrittenAt >= cloudWrittenAt);
+  next.students = mergeById(
+    local.students,
+    cloud.students,
+    deletedStudents,
+    preferLocalStudents,
+  );
+  next.localWrittenAt = preferLocalStudents
+    ? local.localWrittenAt ?? cloud.localWrittenAt
+    : cloud.localWrittenAt ?? local.localWrittenAt;
   next.classes = mergeById(local.classes, cloud.classes, new Set(), opts.preferLocal);
   next.coaches = mergeById(local.coaches, cloud.coaches, new Set(), opts.preferLocal);
   next.staff = mergeById(local.staff, cloud.staff, new Set(), opts.preferLocal);
@@ -582,6 +576,14 @@ export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) 
     if (!pushResult.success && pushResult.error) {
       return { success: false as const, pulled: false, error: pushResult.error };
     }
+  }
+
+  if (isClubMirrorDirty(id)) {
+    const pushResult = await flushClubMirrorPush(id);
+    if (!pushResult.success && pushResult.error) {
+      return { success: false as const, pulled: false, error: pushResult.error };
+    }
+    return { success: true as const, pulled: false, error: null };
   }
 
   await pushQueue;
