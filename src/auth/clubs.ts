@@ -310,6 +310,10 @@ export function mergeClubCatalog(localClubs: Club[], incomingClubs: Club[]): Clu
     return {
       ...local,
       ...incoming,
+      athleteLicenseLimit: Math.max(
+        Number(incoming.athleteLicenseLimit) || 0,
+        Number(local.athleteLicenseLimit) || 0,
+      ),
       logoUrl: pickMediaUrl(incoming.logoUrl, local.logoUrl),
       smtp: mergeSmtpSettings(incoming.smtp, local.smtp),
       viva: mergeVivaSettings(incoming.viva, local.viva),

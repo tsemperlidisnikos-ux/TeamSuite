@@ -1515,8 +1515,10 @@ async function dispatchAccount(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         ok: true,
         durable: isDurableStoreEnabled(),
+        updatedAt: bundle.updatedAt ?? null,
         users,
         clubs,
+        platformConfig: bundle.platformConfig ?? null,
         platformBranding: publicBranding(bundle.platformConfig, clubId),
       });
     }

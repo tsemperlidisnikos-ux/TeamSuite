@@ -11,6 +11,12 @@ import {
 import { ensureAmkaFieldKeyFetcherWired } from '../api/services/amkaFieldKeyService';
 import { isQuotaError, stripHeavyMedia } from './mediaStrip';
 import { seedData } from './seed';
+import {
+  idbReadClubMap,
+  idbWriteClubMap,
+  mergeClubMapsPreferRicher,
+  type ClubDataMap as IdbClubMap,
+} from './clubMapIdb';
 
 ensureAmkaFieldKeyFetcherWired();
 
@@ -21,13 +27,14 @@ const ISOLATION_DEDUPE_FLAG = 'academyhub-isolation-dedupe-v1';
 
 export const APP_DATA_STORAGE_KEYS = [LEGACY_KEY, BY_CLUB_KEY] as const;
 
-type ClubDataMap = Record<string, AppData>;
+type ClubDataMap = IdbClubMap;
 
 /** In-memory plaintext map (AMKA decrypted). Disk holds AES-encrypted AMKA. */
 let memoryMap: ClubDataMap | null = null;
 let amkaHydratePromise: Promise<void> | null = null;
 let persistSeq = 0;
 let persistChain: Promise<void> = Promise.resolve();
+let idbHydratePromise: Promise<void> | null = null;
 
 /**
  * Active club for domain data.
@@ -111,7 +118,7 @@ function writeMapBestEffort(map: ClubDataMap): void {
   }
 
   console.error(
-    'Ο χώρος του browser γέμισε. Καθαρίστε φωτογραφίες/media και ξαναδοκιμάστε. Τα δεδομένα συλλόγων δεν διαγράφηκαν από τη μνήμη.',
+    'Ο χώρος του browser γέμισε στο localStorage. Τα δεδομένα αποθηκεύονται στο IndexedDB.',
   );
 }
 
@@ -136,10 +143,20 @@ function saveClubMapSafe(map: ClubDataMap, _priorityClubId?: string): void {
       const forDisk = await encryptMapForDisk(snapshot);
       if (seq !== persistSeq) return;
       writeMapBestEffort(forDisk);
+      if (seq !== persistSeq) return;
+      await idbWriteClubMap(stripMapMedia(forDisk));
     } catch (err) {
       console.error(err);
     }
   });
+}
+
+function stripMapMedia(map: ClubDataMap): ClubDataMap {
+  const out: ClubDataMap = {};
+  for (const [id, data] of Object.entries(map)) {
+    out[id] = stripHeavyMedia(data);
+  }
+  return out;
 }
 
 function emptyClubData(): AppData {
@@ -229,7 +246,23 @@ function scheduleAmkaHydration(map: ClubDataMap): void {
 /** Wait until encrypted AMKA values in memory are decrypted (if any). */
 export async function ensureAmkaPlaintextReady(): Promise<void> {
   loadClubMap();
+  await ensureClubMapIdbReady();
   if (amkaHydratePromise) await amkaHydratePromise;
+}
+
+/** Φορτώνει μεγαλύτερο μητρώο από IndexedDB όταν το localStorage του Chrome είναι κομμένο. */
+export async function ensureClubMapIdbReady(): Promise<void> {
+  if (!idbHydratePromise) {
+    idbHydratePromise = (async () => {
+      const fromIdb = await idbReadClubMap();
+      if (!fromIdb) return;
+      const disk = memoryMap ?? readClubMapFromDisk();
+      const merged = mergeClubMapsPreferRicher(disk, fromIdb);
+      memoryMap = merged;
+      notifyAppDataChanged();
+    })();
+  }
+  await idbHydratePromise;
 }
 
 function loadClubMap(): ClubDataMap {
@@ -243,6 +276,7 @@ function loadClubMap(): ClubDataMap {
   map = purgeDuplicatedClubBuckets(map);
   memoryMap = map;
   scheduleAmkaHydration(map);
+  void ensureClubMapIdbReady();
   return map;
 }
 
@@ -250,6 +284,7 @@ function loadClubMap(): ClubDataMap {
 export function clearStoreMemory(): void {
   memoryMap = null;
   amkaHydratePromise = null;
+  idbHydratePromise = null;
 }
 
 export function loadStore(): AppData | null {

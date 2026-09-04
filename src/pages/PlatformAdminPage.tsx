@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { pushAccountBundle } from '../api/services/accountSyncService';
+import { pushAccountBundle, scheduleAccountBundlePush } from '../api/services/accountSyncService';
 import { getUsers, saveUsers } from '../auth/auth';
 import { getClubs, saveClubs, type Club } from '../auth/clubs';
 import { BackupSchedulePanel } from '../components/BackupSchedulePanel';
@@ -40,6 +40,7 @@ import { PlatformAdminShell } from '../components/layout/PlatformAdminShell';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { persistLocalStateToCloud } from '../data/clubSync';
+import { useCloudMirrorAutoPull } from '../hooks/useCloudMirrorAutoPull';
 import * as joinFormSnapshotAdminService from '../api/services/joinFormSnapshotAdminService';
 import { optimizeLogoDataUrl } from '../utils/clubLogoFile';
 import {
@@ -333,6 +334,7 @@ export function PlatformAdminPage() {
     structuredClone(loadPlatformConfig().clubRolePermissions),
   );
   const [catalogClubId, setCatalogClubId] = useState(() => getClubs()[0]?.id ?? '');
+  useCloudMirrorAutoPull(catalogClubId || clubs[0]?.id || null);
   const clubLogoFileRef = useRef<HTMLInputElement>(null);
   const [clubRole, setClubRole] = useState<ClubRole>('admin');
   const [message, setMessage] = useState('');
@@ -362,8 +364,13 @@ export function PlatformAdminPage() {
 
   useEffect(() => {
     const onClubsUpdated = () => setClubsTick((n) => n + 1);
+    const onPlatformUpdated = () => setConfig(loadPlatformConfig());
     window.addEventListener('academyhub-clubs-updated', onClubsUpdated);
-    return () => window.removeEventListener('academyhub-clubs-updated', onClubsUpdated);
+    window.addEventListener('academyhub-platform-updated', onPlatformUpdated);
+    return () => {
+      window.removeEventListener('academyhub-clubs-updated', onClubsUpdated);
+      window.removeEventListener('academyhub-platform-updated', onPlatformUpdated);
+    };
   }, []);
 
   useEffect(() => {
@@ -388,6 +395,7 @@ export function PlatformAdminPage() {
   function persist(next: PlatformConfig) {
     setConfig(next);
     savePlatformConfig(next);
+    scheduleAccountBundlePush();
   }
 
   const flash = useCallback((text: string) => {

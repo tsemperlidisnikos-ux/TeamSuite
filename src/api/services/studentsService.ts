@@ -48,6 +48,8 @@ export async function createStudent(input: StudentInput) {
       id: createId('stu'),
       enrolledAt: localDateIso(),
     };
+    const { ensureFreshCloudRoster, flushClubMirrorPush } = await import('../../data/clubSync');
+    await ensureFreshCloudRoster();
     mutateData((data) => {
       const limit = clubAthleteLicenseLimit();
       if (
@@ -62,7 +64,6 @@ export async function createStudent(input: StudentInput) {
       data.students.push(student);
       syncClubAthleteLicenseUsed(data.students);
     });
-    const { flushClubMirrorPush } = await import('../../data/clubSync');
     await flushClubMirrorPush();
     return student;
   });

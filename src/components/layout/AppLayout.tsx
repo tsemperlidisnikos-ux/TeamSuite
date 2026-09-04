@@ -216,10 +216,14 @@ export function AppLayout() {
     return null;
   }, [session]);
 
+  const [loggingOut, setLoggingOut] = useState(false);
+
   async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
     endPreview();
-    const { persistLocalStateToCloud } = await import('../../data/clubSync');
-    await persistLocalStateToCloud();
+    const { persistLocalStateToCloudBeforeLogout } = await import('../../data/clubSync');
+    await persistLocalStateToCloudBeforeLogout();
     logout();
     navigate('/login', { replace: true });
   }
@@ -306,7 +310,7 @@ export function AppLayout() {
         {headerGreeting ? <p className="app-header-greeting">{t(headerGreeting)}</p> : null}
 
         <div className="app-header-user">
-          <div>
+          <div className="app-header-user-meta">
             <strong>{session?.fullName ?? t('Χρήστης')}</strong>
             <span>{session ? t(roleLabels[session.role]) : ''}</span>
           </div>
@@ -325,7 +329,14 @@ export function AppLayout() {
                 <UsersRound size={16} />
               </button>
             ) : null}
-            <button type="button" className="icon-btn" onClick={handleLogout} aria-label={t('Αποσύνδεση')}>
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => void handleLogout()}
+              disabled={loggingOut}
+              aria-label={t('Αποσύνδεση')}
+              title={t('Αποσύνδεση')}
+            >
               <LogOut size={16} />
             </button>
           </div>

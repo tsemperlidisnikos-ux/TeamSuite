@@ -383,6 +383,12 @@ strong {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.12);
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.app-header-user-meta {
+  min-width: 0;
 }
 
 .app-header-user strong {
@@ -391,6 +397,10 @@ strong {
   font-size: 1.05rem;
   font-weight: 650;
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(16rem, 42vw);
 }
 
 .app-header-user span {
@@ -427,6 +437,15 @@ strong {
   color: var(--chrome-fg);
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.14);
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+
+.app-header .icon-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
 }
 
 .app-shell {
@@ -4903,6 +4922,9 @@ html[data-appearance] .settings-backup-schedule-status {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .sidebar-user strong {

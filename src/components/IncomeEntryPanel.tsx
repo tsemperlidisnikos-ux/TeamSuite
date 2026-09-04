@@ -89,12 +89,19 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
     if (matched > 0 || linkedAfter !== linkedBefore) refresh();
   }, [refresh]);
 
+  const [catalogTick, setCatalogTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setCatalogTick((n) => n + 1);
+    window.addEventListener('academyhub-platform-updated', bump);
+    return () => window.removeEventListener('academyhub-platform-updated', bump);
+  }, []);
+
   const incomeCategories = useMemo(() => {
     const configured = getConfiguredIncomeCategories().filter(
       (item) => item !== ATHLETE_INCOME_SUBCATEGORY,
     );
     return [ATHLETE_INCOME_SUBCATEGORY, ...configured];
-  }, []);
+  }, [catalogTick]);
   const isAthletePayments = subcategory === ATHLETE_INCOME_SUBCATEGORY;
   const showPersonFields = requiresPersonName(subcategory);
   const showSubscriptionPeriod = isSubscriptionSubcategory(subcategory);

@@ -66,8 +66,8 @@ export function PlatformAdminShell({
             variant="secondary"
             onClick={() => {
               void (async () => {
-                const { persistLocalStateToCloud } = await import('../../data/clubSync');
-                await persistLocalStateToCloud();
+                const { persistLocalStateToCloudBeforeLogout } = await import('../../data/clubSync');
+                await persistLocalStateToCloudBeforeLogout();
                 logout();
                 navigate('/login', { replace: true });
               })();

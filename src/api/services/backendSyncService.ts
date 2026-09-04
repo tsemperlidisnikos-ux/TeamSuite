@@ -1,6 +1,7 @@
 import { apiClient } from '../apiClient';
 import { syncAuthHeaders } from '../syncAuth';
 import { getClubData } from '../../data/repository';
+import { stripHeavyMedia } from '../../data/mediaStrip';
 import type { AppData } from '../../types';
 import {
   decryptSensitivePayloadFromCloud,
@@ -22,7 +23,7 @@ export async function pushClubMirror(
 ) {
   return apiClient(async () => {
     const local = getClubData(clubId);
-    const payload = await encryptSensitivePayloadForCloud(local, clubId);
+    const payload = await encryptSensitivePayloadForCloud(stripHeavyMedia(local), clubId);
     const response = await fetch('/api/sync/mirror', {
       method: 'POST',
       headers: syncAuthHeaders(),

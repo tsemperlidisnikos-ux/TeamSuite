@@ -153,35 +153,147 @@ export function applyAccountBundle(
   options?: { mergeLocalUsers?: boolean },
 ) {
   if (bundle.durable === false) return;
-  if (bundle.platformConfig) {
-    savePlatformConfig(bundle.platformConfig);
-  } else if (bundle.platformBranding) {
-    applyPlatformBranding(bundle.platformBranding);
-  }
-
-  const cleanedUsers = clearStampedRoleDefaultPermissions(bundle.users).map((user) => {
-    // Tenant pulls omit password hashes — keep any existing local hash.
-    if (user.password) return user;
-    const local = getUsers().find((row) => row.id === user.id);
-    return local?.password ? { ...user, password: local.password } : user;
-  });
-
-  if (options?.mergeLocalUsers) {
-    const cloudUsers = cleanedUsers;
-    const localUsers = clearStampedRoleDefaultPermissions(getUsers());
-    const byId = new Map(cloudUsers.map((u) => [u.id, u]));
-    const cloudEmails = new Set(cloudUsers.map((u) => u.email.toLowerCase()));
-    for (const local of localUsers) {
-      if (byId.has(local.id)) continue;
-      if (cloudEmails.has(local.email.toLowerCase())) continue;
-      byId.set(local.id, local);
+  applyingCloudAccount = true;
+  try {
+    if (bundle.platformConfig) {
+      savePlatformConfig(bundle.platformConfig);
+    } else if (bundle.platformBranding) {
+      applyPlatformBranding(bundle.platformBranding);
     }
-    saveUsers([...byId.values()]);
-  } else {
-    saveUsers(cleanedUsers);
+
+    const cleanedUsers = clearStampedRoleDefaultPermissions(bundle.users).map((user) => {
+      // Tenant pulls omit password hashes — keep any existing local hash.
+      if (user.password) return user;
+      const local = getUsers().find((row) => row.id === user.id);
+      return local?.password ? { ...user, password: local.password } : user;
+    });
+
+    if (options?.mergeLocalUsers) {
+      const cloudUsers = cleanedUsers;
+      const localUsers = clearStampedRoleDefaultPermissions(getUsers());
+      const byId = new Map(cloudUsers.map((u) => [u.id, u]));
+      const cloudEmails = new Set(cloudUsers.map((u) => u.email.toLowerCase()));
+      for (const local of localUsers) {
+        if (byId.has(local.id)) continue;
+        if (cloudEmails.has(local.email.toLowerCase())) continue;
+        byId.set(local.id, local);
+      }
+      saveUsers([...byId.values()]);
+    } else {
+      saveUsers(cleanedUsers);
+    }
+    saveClubs(mergeClubCatalog(getClubs(), bundle.clubs));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
+    }
+  } finally {
+    applyingCloudAccount = false;
   }
-  saveClubs(mergeClubCatalog(getClubs(), bundle.clubs));
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
+}
+
+const ACCOUNT_UPDATED_AT_KEY = 'teamsuite-account-bundle-at-v1';
+let applyingCloudAccount = false;
+let accountPushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function readAccountUpdatedAt(): string | null {
+  try {
+    return localStorage.getItem(ACCOUNT_UPDATED_AT_KEY);
+  } catch {
+    return null;
   }
+}
+
+function writeAccountUpdatedAt(at: string | null) {
+  try {
+    if (!at) localStorage.removeItem(ACCOUNT_UPDATED_AT_KEY);
+    else localStorage.setItem(ACCOUNT_UPDATED_AT_KEY, at);
+  } catch {
+    /* ignore */
+  }
+}
+
+function isCloudStampNewer(cloudAt: string | null | undefined, localAt: string | null): boolean {
+  if (!cloudAt) return false;
+  if (!localAt) return true;
+  return cloudAt > localAt;
+}
+
+function financeCatalogSignature(config: PlatformConfig | null | undefined): string {
+  if (!config) return '';
+  return JSON.stringify({
+    income: config.incomeCategories ?? [],
+    expense: config.expenseCategories ?? [],
+    incomeDescriptions: config.incomeDescriptions ?? {},
+    expenseDescriptions: config.expenseDescriptions ?? {},
+  });
+}
+
+function cloudFinanceCatalogDiffers(cloud: PlatformConfig | null | undefined): boolean {
+  if (!cloud) return false;
+  return financeCatalogSignature(cloud) !== financeCatalogSignature(loadPlatformConfig());
+}
+
+/** Debounced push of users/clubs/platformConfig (κατηγορίες εσόδων-εξόδων κ.λπ.). */
+export function scheduleAccountBundlePush() {
+  if (applyingCloudAccount) return;
+  const session = getSession();
+  if (session?.role !== 'platform_admin') return;
+
+  if (accountPushTimer) clearTimeout(accountPushTimer);
+  accountPushTimer = setTimeout(() => {
+    accountPushTimer = null;
+    void flushAccountBundlePush();
+  }, 400);
+}
+
+export async function flushAccountBundlePush() {
+  if (accountPushTimer) {
+    clearTimeout(accountPushTimer);
+    accountPushTimer = null;
+  }
+  const session = getSession();
+  if (session?.role !== 'platform_admin') {
+    return { success: true as const, skipped: true as const, error: null };
+  }
+  const result = await pushAccountBundle();
+  if (result.success && result.data?.updatedAt) {
+    writeAccountUpdatedAt(result.data.updatedAt);
+  }
+  return result;
+}
+
+/** Pull account bundle when cloud is newer so το 2ο laptop βλέπει κατηγορίες/ρυθμίσεις. */
+export async function pullAccountBundleIfNewer() {
+  const { getSessionToken } = await import('./sessionService');
+  const { isDemoSessionActive } = await import('../../auth/auth');
+  if (!getSessionToken() || isDemoSessionActive()) {
+    return { success: true as const, pulled: false, error: null };
+  }
+
+  if (accountPushTimer) {
+    await flushAccountBundlePush();
+  }
+
+  const result = await pullAccountBundle();
+  if (!result.success || !result.data || result.data.durable === false) {
+    return {
+      success: result.success,
+      pulled: false,
+      error: result.error ?? null,
+    };
+  }
+
+  const cloudAt = result.data.updatedAt ?? null;
+  const localAt = readAccountUpdatedAt();
+  const catalogDiff = cloudFinanceCatalogDiffers(result.data.platformConfig);
+  if (!catalogDiff && localAt && !isCloudStampNewer(cloudAt, localAt)) {
+    return { success: true as const, pulled: false, error: null };
+  }
+  if (!catalogDiff && !cloudAt && Boolean(localAt)) {
+    return { success: true as const, pulled: false, error: null };
+  }
+
+  applyAccountBundle(result.data, { mergeLocalUsers: true });
+  if (cloudAt) writeAccountUpdatedAt(cloudAt);
+  return { success: true as const, pulled: true, error: null };
 }

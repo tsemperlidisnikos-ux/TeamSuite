@@ -1,6 +1,6 @@
 import * as accountSyncService from '../api/services/accountSyncService';
 import * as backendSyncService from '../api/services/backendSyncService';
-import { appDataWeight } from './mediaStrip';
+import { stripHeavyMedia } from './mediaStrip';
 import { resolveActiveClubId, whenClubMapPersisted } from './store';
 import type { AppData, ClothingPackageDef, DiscountReasonDef, ReceiptIssueRecord, SizeChart } from '../types';
 import {
@@ -25,12 +25,11 @@ type AutoSyncMap = Record<string, boolean>;
 type LastSyncMap = Record<string, string>;
 
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
-let pushing = false;
 let pulling = false;
 let lastPullAttemptAt = 0;
 let pushQueue: Promise<unknown> = Promise.resolve();
 
-const MIN_PULL_GAP_MS = 6_000;
+const MIN_PULL_GAP_MS = 1_500;
 
 function readMap<T extends Record<string, unknown>>(key: string): T {
   try {
@@ -114,7 +113,7 @@ export function scheduleClubMirrorPush(clubId?: string | null): void {
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
     void flushClubMirrorPush(id);
-  }, 800);
+  }, 400);
 }
 
 async function maybePushAccountBundle() {
@@ -146,13 +145,8 @@ export async function flushClubMirrorPush(clubId?: string | null) {
   }
 
   const run = async () => {
-    pushing = true;
-    try {
-      await whenClubMapPersisted();
-      return await pushClubAndAccounts(id, getLastSyncAt(id));
-    } finally {
-      pushing = false;
-    }
+    await whenClubMapPersisted();
+    return await pushClubAndAccounts(id, getLastSyncAt(id));
   };
 
   const queued = pushQueue.then(run, run);
@@ -163,8 +157,36 @@ export async function flushClubMirrorPush(clubId?: string | null) {
   return queued;
 }
 
+function applyCloudClubData(local: AppData, cloud: AppData): AppData {
+  const payload = stripHeavyMedia(cloud);
+  return mergeClubSnapshots(local, payload, {
+    preferLocal: false,
+    treatCloudOnlyTxAsDeleted: false,
+  });
+}
+
 async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
-  let result = await backendSyncService.pushClubMirror(id, { baseUpdatedAt });
+  const existing = await backendSyncService.pullClubMirror(id);
+  let base = baseUpdatedAt;
+  if (existing.success && existing.data?.payload && existing.data.durable !== false) {
+    const { getClubData, replaceClubData } = await import('./repository');
+    const local = getClubData(id);
+    const cloud = existing.data.payload;
+    const merged = applyCloudClubData(local, cloud);
+    replaceClubData(id, merged, { skipCloudPush: true });
+    base = existing.data.updatedAt ?? base;
+    if (
+      cloudRosterShouldReplace(local, cloud) &&
+      !hasLocalOnlyRows(local.students, cloud.students)
+    ) {
+      setLastSyncAt(id, existing.data.updatedAt ?? new Date().toISOString());
+      clearClubMirrorDirty(id);
+      await maybePushAccountBundle();
+      return { success: true as const, data: { updatedAt: existing.data.updatedAt ?? null }, error: null };
+    }
+  }
+
+  let result = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: base });
 
   if (!result.success) {
     const err = result.error ?? '';
@@ -174,13 +196,7 @@ async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
       if (pull.success && pull.data?.payload && pull.data.durable !== false) {
         const { getClubData, replaceClubData } = await import('./repository');
         const local = getClubData(id);
-        const merged = mergeClubSnapshots(local, pull.data.payload, {
-          preferLocal: true,
-          treatCloudOnlyTxAsDeleted: Boolean(
-            (local.deletedTransactionIds?.length ?? 0) > 0 ||
-              (local.suppressedFeeChargeKeys?.length ?? 0) > 0,
-          ),
-        });
+        const merged = applyCloudClubData(local, pull.data.payload);
         replaceClubData(id, merged, { skipCloudPush: true });
         result = await backendSyncService.pushClubMirror(id, {
           baseUpdatedAt: pull.data.updatedAt ?? null,
@@ -224,6 +240,14 @@ function isEmptyCloudOverwrite(local: AppData, cloud: AppData): boolean {
   const localN = (local.students?.length ?? 0) + (local.classes?.length ?? 0);
   const cloudN = (cloud.students?.length ?? 0) + (cloud.classes?.length ?? 0);
   return localN > 0 && cloudN === 0;
+}
+
+/** Cloud has the real roster (π.χ. 1649) while this browser still has a small stale copy. */
+function cloudRosterShouldReplace(local: AppData, cloud: AppData): boolean {
+  const localN = local.students?.length ?? 0;
+  const cloudN = cloud.students?.length ?? 0;
+  if (cloudN < 30) return false;
+  return cloudN >= localN + 20 || (localN > 0 && cloudN >= localN * 2);
 }
 
 function rowIds(rows: { id: string }[] | undefined): Set<string> {
@@ -334,42 +358,6 @@ function localHasUnsyncedEdits(local: AppData, cloud: AppData): boolean {
   return false;
 }
 
-function cloudWouldLoseLocalData(local: AppData, cloud: AppData): boolean {
-  if (isEmptyCloudOverwrite(local, cloud)) return true;
-  if (localHasUnsyncedEdits(local, cloud)) return true;
-
-  const localDeleted = local.deletedTransactionIds ?? [];
-  if (localDeleted.length > 0) {
-    const cloudTxnIds = new Set((cloud.transactions ?? []).map((t) => t.id));
-    if (localDeleted.some((id) => cloudTxnIds.has(id))) return true;
-  }
-
-  const localDeletedStudents = local.deletedStudentIds ?? [];
-  if (localDeletedStudents.length > 0) {
-    const cloudStudentIds = new Set((cloud.students ?? []).map((s) => s.id));
-    if (localDeletedStudents.some((id) => cloudStudentIds.has(id))) return true;
-  }
-
-  const localIds = new Set((local.transactions ?? []).map((t) => t.id));
-  const cloudIds = new Set((cloud.transactions ?? []).map((t) => t.id));
-  const cloudOnly = [...cloudIds].filter((id) => !localIds.has(id));
-  const localOnly = [...localIds].filter((id) => !cloudIds.has(id));
-  const studentsLocal = local.students?.length ?? 0;
-  const studentsCloud = cloud.students?.length ?? 0;
-  if (
-    cloudOnly.length > 0 &&
-    localOnly.length === 0 &&
-    studentsLocal > 0 &&
-    studentsLocal >= studentsCloud
-  ) {
-    return true;
-  }
-
-  const localW = appDataWeight(local);
-  const cloudW = appDataWeight(cloud);
-  return localW > 0 && localW > cloudW;
-}
-
 function mergeReceiptIssues(
   local: ReceiptIssueRecord[] | undefined,
   cloud: ReceiptIssueRecord[] | undefined,
@@ -453,11 +441,22 @@ function mergeClubSnapshots(
   next.classes = mergeById(local.classes, cloud.classes, new Set(), opts.preferLocal);
   next.coaches = mergeById(local.coaches, cloud.coaches, new Set(), opts.preferLocal);
   next.staff = mergeById(local.staff, cloud.staff, new Set(), opts.preferLocal);
+  next.associations = mergeById(local.associations, cloud.associations, new Set(), opts.preferLocal);
+  next.sports = mergeById(local.sports, cloud.sports, new Set(), opts.preferLocal);
+  next.facilities = mergeById(local.facilities, cloud.facilities, new Set(), opts.preferLocal);
+  next.feeChargeTemplates = mergeById(
+    local.feeChargeTemplates,
+    cloud.feeChargeTemplates,
+    new Set(),
+    opts.preferLocal,
+  );
+  next.clubSeasons = mergeById(local.clubSeasons, cloud.clubSeasons, new Set(), opts.preferLocal);
+  next.expenses = mergeById(local.expenses, cloud.expenses, new Set(), opts.preferLocal);
   next.transactions = [...byId.values()];
   next.deletedTransactionIds = [...deleted].slice(-5000);
   next.deletedStudentIds = [...deletedStudents].slice(-5000);
   next.suppressedFeeChargeKeys = [...suppressed].slice(-5000);
-  next.revenues = (next.revenues ?? []).filter(
+  next.revenues = mergeById(local.revenues, cloud.revenues, new Set(), opts.preferLocal).filter(
     (row) => !row.linkedTransactionId || !deleted.has(row.linkedTransactionId),
   );
   next.discountReasons = mergeIdCatalog(
@@ -492,7 +491,7 @@ function mergeClubSnapshots(
  */
 export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) {
   const id = clubId ?? resolveActiveClubId();
-  if (!id || id === '_default' || !isAutoSyncEnabled(id) || pushing || pulling) {
+  if (!id || id === '_default' || !isAutoSyncEnabled(id) || pulling) {
     return { success: true as const, pulled: false, error: null };
   }
 
@@ -517,6 +516,8 @@ export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) 
     }
   }
 
+  await pushQueue;
+
   pulling = true;
   try {
     const localAt = getLastSyncAt(id);
@@ -534,28 +535,25 @@ export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) 
     }
 
     const cloudAt = result.data.updatedAt ?? null;
-    if (!isCloudNewer(cloudAt, localAt)) {
+    const { getClubData, replaceClubData } = await import('./repository');
+    const local = getClubData(id);
+    if (result.data.durable === false) {
+      return { success: true as const, pulled: false, error: null };
+    }
+    const cloud = result.data.payload;
+    const staleRoster = cloudRosterShouldReplace(local, cloud);
+    if (!isCloudNewer(cloudAt, localAt) && !staleRoster) {
       return { success: true as const, pulled: false, error: null };
     }
 
-    const { getClubData, replaceClubData } = await import('./repository');
-    const local = getClubData(id);
-    if (
-      result.data.durable === false ||
-      cloudWouldLoseLocalData(local, result.data.payload)
-    ) {
-      return { success: true as const, pulled: false, error: null };
-    }
-    replaceClubData(
-      id,
-      mergeClubSnapshots(local, result.data.payload, {
-        preferLocal: isClubMirrorDirty(id) || localHasUnsyncedEdits(local, result.data.payload),
-        treatCloudOnlyTxAsDeleted: isClubMirrorDirty(id),
-      }),
-      { skipCloudPush: true },
-    );
+    const nextData = applyCloudClubData(local, cloud);
+    replaceClubData(id, nextData, { skipCloudPush: true });
     setLastSyncAt(id, cloudAt ?? new Date().toISOString());
     setCloudPreferred(true);
+    if (!staleRoster && (isClubMirrorDirty(id) || localHasUnsyncedEdits(nextData, cloud))) {
+      markClubMirrorDirty(id);
+      void flushClubMirrorPush(id);
+    }
     return { success: true as const, pulled: true, error: null };
   } finally {
     pulling = false;
@@ -591,14 +589,21 @@ export async function hydrateAllClubMirrorsFromCloud(): Promise<void> {
       if (!result.success || !result.data?.payload || result.data.durable === false) continue;
       if (clubHasStoredData(id)) {
         const local = getClubData(id);
-        const preferLocal =
-          isClubMirrorDirty(id) || localHasUnsyncedEdits(local, result.data.payload);
+        if (cloudRosterShouldReplace(local, result.data.payload)) {
+          replaceClubData(id, applyCloudClubData(local, result.data.payload), { skipCloudPush: true });
+          setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
+          clearClubMirrorDirty(id);
+          continue;
+        }
+        const preferLocal = isClubMirrorDirty(id);
         replaceClubData(
           id,
-          mergeClubSnapshots(local, result.data.payload, {
-            preferLocal,
-            treatCloudOnlyTxAsDeleted: preferLocal,
-          }),
+          preferLocal
+            ? mergeClubSnapshots(local, stripHeavyMedia(result.data.payload), {
+                preferLocal,
+                treatCloudOnlyTxAsDeleted: preferLocal,
+              })
+            : applyCloudClubData(local, result.data.payload),
           { skipCloudPush: true },
         );
         setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
@@ -609,7 +614,7 @@ export async function hydrateAllClubMirrorsFromCloud(): Promise<void> {
           clearClubMirrorDirty(id);
         }
       } else {
-        replaceClubData(id, result.data.payload, { skipCloudPush: true });
+        replaceClubData(id, stripHeavyMedia(result.data.payload), { skipCloudPush: true });
         setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
         clearClubMirrorDirty(id);
       }
@@ -617,6 +622,26 @@ export async function hydrateAllClubMirrorsFromCloud(): Promise<void> {
   } finally {
     pulling = false;
   }
+}
+
+/**
+ * Always apply the cloud roster (Chrome often keeps a truncated localStorage copy
+ * with a stale lastSync timestamp, so a "if newer" pull would skip).
+ */
+export async function ensureFreshCloudRoster(clubId?: string | null) {
+  const id = clubId ?? resolveActiveClubId();
+  if (!id || id === '_default' || !isAutoSyncEnabled(id)) return;
+  const { getSessionToken } = await import('../api/services/sessionService');
+  const { isDemoSessionActive } = await import('../auth/auth');
+  if (!getSessionToken() || isDemoSessionActive()) return;
+
+  await pushQueue;
+  const result = await backendSyncService.pullClubMirror(id);
+  if (!result.success || !result.data?.payload || result.data.durable === false) return;
+  const { getClubData, replaceClubData } = await import('./repository');
+  const local = getClubData(id);
+  replaceClubData(id, applyCloudClubData(local, result.data.payload), { skipCloudPush: true });
+  setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
 }
 
 /**
@@ -649,6 +674,20 @@ export async function persistLocalStateToCloud(opts?: {
   return { success: true as const, error: null };
 }
 
+/** Best-effort cloud flush so logout is never blocked by a hung push. */
+export async function persistLocalStateToCloudBeforeLogout(timeoutMs = 2000) {
+  try {
+    await Promise.race([
+      persistLocalStateToCloud(),
+      new Promise<void>((resolve) => {
+        window.setTimeout(resolve, timeoutMs);
+      }),
+    ]);
+  } catch {
+    /* still continue to logout */
+  }
+}
+
 /**
  * Login sync: keep richer local data, upload if cloud is empty/missing,
  * never replace a restored club with an empty mirror.
@@ -675,19 +714,24 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
       if (result.data.durable === false) continue;
       const local = getClubData(id);
       const cloud = result.data.payload;
-      const preferLocal = isClubMirrorDirty(id) || localHasUnsyncedEdits(local, cloud);
+      const preferLocal = isClubMirrorDirty(id);
       const treatCloudOnlyTxAsDeleted =
         preferLocal &&
         ((local.deletedTransactionIds?.length ?? 0) > 0 ||
           (local.suppressedFeeChargeKeys?.length ?? 0) > 0);
-      const merged = mergeClubSnapshots(local, cloud, {
-        preferLocal,
-        treatCloudOnlyTxAsDeleted,
-      });
+      const useCloudRoster = cloudRosterShouldReplace(local, cloud);
+      const merged = useCloudRoster
+        ? applyCloudClubData(local, cloud)
+        : mergeClubSnapshots(local, stripHeavyMedia(cloud), {
+            preferLocal,
+            treatCloudOnlyTxAsDeleted,
+          });
       replaceClubData(id, merged, { skipCloudPush: true });
       setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
       setCloudPreferred(true);
-      if (localHasUnsyncedEdits(local, cloud) || isEmptyCloudOverwrite(local, cloud)) {
+      if (useCloudRoster) {
+        clearClubMirrorDirty(id);
+      } else if (localHasUnsyncedEdits(merged, cloud) || isEmptyCloudOverwrite(merged, cloud)) {
         markClubMirrorDirty(id);
         await flushClubMirrorPush(id);
       } else {
