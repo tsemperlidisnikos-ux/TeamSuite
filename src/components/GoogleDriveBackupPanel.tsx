@@ -117,9 +117,10 @@ export function GoogleDriveBackupPanel({ onSaved }: { onSaved: (text: string) =>
     <div className="entry-form admin-entry">
       <p className="admin-entry-note">
         Ένας φάκελος στο Google Drive (προεπιλογή <strong>TeamSuite-Backups</strong>) με υποφάκελο ανά
-        σύλλογο και ένα JSON ανά ημέρα. Το νυχτερινό cron (02:00 UTC) ανεβάζει όσα club mirrors υπάρχουν
-        ήδη στο cloud. Απαιτούνται στο Vercel: <code>GOOGLE_DRIVE_CLIENT_ID</code>,{' '}
-        <code>GOOGLE_DRIVE_CLIENT_SECRET</code> και Redirect URI{' '}
+        σύλλογο. Κάθε αρχείο ονομάζεται όπως{' '}
+        <code>TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-04-17-25.json</code>. Το νυχτερινό cron (02:00 UTC)
+        ανεβάζει όσα club mirrors υπάρχουν ήδη στο cloud. Απαιτούνται στο Vercel:{' '}
+        <code>GOOGLE_DRIVE_CLIENT_ID</code>, <code>GOOGLE_DRIVE_CLIENT_SECRET</code> και Redirect URI{' '}
         <code>{status?.redirectUri || 'https://teamsuite-seven.vercel.app/api/google-drive?op=callback'}</code>
         .
       </p>
@@ -170,6 +171,16 @@ export function GoogleDriveBackupPanel({ onSaved }: { onSaved: (text: string) =>
           <Button type="button" variant="secondary" disabled={busy} onClick={() => void saveFolder()}>
             Αποθήκευση φακέλου
           </Button>
+          {status.email ? (
+            <p className="admin-entry-note">Συνδεδεμένο Drive: {status.email}</p>
+          ) : null}
+          {status.rootFolderUrl ? (
+            <p className="admin-entry-note">
+              <a href={status.rootFolderUrl} target="_blank" rel="noreferrer">
+                Άνοιγμα φακέλου TeamSuite-Backups
+              </a>
+            </p>
+          ) : null}
           {status.lastUploadAt ? (
             <p className="admin-entry-note">Τελευταία αποστολή: {status.lastUploadAt}</p>
           ) : null}

@@ -5,7 +5,11 @@ import { exportAllClubsData, getData } from '../data/repository';
 import { loadStore } from '../data/store';
 import { loadPlatformConfig } from '../platform/platformConfig';
 import type { AppData } from '../types';
-import { localDateIso, localDateTimeIso } from './dates';
+import { localDateTimeIso } from './dates';
+import {
+  backupDateTimeStamp,
+  slugifyClubNameForBackup,
+} from '../shared/clubBackupFilename';
 import {
   clubAthleteLicenseLimit,
   countActiveAthleteLicenses,
@@ -142,16 +146,7 @@ export function mergeUsersPreservingPasswords(
   });
 }
 
-/** Filesystem-safe club name for backup filenames (preserves Greek letters). */
-export function slugifyClubNameForBackup(name: string, fallback: string): string {
-  const trimmed = String(name ?? '').trim();
-  const slug = trimmed
-    .replace(/[^\w\u0370-\u03ff-]+/gi, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 56);
-  return slug || fallback;
-}
+export { slugifyClubNameForBackup };
 
 /** Prefix for club JSON downloads: includes readable club name + date suffix from downloadBackupJson. */
 export function clubBackupFilenamePrefix(clubId: string): string {
@@ -195,7 +190,7 @@ export function downloadBackupJson(
 ): string {
   const safe = redactBackupPayload(payload);
   const json = JSON.stringify(safe, null, 2);
-  const filename = `${filenamePrefix}-${localDateIso()}.json`;
+  const filename = `${filenamePrefix}-${backupDateTimeStamp()}.json`;
   const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

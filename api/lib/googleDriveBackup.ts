@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:
 import { kvGet, kvSet } from './durableKv.js';
 import { fieldCryptoSecret } from './fieldCrypto.js';
 import { listMirrorKeys, loadAccountBundle, loadMirror } from './serverStore.js';
+import { clubBackupJsonFileName, backupDateTimeStamp } from '../../src/shared/clubBackupFilename.js';
 
 const SETTINGS_KEY = 'ss360:google-drive-backup';
 const OAUTH_STATE_KEY = 'ss360:google-drive-oauth-state';
@@ -456,7 +457,8 @@ export async function uploadClubMirrorsToGoogleDrive(opts?: {
     }
 
     const names = clubNameMap(await loadAccountBundle());
-    const dateKey = new Date().toISOString().slice(0, 10);
+    const uploadedAt = new Date();
+    const dateKey = backupDateTimeStamp(uploadedAt);
     const exclude = new Set(settings.excludeClubIds ?? []);
     const uploaded: string[] = [];
 
@@ -464,21 +466,23 @@ export async function uploadClubMirrorsToGoogleDrive(opts?: {
       if (exclude.has(clubId)) continue;
       const mirror = await loadMirror(clubId);
       if (!mirror) continue;
-      const folderName = sanitizeDriveFolderName(names.get(clubId) || clubId, clubId);
+      const clubName = names.get(clubId) || clubId;
+      const folderName = sanitizeDriveFolderName(clubName, clubId);
       const clubFolderId = await ensureFolder(access, folderName, rootId);
+      const fileName = clubBackupJsonFileName(clubName, clubId, uploadedAt);
       const body = JSON.stringify(
         {
-          exportedAt: new Date().toISOString(),
+          exportedAt: uploadedAt.toISOString(),
           scope: 'club',
           sourceClubId: clubId,
-          clubName: names.get(clubId) || clubId,
+          clubName,
           sourceUpdatedAt: mirror.updatedAt,
           appData: mirror.payload,
         },
         null,
         2,
       );
-      await uploadJsonFile(access, clubFolderId, `${dateKey}.json`, body);
+      await uploadJsonFile(access, clubFolderId, fileName, body);
       uploaded.push(clubId);
     }
 
