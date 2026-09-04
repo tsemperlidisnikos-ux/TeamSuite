@@ -222,11 +222,7 @@ export function StudentsPage() {
     const scoped = visibleStudentsForSession(data.students, allowedClassIds, session);
     return scoped
       .filter((s) => {
-        if (statusFilter) {
-          if (s.status !== statusFilter) return false;
-        } else if (s.status === 'inactive') {
-          return false;
-        }
+        if (statusFilter && s.status !== statusFilter) return false;
         if (classFilter && !studentClassIds(s).includes(classFilter)) return false;
         if (sportFilter) {
           const classSports = studentClassIds(s).map(
