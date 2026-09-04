@@ -280,7 +280,10 @@ export async function persistClubImageDataUrl(
   if (!CLOUD_IMAGE_TYPES.includes(type as (typeof CLOUD_IMAGE_TYPES)[number])) {
     throw new Error('Υποστηρίζονται JPG, PNG, WEBP ή GIF.');
   }
-  if (!getSessionToken()) return raw;
+  if (!getSessionToken()) {
+    if (import.meta.env.DEV) return raw;
+    throw new Error('Δεν υπάρχει σύνδεση. Ξανασυνδεθείτε για να αποθηκευτεί η φωτογραφία.');
+  }
   const uploaded = await uploadClubPhotoBlob({
     clubId,
     fileName,
@@ -289,7 +292,8 @@ export async function persistClubImageDataUrl(
   });
   if (!uploaded.success || !uploaded.data?.url) {
     // Local Vite has no /api/sync; keep the data URL so the photo still saves.
-    return raw;
+    if (import.meta.env.DEV) return raw;
+    throw new Error(uploaded.error ?? 'Αποτυχία αποθήκευσης φωτογραφίας στο cloud.');
   }
   return withMediaCacheBust(uploaded.data.url);
 }

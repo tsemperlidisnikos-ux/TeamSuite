@@ -19,12 +19,20 @@ export async function saveRentalSettings(input: RentalSettings) {
   return apiClient(async () => {
     const parsed = rentalSettingsSchema.parse(input);
     const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
-    const heroImageUrl =
-      parsed.heroImageUrl === undefined
-        ? undefined
-        : parsed.heroImageUrl?.startsWith('data:') && clubId
-          ? await persistClubImageDataUrl(clubId, parsed.heroImageUrl, 'rent-hero.jpg')
-          : parsed.heroImageUrl ?? null;
+    const heroRaw = parsed.heroImageUrl;
+    let heroImageUrl: string | null | undefined;
+    if (heroRaw === undefined) {
+      heroImageUrl = undefined;
+    } else if (heroRaw?.startsWith('data:')) {
+      if (!clubId) {
+        if (import.meta.env.DEV) heroImageUrl = heroRaw;
+        else throw new Error('Δεν βρέθηκε σύλλογος για αποθήκευση φωτογραφίας.');
+      } else {
+        heroImageUrl = await persistClubImageDataUrl(clubId, heroRaw, 'rent-hero.jpg');
+      }
+    } else {
+      heroImageUrl = heroRaw ?? null;
+    }
     mutateData((data) => {
       data.rentalSettings = {
         publicEnabled: parsed.publicEnabled,
@@ -42,6 +50,8 @@ export async function saveRentalSettings(input: RentalSettings) {
         })),
       };
     });
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
+    await flushClubMirrorPush();
     return getData().rentalSettings ?? emptyRentalSettings();
   });
 }

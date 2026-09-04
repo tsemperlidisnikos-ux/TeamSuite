@@ -15,6 +15,7 @@ import {
   normalizeReceiptRanges,
 } from '../utils/receiptBook';
 import { transactionIsSuppressed } from '../utils/feeChargeKeys';
+import { emptyRentalSettings } from '../shared/facilityRentalAvailability';
 
 const AUTO_SYNC_KEY = 'academyhub-auto-sync-v1';
 const LAST_SYNC_KEY = 'academyhub-last-sync-v1';
@@ -403,6 +404,48 @@ function mergeById<T extends { id: string }>(
   return [...map.values()];
 }
 
+function pickNonEmptyMediaUrl(
+  primary?: string | null,
+  fallback?: string | null,
+): string | null {
+  const a = (primary ?? '').trim();
+  if (a) return a;
+  const b = (fallback ?? '').trim();
+  if (b) return b;
+  return null;
+}
+
+function mergeFacilities(
+  localRows: AppData['facilities'] | undefined,
+  cloudRows: AppData['facilities'] | undefined,
+  preferLocal: boolean,
+): AppData['facilities'] {
+  const merged = mergeById(localRows, cloudRows, new Set(), preferLocal);
+  return merged.map((row) => {
+    const local = (localRows ?? []).find((item) => item.id === row.id);
+    const cloud = (cloudRows ?? []).find((item) => item.id === row.id);
+    const primary = preferLocal ? local?.photoUrl : cloud?.photoUrl;
+    const fallback = preferLocal ? cloud?.photoUrl : local?.photoUrl;
+    return { ...row, photoUrl: pickNonEmptyMediaUrl(primary, fallback) };
+  });
+}
+
+function mergeRentalSettings(
+  local: AppData['rentalSettings'] | undefined,
+  cloud: AppData['rentalSettings'] | undefined,
+  preferLocal: boolean,
+): AppData['rentalSettings'] {
+  const primary = preferLocal ? local : cloud;
+  const secondary = preferLocal ? cloud : local;
+  return {
+    ...emptyRentalSettings(),
+    ...secondary,
+    ...primary,
+    photoLook: 'g',
+    heroImageUrl: pickNonEmptyMediaUrl(primary?.heroImageUrl, secondary?.heroImageUrl),
+  };
+}
+
 function mergeClubSnapshots(
   local: AppData,
   cloud: AppData,
@@ -443,7 +486,8 @@ function mergeClubSnapshots(
   next.staff = mergeById(local.staff, cloud.staff, new Set(), opts.preferLocal);
   next.associations = mergeById(local.associations, cloud.associations, new Set(), opts.preferLocal);
   next.sports = mergeById(local.sports, cloud.sports, new Set(), opts.preferLocal);
-  next.facilities = mergeById(local.facilities, cloud.facilities, new Set(), opts.preferLocal);
+  next.facilities = mergeFacilities(local.facilities, cloud.facilities, opts.preferLocal);
+  next.rentalSettings = mergeRentalSettings(local.rentalSettings, cloud.rentalSettings, opts.preferLocal);
   next.feeChargeTemplates = mergeById(
     local.feeChargeTemplates,
     cloud.feeChargeTemplates,

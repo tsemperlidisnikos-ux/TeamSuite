@@ -9,8 +9,16 @@ import type { Facility } from '../../types';
 async function persistPhoto(photoUrl: string | null | undefined, fileName: string) {
   const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
   if (!photoUrl?.startsWith('data:')) return photoUrl ?? null;
-  if (!clubId) return photoUrl;
+  if (!clubId) {
+    if (import.meta.env.DEV) return photoUrl;
+    throw new Error('Δεν βρέθηκε σύλλογος για αποθήκευση φωτογραφίας.');
+  }
   return persistClubImageDataUrl(clubId, photoUrl, fileName);
+}
+
+async function flushMirror() {
+  const { flushClubMirrorPush } = await import('../../data/clubSync');
+  await flushClubMirrorPush();
 }
 
 export async function createFacility(input: FacilityInput) {
@@ -26,6 +34,7 @@ export async function createFacility(input: FacilityInput) {
       if (!data.facilities) data.facilities = [];
       data.facilities.push(facility);
     });
+    await flushMirror();
     return facility;
   });
 }
@@ -49,15 +58,17 @@ export async function updateFacility(id: string, input: FacilityInput) {
       };
       data.facilities[index] = updated;
     });
+    await flushMirror();
     return updated!;
   });
 }
 
 export async function deleteFacility(id: string) {
-  return apiClient(() => {
+  return apiClient(async () => {
     mutateData((data) => {
       data.facilities = (data.facilities ?? []).filter((item) => item.id !== id);
     });
+    await flushMirror();
     return { id };
   });
 }

@@ -23,6 +23,18 @@ export function stripHeavyMedia(data: AppData): AppData {
       ...a,
       formSnapshotUrl: a.formSnapshotUrl?.startsWith('data:') ? null : a.formSnapshotUrl,
     })),
+    facilities: (data.facilities ?? []).map((f) => ({
+      ...f,
+      photoUrl: f.photoUrl?.startsWith('data:') ? null : f.photoUrl,
+    })),
+    rentalSettings: data.rentalSettings
+      ? {
+          ...data.rentalSettings,
+          heroImageUrl: data.rentalSettings.heroImageUrl?.startsWith('data:')
+            ? null
+            : data.rentalSettings.heroImageUrl,
+        }
+      : data.rentalSettings,
   };
 }
 
