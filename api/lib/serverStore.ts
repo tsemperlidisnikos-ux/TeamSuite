@@ -793,6 +793,22 @@ export async function listClubAudit(clubId: string, limit = 400): Promise<ClubAu
   return all.slice(0, capped);
 }
 
+export async function deleteClubAudit(clubId: string, id: string): Promise<boolean> {
+  const cid = clubId.trim();
+  const prev = await readClubAudit(cid);
+  const next = prev.filter((e) => e.id !== id);
+  if (next.length === prev.length) return false;
+  await writeClubAudit(cid, next);
+  return true;
+}
+
+export async function clearClubAudit(clubId: string): Promise<number> {
+  const cid = clubId.trim();
+  const prev = await readClubAudit(cid);
+  await writeClubAudit(cid, []);
+  return prev.length;
+}
+
 async function readClubWaitlist(): Promise<ClubWaitlistEntry[]> {
   if (!isDurableKvEnabled()) return memory().clubWaitlist ?? [];
   const raw = await kvGet<ClubWaitlistEntry[]>(CLUB_WAITLIST_KEY);

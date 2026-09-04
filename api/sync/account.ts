@@ -5,6 +5,8 @@ import {
   appendLoginActivity,
   appendClubAudit,
   listClubAudit,
+  deleteClubAudit,
+  clearClubAudit,
   allowRateLimit,
   assertSyncAuthorized,
   getSyncAuthContext,
@@ -530,7 +532,43 @@ async function handleClubAudit(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  res.setHeader('Allow', 'GET, POST');
+  if (req.method === 'DELETE') {
+    if (!(await assertLoginActivityAdmin(req, res))) return;
+    const body = (req.body ?? {}) as { id?: string; clubId?: string; all?: boolean };
+    const clubId = clip(
+      typeof body.clubId === 'string' ? body.clubId : typeof req.query.clubId === 'string' ? req.query.clubId : '',
+      80,
+    );
+    if (!clubId) return res.status(400).json({ ok: false, error: 'clubId required' });
+    const all =
+      body.all === true ||
+      String(req.query.all ?? '').trim() === '1' ||
+      String(req.query.all ?? '').trim().toLowerCase() === 'true';
+    if (all) {
+      const cleared = await clearClubAudit(clubId);
+      return res.status(200).json({
+        ok: true,
+        durable: isDurableStoreEnabled(),
+        clubId,
+        cleared,
+      });
+    }
+    const id = clip(typeof body.id === 'string' ? body.id : '', 80);
+    if (!id) return res.status(400).json({ ok: false, error: 'Missing audit id' });
+    const deleted = await deleteClubAudit(clubId, id);
+    if (!deleted) {
+      return res.status(404).json({ ok: false, error: 'Η καταγραφή δεν βρέθηκε' });
+    }
+    return res.status(200).json({
+      ok: true,
+      durable: isDurableStoreEnabled(),
+      deleted: true,
+      id,
+      clubId,
+    });
+  }
+
+  res.setHeader('Allow', 'GET, POST, DELETE');
   return res.status(405).json({ ok: false, error: 'Method not allowed' });
 }
 

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  clearClubAuditRecords,
+  deleteClubAuditRecord,
   fetchClubAudit,
   PLATFORM_AUDIT_CLUB_ID,
   type ClubAuditAction,
@@ -53,6 +55,8 @@ export function ClubAuditLogPanel({
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState<ClubAuditEvent[]>([]);
   const [durable, setDurable] = useState<boolean | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   const load = useCallback(async () => {
     if (!clubId) return;
@@ -113,6 +117,45 @@ export function ClubAuditLogPanel({
     URL.revokeObjectURL(url);
   }
 
+  const busy = loading || clearing || Boolean(busyId);
+
+  async function handleDelete(id: string) {
+    if (!confirm('Διαγραφή αυτής της καταγραφής;')) return;
+    setBusyId(id);
+    const result = await deleteClubAuditRecord(clubId, id);
+    setBusyId(null);
+    if (!result.success) {
+      onSaved?.(result.error ?? 'Αποτυχία διαγραφής');
+      return;
+    }
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+    onSaved?.('Η καταγραφή διαγράφηκε.');
+  }
+
+  async function handleClearClub() {
+    const clubName = clubs.find((c) => c.id === clubId)?.name ?? clubId;
+    if (
+      !confirm(
+        `Διαγραφή όλου του ημερολογίου για «${clubName}»; Η ενέργεια δεν αναιρείται.`,
+      )
+    ) {
+      return;
+    }
+    setClearing(true);
+    const result = await clearClubAuditRecords(clubId);
+    setClearing(false);
+    if (!result.success) {
+      onSaved?.(result.error ?? 'Αποτυχία εκκαθάρισης');
+      return;
+    }
+    setEvents([]);
+    onSaved?.(
+      result.data?.cleared
+        ? `Διαγράφηκαν ${result.data.cleared} καταγραφές.`
+        : 'Το ημερολόγιο του συλλόγου διαγράφηκε.',
+    );
+  }
+
   return (
     <div className="entry-form admin-entry login-activity-panel">
       <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
@@ -142,17 +185,25 @@ export function ClubAuditLogPanel({
         </label>
       </div>
       <div className="row-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <Button type="button" variant="secondary" disabled={loading} onClick={() => void load()}>
+        <Button type="button" variant="secondary" disabled={busy} onClick={() => void load()}>
           {loading ? 'Φόρτωση…' : 'Ανανέωση'}
         </Button>
-        <Button type="button" variant="secondary" disabled={filtered.length === 0} onClick={downloadDay}>
+        <Button type="button" variant="secondary" disabled={busy || filtered.length === 0} onClick={downloadDay}>
           Λήψη αρχείου ημέρας
         </Button>
         {day ? (
-          <Button type="button" variant="secondary" onClick={() => setDay('')}>
+          <Button type="button" variant="secondary" disabled={busy} onClick={() => setDay('')}>
             Όλες οι ημέρες
           </Button>
         ) : null}
+        <Button
+          type="button"
+          variant="danger"
+          disabled={busy || events.length === 0}
+          onClick={() => void handleClearClub()}
+        >
+          {clearing ? 'Διαγραφή…' : 'Διαγραφή ημερολογίου'}
+        </Button>
       </div>
       {durable === false ? (
         <p className="muted">Το cloud store δεν είναι ενεργό — οι εγγραφές μπορεί να χαθούν στο restart.</p>
@@ -168,12 +219,13 @@ export function ClubAuditLogPanel({
               <th>Χρήστης</th>
               <th>Κίνηση</th>
               <th>Τι έγινε</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={4}>Δεν υπάρχουν κινήσεις για τα φίλτρα.</td>
+                <td colSpan={5}>Δεν υπάρχουν κινήσεις για τα φίλτρα.</td>
               </tr>
             ) : (
               filtered.map((e) => (
@@ -187,6 +239,16 @@ export function ClubAuditLogPanel({
                   </td>
                   <td>{actionLabel(e.action)}</td>
                   <td>{e.summary}</td>
+                  <td>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => void handleDelete(e.id)}
+                    >
+                      {busyId === e.id ? '…' : 'Διαγραφή'}
+                    </Button>
+                  </td>
                 </tr>
               ))
             )}

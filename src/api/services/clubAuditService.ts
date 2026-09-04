@@ -104,3 +104,37 @@ export async function fetchClubAudit(clubId: string, limit = 400) {
     };
   });
 }
+
+export async function deleteClubAuditRecord(clubId: string, id: string) {
+  return apiClient(async () => {
+    const response = await fetch('/api/sync/account?kind=club-audit', {
+      method: 'DELETE',
+      headers: syncAuthHeaders(),
+      body: JSON.stringify({ clubId, id }),
+    });
+    const json = (await response.json()) as { ok?: boolean; error?: string };
+    if (!response.ok || !json.ok) {
+      throw new Error(json.error || `Club audit HTTP ${response.status}`);
+    }
+    return { id };
+  });
+}
+
+export async function clearClubAuditRecords(clubId: string) {
+  return apiClient(async () => {
+    const response = await fetch('/api/sync/account?kind=club-audit', {
+      method: 'DELETE',
+      headers: syncAuthHeaders(),
+      body: JSON.stringify({ clubId, all: true }),
+    });
+    const json = (await response.json()) as {
+      ok?: boolean;
+      error?: string;
+      cleared?: number;
+    };
+    if (!response.ok || !json.ok) {
+      throw new Error(json.error || `Club audit HTTP ${response.status}`);
+    }
+    return { cleared: json.cleared ?? 0 };
+  });
+}
