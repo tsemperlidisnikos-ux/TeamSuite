@@ -102,7 +102,7 @@ const COLUMNS: Array<{ key: ColumnKey; header: string; aliases?: string[] }> = [
   { key: 'id', header: 'Κωδικός' },
   { key: 'lastName', header: 'Επώνυμο' },
   { key: 'firstName', header: 'Όνομα' },
-  { key: 'status', header: 'Κατάσταση' },
+  { key: 'status', header: 'Κατάσταση', aliases: ['Status', 'Κατάσταση αθλητή', 'Ενεργός'] },
   { key: 'email', header: 'Email' },
   { key: 'phone', header: 'Τηλέφωνο αθλητή' },
   { key: 'birthDate', header: 'Ημ. γέννησης', aliases: ['Ημερομηνία γέννησης'] },
@@ -278,12 +278,30 @@ function parseGender(raw: string): Gender | undefined {
   return undefined;
 }
 
+function foldStatusToken(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\u00a0/g, ' ')
+    .toLocaleLowerCase('el')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/ς/g, 'σ')
+    .replace(/[^a-z0-9α-ω]+/gi, '');
+}
+
 function parseStatus(raw: string): StudentStatus | undefined {
-  const v = raw.trim().toLocaleLowerCase('el');
-  if (!v) return undefined;
-  if (['ενεργός', 'ενεργος', 'active'].includes(v)) return 'active';
-  if (['ανενεργός', 'ανενεργος', 'inactive'].includes(v)) return 'inactive';
-  if (['δοκιμαστικός', 'δοκιμαστικος', 'trial'].includes(v)) return 'trial';
+  const folded = foldStatusToken(raw);
+  if (!folded) return undefined;
+  if (['ενεργοσ', 'ενεργη', 'ενεργοι', 'active', 'ναι', 'yes', 'true', '1'].includes(folded)) {
+    return 'active';
+  }
+  if (
+    folded.startsWith('ανενεργ') ||
+    ['inactive', 'οχι', 'no', 'false', '0'].includes(folded)
+  ) {
+    return 'inactive';
+  }
+  if (folded.startsWith('δοκιμαστ') || folded === 'trial') return 'trial';
   return undefined;
 }
 
