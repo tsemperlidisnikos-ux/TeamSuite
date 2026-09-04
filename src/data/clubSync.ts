@@ -89,7 +89,7 @@ export function clearLastSyncAt(clubId: string): void {
   writeMap(LAST_SYNC_KEY, map);
 }
 
-function isClubMirrorDirty(clubId: string): boolean {
+export function isClubMirrorDirty(clubId: string): boolean {
   return readMap<Record<string, boolean>>(DIRTY_KEY)[clubId] === true;
 }
 
@@ -642,6 +642,7 @@ export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) 
       replaceClubData(id, merged, { skipCloudPush: true });
       markClubMirrorDirty(id);
       void flushClubMirrorPush(id);
+      void import('./rosterSyncHealth').then((m) => m.notifyRosterHealthChanged(id));
       return { success: true as const, pulled: false, error: null };
     }
 
@@ -868,6 +869,7 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
         clearClubMirrorDirty(id);
       }
       if (id === clubId) pulledClub = true;
+      void import('./rosterSyncHealth').then((m) => m.notifyRosterHealthChanged(id));
       continue;
     }
 

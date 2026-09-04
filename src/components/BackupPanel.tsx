@@ -21,6 +21,12 @@ import {
   setAutoSyncEnabled,
 } from '../data/clubSync';
 import {
+  formatRosterCounts,
+  loadRosterSyncDiagnosis,
+  notifyRosterHealthChanged,
+  type RosterSyncDiagnosis,
+} from '../data/rosterSyncHealth';
+import {
   getClubData,
   replaceClubData,
   replaceData,
@@ -65,6 +71,8 @@ export function BackupPanel() {
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [mode, setMode] = useState<ClubBackupDeliveryMode>('download');
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [diagnosis, setDiagnosis] = useState<RosterSyncDiagnosis | null>(null);
+  const [diagnosisLoading, setDiagnosisLoading] = useState(false);
   const clubId = resolveTargetClubId();
   const club = clubId ? getClubById(clubId) : null;
   const isDemoClub = isDemoClubName(club?.name);
@@ -88,6 +96,32 @@ export function BackupPanel() {
     setDayOfWeek(saved?.dayOfWeek ?? 1);
     setMode(saved?.mode ?? 'download');
   }, [clubId]);
+
+  useEffect(() => {
+    if (!clubId || isDemoClub) {
+      setDiagnosis(null);
+      setDiagnosisLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setDiagnosisLoading(true);
+    void loadRosterSyncDiagnosis(clubId)
+      .then((next) => {
+        if (!cancelled) {
+          setDiagnosis(next);
+          setDiagnosisLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDiagnosis(null);
+          setDiagnosisLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clubId, isDemoClub, syncing]);
 
   function flash(ok: string) {
     setError('');
@@ -123,6 +157,7 @@ export function BackupPanel() {
     flash(
       `Cloud mirror ενημερώθηκε${result.data?.updatedAt ? ` · ${result.data.updatedAt}` : ''}.`,
     );
+    notifyRosterHealthChanged(activeClubId);
     setClubTick((n) => n + 1);
   }
 
@@ -197,10 +232,19 @@ export function BackupPanel() {
       setError('Δεν βρέθηκε σύλλογος για συγχρονισμό. Κάντε login και ξαναδοκιμάστε.');
       return;
     }
-    const confirmed = window.confirm(
-      'Θα αντικατασταθούν τα τοπικά δεδομένα του συλλόγου από το cloud mirror. Συνέχεια;',
-    );
-    if (!confirmed) return;
+    const check = await loadRosterSyncDiagnosis(activeClubId);
+    setDiagnosis(check);
+    if (check.recommend === 'do_not_pull') {
+      const confirmed = window.confirm(
+        `${check.title}\n\n${check.detail}\n\nΤο Pull θα μειώσει τους αθλητές σε ΑΥΤΟΝ τον browser. Ακυρώστε και κάντε Push. Συνέχεια μόνο αν θέλετε να χάσετε το τοπικό μητρώο;`,
+      );
+      if (!confirmed) return;
+    } else {
+      const confirmed = window.confirm(
+        `Θα αντικατασταθούν τα τοπικά δεδομένα του συλλόγου από το cloud mirror.\n\nΕδώ: ${formatRosterCounts(check.local)}\nCloud: ${check.cloud ? formatRosterCounts(check.cloud) : 'δεν υπάρχει'}\n\nΣυνέχεια;`,
+      );
+      if (!confirmed) return;
+    }
 
     setSyncing('pull');
     setError('');
@@ -569,6 +613,43 @@ export function BackupPanel() {
                 </>
               ) : null}
             </p>
+            {!isDemoClub ? (
+              <div
+                className={`roster-sync-diag roster-sync-diag--${diagnosis?.severity ?? 'info'}`}
+              >
+                <strong>Διαγνωστικά μητρώου (αυτός ο browser vs cloud)</strong>
+                {diagnosisLoading && !diagnosis ? (
+                  <p>Σύγκριση με το cloud…</p>
+                ) : diagnosis ? (
+                  <>
+                    <p>{diagnosis.title}</p>
+                    <p>{diagnosis.detail}</p>
+                    <p>
+                      <span>Εδώ: {formatRosterCounts(diagnosis.local)}</span>
+                      <br />
+                      <span>
+                        Cloud:{' '}
+                        {diagnosis.cloud ? formatRosterCounts(diagnosis.cloud) : 'δεν υπάρχει mirror'}
+                      </span>
+                    </p>
+                    {diagnosis.recommend === 'do_not_pull' ? (
+                      <p>
+                        Κάντε <strong>Push από αυτόν τον browser</strong>. Μην κάνετε Pull και μην
+                        κάνετε Push από Edge/κινητό που δείχνει λιγότερους ενεργούς.
+                      </p>
+                    ) : null}
+                    {diagnosis.recommend === 'pull' ? (
+                      <p>
+                        Αυτός ο browser είναι πίσω από το cloud. Pull μόνο αν δεν έχετε τοπική
+                        εισαγωγή που λείπει από το cloud.
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p>Δεν ήταν δυνατή η σύγκριση με το cloud αυτή τη στιγμή.</p>
+                )}
+              </div>
+            ) : null}
           </div>
           <div className="settings-form-row-content settings-backup-panel">
             <label className="admin-check" style={{ maxWidth: 280 }}>

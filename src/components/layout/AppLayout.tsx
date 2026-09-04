@@ -50,6 +50,7 @@ import {
 } from '../../platform/platformConfig';
 import { useAppData } from '../../hooks/useAppData';
 import { useCloudMirrorAutoPull } from '../../hooks/useCloudMirrorAutoPull';
+import { RosterSyncHealthBanner } from '../RosterSyncHealthBanner';
 import { useT } from '../../i18n/LocaleContext';
 import * as publicClubCloudService from '../../api/services/publicClubCloudService';
 import { publishAppLogo, publishClubAppLogo } from '../../api/services/platformBrandingService';
@@ -422,6 +423,7 @@ export function AppLayout() {
               </button>
             </div>
           ) : null}
+          <RosterSyncHealthBanner clubId={clubId} />
           <main className="page page--flush-top">
             <Outlet />
           </main>

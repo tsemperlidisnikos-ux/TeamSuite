@@ -64,6 +64,7 @@ import { SeasonsPage } from './SeasonsPage';
 import { SportsPage } from './SportsPage';
 import { TermsOfUsePanel } from './TermsOfUsePanel';
 import { remainingAthleteLicenseSeats } from '../utils/athleteLicenseCap';
+import { useSearchParams } from 'react-router-dom';
 
 type SettingsTab =
   | 'club'
@@ -123,13 +124,21 @@ const MORE_TABS: Array<{ id: SettingsTab; label: string; icon: typeof KeyRound }
   { id: 'backup', label: 'Backup', icon: Database },
 ];
 
+function isSettingsTab(value: string): value is SettingsTab {
+  return [...PRIMARY_TABS, ...MORE_TABS].some((item) => item.id === value);
+}
+
 export function SettingsPage() {
   const { t } = useT();
+  const [searchParams] = useSearchParams();
   const session = getSession();
   const clubId = getPreviewClubId() ?? session?.clubId ?? null;
   const { data } = useAppData();
   const [club, setClub] = useState(() => ensureSessionClub(session) ?? getClubById(clubId));
-  const [tab, setTab] = useState<SettingsTab>('club');
+  const [tab, setTab] = useState<SettingsTab>(() => {
+    const fromQuery = searchParams.get('tab') ?? '';
+    return isSettingsTab(fromQuery) ? fromQuery : 'club';
+  });
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -185,6 +194,11 @@ export function SettingsPage() {
     setSmtpForm(getClubSmtp(clubId));
     setVivaForm(getClubViva(clubId));
   }, [clubId]);
+
+  useEffect(() => {
+    const fromQuery = searchParams.get('tab') ?? '';
+    if (isSettingsTab(fromQuery)) setTab(fromQuery);
+  }, [searchParams]);
 
   useEffect(() => {
     refreshClub();
