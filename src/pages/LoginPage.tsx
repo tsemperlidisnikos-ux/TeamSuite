@@ -20,8 +20,7 @@ import {
   login,
   logout,
 } from '../auth/auth';
-import { enterDemoPresentation, getDemoLoginHint, getDemoRoleHints } from '../auth/demoAccess';
-import { clearDataCache } from '../data/repository';
+import { getDemoLoginHint, getDemoRoleHints } from '../auth/demoCredentials';
 import {
   endPreview,
   getAppearanceTheme,
@@ -155,7 +154,20 @@ export function LoginPage() {
     let active = true;
 
     async function confirmExistingSession() {
-      const result = await serverVerifySession();
+      const result = await Promise.race([
+        serverVerifySession(),
+        new Promise<Awaited<ReturnType<typeof serverVerifySession>>>((resolve) => {
+          window.setTimeout(
+            () =>
+              resolve({
+                success: false,
+                error: 'Η επαλήθευση άργησε. Δοκιμάστε σύνδεση ξανά.',
+                code: 'transient',
+              }),
+            8000,
+          );
+        }),
+      ]);
       if (!active) return;
       if (result.success) {
         setSessionBoot('ready');
@@ -205,6 +217,7 @@ export function LoginPage() {
       /* ignore */
     }
     endPreview();
+    const { clearDataCache } = await import('../data/repository');
     clearDataCache();
     window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
 
@@ -212,18 +225,18 @@ export function LoginPage() {
       (result.data?.clubId || result.data?.role === 'platform_admin') &&
       !isPresentationDemoEmail(result.data?.email)
     ) {
+      setInfo('Συγχρονισμός δεδομένων…');
       const { syncClubOnLogin } = await import('../data/clubSync');
-      let clubSyncFinished = false;
       const syncWork = syncClubOnLogin(result.data?.clubId ?? null).then((outcome) => {
-        clubSyncFinished = true;
         return outcome;
       });
       await Promise.race([
         syncWork,
         new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 45000);
+          window.setTimeout(resolve, 8000);
         }),
       ]);
+      void syncWork.catch(() => undefined);
       clearDataCache();
       window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
       try {
@@ -234,20 +247,10 @@ export function LoginPage() {
       } catch {
         /* best-effort role defaults */
       }
-      if (clubSyncFinished) {
-        try {
-          const { runDueFeeReminders } = await import('../api/services/feeChargesService');
-          if (result.data?.clubId) {
-            await Promise.race([
-              runDueFeeReminders(result.data.clubId),
-              new Promise<void>((resolve) => {
-                window.setTimeout(resolve, 8000);
-              }),
-            ]);
-          }
-        } catch {
-          /* best-effort reminders */
-        }
+      if (result.data?.clubId) {
+        void import('../api/services/feeChargesService')
+          .then(({ runDueFeeReminders }) => runDueFeeReminders(result.data!.clubId!))
+          .catch(() => undefined);
       }
     }
 
@@ -272,6 +275,7 @@ export function LoginPage() {
   async function handleEnterDemo() {
     setDemoLoading(true);
     setError('');
+    const { enterDemoPresentation } = await import('../auth/demoAccess');
     const result = await enterDemoPresentation();
     setDemoLoading(false);
     if (!result.success) {
@@ -440,7 +444,9 @@ export function LoginPage() {
 
           <button type="submit" className="login-submit" disabled={saving || demoLoading}>
             {saving
-              ? 'Αναμονή...'
+              ? info.startsWith('Συγχρονισμός')
+                ? 'Συγχρονισμός…'
+                : 'Αναμονή...'
               : showReset
                 ? 'Αποθήκευση νέου κωδικού'
                 : 'Σύνδεση'}

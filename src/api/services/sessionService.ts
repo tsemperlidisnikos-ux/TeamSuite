@@ -30,12 +30,27 @@ export function setSessionToken(token: string | null): void {
   }
 }
 
+function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number) {
+  const ctrl = new AbortController();
+  const timer = window.setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(input, { ...init, signal: ctrl.signal }).finally(() => window.clearTimeout(timer));
+}
+
 export async function serverLogin(email: string, password: string) {
   return apiClient(async () => {
-    const response = await fetch('/api/sync/account?kind=session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'login', email, password }),
+    const response = await fetchWithTimeout(
+      '/api/sync/account?kind=session',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', email, password }),
+      },
+      20_000,
+    ).catch((err: unknown) => {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('Η σύνδεση άργησε. Δοκιμάστε ξανά.');
+      }
+      throw err;
     });
     let json: {
       ok?: boolean;
@@ -98,11 +113,15 @@ export async function serverVerifySession(): Promise<SessionVerifyResult> {
   }
 
   try {
-    const response = await fetch('/api/sync/account?kind=session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'verify', token }),
-    });
+    const response = await fetchWithTimeout(
+      '/api/sync/account?kind=session',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify', token }),
+      },
+      12_000,
+    );
     let json: {
       ok?: boolean;
       error?: string;
@@ -140,6 +159,9 @@ export async function serverVerifySession(): Promise<SessionVerifyResult> {
     return { success: true, data: json.user };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Άγνωστο σφάλμα';
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { success: false, error: 'Η επαλήθευση άργησε. Δοκιμάστε σύνδεση ξανά.', code: 'transient' };
+    }
     return { success: false, error: message, code: 'transient' };
   }
 }

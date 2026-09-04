@@ -66,11 +66,19 @@ function inactiveCount(data: AppData | undefined): number {
   return (data?.students ?? []).filter((s) => s.status === 'inactive').length;
 }
 
+function activeCount(data: AppData | undefined): number {
+  return (data?.students ?? []).filter((s) => (s.status ?? 'active') === 'active').length;
+}
+
 export function pickRicherClubData(left: AppData, right: AppData): AppData {
   const leftN = studentCount(left);
   const rightN = studentCount(right);
   if (rightN >= leftN + 20) return right;
   if (leftN >= rightN + 20) return left;
+  const leftActive = activeCount(left);
+  const rightActive = activeCount(right);
+  if (rightActive >= leftActive + 10) return right;
+  if (leftActive >= rightActive + 10) return left;
   const leftAt = Number(left.localWrittenAt) || 0;
   const rightAt = Number(right.localWrittenAt) || 0;
   if (rightAt !== leftAt) return rightAt > leftAt ? right : left;

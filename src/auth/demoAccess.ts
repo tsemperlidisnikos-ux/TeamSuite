@@ -12,20 +12,36 @@ import {
   type UserRole,
 } from './auth';
 import { getClubs, saveClubs } from './clubs';
+import { isPasswordHashed } from './password';
+import {
+  DEMO_CLUB_ID,
+  DEMO_CLUB_NAME,
+  DEMO_COACH_EMAIL,
+  DEMO_COACH_USER_ID,
+  DEMO_EMAIL,
+  DEMO_PARENT_B_EMAIL,
+  DEMO_PARENT_B_USER_ID,
+  DEMO_PARENT_EMAIL,
+  DEMO_PARENT_USER_ID,
+  DEMO_PASSWORD,
+  DEMO_USER_ID,
+} from './demoCredentials';
 
-/** Stable IDs so DEMO is the same club on every visit to this browser. */
-export const DEMO_CLUB_ID = 'club_demo_showcase';
-export const DEMO_USER_ID = 'user_demo_admin';
-export const DEMO_EMAIL = 'demo@teamsuite.app';
-export const DEMO_PASSWORD = 'demo1234';
-export const DEMO_CLUB_NAME = 'DEMO';
-
-export const DEMO_COACH_USER_ID = 'user_demo_coach';
-export const DEMO_COACH_EMAIL = 'coach@teamsuite.app';
-export const DEMO_PARENT_USER_ID = 'user_demo_parent';
-export const DEMO_PARENT_EMAIL = 'parent@teamsuite.app';
-export const DEMO_PARENT_B_USER_ID = 'user_demo_parent_b';
-export const DEMO_PARENT_B_EMAIL = 'parent2@teamsuite.app';
+export {
+  DEMO_CLUB_ID,
+  DEMO_CLUB_NAME,
+  DEMO_COACH_EMAIL,
+  DEMO_COACH_USER_ID,
+  DEMO_EMAIL,
+  DEMO_PARENT_B_EMAIL,
+  DEMO_PARENT_B_USER_ID,
+  DEMO_PARENT_EMAIL,
+  DEMO_PARENT_USER_ID,
+  DEMO_PASSWORD,
+  DEMO_USER_ID,
+  getDemoLoginHint,
+  getDemoRoleHints,
+} from './demoCredentials';
 
 type DemoRoleUser = {
   id: string;
@@ -101,7 +117,10 @@ export async function enterDemoPresentation(): Promise<ApiResult<AppUser>> {
   }
 
   const clubId = club.id;
-  const hashedPassword = await prepareStoredPassword(DEMO_PASSWORD);
+  const existingHash = getUsers().find(
+    (u) => u.id === DEMO_USER_ID && isPasswordHashed(u.password),
+  )?.password;
+  const hashedPassword = existingHash ?? (await prepareStoredPassword(DEMO_PASSWORD));
 
   await upsertDemoUser(clubId, {
     id: DEMO_USER_ID,
@@ -161,16 +180,4 @@ export async function enterDemoPresentation(): Promise<ApiResult<AppUser>> {
   window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
   window.dispatchEvent(new CustomEvent('academyhub-users-updated'));
   return ok(sessionResult.data);
-}
-
-export function getDemoLoginHint(): { email: string; password: string } {
-  return { email: DEMO_EMAIL, password: DEMO_PASSWORD };
-}
-
-export function getDemoRoleHints(): Array<{ role: string; email: string; password: string }> {
-  return [
-    { role: 'Διαχειριστής', email: DEMO_EMAIL, password: DEMO_PASSWORD },
-    { role: 'Προπονητής', email: DEMO_COACH_EMAIL, password: DEMO_PASSWORD },
-    { role: 'Γονέας', email: DEMO_PARENT_EMAIL, password: DEMO_PASSWORD },
-  ];
 }

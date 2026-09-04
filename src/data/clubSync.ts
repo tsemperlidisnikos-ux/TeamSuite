@@ -232,12 +232,32 @@ function isEmptyCloudOverwrite(local: AppData, cloud: AppData): boolean {
   return localN > 0 && cloudN === 0;
 }
 
+function activeStudentCount(data: AppData | undefined): number {
+  return (data?.students ?? []).filter((s) => (s.status ?? 'active') === 'active').length;
+}
+
 /** Cloud has the real roster (π.χ. 1649) while this browser still has a small stale copy. */
 function cloudRosterShouldReplace(local: AppData, cloud: AppData): boolean {
   const localN = local.students?.length ?? 0;
   const cloudN = cloud.students?.length ?? 0;
   if (cloudN < 30) return false;
   return cloudN >= localN + 20 || (localN > 0 && cloudN >= localN * 2);
+}
+
+/**
+ * This browser has the fuller copy (περισσότεροι αθλητές ή ενεργοί).
+ * Auto-pull must not replace it with a smaller/stale cloud snapshot from another device.
+ */
+function localRosterShouldKeep(local: AppData, cloud: AppData): boolean {
+  if (cloudRosterShouldReplace(local, cloud)) return false;
+  const localN = local.students?.length ?? 0;
+  const cloudN = cloud.students?.length ?? 0;
+  const localA = activeStudentCount(local);
+  const cloudA = activeStudentCount(cloud);
+  if (localN >= cloudN + 20) return true;
+  if (localN >= 30 && cloudN > 0 && localN >= cloudN * 2) return true;
+  if (Math.abs(localN - cloudN) < 20 && localA >= cloudA + 10) return true;
+  return false;
 }
 
 function rowIds(rows: { id: string }[] | undefined): Set<string> {
@@ -612,7 +632,16 @@ export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) 
     }
     const cloud = result.data.payload;
     const staleRoster = cloudRosterShouldReplace(local, cloud);
-    if (!isCloudNewer(cloudAt, localAt) && !staleRoster) {
+    const keepLocalRoster = localRosterShouldKeep(local, cloud);
+    if (!isCloudNewer(cloudAt, localAt) && !staleRoster && !keepLocalRoster) {
+      return { success: true as const, pulled: false, error: null };
+    }
+
+    if (keepLocalRoster) {
+      const merged = mergeLocalPreferredForPush(local, cloud);
+      replaceClubData(id, merged, { skipCloudPush: true });
+      markClubMirrorDirty(id);
+      void flushClubMirrorPush(id);
       return { success: true as const, pulled: false, error: null };
     }
 
@@ -668,6 +697,14 @@ export async function hydrateAllClubMirrorsFromCloud(): Promise<void> {
           clearClubMirrorDirty(id);
           continue;
         }
+        if (localRosterShouldKeep(local, result.data.payload)) {
+          replaceClubData(id, mergeLocalPreferredForPush(local, result.data.payload), {
+            skipCloudPush: true,
+          });
+          markClubMirrorDirty(id);
+          await flushClubMirrorPush(id);
+          continue;
+        }
         const preferLocal = isClubMirrorDirty(id);
         replaceClubData(
           id,
@@ -713,11 +750,20 @@ export async function ensureFreshCloudRoster(clubId?: string | null) {
   if (!result.success || !result.data?.payload || result.data.durable === false) return;
   const { getClubData, replaceClubData } = await import('./repository');
   const local = getClubData(id);
-  if (isClubMirrorDirty(id)) {
-    replaceClubData(id, mergeLocalPreferredForPush(local, result.data.payload), { skipCloudPush: true });
+  const cloud = result.data.payload;
+  if (localRosterShouldKeep(local, cloud) || isClubMirrorDirty(id)) {
+    replaceClubData(id, mergeLocalPreferredForPush(local, cloud), { skipCloudPush: true });
+    markClubMirrorDirty(id);
+    void flushClubMirrorPush(id);
     return;
   }
-  replaceClubData(id, applyCloudClubData(local, result.data.payload), { skipCloudPush: true });
+  if (cloudRosterShouldReplace(local, cloud)) {
+    replaceClubData(id, applyCloudClubData(local, cloud), { skipCloudPush: true });
+    setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
+    clearClubMirrorDirty(id);
+    return;
+  }
+  replaceClubData(id, applyCloudClubData(local, cloud), { skipCloudPush: true });
   setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
 }
 
@@ -781,7 +827,9 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
     await maybePushAccountBundle();
   }
 
-  const ids = await clubIdsForSync(clubId);
+  // Only the signed-in club — never pull every catalog club (that froze login for platform admin).
+  const sessionClub = (clubId ?? '').trim();
+  const ids = sessionClub ? [sessionClub] : [];
   const { getClubData, replaceClubData } = await import('./repository');
 
   for (const id of ids) {
@@ -797,10 +845,11 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
         ((local.deletedTransactionIds?.length ?? 0) > 0 ||
           (local.suppressedFeeChargeKeys?.length ?? 0) > 0);
       const useCloudRoster = cloudRosterShouldReplace(local, cloud);
+      const keepLocalRoster = localRosterShouldKeep(local, cloud);
       const merged = useCloudRoster
         ? applyCloudClubData(local, cloud)
         : mergeClubSnapshots(local, stripHeavyMedia(cloud), {
-            preferLocal,
+            preferLocal: preferLocal || keepLocalRoster,
             treatCloudOnlyTxAsDeleted,
           });
       replaceClubData(id, merged, { skipCloudPush: true });
@@ -808,7 +857,11 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
       setCloudPreferred(true);
       if (useCloudRoster) {
         clearClubMirrorDirty(id);
-      } else if (localHasUnsyncedEdits(merged, cloud) || isEmptyCloudOverwrite(merged, cloud)) {
+      } else if (
+        keepLocalRoster ||
+        localHasUnsyncedEdits(merged, cloud) ||
+        isEmptyCloudOverwrite(merged, cloud)
+      ) {
         markClubMirrorDirty(id);
         await flushClubMirrorPush(id);
       } else {
@@ -836,7 +889,10 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
     const { getSessionToken, persistClubLogoToCloud } = await import('../api/services/sessionService');
     const { getClubs, updateClubLogo } = await import('../auth/clubs');
     if (getSessionToken()) {
-      for (const club of getClubs()) {
+      const clubs = sessionClub
+        ? getClubs().filter((club) => club.id === sessionClub)
+        : [];
+      for (const club of clubs) {
         const cloud = account.data.clubs.find((row) => row.id === club.id);
         const cloudLogo = (cloud?.logoUrl ?? '').trim();
         const localLogo = (club.logoUrl ?? '').trim();
