@@ -166,6 +166,14 @@ function applyCloudClubData(local: AppData, cloud: AppData): AppData {
   });
 }
 
+/** Before push: keep local edits (π.χ. Ανενεργός από εισαγωγή) and still pick up cloud-only rows. */
+function mergeLocalPreferredForPush(local: AppData, cloud: AppData): AppData {
+  return mergeClubSnapshots(local, stripHeavyMedia(cloud), {
+    preferLocal: true,
+    treatCloudOnlyTxAsDeleted: false,
+  });
+}
+
 async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
   const existing = await backendSyncService.pullClubMirror(id);
   let base = baseUpdatedAt;
@@ -173,7 +181,7 @@ async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
     const { getClubData, replaceClubData } = await import('./repository');
     const local = getClubData(id);
     const cloud = existing.data.payload;
-    const merged = applyCloudClubData(local, cloud);
+    const merged = mergeLocalPreferredForPush(local, cloud);
     replaceClubData(id, merged, { skipCloudPush: true });
     base = existing.data.updatedAt ?? base;
     if (
@@ -197,7 +205,7 @@ async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
       if (pull.success && pull.data?.payload && pull.data.durable !== false) {
         const { getClubData, replaceClubData } = await import('./repository');
         const local = getClubData(id);
-        const merged = applyCloudClubData(local, pull.data.payload);
+        const merged = mergeLocalPreferredForPush(local, pull.data.payload);
         replaceClubData(id, merged, { skipCloudPush: true });
         result = await backendSyncService.pushClubMirror(id, {
           baseUpdatedAt: pull.data.updatedAt ?? null,
@@ -258,6 +266,21 @@ function rowIds(rows: { id: string }[] | undefined): Set<string> {
 function hasLocalOnlyRows(localRows: { id: string }[] | undefined, cloudRows: { id: string }[] | undefined) {
   const cloudIds = rowIds(cloudRows);
   return (localRows ?? []).some((row) => !cloudIds.has(row.id));
+}
+
+function studentFieldsDiverge(
+  localRows: AppData['students'] | undefined,
+  cloudRows: AppData['students'] | undefined,
+): boolean {
+  const cloudById = new Map((cloudRows ?? []).map((row) => [row.id, row]));
+  for (const local of localRows ?? []) {
+    const cloud = cloudById.get(local.id);
+    if (!cloud) continue;
+    if ((local.status ?? 'active') !== (cloud.status ?? 'active')) return true;
+    if ((local.firstName ?? '') !== (cloud.firstName ?? '')) return true;
+    if ((local.lastName ?? '') !== (cloud.lastName ?? '')) return true;
+  }
+  return false;
 }
 
 function catalogSignature(rows: unknown[]): string {
@@ -323,6 +346,7 @@ function mergeSizeCharts(
 
 function localHasUnsyncedEdits(local: AppData, cloud: AppData): boolean {
   if (hasLocalOnlyRows(local.students, cloud.students)) return true;
+  if (studentFieldsDiverge(local.students, cloud.students)) return true;
   if (hasLocalOnlyRows(local.classes, cloud.classes)) return true;
   if (hasLocalOnlyRows(local.coaches, cloud.coaches)) return true;
   if (hasLocalOnlyRows(local.staff, cloud.staff)) return true;
@@ -590,11 +614,14 @@ export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) 
       return { success: true as const, pulled: false, error: null };
     }
 
-    const nextData = applyCloudClubData(local, cloud);
+    const preferLocal = isClubMirrorDirty(id) && !staleRoster;
+    const nextData = preferLocal
+      ? mergeLocalPreferredForPush(local, cloud)
+      : applyCloudClubData(local, cloud);
     replaceClubData(id, nextData, { skipCloudPush: true });
     setLastSyncAt(id, cloudAt ?? new Date().toISOString());
     setCloudPreferred(true);
-    if (!staleRoster && (isClubMirrorDirty(id) || localHasUnsyncedEdits(nextData, cloud))) {
+    if (!staleRoster && (preferLocal || localHasUnsyncedEdits(nextData, cloud))) {
       markClubMirrorDirty(id);
       void flushClubMirrorPush(id);
     }
@@ -684,6 +711,10 @@ export async function ensureFreshCloudRoster(clubId?: string | null) {
   if (!result.success || !result.data?.payload || result.data.durable === false) return;
   const { getClubData, replaceClubData } = await import('./repository');
   const local = getClubData(id);
+  if (isClubMirrorDirty(id)) {
+    replaceClubData(id, mergeLocalPreferredForPush(local, result.data.payload), { skipCloudPush: true });
+    return;
+  }
   replaceClubData(id, applyCloudClubData(local, result.data.payload), { skipCloudPush: true });
   setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
 }
