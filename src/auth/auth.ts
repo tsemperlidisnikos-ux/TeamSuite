@@ -6,6 +6,7 @@ import {
 } from '../api/services/sessionService';
 import { clearAmkaFieldKeyCache } from '../utils/amkaCrypto';
 import { hashPassword, isPasswordHashed, verifyPassword } from './password';
+import { clearSessionActivity, markSessionActivity } from './sessionIdle';
 
 export type UserRole =
   | 'platform_admin'
@@ -152,6 +153,7 @@ function setSessionFromUser(user: AppUser): void {
       coachId: user.coachId ?? null,
     }),
   );
+  markSessionActivity();
 }
 
 /** Refresh local session fields from a verified server user (JWT path). */
@@ -460,11 +462,37 @@ async function loginLocalUser(
 }
 
 export function logout(): void {
+  const session = getSession();
+  const token = getSessionToken();
+  const demo = isDemoSessionActive() || isPresentationDemoEmail(session?.email);
   localStorage.removeItem(SESSION_KEY);
   setDemoSessionActive(false);
   setLocalSessionActive(false);
   setSessionToken(null);
+  clearSessionActivity();
   clearAmkaFieldKeyCache();
+  if (session && token && !demo) {
+    const clubId = (session.clubId ?? '_platform').trim() || '_platform';
+    void fetch('/api/sync/account?kind=club-audit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        id: `ca_${crypto.randomUUID()}`,
+        at: new Date().toISOString(),
+        clubId,
+        clubName: null,
+        userId: session.id,
+        email: session.email,
+        fullName: session.fullName,
+        role: session.role,
+        action: 'logout',
+        summary: 'Αποσύνδεση',
+      }),
+    });
+  }
 }
 
 export function getSession(): {

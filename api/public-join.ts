@@ -69,7 +69,7 @@ type Body = {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     // Staff pull of remote pending applications
-    if (!assertSyncAuthorized(req, res)) return;
+    if (!(await assertSyncAuthorized(req, res))) return;
     const clubId = String(req.query.clubId ?? '').trim();
     if (!clubId) {
       return res.status(400).json({ ok: false, error: 'clubId required' });
@@ -90,8 +90,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = (req.body ?? {}) as { clubId?: string };
     const clubId = String(body.clubId ?? req.query.clubId ?? '').trim();
     if (!clubId) return res.status(400).json({ ok: false, error: 'clubId required' });
-    if (!assertPlatformAdminOrSecret(req, res)) return;
-    if (!assertClubTenantAccess(req, res, clubId)) return;
+    if (!(await assertPlatformAdminOrSecret(req, res))) return;
+    if (!(await assertClubTenantAccess(req, res, clubId))) return;
     const stripped = await stripClubJoinFormSnapshots(clubId);
     return res.status(200).json({
       ok: true,

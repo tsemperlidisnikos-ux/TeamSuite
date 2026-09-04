@@ -34,14 +34,22 @@ function syncErrorMessage(json: { error?: string }, fallback: string) {
 async function parseSyncJson<T>(response: Response): Promise<T> {
   const text = await response.text();
   try {
-    return JSON.parse(text) as T;
-  } catch {
-    const clipped = text.replace(/\s+/g, ' ').trim().slice(0, 160);
-    throw new Error(
-      clipped
-        ? `Το cloud δεν απάντησε σωστά (${response.status}): ${clipped}`
-        : `Account sync HTTP ${response.status}`,
-    );
+    const parsed = JSON.parse(text) as T & { error?: string; code?: string };
+    if (response.status === 401) {
+      const { logoutIfSessionReplaced } = await import('../sessionReplaced');
+      logoutIfSessionReplaced(parsed.error, parsed.code);
+    }
+    return parsed;
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      const clipped = text.replace(/\s+/g, ' ').trim().slice(0, 160);
+      throw new Error(
+        clipped
+          ? `Το cloud δεν απάντησε σωστά (${response.status}): ${clipped}`
+          : `Account sync HTTP ${response.status}`,
+      );
+    }
+    throw err;
   }
 }
 

@@ -36,10 +36,16 @@ export async function pushClubMirror(
     const json = (await response.json()) as {
       ok?: boolean;
       error?: string;
+      code?: string;
       updatedAt?: string;
       conflict?: boolean;
       payload?: unknown;
     };
+
+    if (response.status === 401) {
+      const { logoutIfSessionReplaced } = await import('../sessionReplaced');
+      logoutIfSessionReplaced(json.error, json.code);
+    }
 
     if (response.status === 409 || json.conflict) {
       const err = new Error(json.error || 'Mirror conflict') as Error & {
@@ -75,10 +81,15 @@ export async function pullClubMirror(clubId: string) {
     const json = (await response.json()) as {
       ok?: boolean;
       error?: string;
+      code?: string;
       updatedAt?: string;
       payload?: unknown;
       durable?: boolean;
     };
+    if (response.status === 401) {
+      const { logoutIfSessionReplaced } = await import('../sessionReplaced');
+      logoutIfSessionReplaced(json.error, json.code);
+    }
     if (response.status === 404) {
       throw new Error(
         json.error === 'No mirror for club'

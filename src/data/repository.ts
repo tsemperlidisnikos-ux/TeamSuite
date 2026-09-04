@@ -19,6 +19,7 @@ import {
   writeClubStoreExclusive,
 } from './store';
 import type { AppData } from '../types';
+import { summarizeAppDataChange } from './clubAuditDiff';
 import { ensureAmkaPrivacySection } from '../shared/termsDefaults';
 import { resolveCatalogSportName } from '../shared/sportsCatalog';
 import { pruneAmkaAccessLogs } from '../utils/amkaAccess';
@@ -390,13 +391,20 @@ export function getData(): AppData {
 }
 
 export function mutateData(updater: (data: AppData) => void): AppData {
-  const data = structuredClone(getData());
+  const before = getData();
+  const data = structuredClone(before);
   updater(data);
   cache = data;
   cacheClubId = resolveActiveClubId();
   saveStore(data);
   notifyAppDataChanged();
   scheduleClubMirrorPush(cacheClubId);
+  const summary = summarizeAppDataChange(before, data);
+  if (summary) {
+    void import('../api/services/clubAuditService').then((m) => {
+      m.recordClubAudit({ action: 'change', summary, clubId: cacheClubId });
+    });
+  }
   return data;
 }
 

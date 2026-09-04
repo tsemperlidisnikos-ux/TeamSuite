@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  if (!assertPlatformAdminOrSecret(req, res)) return;
+  if (!(await assertPlatformAdminOrSecret(req, res))) return;
 
   if (op === 'status' && req.method === 'GET') {
     const status = await getGoogleDrivePublicStatus(req);

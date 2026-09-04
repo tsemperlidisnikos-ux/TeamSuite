@@ -18,6 +18,7 @@ import {
   Palette,
   PanelLeft,
   PieChart,
+  ScrollText,
   Settings,
   Shield,
   Tag,
@@ -34,6 +35,7 @@ import { BackupSchedulePanel } from '../components/BackupSchedulePanel';
 import { GoogleDriveBackupPanel } from '../components/GoogleDriveBackupPanel';
 import { ClubWaitlistPanel } from '../components/ClubWaitlistPanel';
 import { LoginActivityPanel } from '../components/LoginActivityPanel';
+import { ClubAuditLogPanel } from '../components/ClubAuditLogPanel';
 import { PlatformDiagnosticPanel } from '../components/PlatformDiagnosticPanel';
 import { AdminDrill, type AdminDrillCategory } from '../components/layout/AdminDrill';
 import { PlatformAdminShell } from '../components/layout/PlatformAdminShell';
@@ -104,6 +106,7 @@ const PLATFORM_DRILL: AdminDrillCategory[] = [
     items: [
       { id: 'waitlist', label: 'Λίστα αναμονής ακαδημιών', hint: 'Αιτήσεις /register', icon: Users },
       { id: 'logins', label: 'Ιστορικό εισόδων', hint: 'Φίλτρο συλλόγου', icon: Clock },
+      { id: 'club-log', label: 'Ημερολόγιο συλλόγου', hint: 'Κινήσεις ανά ημέρα', icon: ScrollText },
       { id: 'jpegs', label: 'Φόρμες δημόσιας εγγραφής', hint: 'JPEG / υπογραφές', icon: FileImage },
     ],
   },
@@ -871,6 +874,28 @@ export function PlatformAdminPage() {
                 </RecordsRow>
                 <RecordsRow title="Αποθήκευση">
                   Cloud durable store (Blob/Redis) + τοπικό αντίγραφο ασφαλείας.
+                </RecordsRow>
+              </RecordsTable>
+            }
+          />
+
+          <AdminRow
+            drillId="club-log"
+            activeDrill={platformItem}
+            id="club-audit-log"
+            title="Ημερολόγιο συλλόγου"
+            description="Μόνο Platform Admin. Ανά σύλλογο και ημέρα: ποιος έκανε είσοδο/έξοδο και ποιες καταχωρήσεις (αθλητές, οικονομικά, πρόγραμμα κ.λπ.)."
+            entry={<ClubAuditLogPanel onSaved={flash} />}
+            records={
+              <RecordsTable>
+                <RecordsRow title="Ποιος βλέπει">
+                  Μόνο Platform Admin. Οι χρήστες συλλόγου δεν έχουν πρόσβαση.
+                </RecordsRow>
+                <RecordsRow title="Καταγράφει">
+                  Είσοδο, αποσύνδεση, και αλλαγές δεδομένων (νέοι αθλητές, διαγραφές, πληρωμές, παρουσίες κ.ά.).
+                </RecordsRow>
+                <RecordsRow title="Αρχείο">
+                  Λήψη TXT για την επιλεγμένη ημέρα. Αποθήκευση στο cloud ανά σύλλογο.
                 </RecordsRow>
               </RecordsTable>
             }

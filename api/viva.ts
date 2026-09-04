@@ -176,7 +176,7 @@ async function handleCreateOrder(req: VercelRequest, res: VercelResponse) {
 }
 
 async function handleSettlements(req: VercelRequest, res: VercelResponse) {
-  if (!assertPlatformAdminOrSecret(req, res)) return;
+  if (!(await assertPlatformAdminOrSecret(req, res))) return;
   if (req.method === 'GET') {
     const settlements = await listOpenSettlements();
     return res.status(200).json({

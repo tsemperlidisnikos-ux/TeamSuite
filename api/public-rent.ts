@@ -89,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     const clubId = String(req.query.clubId ?? '').trim();
     if (clubId) {
-      if (!assertSyncAuthorized(req, res)) return;
+      if (!(await assertSyncAuthorized(req, res))) return;
       const auth = getSyncAuthContext(req);
       if (
         !auth.viaSecret &&

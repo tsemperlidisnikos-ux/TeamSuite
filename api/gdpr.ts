@@ -79,7 +79,7 @@ async function handleData(req: VercelRequest, res: VercelResponse) {
     req.method === 'GET' ? req.query.clubId ?? '' : (req.body as { clubId?: string })?.clubId ?? '',
   ).trim();
   if (!clubId) return res.status(400).json({ ok: false, error: 'clubId required' });
-  if (!assertClubTenantAccess(req, res, clubId)) return;
+  if (!(await assertClubTenantAccess(req, res, clubId))) return;
 
   const athleteId = String(
     req.method === 'GET'
@@ -211,7 +211,7 @@ async function handleConsent(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, logged: true, durable: isDurableStoreEnabled() });
   }
 
-  if (!assertSyncAuthorized(req, res)) return;
+  if (!(await assertSyncAuthorized(req, res))) return;
 
   const clubId = String(body.clubId ?? '').trim();
   const ctx = getSyncAuthContext(req);
@@ -308,7 +308,7 @@ async function handleCorrect(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
-  if (!assertSyncAuthorized(req, res)) return;
+  if (!(await assertSyncAuthorized(req, res))) return;
 
   const body = (req.body ?? {}) as {
     clubId?: string;

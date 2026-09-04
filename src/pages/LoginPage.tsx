@@ -49,14 +49,21 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const from = (location.state as { from?: string } | null)?.from;
+  const from = (location.state as { from?: string; idleLogout?: boolean } | null)?.from;
+  const idleLogout = Boolean((location.state as { idleLogout?: boolean } | null)?.idleLogout);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
+  const [info, setInfo] = useState(() => {
+    if (idleLogout) return 'Αποσυνδεθήκατε αυτόματα λόγω αδράνειας (1 ώρα).';
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('replaced') === '1') {
+      return 'Συνδεθήκατε από άλλη συσκευή. Κάντε είσοδο ξανά.';
+    }
+    return '';
+  });
   const [saving, setSaving] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   const [showReset, setShowReset] = useState(false);
@@ -119,6 +126,14 @@ export function LoginPage() {
     setInfo('Ορίστε νέο κωδικό για να ολοκληρώσετε την επαναφορά από το email.');
     const next = new URLSearchParams(searchParams);
     next.delete('reset');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (searchParams.get('replaced') !== '1') return;
+    setInfo('Συνδεθήκατε από άλλη συσκευή. Κάντε είσοδο ξανά.');
+    const next = new URLSearchParams(searchParams);
+    next.delete('replaced');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 

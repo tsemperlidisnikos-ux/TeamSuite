@@ -15,11 +15,13 @@ import {
   setSessionFromVerifiedUser,
 } from './auth';
 import { ensureSessionClub, isClubUsageActive } from './clubs';
+import { useIdleSessionLogout } from './sessionIdle';
 
 type GateState = 'checking' | 'ok' | 'deny' | 'retry';
 
 export function RequireAuth() {
   const location = useLocation();
+  useIdleSessionLogout();
   const [gate, setGate] = useState<GateState>('checking');
   const [retryMessage, setRetryMessage] = useState('');
   const [retryTick, setRetryTick] = useState(0);

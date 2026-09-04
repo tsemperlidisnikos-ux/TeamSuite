@@ -17,6 +17,7 @@
 | **Scheduled per-club (browser)** | Πρόγραμμα backup → perClub | Ανά επιλεγμένο σύλλογο: ίδιο με **Club JSON** (ή cloud mirror push) | Άλλους συλλόγους· secrets στα JSON |
 | **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) | Live `AppData` του συλλόγου στο Blob/Redis (ευαίσθητα πεδία κρυπτογραφημένα στο push). **Αυτόματο sync ενεργό από προεπιλογή** για κάθε σύλλογο (opt-out από το checkbox) | Users/clubs/config, ιστορικό εκδόσεων (overwrite), SMTP/Viva στο mirror |
 | **Cloud account bundle** | Platform Admin: Push/Pull λογαριασμοί | `users`, `clubs`, `platformConfig` στο cloud. Pull/push **διατηρεί** υπάρχοντα SMTP/Viva secrets αν το εισερχόμενο έχει κενό/`********` | AppData αθλητών (αυτό είναι στο mirror) |
+| **Ημερολόγιο συλλόγου (PA)** | Platform Admin → Λειτουργία → Ημερολόγιο συλλόγου | Cloud log ανά σύλλογο: είσοδος/έξοδος και σύνοψη καταχωρήσεων (ποιος, πότε, τι). Λήψη TXT ημέρας. Μόνο PA. | Πλήρες αντίγραφο AppData· AMKA· κινήσεις πριν το deploy αυτού του feature |
 | **Server cron snapshot** | Vercel cron `0 2 * * *` → `/api/gdpr?op=backup` | Ημερήσιο αντίγραφο **υπαρχόντων** club mirrors (`ss360:backup-snap:ΗΜΕΡΟΜΗΝΙΑ:clubId`). Αν είναι συνδεδεμένο Google Drive, ανεβάζει και JSON σε `TeamSuite-Backups/{σύλλογος}/ΗΜΕΡΟΜΗΝΙΑ.json` | Account bundle· συλλόγους χωρίς προηγούμενο mirror push· δεν υπάρχει UI restore στην εφαρμογή |
 | **Google Drive (platform)** | Platform Admin → Backup → Google Drive | OAuth σε έναν φάκελο Drive, υποφάκελοι ανά σύλλογο, νυχτερινό ανέβασμα + δοκιμή τώρα. Token μόνο στον server (KV). Απαιτεί `GOOGLE_DRIVE_CLIENT_ID` / `GOOGLE_DRIVE_CLIENT_SECRET` | Λήψη στον υπολογιστή· ZIP κώδικα· σύλλογοι χωρίς mirror |
 | **Filesystem project ZIP** | `scripts/backup-project.ps1` → `C:\TeamSuite_backup\` (`TeamSuite_yyyy-MM-dd_HH-mm-ss.zip`) | Source code του project (χωρίς `node_modules`, `dist`, `.git`, `.env`, credentials) | Δεδομένα αθλητών / localStorage / Redis· δεν είναι data backup |
@@ -41,6 +42,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `TeamSuite_2026-09-04_15-54-57.zip` | 2026-09-04 | Idle logout 1 ώρα · μία συσκευή ανά λογαριασμό · ημερολόγιο κινήσεων συλλόγου (μόνο PA) |
 | `TeamSuite_2026-09-04_15-26-04.zip` | 2026-09-04 | Μεγάλο μητρώο: IndexedDB + αντικατάσταση κομμένου Chrome από cloud · live account/club sync · όριο αδειών Math.max |
 | `TeamSuite_2026-09-04_04-10-35.zip` | 2026-09-04 | Δημόσια ενοικίαση (Παροχές, /rent, QR) · εφαρμογή μόνο στα ελληνικά |
 | `TeamSuite_2026-09-02_23-17-53.zip` | 2026-09-02 | Θέματα εμφάνισης Aegean Navy και Ivory Club · ευθυγράμμιση checkbox online πληρωμών PA |

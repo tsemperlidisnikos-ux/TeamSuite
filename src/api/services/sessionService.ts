@@ -103,13 +103,20 @@ export async function serverVerifySession(): Promise<SessionVerifyResult> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'verify', token }),
     });
-    let json: { ok?: boolean; error?: string; user?: unknown; transient?: boolean } = {};
+    let json: {
+      ok?: boolean;
+      error?: string;
+      user?: unknown;
+      transient?: boolean;
+      code?: string;
+    } = {};
     try {
       json = (await response.json()) as {
         ok?: boolean;
         error?: string;
         user?: unknown;
         transient?: boolean;
+        code?: string;
       };
     } catch {
       /* non-JSON body */
@@ -117,6 +124,10 @@ export async function serverVerifySession(): Promise<SessionVerifyResult> {
 
     if (!response.ok || !json.ok) {
       const message = json.error || `Verify HTTP ${response.status}`;
+      if (json.code === 'session_replaced' || /άλλη συσκευή/i.test(message)) {
+        const { logoutIfSessionReplaced } = await import('../sessionReplaced');
+        logoutIfSessionReplaced(message, json.code);
+      }
       const code = classifyVerifyFailure(response.status, message, json.transient);
       // Only clear the JWT when the server says the session itself is bad.
       // Only clear the JWT when the server says the session itself is bad.

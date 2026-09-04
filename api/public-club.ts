@@ -44,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!body.publicClub?.clubId || !body.publicClub?.slug) {
       return res.status(400).json({ ok: false, error: 'publicClub.clubId και slug απαιτούνται' });
     }
-    if (!assertClubTenantAccess(req, res, body.publicClub.clubId)) return;
+    if (!(await assertClubTenantAccess(req, res, body.publicClub.clubId))) return;
 
     const now = new Date().toISOString();
     const publicClub: PublicClubConfig = {

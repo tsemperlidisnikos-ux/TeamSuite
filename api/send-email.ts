@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
-  if (!assertSyncAuthorized(req, res)) return;
+  if (!(await assertSyncAuthorized(req, res))) return;
   if (!(await allowRateLimit(`email:${requestAddress(req)}`, 30, 300))) {
     return res.status(429).json({ ok: false, error: 'Πολλά αιτήματα email. Δοκιμάστε ξανά αργότερα.' });
   }

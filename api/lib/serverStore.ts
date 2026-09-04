@@ -139,6 +139,19 @@ export type LoginActivityEvent = {
   userAgent?: string | null;
 };
 
+export type ClubAuditEvent = {
+  id: string;
+  at: string;
+  clubId: string;
+  clubName: string | null;
+  userId: string;
+  email: string;
+  fullName: string;
+  role: string;
+  action: 'login' | 'logout' | 'change';
+  summary: string;
+};
+
 export type ClubWaitlistEntry = {
   id: string;
   clubName: string;
@@ -163,6 +176,7 @@ type GlobalStore = {
   pendingApps: Record<string, RemoteRegistrationApplication[]>;
   accountBundle?: AccountBundle;
   loginActivity?: LoginActivityEvent[];
+  clubAudit?: Record<string, ClubAuditEvent[]>;
   clubWaitlist?: ClubWaitlistEntry[];
   passwordResets?: Record<string, { userId: string; email: string; exp: number }>;
 };
@@ -178,6 +192,8 @@ const ACCOUNT_BUNDLE_KEY = 'ss360:account-bundle';
 const ACCOUNT_USERS_KEY = 'ss360:account-users';
 const LOGIN_ACTIVITY_KEY = 'ss360:login-activity';
 const LOGIN_ACTIVITY_MAX = 500;
+const CLUB_AUDIT_PREFIX = 'ss360:club-audit:';
+const CLUB_AUDIT_MAX = 2500;
 const CLUB_WAITLIST_KEY = 'ss360:club-waitlist';
 const CLUB_WAITLIST_MAX = 500;
 
@@ -191,6 +207,7 @@ function memory(): GlobalStore {
       notifyConfigs: {},
       pendingApps: {},
       loginActivity: [],
+      clubAudit: {},
       clubWaitlist: [],
     };
   }
@@ -198,6 +215,7 @@ function memory(): GlobalStore {
   if (!g.__ss360.notifyConfigs) g.__ss360.notifyConfigs = {};
   if (!g.__ss360.pendingApps) g.__ss360.pendingApps = {};
   if (!g.__ss360.loginActivity) g.__ss360.loginActivity = [];
+  if (!g.__ss360.clubAudit) g.__ss360.clubAudit = {};
   if (!g.__ss360.clubWaitlist) g.__ss360.clubWaitlist = [];
   return g.__ss360;
 }
@@ -739,6 +757,42 @@ export async function clearLoginActivity(): Promise<number> {
   return prev.length;
 }
 
+function clubAuditKey(clubId: string): string {
+  return `${CLUB_AUDIT_PREFIX}${clubId}`;
+}
+
+async function readClubAudit(clubId: string): Promise<ClubAuditEvent[]> {
+  if (!clubId) return [];
+  if (!isDurableKvEnabled()) return memory().clubAudit?.[clubId] ?? [];
+  const raw = await kvGet<ClubAuditEvent[]>(clubAuditKey(clubId));
+  return Array.isArray(raw) ? raw : [];
+}
+
+async function writeClubAudit(clubId: string, events: ClubAuditEvent[]): Promise<void> {
+  const next = events.slice(0, CLUB_AUDIT_MAX);
+  if (!isDurableKvEnabled()) {
+    const mem = memory();
+    mem.clubAudit = mem.clubAudit ?? {};
+    mem.clubAudit[clubId] = next;
+    return;
+  }
+  await kvSet(clubAuditKey(clubId), next);
+}
+
+export async function appendClubAudit(event: ClubAuditEvent): Promise<ClubAuditEvent[]> {
+  const clubId = event.clubId.trim();
+  const prev = await readClubAudit(clubId);
+  const next = [event, ...prev.filter((e) => e.id !== event.id)].slice(0, CLUB_AUDIT_MAX);
+  await writeClubAudit(clubId, next);
+  return next;
+}
+
+export async function listClubAudit(clubId: string, limit = 400): Promise<ClubAuditEvent[]> {
+  const all = await readClubAudit(clubId.trim());
+  const capped = Math.min(Math.max(1, limit), CLUB_AUDIT_MAX);
+  return all.slice(0, capped);
+}
+
 async function readClubWaitlist(): Promise<ClubWaitlistEntry[]> {
   if (!isDurableKvEnabled()) return memory().clubWaitlist ?? [];
   const raw = await kvGet<ClubWaitlistEntry[]>(CLUB_WAITLIST_KEY);
@@ -848,14 +902,47 @@ export function getSyncAuthContext(req: {
   return { viaSecret: false, claims: null };
 }
 
-export function assertSyncAuthorized(
+function writeSessionSidFailure(
+  res: { status: (code: number) => { json: (body: unknown) => unknown } },
+  status: 'replaced' | 'transient',
+): false {
+  if (status === 'transient') {
+    res.status(503).json({
+      ok: false,
+      transient: true,
+      error: 'Session check temporarily unavailable',
+    });
+    return false;
+  }
+  res.status(401).json({
+    ok: false,
+    code: 'session_replaced',
+    error: SESSION_REPLACED_ERROR,
+  });
+  return false;
+}
+
+async function assertActiveJwtSid(
   req: { headers: Record<string, unknown>; query?: Record<string, unknown> },
   res: { status: (code: number) => { json: (body: unknown) => unknown } },
-): boolean {
+): Promise<boolean> {
+  const ctx = getSyncAuthContext(req);
+  if (!ctx.claims) return true;
+  const status = await activeSessionStatus(ctx.claims);
+  if (status === 'ok') return true;
+  return writeSessionSidFailure(res, status);
+}
+
+export async function assertSyncAuthorized(
+  req: { headers: Record<string, unknown>; query?: Record<string, unknown> },
+  res: { status: (code: number) => { json: (body: unknown) => unknown } },
+): Promise<boolean> {
   const expected = (process.env.SS360_SYNC_SECRET ?? '').trim();
   const ctx = getSyncAuthContext(req);
 
-  if (ctx.claims || ctx.viaSecret) return true;
+  if (ctx.claims || ctx.viaSecret) {
+    return assertActiveJwtSid(req, res);
+  }
 
   if (!expected) {
     if (process.env.SS360_ALLOW_INSECURE_SYNC !== '1') {
@@ -873,12 +960,12 @@ export function assertSyncAuthorized(
 }
 
 /** Enforce tenant isolation when authenticated via session (not platform sync secret). */
-export function assertClubTenantAccess(
+export async function assertClubTenantAccess(
   req: { headers: Record<string, unknown>; query?: Record<string, unknown> },
   res: { status: (code: number) => { json: (body: unknown) => unknown } },
   clubId: string,
-): boolean {
-  if (!assertSyncAuthorized(req, res)) return false;
+): Promise<boolean> {
+  if (!(await assertSyncAuthorized(req, res))) return false;
   const ctx = getSyncAuthContext(req);
   if (ctx.viaSecret) return true;
   if (ctx.claims?.role === 'platform_admin') return true;
@@ -887,11 +974,11 @@ export function assertClubTenantAccess(
   return false;
 }
 
-export function assertPlatformAdminOrSecret(
+export async function assertPlatformAdminOrSecret(
   req: { headers: Record<string, unknown>; query?: Record<string, unknown> },
   res: { status: (code: number) => { json: (body: unknown) => unknown } },
-): boolean {
-  if (!assertSyncAuthorized(req, res)) return false;
+): Promise<boolean> {
+  if (!(await assertSyncAuthorized(req, res))) return false;
   const ctx = getSyncAuthContext(req);
   if (ctx.viaSecret || ctx.claims?.role === 'platform_admin') return true;
   res.status(403).json({ ok: false, error: 'Μόνο Platform Admin' });
@@ -917,7 +1004,11 @@ export async function appendGdprConsentLog(entry: Record<string, unknown>): Prom
 
 const HASH_PREFIX = 'pbkdf2';
 const RESET_PREFIX = 'ss360:pwd-reset:';
+const SESSION_SID_PREFIX = 'ss360:session-sid:';
 const SESSION_TTL_SEC = 60 * 60 * 24 * 7;
+
+export const SESSION_REPLACED_ERROR =
+  'Συνδεθήκατε από άλλη συσκευή. Κάντε είσοδο ξανά.';
 
 export type SessionClaims = {
   sub: string;
@@ -925,6 +1016,7 @@ export type SessionClaims = {
   role: string;
   clubId: string | null;
   exp: number;
+  sid?: string;
 };
 
 type ResetRecord = {
@@ -1020,6 +1112,45 @@ export function signSession(
   const payload = Buffer.from(JSON.stringify(body), 'utf8').toString('base64url');
   const sig = createHmac('sha256', secret).update(payload).digest('base64url');
   return `${payload}.${sig}`;
+}
+
+function sessionSidKey(userId: string): string {
+  return `${SESSION_SID_PREFIX}${userId}`;
+}
+
+export async function saveActiveSessionSid(userId: string, sid: string): Promise<void> {
+  if (!isDurableKvEnabled()) return;
+  await kvSet(sessionSidKey(userId), { sid, at: Date.now() });
+}
+
+export async function issueUserSession(
+  claims: Omit<SessionClaims, 'exp' | 'sid'>,
+  ttlSec = SESSION_TTL_SEC,
+): Promise<string | null> {
+  const sid = randomBytes(16).toString('hex');
+  const token = signSession({ ...claims, sid }, ttlSec);
+  if (!token) return null;
+  await saveActiveSessionSid(claims.sub, sid);
+  return token;
+}
+
+export async function activeSessionStatus(
+  claims: SessionClaims,
+): Promise<'ok' | 'replaced' | 'transient'> {
+  const sid = (claims.sid ?? '').trim();
+  if (!sid) return 'replaced';
+  if (!isDurableKvEnabled()) return 'ok';
+  try {
+    const row = await kvGet<{ sid?: string }>(sessionSidKey(claims.sub));
+    const stored = (row?.sid ?? '').trim();
+    if (!stored) {
+      await saveActiveSessionSid(claims.sub, sid);
+      return 'ok';
+    }
+    return stored === sid ? 'ok' : 'replaced';
+  } catch {
+    return 'transient';
+  }
 }
 
 export function verifySessionToken(token: string): SessionClaims | null {

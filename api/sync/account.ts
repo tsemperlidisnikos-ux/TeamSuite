@@ -3,6 +3,8 @@ import nodemailer from 'nodemailer';
 import {
   appendClubWaitlist,
   appendLoginActivity,
+  appendClubAudit,
+  listClubAudit,
   allowRateLimit,
   assertSyncAuthorized,
   getSyncAuthContext,
@@ -22,7 +24,9 @@ import {
   saveAccountUsers,
   accountBundleExists,
   durableStorageUnavailableMessage,
-  signSession,
+  issueUserSession,
+  activeSessionStatus,
+  SESSION_REPLACED_ERROR,
   deleteClubWaitlist,
   updateClubWaitlist,
   uploadClubMedia,
@@ -32,6 +36,7 @@ import {
   assertClubTenantAccess,
   type ClubWaitlistEntry,
   type LoginActivityEvent,
+  type ClubAuditEvent,
 } from '../lib/serverStore.js';
 import { isAllowedClubMediaPath } from '../lib/durableKv.js';
 import { deriveClubFieldKeyMaterial, fieldCryptoSecret } from '../lib/fieldCrypto.js';
@@ -465,6 +470,70 @@ function parseLoginEvent(body: unknown): LoginActivityEvent | null {
   };
 }
 
+function parseClubAuditEvent(body: unknown): ClubAuditEvent | null {
+  if (!body || typeof body !== 'object') return null;
+  const raw = body as Record<string, unknown>;
+  const id = typeof raw.id === 'string' ? raw.id.trim() : '';
+  const at = typeof raw.at === 'string' ? raw.at.trim() : '';
+  const clubId = typeof raw.clubId === 'string' ? raw.clubId.trim() : '';
+  const userId = typeof raw.userId === 'string' ? raw.userId.trim() : '';
+  const email = typeof raw.email === 'string' ? raw.email.trim() : '';
+  const fullName = typeof raw.fullName === 'string' ? raw.fullName.trim() : '';
+  const role = typeof raw.role === 'string' ? raw.role.trim() : '';
+  const summary = typeof raw.summary === 'string' ? raw.summary.trim().slice(0, 500) : '';
+  const action =
+    raw.action === 'login' || raw.action === 'logout' || raw.action === 'change' ? raw.action : null;
+  if (!id || !at || !clubId || !userId || !email || !fullName || !role || !action || !summary) {
+    return null;
+  }
+  const clubName =
+    raw.clubName == null || raw.clubName === ''
+      ? null
+      : typeof raw.clubName === 'string'
+        ? raw.clubName.slice(0, 120)
+        : null;
+  return { id, at, clubId, clubName, userId, email, fullName, role, action, summary };
+}
+
+async function handleClubAudit(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'GET') {
+    if (!(await assertLoginActivityAdmin(req, res))) return;
+    const clubId = clip(req.query.clubId, 80);
+    if (!clubId) return res.status(400).json({ ok: false, error: 'clubId required' });
+    const limitRaw = typeof req.query.limit === 'string' ? Number(req.query.limit) : 400;
+    const events = await listClubAudit(clubId, Number.isFinite(limitRaw) ? limitRaw : 400);
+    return res.status(200).json({
+      ok: true,
+      durable: isDurableStoreEnabled(),
+      clubId,
+      events,
+    });
+  }
+
+  if (req.method === 'POST') {
+    const event = parseClubAuditEvent(req.body);
+    if (!event) {
+      return res.status(400).json({ ok: false, error: 'Invalid club audit payload' });
+    }
+    const auth = getSyncAuthContext(req);
+    if (auth.claims && auth.claims.role !== 'platform_admin') {
+      if (!auth.claims.clubId || auth.claims.clubId !== event.clubId) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: club mismatch' });
+      }
+    }
+    const events = await appendClubAudit(event);
+    return res.status(200).json({
+      ok: true,
+      durable: isDurableStoreEnabled(),
+      id: event.id,
+      total: events.length,
+    });
+  }
+
+  res.setHeader('Allow', 'GET, POST');
+  return res.status(405).json({ ok: false, error: 'Method not allowed' });
+}
+
 function kindOf(req: VercelRequest): string {
   return String(req.query.kind ?? req.query.view ?? '').trim();
 }
@@ -616,8 +685,8 @@ function clip(value: unknown, max: number): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
-function assertLoginActivityAdmin(req: VercelRequest, res: VercelResponse): boolean {
-  if (!assertSyncAuthorized(req, res)) return false;
+async function assertLoginActivityAdmin(req: VercelRequest, res: VercelResponse): Promise<boolean> {
+  if (!(await assertSyncAuthorized(req, res))) return false;
   const auth = String(req.headers['authorization'] ?? '').trim();
   const token = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : auth;
   if (!token.includes('.')) return true;
@@ -629,8 +698,8 @@ function assertLoginActivityAdmin(req: VercelRequest, res: VercelResponse): bool
   return true;
 }
 
-function assertWaitlistAdmin(req: VercelRequest, res: VercelResponse): boolean {
-  if (!assertSyncAuthorized(req, res)) return false;
+async function assertWaitlistAdmin(req: VercelRequest, res: VercelResponse): Promise<boolean> {
+  if (!(await assertSyncAuthorized(req, res))) return false;
   const auth = String(req.headers['authorization'] ?? '').trim();
   const token = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : auth;
   if (!token.includes('.')) return true;
@@ -690,7 +759,7 @@ async function handleClubWaitlist(req: VercelRequest, res: VercelResponse) {
       (typeof req.query.action === 'string' ? req.query.action.trim() : '');
 
     if (action === 'approve' || action === 'reject') {
-      if (!assertWaitlistAdmin(req, res)) return;
+      if (!(await assertWaitlistAdmin(req, res))) return;
       const id = clip(body.id, 80);
       if (!id) {
         return res.status(400).json({ ok: false, error: 'Missing waitlist id' });
@@ -766,7 +835,7 @@ async function handleClubWaitlist(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'GET') {
-    if (!assertWaitlistAdmin(req, res)) return;
+    if (!(await assertWaitlistAdmin(req, res))) return;
     const limitRaw = typeof req.query.limit === 'string' ? Number(req.query.limit) : 200;
     const limit = Number.isFinite(limitRaw) ? limitRaw : 200;
     const entries = (await listClubWaitlist(limit)).filter((e) => e.status !== 'rejected');
@@ -1039,6 +1108,21 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
     const token = String(body.token ?? '').trim();
     const claims = verifySessionToken(token);
     if (!claims) return res.status(401).json({ ok: false, error: 'Invalid session' });
+    const sidStatus = await activeSessionStatus(claims);
+    if (sidStatus === 'transient') {
+      return res.status(200).json({
+        ok: false,
+        transient: true,
+        error: 'Session check temporarily unavailable',
+      });
+    }
+    if (sidStatus === 'replaced') {
+      return res.status(401).json({
+        ok: false,
+        code: 'session_replaced',
+        error: SESSION_REPLACED_ERROR,
+      });
+    }
     let bundle: Awaited<ReturnType<typeof loadAccountBundle>> = null;
     try {
       bundle = await loadAccountBundle();
@@ -1113,7 +1197,7 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
       }
       const boot = readServerBootstrapAdmin();
       if (boot && email === boot.email && password === boot.password) {
-        const token = signSession({
+        const token = await issueUserSession({
           sub: 'user_platform_admin',
           email: boot.email,
           role: 'platform_admin',
@@ -1158,7 +1242,7 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
         platformConfig: bundle!.platformConfig,
       });
     }
-    const token = signSession({
+    const token = await issueUserSession({
       sub: user.id,
       email: user.email,
       role: user.role,
@@ -1169,6 +1253,22 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
         ok: false,
         error: 'Session signing unavailable (configure SS360_SYNC_SECRET)',
       });
+    }
+    try {
+      await appendClubAudit({
+        id: `ca_${crypto.randomUUID()}`,
+        at: new Date().toISOString(),
+        clubId: (user.clubId ?? '').trim() || '_platform',
+        clubName: null,
+        userId: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        action: 'login',
+        summary: 'Είσοδος στην εφαρμογή',
+      });
+    } catch (err) {
+      console.error('[club-audit login]', err);
     }
     return res.status(200).json({
       ok: true,
@@ -1308,13 +1408,7 @@ async function handleMedia(req: VercelRequest, res: VercelResponse) {
   if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'].includes(contentType)) {
     return res.status(400).json({ ok: false, error: 'Unsupported media type' });
   }
-  const auth = getSyncAuthContext(req);
-  if (!auth.viaSecret && auth.claims?.clubId !== clubId && auth.claims?.role !== 'platform_admin') {
-    return res.status(403).json({ ok: false, error: 'Forbidden: club mismatch' });
-  }
-  if (!auth.claims && !auth.viaSecret) {
-    if (!assertSyncAuthorized(req, res)) return;
-  }
+  if (!(await assertClubTenantAccess(req, res, clubId))) return;
   try {
     const uploaded = await uploadClubMedia({ clubId, fileName, contentType, dataBase64 });
     return res.status(200).json({ ok: true, ...uploaded });
@@ -1388,7 +1482,7 @@ async function dispatchAccount(req: VercelRequest, res: VercelResponse) {
     if (!clubId) {
       return res.status(400).json({ ok: false, error: 'clubId required' });
     }
-    if (!assertClubTenantAccess(req, res, clubId)) return;
+    if (!(await assertClubTenantAccess(req, res, clubId))) return;
     if (!fieldCryptoSecret()) {
       return res.status(503).json({
         ok: false,
@@ -1407,10 +1501,14 @@ async function dispatchAccount(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  if (!assertSyncAuthorized(req, res)) return;
+  if (!(await assertSyncAuthorized(req, res))) return;
 
   if (kind === 'user') {
     return handleAccountUser(req, res);
+  }
+
+  if (kind === 'club-audit') {
+    return handleClubAudit(req, res);
   }
 
   if (kind === 'login-activity') {
@@ -1440,7 +1538,7 @@ async function dispatchAccount(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'DELETE') {
-      if (!assertLoginActivityAdmin(req, res)) return;
+      if (!(await assertLoginActivityAdmin(req, res))) return;
       const body = (req.body ?? {}) as { id?: string; all?: boolean };
       const all =
         body.all === true ||
