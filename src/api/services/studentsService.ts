@@ -51,6 +51,8 @@ export async function createStudent(input: StudentInput) {
       enrolledAt: localDateIso(),
     };
     const { flushClubMirrorPush } = await import('../../data/clubSync');
+    const { upsertClubStudents } = await import('./backendSyncService');
+    const { resolveActiveClubId } = await import('../../data/store');
     mutateData((data) => {
       const limit = clubAthleteLicenseLimit();
       if (
@@ -63,12 +65,15 @@ export async function createStudent(input: StudentInput) {
       data.students.push(student);
       syncClubAthleteLicenseUsed(data.students);
     });
-    await Promise.race([
-      flushClubMirrorPush(),
-      new Promise<void>((resolve) => {
-        window.setTimeout(resolve, 12_000);
-      }),
-    ]);
+    const clubId = resolveActiveClubId();
+    if (clubId && clubId !== '_default') {
+      const up = await upsertClubStudents(clubId, [student]);
+      if (!up.success) {
+        await flushClubMirrorPush(clubId, { force: true });
+      }
+    } else {
+      await flushClubMirrorPush(undefined, { force: true });
+    }
     return student;
   });
 }

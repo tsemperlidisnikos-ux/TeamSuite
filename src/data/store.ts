@@ -259,6 +259,7 @@ export async function ensureClubMapIdbReady(): Promise<void> {
       const disk = memoryMap ?? readClubMapFromDisk();
       const merged = mergeClubMapsPreferRicher(disk, fromIdb);
       memoryMap = merged;
+      saveClubMapSafe(merged);
       notifyAppDataChanged();
     })();
   }

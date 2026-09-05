@@ -134,9 +134,15 @@ async function maybePushAccountBundle() {
   return { success: true as const, skipped: false, error: null };
 }
 
-export async function flushClubMirrorPush(clubId?: string | null) {
+export async function flushClubMirrorPush(
+  clubId?: string | null,
+  opts?: { force?: boolean },
+) {
   const id = clubId ?? resolveActiveClubId();
-  if (!id || id === '_default' || !isAutoSyncEnabled(id)) {
+  if (!id || id === '_default') {
+    return { success: true as const, data: null, error: null };
+  }
+  if (!opts?.force && !isAutoSyncEnabled(id)) {
     return { success: true as const, data: null, error: null };
   }
 
@@ -175,23 +181,26 @@ function mergeLocalPreferredForPush(local: AppData, cloud: AppData): AppData {
 }
 
 async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
-  let base = baseUpdatedAt;
-  let result = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: base });
+  let result = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: baseUpdatedAt });
 
   if (!result.success) {
     const err = result.error ?? '';
     const isConflict = err.toLowerCase().includes('conflict');
-    if (isConflict) {
-      const pull = await backendSyncService.pullClubMirror(id);
-      if (pull.success && pull.data?.payload && pull.data.durable !== false) {
-        const { getClubData, replaceClubData } = await import('./repository');
-        const local = getClubData(id);
-        const merged = mergeLocalPreferredForPush(local, pull.data.payload);
-        replaceClubData(id, merged, { skipCloudPush: true });
-        result = await backendSyncService.pushClubMirror(id, {
-          baseUpdatedAt: pull.data.updatedAt ?? null,
-        });
+    const pull = await backendSyncService.pullClubMirror(id);
+    if (pull.success && pull.data?.payload && pull.data.durable !== false) {
+      const { getClubData, replaceClubData } = await import('./repository');
+      const local = getClubData(id);
+      const cloud = pull.data.payload;
+      const merged = mergeLocalPreferredForPush(local, cloud);
+      replaceClubData(id, merged, { skipCloudPush: true });
+      result = await backendSyncService.pushClubMirror(id, {
+        baseUpdatedAt: isConflict ? pull.data.updatedAt ?? null : baseUpdatedAt,
+      });
+      if (!result.success && hasLocalOnlyRows(merged.students, cloud.students)) {
+        result = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: null });
       }
+    } else if (isConflict) {
+      result = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: null });
     }
   }
 
@@ -220,26 +229,25 @@ function isMissingAccountError(message: string): boolean {
   );
 }
 
-function isCloudNewer(cloudUpdatedAt: string | null | undefined, localUpdatedAt: string | null): boolean {
-  if (!cloudUpdatedAt) return false;
-  if (!localUpdatedAt) return true;
-  return cloudUpdatedAt > localUpdatedAt;
-}
-
-function isEmptyCloudOverwrite(local: AppData, cloud: AppData): boolean {
-  const localN = (local.students?.length ?? 0) + (local.classes?.length ?? 0);
-  const cloudN = (cloud.students?.length ?? 0) + (cloud.classes?.length ?? 0);
-  return localN > 0 && cloudN === 0;
+function cloudHasMissingLocalStudents(local: AppData, cloud: AppData): boolean {
+  const localIds = new Set((local.students ?? []).map((s) => s.id));
+  const deleted = new Set(local.deletedStudentIds ?? []);
+  return (cloud.students ?? []).some((s) => !localIds.has(s.id) && !deleted.has(s.id));
 }
 
 function activeStudentCount(data: AppData | undefined): number {
   return (data?.students ?? []).filter((s) => (s.status ?? 'active') === 'active').length;
 }
 
-/** Cloud has the real roster (π.χ. 1649) while this browser still has a small stale copy. */
+/** Cloud has a richer roster — including a single extra athlete (45 vs 46). */
 function cloudRosterShouldReplace(local: AppData, cloud: AppData): boolean {
   const localN = local.students?.length ?? 0;
   const cloudN = cloud.students?.length ?? 0;
+  const localA = activeStudentCount(local);
+  const cloudA = activeStudentCount(cloud);
+  if (cloudHasMissingLocalStudents(local, cloud)) return true;
+  if (cloudN > localN) return true;
+  if (cloudA > localA) return true;
   if (cloudN < 30) return false;
   return cloudN >= localN + 20 || (localN > 0 && cloudN >= localN * 2);
 }
@@ -254,6 +262,9 @@ function localRosterShouldKeep(local: AppData, cloud: AppData): boolean {
   const cloudN = cloud.students?.length ?? 0;
   const localA = activeStudentCount(local);
   const cloudA = activeStudentCount(cloud);
+  if (hasLocalOnlyRows(local.students, cloud.students)) return true;
+  if (localN > cloudN) return true;
+  if (localA > cloudA) return true;
   if (localN >= cloudN + 20) return true;
   if (localN >= 30 && cloudN > 0 && localN >= cloudN * 2) return true;
   if (Math.abs(localN - cloudN) < 20 && localA >= cloudA + 10) return true;
@@ -509,6 +520,8 @@ function mergeClubSnapshots(
   const cloudWrittenAt = Number(cloud.localWrittenAt) || 0;
   const preferLocalStudents =
     !cloudRosterShouldReplace(local, cloud) &&
+    !cloudHasMissingLocalStudents(local, cloud) &&
+    activeStudentCount(local) >= activeStudentCount(cloud) &&
     (opts.preferLocal || localWrittenAt >= cloudWrittenAt);
   next.students = mergeById(
     local.students,
@@ -568,8 +581,85 @@ function mergeClubSnapshots(
 }
 
 /**
- * Pull club mirror from cloud when a newer revision exists.
- * Skips while a debounced push is pending (unless flushed first) or another pull is running.
+ * Sync athletes by id (not by replacing the whole club file):
+ * pull cloud-only rows into this browser, then POST local-only rows to the server.
+ */
+export async function reconcileClubRoster(clubId?: string | null) {
+  const id = clubId ?? resolveActiveClubId();
+  if (!id || id === '_default') {
+    return { success: true as const, pulled: false, uploaded: 0, error: null };
+  }
+
+  const { getSessionToken } = await import('../api/services/sessionService');
+  const { isDemoSessionActive } = await import('../auth/auth');
+  if (!getSessionToken() || isDemoSessionActive()) {
+    return { success: true as const, pulled: false, uploaded: 0, error: null };
+  }
+
+  const result = await backendSyncService.pullClubMirror(id);
+  if (!result.success || !result.data?.payload) {
+    const msg = result.error ?? '';
+    if (isMissingMirrorError(msg)) {
+      return { success: true as const, pulled: false, uploaded: 0, error: null };
+    }
+    return {
+      success: false as const,
+      pulled: false,
+      uploaded: 0,
+      error: result.error ?? 'Αποτυχία pull',
+    };
+  }
+  if (result.data.durable === false) {
+    return { success: true as const, pulled: false, uploaded: 0, error: null };
+  }
+
+  const { getClubData, replaceClubData } = await import('./repository');
+  const local = getClubData(id);
+  const cloud = result.data.payload;
+  const merged = applyCloudClubData(local, cloud);
+  const cloudRicher =
+    cloudHasMissingLocalStudents(local, cloud) ||
+    (cloud.students?.length ?? 0) > (local.students?.length ?? 0) ||
+    activeStudentCount(cloud) > activeStudentCount(local);
+
+  if (cloudRicher) {
+    replaceClubData(id, merged, { skipCloudPush: true });
+    setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
+    setCloudPreferred(true);
+    void import('./rosterSyncHealth').then((m) => m.notifyRosterHealthChanged(id));
+  }
+
+  const latest = getClubData(id);
+  const cloudIds = new Set((cloud.students ?? []).map((row) => row.id));
+  const cloudDeleted = new Set(cloud.deletedStudentIds ?? []);
+  const missingOnCloud = (latest.students ?? []).filter(
+    (row) => !cloudIds.has(row.id) && !cloudDeleted.has(row.id),
+  );
+  if (missingOnCloud.length === 0) {
+    return { success: true as const, pulled: cloudRicher, uploaded: 0, error: null };
+  }
+
+  const up = await backendSyncService.upsertClubStudents(id, missingOnCloud);
+  if (!up.success) {
+    return {
+      success: false as const,
+      pulled: cloudRicher,
+      uploaded: 0,
+      error: up.error ?? 'Αποτυχία αποστολής αθλητή',
+    };
+  }
+  setLastSyncAt(id, up.data?.updatedAt ?? new Date().toISOString());
+  void import('./rosterSyncHealth').then((m) => m.notifyRosterHealthChanged(id));
+  return {
+    success: true as const,
+    pulled: cloudRicher,
+    uploaded: missingOnCloud.length,
+    error: null,
+  };
+}
+
+/**
+ * Live poll: reconcile athletes by id, then push other dirty club edits if needed.
  */
 export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) {
   const id = clubId ?? resolveActiveClubId();
@@ -589,75 +679,28 @@ export async function pullClubMirrorIfNewer(clubId?: string | null | undefined) 
     return { success: true as const, pulled: false, error: null };
   }
 
-  if (pushTimer) {
-    clearTimeout(pushTimer);
-    pushTimer = null;
-    const pushResult = await flushClubMirrorPush(id);
-    if (!pushResult.success && pushResult.error) {
-      return { success: false as const, pulled: false, error: pushResult.error };
-    }
-  }
-
-  if (isClubMirrorDirty(id)) {
-    const pushResult = await flushClubMirrorPush(id);
-    if (!pushResult.success && pushResult.error) {
-      return { success: false as const, pulled: false, error: pushResult.error };
-    }
-    return { success: true as const, pulled: false, error: null };
-  }
-
-  await pushQueue;
-
   pulling = true;
   try {
-    const localAt = getLastSyncAt(id);
-    const result = await backendSyncService.pullClubMirror(id);
-    if (!result.success || !result.data?.payload) {
-      const msg = result.error ?? '';
-      if (isMissingMirrorError(msg)) {
-        return { success: true as const, pulled: false, error: null };
+    const recon = await reconcileClubRoster(id);
+    if (!recon.success) {
+      return { success: false as const, pulled: recon.pulled, error: recon.error };
+    }
+    if (isClubMirrorDirty(id)) {
+      const { getClubData } = await import('./repository');
+      const pull = await backendSyncService.pullClubMirror(id);
+      if (pull.success && pull.data?.payload && pull.data.durable !== false) {
+        const local = getClubData(id);
+        if (!localHasUnsyncedEdits(local, pull.data.payload)) {
+          clearClubMirrorDirty(id);
+          return { success: true as const, pulled: recon.pulled, error: null };
+        }
       }
-      return {
-        success: false as const,
-        pulled: false,
-        error: result.error ?? 'Αποτυχία pull',
-      };
+      const pushResult = await flushClubMirrorPush(id, { force: true });
+      if (!pushResult.success && pushResult.error) {
+        return { success: false as const, pulled: recon.pulled, error: pushResult.error };
+      }
     }
-
-    const cloudAt = result.data.updatedAt ?? null;
-    const { getClubData, replaceClubData } = await import('./repository');
-    const local = getClubData(id);
-    if (result.data.durable === false) {
-      return { success: true as const, pulled: false, error: null };
-    }
-    const cloud = result.data.payload;
-    const staleRoster = cloudRosterShouldReplace(local, cloud);
-    const keepLocalRoster = localRosterShouldKeep(local, cloud);
-    if (!isCloudNewer(cloudAt, localAt) && !staleRoster && !keepLocalRoster) {
-      return { success: true as const, pulled: false, error: null };
-    }
-
-    if (keepLocalRoster) {
-      const merged = mergeLocalPreferredForPush(local, cloud);
-      replaceClubData(id, merged, { skipCloudPush: true });
-      markClubMirrorDirty(id);
-      void flushClubMirrorPush(id);
-      void import('./rosterSyncHealth').then((m) => m.notifyRosterHealthChanged(id));
-      return { success: true as const, pulled: false, error: null };
-    }
-
-    const preferLocal = isClubMirrorDirty(id) && !staleRoster;
-    const nextData = preferLocal
-      ? mergeLocalPreferredForPush(local, cloud)
-      : applyCloudClubData(local, cloud);
-    replaceClubData(id, nextData, { skipCloudPush: true });
-    setLastSyncAt(id, cloudAt ?? new Date().toISOString());
-    setCloudPreferred(true);
-    if (!staleRoster && (preferLocal || localHasUnsyncedEdits(nextData, cloud))) {
-      markClubMirrorDirty(id);
-      void flushClubMirrorPush(id);
-    }
-    return { success: true as const, pulled: true, error: null };
+    return { success: true as const, pulled: recon.pulled, error: null };
   } finally {
     pulling = false;
   }
@@ -831,60 +874,26 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
   // Only the signed-in club — never pull every catalog club (that froze login for platform admin).
   const sessionClub = (clubId ?? '').trim();
   const ids = sessionClub ? [sessionClub] : [];
-  const { getClubData, replaceClubData } = await import('./repository');
 
   for (const id of ids) {
-    if (!isAutoSyncEnabled(id)) continue;
-    const result = await backendSyncService.pullClubMirror(id);
-    if (result.success && result.data?.payload) {
-      if (result.data.durable === false) continue;
-      const local = getClubData(id);
-      const cloud = result.data.payload;
-      const preferLocal = isClubMirrorDirty(id);
-      const treatCloudOnlyTxAsDeleted =
-        preferLocal &&
-        ((local.deletedTransactionIds?.length ?? 0) > 0 ||
-          (local.suppressedFeeChargeKeys?.length ?? 0) > 0);
-      const useCloudRoster = cloudRosterShouldReplace(local, cloud);
-      const keepLocalRoster = localRosterShouldKeep(local, cloud);
-      const merged = useCloudRoster
-        ? applyCloudClubData(local, cloud)
-        : mergeClubSnapshots(local, stripHeavyMedia(cloud), {
-            preferLocal: preferLocal || keepLocalRoster,
-            treatCloudOnlyTxAsDeleted,
-          });
-      replaceClubData(id, merged, { skipCloudPush: true });
-      setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
-      setCloudPreferred(true);
-      if (useCloudRoster) {
-        clearClubMirrorDirty(id);
-      } else if (
-        keepLocalRoster ||
-        localHasUnsyncedEdits(merged, cloud) ||
-        isEmptyCloudOverwrite(merged, cloud)
-      ) {
-        markClubMirrorDirty(id);
-        await flushClubMirrorPush(id);
-      } else {
-        clearClubMirrorDirty(id);
+    const recon = await reconcileClubRoster(id);
+    if (!recon.success && clubId === id) {
+      const msg = recon.error ?? '';
+      if (isMissingMirrorError(msg)) {
+        await flushClubMirrorPush(id, { force: true });
+        if (id === clubId) pulledClub = true;
+        continue;
       }
-      if (id === clubId) pulledClub = true;
-      void import('./rosterSyncHealth').then((m) => m.notifyRosterHealthChanged(id));
-      continue;
-    }
-
-    const msg = result.error ?? '';
-    const missing = isMissingMirrorError(msg);
-    if (!missing && !result.success && clubId === id) {
       return {
         success: false as const,
         data: null,
-        error: result.error ?? 'Αποτυχία sync',
+        error: recon.error ?? 'Αποτυχία sync',
       };
     }
-    if (missing && !msg.includes('μόνο στο production')) {
-      await flushClubMirrorPush(id);
+    if (isClubMirrorDirty(id)) {
+      await flushClubMirrorPush(id, { force: true });
     }
+    if (id === clubId) pulledClub = true;
   }
 
   if (pulledAccount && account.success && account.data) {

@@ -384,6 +384,66 @@ export async function consumeSettlement(orderCode: string): Promise<VivaSettleme
   return found;
 }
 
+function asPlainObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function studentRowsFromPayload(value: unknown): Array<Record<string, unknown> & { id: string }> {
+  if (!Array.isArray(value)) return [];
+  const rows: Array<Record<string, unknown> & { id: string }> = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const id = String((item as { id?: unknown }).id ?? '').trim();
+    if (!id) continue;
+    rows.push({ ...(item as Record<string, unknown>), id });
+  }
+  return rows;
+}
+
+function idListFromPayload(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item).trim()).filter(Boolean);
+}
+
+/**
+ * A stale browser (45 αθλητές) must not erase a newer athlete already in cloud (46).
+ * Incoming rows win on the same id; cloud-only students are kept unless deleted.
+ */
+export function mergeMirrorPayloadPreservingRoster(existing: unknown, incoming: unknown): unknown {
+  const prev = asPlainObject(existing);
+  const next = asPlainObject(incoming);
+  if (!next) return incoming;
+  if (!prev) return incoming;
+
+  const incomingStudents = studentRowsFromPayload(next.students);
+  const existingStudents = studentRowsFromPayload(prev.students);
+  if (incomingStudents.length === 0 && existingStudents.length > 0) {
+    return {
+      ...next,
+      students: prev.students,
+      deletedStudentIds: prev.deletedStudentIds,
+    };
+  }
+
+  const deleted = new Set([
+    ...idListFromPayload(prev.deletedStudentIds),
+    ...idListFromPayload(next.deletedStudentIds),
+  ]);
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const row of existingStudents) {
+    if (!deleted.has(row.id)) byId.set(row.id, row);
+  }
+  for (const row of incomingStudents) {
+    if (!deleted.has(row.id)) byId.set(row.id, row);
+  }
+  return {
+    ...next,
+    students: [...byId.values()],
+    deletedStudentIds: [...deleted].slice(-5000),
+  };
+}
+
 export async function saveMirror(
   clubId: string,
   payload: unknown,
@@ -408,9 +468,13 @@ export async function saveMirror(
     };
   }
 
+  const mergedPayload = existing
+    ? mergeMirrorPayloadPreservingRoster(existing.payload, payload)
+    : payload;
+
   const record: MirrorRecord = {
     updatedAt: new Date().toISOString(),
-    payload,
+    payload: mergedPayload,
   };
   if (!isDurableKvEnabled()) {
     memory().mirrors[clubId] = record;
@@ -427,6 +491,47 @@ export async function saveMirror(
 export async function loadMirror(clubId: string): Promise<MirrorRecord | null> {
   if (!isDurableKvEnabled()) return memory().mirrors[clubId] ?? null;
   return (await kvGet<MirrorRecord>(`${MIRROR_PREFIX}${clubId}`)) ?? null;
+}
+
+async function writeMirrorRecord(clubId: string, record: MirrorRecord): Promise<void> {
+  if (!isDurableKvEnabled()) {
+    memory().mirrors[clubId] = record;
+    return;
+  }
+  await kvSet(`${MIRROR_PREFIX}${clubId}`, record);
+  const keys = (await kvGet<string[]>(MIRROR_INDEX_KEY)) ?? [];
+  if (!keys.includes(clubId)) {
+    await kvSet(MIRROR_INDEX_KEY, [...keys, clubId]);
+  }
+}
+
+/**
+ * Append/update athletes without replacing the rest of the club document.
+ * Ignores baseUpdatedAt so a stale 45-athlete browser cannot block a new row.
+ */
+export async function upsertMirrorStudents(
+  clubId: string,
+  students: unknown[],
+): Promise<
+  | { ok: true; updatedAt: string; studentCount: number }
+  | { ok: false; error: string }
+> {
+  const existing = await loadMirror(clubId);
+  if (!existing) {
+    return { ok: false, error: 'No mirror for club' };
+  }
+  const incoming = {
+    ...(asPlainObject(existing.payload) ?? {}),
+    students,
+  };
+  const mergedPayload = mergeMirrorPayloadPreservingRoster(existing.payload, incoming);
+  const record: MirrorRecord = {
+    updatedAt: new Date().toISOString(),
+    payload: mergedPayload,
+  };
+  await writeMirrorRecord(clubId, record);
+  const count = studentRowsFromPayload(asPlainObject(mergedPayload)?.students).length;
+  return { ok: true, updatedAt: record.updatedAt, studentCount: count };
 }
 
 export async function listMirrorKeys(): Promise<string[]> {

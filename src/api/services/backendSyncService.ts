@@ -111,3 +111,35 @@ export async function pullClubMirror(clubId: string) {
     };
   });
 }
+
+export async function upsertClubStudents(clubId: string, students: AppData['students']) {
+  return apiClient(async () => {
+    const encrypted = await encryptSensitivePayloadForCloud({ students }, clubId);
+    const response = await fetch('/api/sync/mirror-students', {
+      method: 'POST',
+      headers: syncAuthHeaders(),
+      body: JSON.stringify({
+        clubId,
+        students: encrypted.students ?? [],
+      }),
+    });
+    const json = (await response.json()) as {
+      ok?: boolean;
+      error?: string;
+      code?: string;
+      updatedAt?: string;
+      studentCount?: number;
+    };
+    if (response.status === 401) {
+      const { logoutIfSessionReplaced } = await import('../sessionReplaced');
+      logoutIfSessionReplaced(json.error, json.code);
+    }
+    if (!response.ok || !json.ok) {
+      throw new Error(json.error || `Upsert HTTP ${response.status}`);
+    }
+    return {
+      updatedAt: json.updatedAt ?? null,
+      studentCount: json.studentCount ?? students.length,
+    };
+  });
+}

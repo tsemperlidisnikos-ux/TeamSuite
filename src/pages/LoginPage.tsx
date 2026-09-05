@@ -227,18 +227,23 @@ export function LoginPage() {
     ) {
       setInfo('Συγχρονισμός δεδομένων…');
       const { syncClubOnLogin } = await import('../data/clubSync');
-      const syncWork = syncClubOnLogin(result.data?.clubId ?? null).then((outcome) => {
+      const { whenClubMapPersisted } = await import('../data/store');
+      const syncWork = syncClubOnLogin(result.data?.clubId ?? null).then(async (outcome) => {
+        await whenClubMapPersisted();
         return outcome;
       });
       await Promise.race([
         syncWork,
         new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 8000);
+          window.setTimeout(resolve, 20_000);
         }),
       ]);
-      void syncWork.catch(() => undefined);
-      clearDataCache();
       window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
+      void syncWork
+        .then(() => {
+          window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
+        })
+        .catch(() => undefined);
       try {
         const { migrateUsersToPlatformRoleDefaults } = await import(
           '../api/services/clubUsersService'

@@ -46,13 +46,8 @@ export function useAppData() {
       });
     };
     const onClubContext = () => {
-      clearDataCache();
       setData(snapshotData());
       setVersion((v) => v + 1);
-      void ensureAmkaPlaintextReady().then(() => {
-        setData(snapshotData());
-        setVersion((v) => v + 1);
-      });
     };
     window.addEventListener('storage', onStorage);
     window.addEventListener('academyhub-platform-updated', onClubContext);

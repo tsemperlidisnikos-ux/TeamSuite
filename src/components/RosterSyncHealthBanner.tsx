@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { isDemoSessionActive, isPlatformAdmin } from '../auth/auth';
+import { isDemoSessionActive } from '../auth/auth';
 import { isDemoClubName } from '../data/demoShowcase';
 import { getClubById } from '../auth/clubs';
 import {
@@ -13,12 +13,7 @@ export function RosterSyncHealthBanner({ clubId }: { clubId: string | null | und
   const [diagnosis, setDiagnosis] = useState<RosterSyncDiagnosis | null>(null);
 
   const refresh = useCallback(async () => {
-    if (
-      !clubId ||
-      !isPlatformAdmin() ||
-      isDemoSessionActive() ||
-      isDemoClubName(getClubById(clubId)?.name)
-    ) {
+    if (!clubId || isDemoSessionActive() || isDemoClubName(getClubById(clubId)?.name)) {
       setDiagnosis(null);
       return;
     }

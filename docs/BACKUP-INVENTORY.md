@@ -15,7 +15,7 @@
 | **Platform full JSON** | Platform Admin → Backup → Λήψη full backup | Όλους τους συλλόγους (`appDataByClub`), ενεργό `appData`, `users` (χωρίς hashes), `clubs` (χωρίς SMTP/Viva secrets), πλήρες `platformConfig`. `scope: platform`. **Restore:** μόνο «Επαναφορά όλης της εφαρμογής» (.json, όχι club-only αρχεία) | SMTP passwords, Viva secrets, password hashes (redacted στο download) |
 | **Scheduled full (browser)** | Platform Admin → Πρόγραμμα backup → fullApp | Ίδιο με Platform full JSON αν mode=download· αν mode=cloud: push mirror **όλων** των συλλόγων | Secrets στα JSON (redacted)· δεν τρέχει αν δεν είναι ανοιχτή η εφαρμογή ως Platform Admin |
 | **Scheduled per-club (browser)** | Πρόγραμμα backup → perClub | Ανά επιλεγμένο σύλλογο: ίδιο με **Club JSON** (ή cloud mirror push) | Άλλους συλλόγους· secrets στα JSON |
-| **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) | Live `AppData` του συλλόγου στο Blob/Redis (ευαίσθητα πεδία κρυπτογραφημένα στο push). **Αυτόματο sync ενεργό από προεπιλογή** για κάθε σύλλογο (opt-out από το checkbox) | Users/clubs/config, ιστορικό εκδόσεων (overwrite), SMTP/Viva στο mirror |
+| **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) · `POST /api/sync/mirror-students` | Live `AppData` στο Blob/Redis. Πλήρες Push ενώνει αθλητές με το υπάρχον cloud (δεν σβήνει όσους λείπουν από παλιό browser). **Συγχρονισμός ανά αθλητή:** κάθε συσκευή στέλνει όσους έχει μόνο αυτή και τραβά όσους λείπουν. Auto sync ενεργό από προεπιλογή (opt-out) | Users/clubs/config, SMTP/Viva στο mirror |
 | **Cloud account bundle** | Platform Admin: Push/Pull λογαριασμοί | `users`, `clubs`, `platformConfig` στο cloud. Pull/push **διατηρεί** υπάρχοντα SMTP/Viva secrets αν το εισερχόμενο έχει κενό/`********` | AppData αθλητών (αυτό είναι στο mirror) |
 | **Ημερολόγιο συλλόγου (PA)** | Platform Admin → Λειτουργία → Ημερολόγιο συλλόγου | Cloud log ανά σύλλογο: είσοδος/έξοδος και σύνοψη καταχωρήσεων (ποιος, πότε, τι). Λήψη TXT ημέρας. Διαγραφή γραμμής ή όλου του ημερολογίου συλλόγου. Μόνο PA. | Πλήρες αντίγραφο AppData· AMKA· κινήσεις πριν το deploy αυτού του feature |
 | **Server cron snapshot** | Vercel cron `0 2 * * *` → `/api/gdpr?op=backup` | Ημερήσιο αντίγραφο **υπαρχόντων** club mirrors (`ss360:backup-snap:ΗΜΕΡΟΜΗΝΙΑ:clubId`). Αν είναι συνδεδεμένο Google Drive, ανεβάζει και JSON σε `TeamSuite-Backups/{σύλλογος}/ΗΜΕΡΟΜΗΝΙΑ.json` | Account bundle· συλλόγους χωρίς προηγούμενο mirror push· δεν υπάρχει UI restore στην εφαρμογή |
@@ -42,6 +42,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `TeamSuite_2026-09-05_17-35-37.zip` | 2026-09-05 | Συγχρονισμός μητρώου ανά αθλητή (`/api/sync/mirror-students`) · το cloud κρατά επιπλέον αθλητές και δεν τους σβήνει παλιό browser (45 vs 46) |
 | `TeamSuite_2026-09-05_16-45-07.zip` | 2026-09-05 | Logo συλλόγου μέσω `/api/club-media` σε όλους τους browsers · νέος αθλητής χωρίς μπλοκ sync (ανενεργός αν γεμίσει το πακέτο αδειών) |
 | `TeamSuite_2026-09-05_10-38-18.zip` | 2026-09-05 | Banner διαγνωστικών μητρώου μόνο για Platform Admin |
 | `TeamSuite_2026-09-05_10-26-38.zip` | 2026-09-05 | Δικαιώματα: το checkbox Προεπισκόπηση αποθηκεύεται ως εξαίρεση χρήστη (διαχειριστής συλλόγου) |

@@ -77,22 +77,22 @@ export function diagnoseRosterSync(input: {
   const totalGap = local.total - cloud.total;
   const activeGap = local.active - cloud.active;
 
-  if (totalGap >= 20 || (local.total >= cloud.total * 2 && local.total >= 30) || activeGap >= 10) {
+  if (totalGap >= 1 || activeGap >= 1) {
     return {
       ...base,
-      severity: 'danger',
+      severity: totalGap >= 20 || activeGap >= 10 ? 'danger' : 'warning',
       title: 'Αυτός ο browser έχει πληρέστερο μητρώο από το cloud',
-      detail: `Εδώ: ${formatRosterCounts(local)}. Cloud: ${formatRosterCounts(cloud)}. Μην κάνετε Pull και μην κάνετε Push από άλλον browser που δείχνει λιγότερους. Κάντε Push από εδώ.`,
-      recommend: 'do_not_pull',
+      detail: `Εδώ: ${formatRosterCounts(local)}. Cloud: ${formatRosterCounts(cloud)}. Κάντε Push από εδώ — μην κάνετε Push από συσκευή με λιγότερους αθλητές.`,
+      recommend: 'push',
     };
   }
 
-  if (totalGap <= -20 || (cloud.total >= local.total * 2 && cloud.total >= 30) || activeGap <= -10) {
+  if (totalGap <= -1 || activeGap <= -1) {
     return {
       ...base,
       severity: 'warning',
       title: 'Το cloud έχει πληρέστερο μητρώο από αυτόν τον browser',
-      detail: `Εδώ: ${formatRosterCounts(local)}. Cloud: ${formatRosterCounts(cloud)}. Κάντε Pull μόνο αν δεν έχετε τοπικές εισαγωγές που λείπουν από το cloud.`,
+      detail: `Εδώ: ${formatRosterCounts(local)}. Cloud: ${formatRosterCounts(cloud)}. Κάντε Pull ή ξανασυνδεθείτε για να έρθει ο επιπλέον αθλητής.`,
       recommend: 'pull',
     };
   }

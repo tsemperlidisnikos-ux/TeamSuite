@@ -70,15 +70,69 @@ function activeCount(data: AppData | undefined): number {
   return (data?.students ?? []).filter((s) => (s.status ?? 'active') === 'active').length;
 }
 
+function studentIdSet(data: AppData | undefined): Set<string> {
+  return new Set((data?.students ?? []).map((s) => s.id));
+}
+
+function isIdSubset(small: Set<string>, large: Set<string>): boolean {
+  if (small.size > large.size) return false;
+  for (const id of small) {
+    if (!large.has(id)) return false;
+  }
+  return true;
+}
+
+function extrasWereDeleted(smaller: AppData, larger: AppData): boolean {
+  const smallIds = studentIdSet(smaller);
+  const deleted = new Set(smaller.deletedStudentIds ?? []);
+  const extras = (larger.students ?? []).filter((s) => !smallIds.has(s.id));
+  return extras.length > 0 && extras.every((s) => deleted.has(s.id));
+}
+
+function unionClubStudents(left: AppData, right: AppData): AppData {
+  const deleted = new Set([...(left.deletedStudentIds ?? []), ...(right.deletedStudentIds ?? [])]);
+  const preferRight = (Number(right.localWrittenAt) || 0) >= (Number(left.localWrittenAt) || 0);
+  const first = preferRight ? left.students ?? [] : right.students ?? [];
+  const second = preferRight ? right.students ?? [] : left.students ?? [];
+  const byId = new Map<string, (typeof first)[number]>();
+  for (const row of first) {
+    if (!deleted.has(row.id)) byId.set(row.id, row);
+  }
+  for (const row of second) {
+    if (!deleted.has(row.id)) byId.set(row.id, row);
+  }
+  const base = preferRight ? right : left;
+  return {
+    ...base,
+    students: [...byId.values()],
+    deletedStudentIds: [...deleted].slice(-5000),
+  };
+}
+
 export function pickRicherClubData(left: AppData, right: AppData): AppData {
-  const leftN = studentCount(left);
-  const rightN = studentCount(right);
-  if (rightN >= leftN + 20) return right;
-  if (leftN >= rightN + 20) return left;
+  const leftIds = studentIdSet(left);
+  const rightIds = studentIdSet(right);
+  const leftHasExtra = [...leftIds].some((id) => !rightIds.has(id));
+  const rightHasExtra = [...rightIds].some((id) => !leftIds.has(id));
+  if (leftHasExtra && rightHasExtra) return unionClubStudents(left, right);
+
+  if (leftIds.size < rightIds.size && isIdSubset(leftIds, rightIds)) {
+    if (!extrasWereDeleted(left, right)) return right;
+  }
+  if (rightIds.size < leftIds.size && isIdSubset(rightIds, leftIds)) {
+    if (!extrasWereDeleted(right, left)) return left;
+  }
+
+  const leftN = leftIds.size;
+  const rightN = rightIds.size;
+  if (rightN > leftN) return right;
+  if (leftN > rightN) return left;
+
   const leftActive = activeCount(left);
   const rightActive = activeCount(right);
-  if (rightActive >= leftActive + 10) return right;
-  if (leftActive >= rightActive + 10) return left;
+  if (rightActive > leftActive) return right;
+  if (leftActive > rightActive) return left;
+
   const leftAt = Number(left.localWrittenAt) || 0;
   const rightAt = Number(right.localWrittenAt) || 0;
   if (rightAt !== leftAt) return rightAt > leftAt ? right : left;
