@@ -1,4 +1,19 @@
 {
+  "headers": [
+    {
+      "source": "/",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ],
+
   "rewrites": [
     { "source": "/api/health", "destination": "/api/gdpr?op=health" },
     { "source": "/api/backup/scheduled", "destination": "/api/gdpr?op=backup" },
@@ -7,8 +22,10 @@
     { "source": "/api/viva/settlements", "destination": "/api/viva?op=settlements" },
     { "source": "/api/stripe/create-session", "destination": "/api/stripe?op=create-session" },
     { "source": "/api/stripe/verify", "destination": "/api/stripe?op=verify" },
+
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
+
   "crons": [
     {
       "path": "/api/gdpr?op=backup",
