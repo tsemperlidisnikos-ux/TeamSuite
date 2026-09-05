@@ -705,18 +705,36 @@ async function handleClubProfile(req: VercelRequest, res: VercelResponse) {
   if (!bundle || !Array.isArray(bundle.clubs)) {
     return res.status(404).json({ ok: false, error: 'Δεν βρέθηκε cloud account' });
   }
-  const clubs = (bundle.clubs as BundleClub[]).map((club) =>
-    club.id === clubId ? { ...club, logoUrl: logoUrl || null } : club,
-  );
-  if (!clubs.some((club) => club.id === clubId)) {
-    return res.status(404).json({ ok: false, error: 'Club not found' });
+  if (logoUrl && /vercel-storage\.com/i.test(logoUrl)) {
+    logoUrl = `/api/club-media?p=${encodeURIComponent(`ss360-media/${clubId}/club-logo`)}`;
+  }
+  const prevClubs = bundle.clubs as BundleClub[];
+  let clubs: BundleClub[];
+  if (!prevClubs.some((club) => club.id === clubId)) {
+    clubs = [
+      ...prevClubs,
+      {
+        id: clubId,
+        name: 'Σύλλογος',
+        logoUrl: logoUrl || null,
+      },
+    ];
+  } else {
+    clubs = prevClubs.map((club) =>
+      club.id === clubId ? { ...club, logoUrl: logoUrl || null } : club,
+    );
   }
   const saved = await saveAccountBundle({
     users: bundle.users,
     clubs,
     platformConfig: bundle.platformConfig,
   });
-  return res.status(200).json({ ok: true, durable: isDurableStoreEnabled(), updatedAt: saved.updatedAt });
+  return res.status(200).json({
+    ok: true,
+    durable: isDurableStoreEnabled(),
+    updatedAt: saved.updatedAt,
+    logoUrl: logoUrl || null,
+  });
 }
 
 function clip(value: unknown, max: number): string {
@@ -950,6 +968,12 @@ function sanitizeClubForTenant(club: BundleClub): BundleClub {
       ...viva,
       clientSecret: viva.clientSecret ? '********' : '',
     };
+  }
+  if (next.id && next.logoUrl) {
+    const raw = String(next.logoUrl).trim();
+    if (/vercel-storage\.com/i.test(raw)) {
+      next.logoUrl = `/api/club-media?p=${encodeURIComponent(`ss360-media/${next.id}/club-logo`)}`;
+    }
   }
   return next;
 }

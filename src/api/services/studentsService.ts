@@ -40,16 +40,17 @@ export async function createStudent(input: StudentInput) {
     const classes = normalizeStudentClasses(parsed.classIds, parsed.classId);
     const sports = normalizeStudentSports(parsed.sports, parsed.sport);
     const coaches = normalizeStudentCoaches(parsed.coachNames, parsed.coachName);
-    const student: Student = {
+    let student: Student = {
       ...parsed,
       ...classes,
       ...sports,
       ...coaches,
+      firstName: parsed.firstName.trim() || 'ΝΕΟΣ',
+      lastName: parsed.lastName.trim() || 'ΑΘΛΗΤΗΣ',
       id: createId('stu'),
       enrolledAt: localDateIso(),
     };
-    const { ensureFreshCloudRoster, flushClubMirrorPush } = await import('../../data/clubSync');
-    await ensureFreshCloudRoster();
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
     mutateData((data) => {
       const limit = clubAthleteLicenseLimit();
       if (
@@ -57,14 +58,17 @@ export async function createStudent(input: StudentInput) {
         limit > 0 &&
         countActiveAthleteLicenses(data.students) >= limit
       ) {
-        throw new Error(
-          athleteLicenseCapMessage(countActiveAthleteLicenses(data.students), limit),
-        );
+        student = { ...student, status: 'inactive' };
       }
       data.students.push(student);
       syncClubAthleteLicenseUsed(data.students);
     });
-    await flushClubMirrorPush();
+    await Promise.race([
+      flushClubMirrorPush(),
+      new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 12_000);
+      }),
+    ]);
     return student;
   });
 }

@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(404).json({ ok: false, error: 'Not found' });
   }
   res.setHeader('Content-Type', media.contentType || 'application/octet-stream');
-  res.setHeader('Cache-Control', 'private, max-age=60');
+  res.setHeader('Cache-Control', 'public, max-age=300');
   if (req.method === 'HEAD') return res.status(200).end();
   return res.status(200).send(media.bytes);
 }

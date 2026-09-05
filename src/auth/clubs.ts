@@ -166,12 +166,38 @@ export function clubAllowsOnlineProvider(
   return normalizeOnlinePaymentProviders(club.onlinePaymentProviders).includes(provider);
 }
 
+function isDurableLogoUrl(value: string | null | undefined): boolean {
+  const next = value?.trim() || '';
+  return next.startsWith('/api/club-media') || next.startsWith('https://');
+}
+
+/** Private Blob HTTPS URLs do not load in another browser; serve via /api/club-media. */
+export function canonicalizeClubLogoUrl(
+  clubId: string,
+  logoUrl: string | null | undefined,
+): string | null {
+  const raw = logoUrl?.trim() || '';
+  if (!raw) return null;
+  if (/vercel-storage\.com/i.test(raw)) {
+    return `/api/club-media?p=${encodeURIComponent(`ss360-media/${clubId}/club-logo`)}`;
+  }
+  return raw;
+}
+
 function pickMediaUrl(
   incoming: string | null | undefined,
   existing: string | null | undefined,
 ): string | null {
+  if (isDurableLogoUrl(incoming) && !incoming?.includes('vercel-storage.com')) {
+    return incoming!.trim();
+  }
+  if (isDurableLogoUrl(existing) && !existing?.includes('vercel-storage.com')) {
+    if (!incoming?.trim() || incoming.startsWith('data:') || /vercel-storage\.com/i.test(incoming)) {
+      return existing!.trim();
+    }
+  }
   const next = incoming?.trim() || '';
-  if (next) return incoming ?? null;
+  if (next && !next.startsWith('data:')) return incoming ?? null;
   const prev = existing?.trim() || '';
   if (prev) return existing ?? null;
   return incoming ?? existing ?? null;
@@ -301,6 +327,7 @@ export function mergeClubCatalog(localClubs: Club[], incomingClubs: Club[]): Clu
       // New club from cloud — drop masked placeholders so UI asks for real secrets.
       return {
         ...incoming,
+        logoUrl: canonicalizeClubLogoUrl(incoming.id, incoming.logoUrl),
         smtp: mergeSmtpSettings(incoming.smtp, undefined),
         viva: mergeVivaSettings(incoming.viva, undefined),
         stripe: mergeKeyedSecretSettings(incoming.stripe, undefined, 'secretKey'),
@@ -314,7 +341,10 @@ export function mergeClubCatalog(localClubs: Club[], incomingClubs: Club[]): Clu
         Number(incoming.athleteLicenseLimit) || 0,
         Number(local.athleteLicenseLimit) || 0,
       ),
-      logoUrl: pickMediaUrl(incoming.logoUrl, local.logoUrl),
+      logoUrl: canonicalizeClubLogoUrl(
+        incoming.id,
+        pickMediaUrl(incoming.logoUrl, local.logoUrl),
+      ),
       smtp: mergeSmtpSettings(incoming.smtp, local.smtp),
       viva: mergeVivaSettings(incoming.viva, local.viva),
       stripe: mergeKeyedSecretSettings(incoming.stripe, local.stripe, 'secretKey'),
@@ -562,7 +592,7 @@ export function updateClubLogo(
   if (index < 0) return fail('Ο σύλλογος δεν βρέθηκε');
   clubs[index] = {
     ...clubs[index],
-    logoUrl,
+    logoUrl: canonicalizeClubLogoUrl(clubId, logoUrl),
   };
   saveClubs(clubs);
   window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));

@@ -279,11 +279,16 @@ export async function updateCloudClubLogo(clubId: string, logoUrl: string | null
       headers: syncAuthHeaders(),
       body: JSON.stringify({ clubId, logoUrl }),
     });
-    const json = (await response.json()) as { ok?: boolean; error?: string; updatedAt?: string };
+    const json = (await response.json()) as {
+      ok?: boolean;
+      error?: string;
+      updatedAt?: string;
+      logoUrl?: string | null;
+    };
     if (!response.ok || !json.ok) {
       throw new Error(json.error || `Club profile HTTP ${response.status}`);
     }
-    return { updatedAt: json.updatedAt ?? null };
+    return { updatedAt: json.updatedAt ?? null, logoUrl: json.logoUrl ?? logoUrl };
   });
 }
 
@@ -345,6 +350,6 @@ export async function persistClubLogoToCloud(clubId: string, logoUrl: string | n
     if (!cloud.success) {
       throw new Error(cloud.error ?? 'Αποτυχία cloud αποθήκευσης λογοτύπου.');
     }
-    return { logoUrl: next };
+    return { logoUrl: cloud.data?.logoUrl ?? next };
   });
 }

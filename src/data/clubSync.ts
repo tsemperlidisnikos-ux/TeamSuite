@@ -898,7 +898,15 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
         const cloud = account.data.clubs.find((row) => row.id === club.id);
         const cloudLogo = (cloud?.logoUrl ?? '').trim();
         const localLogo = (club.logoUrl ?? '').trim();
-        const cloudNeedsLogo = !cloudLogo || cloudLogo.startsWith('data:');
+        const durableCloud =
+          Boolean(cloudLogo) &&
+          !cloudLogo.startsWith('data:') &&
+          !/vercel-storage\.com/i.test(cloudLogo);
+        if (durableCloud && cloudLogo !== localLogo) {
+          updateClubLogo(club.id, cloudLogo);
+          continue;
+        }
+        const cloudNeedsLogo = !cloudLogo || cloudLogo.startsWith('data:') || /vercel-storage\.com/i.test(cloudLogo);
         const localIsData = localLogo.startsWith('data:');
         if (localLogo && (cloudNeedsLogo || localIsData)) {
           const pushed = await persistClubLogoToCloud(club.id, localLogo);
