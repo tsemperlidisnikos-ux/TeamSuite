@@ -4,7 +4,7 @@ import { Check, CircleHelp, Download, FileImage, Plus, Pencil, SquarePen, Trash2
 import * as publicClubCloudService from '../api/services/publicClubCloudService';
 import * as registrationApplicationsService from '../api/services/registrationApplicationsService';
 import * as studentsService from '../api/services/studentsService';
-import { getSession } from '../auth/auth';
+import { getSession, isPlatformAdmin } from '../auth/auth';
 import { AthletesIcon } from '../components/icons/AthletesIcon';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
@@ -132,6 +132,7 @@ export function StudentsPage() {
   const session = getSession();
   const isDoctor = session?.role === 'doctor';
   const isCoach = session?.role === 'coach';
+  const canBulkEdit = isPlatformAdmin();
   const canDeleteJoinForm =
     session?.role === 'admin' ||
     session?.role === 'secretariat' ||
@@ -252,10 +253,12 @@ export function StudentsPage() {
   }
 
   function toggleSelected(id: string) {
+    if (!canBulkEdit) return;
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   function toggleAllVisible() {
+    if (!canBulkEdit) return;
     const ids = filtered.map((s) => s.id);
     const allOn = ids.length > 0 && ids.every((id) => selected.includes(id));
     setSelected((prev) =>
@@ -264,6 +267,7 @@ export function StudentsPage() {
   }
 
   function openBulkEdit() {
+    if (!canBulkEdit) return;
     const ids = selected.length > 0 ? selected : filtered.map((s) => s.id);
     if (ids.length === 0) {
       window.alert('Δεν υπάρχουν αθλητές στη λίστα. Φιλτράρετε τμήμα ή επιλέξτε γραμμές.');
@@ -278,7 +282,7 @@ export function StudentsPage() {
   }
 
   async function handleBulkEdit() {
-    if (selected.length === 0) return;
+    if (!canBulkEdit || selected.length === 0) return;
     const patch: studentsService.StudentBulkPatch = { ids: selected };
     if (bulkStatus) patch.status = bulkStatus;
     if (bulkGender) patch.gender = bulkGender;
@@ -541,14 +545,16 @@ export function StudentsPage() {
         actions={
           isDoctor ? undefined : (
             <>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={filtered.length === 0 && selected.length === 0}
-                onClick={openBulkEdit}
-              >
-                <SquarePen size={16} /> {t('Μαζική αλλαγή')}
-              </Button>
+              {canBulkEdit ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={filtered.length === 0 && selected.length === 0}
+                  onClick={openBulkEdit}
+                >
+                  <SquarePen size={16} /> {t('Μαζική αλλαγή')}
+                </Button>
+              ) : null}
               <Button type="button" disabled={creating} onClick={() => void handleCreate()}>
                 <Plus size={16} /> {creating ? t('Δημιουργία...') : t('Νέος αθλητής')}
               </Button>
@@ -838,7 +844,7 @@ export function StudentsPage() {
             <option value="inactive">{t('Ανενεργός')}</option>
           </select>
         </label>
-        {!isDoctor ? (
+        {canBulkEdit ? (
           <Button
             type="button"
             variant="secondary"
@@ -889,7 +895,7 @@ export function StudentsPage() {
           </div>
         ) : null}
       </div>
-      {!isDoctor ? (
+      {canBulkEdit ? (
         <p className="lede">
           Μαζική αλλαγή: επιλέξτε <strong>Τμήμα</strong> και πατήστε το κουμπί πάνω δεξιά (ή δίπλα
           στα φίλτρα). Αν δεν τσεκάρετε γραμμές, ενημερώνονται όλοι όσοι φαίνονται στη λίστα.
@@ -900,14 +906,16 @@ export function StudentsPage() {
         <table>
           <thead>
             <tr>
-              <th>
-                <input
-                  type="checkbox"
-                  checked={filtered.length > 0 && filtered.every((s) => selected.includes(s.id))}
-                  onChange={toggleAllVisible}
-                  aria-label="Επιλογή όλων"
-                />
-              </th>
+              {canBulkEdit ? (
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && filtered.every((s) => selected.includes(s.id))}
+                    onChange={toggleAllVisible}
+                    aria-label="Επιλογή όλων"
+                  />
+                </th>
+              ) : null}
               <th>{t('Επώνυμο')}</th>
               <th>{t('Όνομα')}</th>
               <th>{t('Άθλημα')}</th>
@@ -931,17 +939,19 @@ export function StudentsPage() {
                     isDoctor ? undefined : () => navigate(`/athletes/${student.id}`)
                   }
                 >
-                  <td
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(student.id)}
-                      onChange={() => toggleSelected(student.id)}
-                      aria-label={`Επιλογή ${student.lastName} ${student.firstName}`}
-                    />
-                  </td>
+                  {canBulkEdit ? (
+                    <td
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(student.id)}
+                        onChange={() => toggleSelected(student.id)}
+                        aria-label={`Επιλογή ${student.lastName} ${student.firstName}`}
+                      />
+                    </td>
+                  ) : null}
                   <td>
                     <div className="athlete-cell">
                       <span className="athlete-avatar" aria-hidden="true">
@@ -1102,7 +1112,7 @@ export function StudentsPage() {
         ]}
       />
       <Modal
-        open={bulkOpen}
+        open={canBulkEdit && bulkOpen}
         title={t('Μαζική αλλαγή')}
         onClose={() => !bulkSaving && setBulkOpen(false)}
         footer={
