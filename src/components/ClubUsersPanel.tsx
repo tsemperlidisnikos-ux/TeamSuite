@@ -574,7 +574,8 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
           <SettingsFormRow label="Δικαιώματα πρόσβασης">
             <p className="ap-field-hint">
               Προεπιλογή από Platform Admin για τον ρόλο. Αλλάξτε τα μόνο αν θέλετε εξαίρεση για
-              αυτόν τον χρήστη.
+              αυτόν τον χρήστη. Το «Προεπισκόπηση» αποθηκεύεται ως εξαίρεση αν το αποεπιλέξετε — δεν
+              επανέρχεται αυτόματα στα defaults.
             </p>
             <div className="club-users-permissions-grid">
               {CLUB_PERMISSIONS.map((permission) => (

@@ -867,7 +867,6 @@ export function sameClubPermissionSet(
 
 /** Modules που προστέθηκαν αργότερα — παλιά snapshots χωρίς αυτά θεωρούνται defaults. */
 const LEGACY_ROLE_PERMISSION_MODULES: ClubPermission[] = [
-  'dashboard',
   'documentProtocol',
   'partnerBusinesses',
   'photos',
