@@ -301,6 +301,7 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
       if (pushError) {
         setError(pushError);
         await refresh();
+        startEdit(result.data);
         return;
       }
       setMessage(
@@ -308,8 +309,8 @@ export function ClubUsersPanel({ clubId, mode = 'users' }: ClubUsersPanelProps) 
           ? 'Ο χρήστης αποθηκεύτηκε στο cloud. Ο νέος κωδικός είναι έτοιμος για σύνδεση.'
           : 'Ο χρήστης αποθηκεύτηκε στο cloud.',
       );
-      resetForm();
       await refresh();
+      startEdit(result.data);
       return;
     }
 

@@ -18,6 +18,7 @@ import {
   clearStampedRoleDefaultPermissions,
   getPermissionsForClubRole,
   isClubRole,
+  permissionsForClubRoleAssignment,
   permissionsToStoreForRole,
   usesPlatformRolePermissionDefaults,
   type ClubPermission,
@@ -376,7 +377,7 @@ export async function updateClubUser(
     }
     if (patch.permissions !== undefined) {
       const nextRole = patch.role ?? (target.role as ClubRole);
-      nextPatch.permissions = permissionsToStoreForRole(nextRole, patch.permissions);
+      nextPatch.permissions = permissionsForClubRoleAssignment(nextRole, patch.permissions);
     }
     if (patch.password !== undefined && patch.password.trim()) {
       if (patch.password.trim().length < 6) {

@@ -50,8 +50,8 @@ import {
 } from '../../platform/platformConfig';
 import { useAppData } from '../../hooks/useAppData';
 import { useCloudMirrorAutoPull } from '../../hooks/useCloudMirrorAutoPull';
-import { RosterSyncHealthBanner } from '../RosterSyncHealthBanner';
 import { useT } from '../../i18n/LocaleContext';
+import { downloadClubBackupJsonAndAthletesXlsx } from '../../utils/clubQuickExport';
 import * as publicClubCloudService from '../../api/services/publicClubCloudService';
 import { publishAppLogo, publishClubAppLogo } from '../../api/services/platformBrandingService';
 import { optimizeLogoDataUrl } from '../../utils/clubLogoFile';
@@ -153,7 +153,9 @@ export function AppLayout() {
 
   const enabledModules = useMemo(() => {
     if (!clubId) return new Set(ACADEMY_MODULES.map((m) => m.id));
-    return new Set(getAcademyModulesForClub(clubId));
+    const set = new Set(getAcademyModulesForClub(clubId));
+    set.add('dashboard');
+    return set;
   }, [clubId, platformTick]);
 
   const accessUser = useMemo(() => {
@@ -202,7 +204,12 @@ export function AppLayout() {
   }, [session?.role]);
 
   const visibleAcademy = academyItems
-    .filter((item) => enabledModules.has(item.id) && userCanAccessModule(accessUser, item.id))
+    .filter((item) => {
+      if (item.id === 'dashboard') {
+        return userCanAccessModule(accessUser, 'dashboard');
+      }
+      return enabledModules.has(item.id) && userCanAccessModule(accessUser, item.id);
+    })
     .map((item) => {
       const label = roleNavLabels[item.id];
       return label ? { ...item, label } : item;
@@ -247,6 +254,17 @@ export function AppLayout() {
     } catch (err) {
       setLogoError(err instanceof Error ? err.message : 'Αποτυχία αποθήκευσης logo εφαρμογής.');
     }
+  }
+
+  const canQuickClubExport =
+    Boolean(clubId) &&
+    (session?.role === 'admin' ||
+      session?.role === 'secretariat' ||
+      session?.role === 'platform_admin');
+
+  function handleClubLogoQuickExport() {
+    if (!clubId || !canQuickClubExport) return;
+    downloadClubBackupJsonAndAthletesXlsx(clubId);
   }
 
   return (
@@ -358,9 +376,21 @@ export function AppLayout() {
           </div>
 
           {clubLogoUrl ? (
-            <div className="sidebar-club-logo">
-              <img src={clubLogoUrl} alt={club?.name ?? ''} />
-            </div>
+            canQuickClubExport ? (
+              <button
+                type="button"
+                className="sidebar-club-logo"
+                onClick={handleClubLogoQuickExport}
+                title={t('Λήψη backup συλλόγου (JSON) και εξαγωγή αθλητών (Excel)')}
+                aria-label={t('Λήψη backup συλλόγου (JSON) και εξαγωγή αθλητών (Excel)')}
+              >
+                <img src={clubLogoUrl} alt="" />
+              </button>
+            ) : (
+              <div className="sidebar-club-logo">
+                <img src={clubLogoUrl} alt={club?.name ?? ''} />
+              </div>
+            )
           ) : null}
 
           <nav className="side-nav">
@@ -423,7 +453,6 @@ export function AppLayout() {
               </button>
             </div>
           ) : null}
-          <RosterSyncHealthBanner clubId={clubId} />
           <main className="page page--flush-top">
             <Outlet />
           </main>

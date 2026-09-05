@@ -5,6 +5,7 @@ import { getClubs, mergeClubCatalog, saveClubs, type Club } from '../../auth/clu
 import {
   applyPlatformBranding,
   clearStampedRoleDefaultPermissions,
+  getEffectiveClubPermissions,
   loadPlatformConfig,
   savePlatformConfig,
   type PlatformConfig,
@@ -89,7 +90,12 @@ export async function upsertCloudUser(user: AppUser) {
     const response = await fetch('/api/sync/account?kind=user', {
       method: 'POST',
       headers: syncAuthHeaders(),
-      body: JSON.stringify({ user }),
+      body: JSON.stringify({
+        user: {
+          ...user,
+          permissions: Array.isArray(user.permissions) ? user.permissions : null,
+        },
+      }),
     });
     const json = await parseSyncJson<{ ok?: boolean; error?: string; updatedAt?: string }>(response);
     if (!response.ok || !json.ok) {
@@ -177,10 +183,21 @@ export function applyAccountBundle(
     });
 
     if (options?.mergeLocalUsers) {
-      const cloudUsers = cleanedUsers;
       const localUsers = clearStampedRoleDefaultPermissions(getUsers());
-      const byId = new Map(cloudUsers.map((u) => [u.id, u]));
-      const cloudEmails = new Set(cloudUsers.map((u) => u.email.toLowerCase()));
+      const localById = new Map(localUsers.map((u) => [u.id, u]));
+      const byId = new Map(
+        cleanedUsers.map((cloud) => {
+          const local = localById.get(cloud.id);
+          if (!local) return [cloud.id, cloud] as const;
+          const cloudHasPreview = getEffectiveClubPermissions(cloud).includes('dashboard');
+          const localHasPreview = getEffectiveClubPermissions(local).includes('dashboard');
+          if (localHasPreview && !cloudHasPreview && Array.isArray(local.permissions)) {
+            return [cloud.id, { ...cloud, permissions: local.permissions }] as const;
+          }
+          return [cloud.id, cloud] as const;
+        }),
+      );
+      const cloudEmails = new Set(cleanedUsers.map((u) => u.email.toLowerCase()));
       for (const local of localUsers) {
         if (byId.has(local.id)) continue;
         if (cloudEmails.has(local.email.toLowerCase())) continue;

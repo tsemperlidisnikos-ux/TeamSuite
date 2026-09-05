@@ -831,6 +831,7 @@ export function getAcademyModulesForClub(clubId: string): AcademyModuleId[] {
   const filtered = stored.filter((id): id is AcademyModuleId => allowed.has(id as AcademyModuleId));
   // Newer modules (e.g. warehouse) appear even if older club configs omit them
   for (const id of [
+    'dashboard',
     'calendar',
     'parents',
     'photos',
@@ -962,15 +963,11 @@ export function getEffectiveClubPermissions(user: {
   permissions?: string[] | null;
 }): ClubPermission[] {
   if (user.role === 'platform_admin') return [...CLUB_PERMISSIONS];
-  // null/undefined ή stamped αντίγραφο defaults → ζωντανά Platform Admin defaults
-  if (usesPlatformRolePermissionDefaults(user.role, user.permissions)) {
-    if (isClubRole(user.role)) return getPermissionsForClubRole(user.role);
-    return [];
-  }
-  if (user.permissions) {
+  if (Array.isArray(user.permissions) && user.permissions.length > 0) {
     const allowed = new Set<string>(CLUB_PERMISSIONS);
     return user.permissions.filter((p): p is ClubPermission => allowed.has(p));
   }
+  if (isClubRole(user.role)) return getPermissionsForClubRole(user.role);
   return [];
 }
 
@@ -992,6 +989,7 @@ export function userCanAccessModule(
   moduleId: AcademyModuleId,
 ): boolean {
   if (user.role === 'platform_admin') return true;
+  if (moduleId === 'dashboard' && user.role === 'admin') return true;
   if (moduleId === 'rental') {
     return userHasClubPermission(user, 'rental') || userHasClubPermission(user, 'prints');
   }

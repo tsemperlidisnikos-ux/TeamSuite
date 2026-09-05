@@ -1,6 +1,6 @@
 # Κατάλογος Backup — TeamSuite
 
-Τελευταία ενημέρωση περιεχομένου: **2026-09-05** (ZIP `C:\TeamSuite_backup` + deploy `teamsuite`).
+Τελευταία ενημέρωση περιεχομένου: **2026-09-06** (ZIP `C:\TeamSuite_backup` + deploy `teamsuite`).
 
 Αυτό το αρχείο ενημερώνεται κάθε φορά που αλλάζει τι περιλαμβάνει κάποιο backup, ή μετά από **BACKUP + DEPLOY** (νέα γραμμή στο ιστορικό ZIP κώδικα).
 
@@ -10,7 +10,7 @@
 
 | Ονομασία backup | Πού / πώς | Τι ακριβώς περιλαμβάνει | Τι ΔΕΝ περιλαμβάνει |
 |-----------------|-----------|-------------------------|---------------------|
-| **Club JSON** | Ρυθμίσεις → Backup → Λήψη JSON · ή Platform Admin → Backup συλλόγου | Μόνο τον ενεργό/επιλεγμένο σύλλογο: `AppData` (αθλητές, τμήματα, πρόγραμμα, παρουσίες, οικονομικά, αποθήκη, αιτήσεις, GDPR logs εντός AppData, κ.λπ.), το record του συλλόγου (προφίλ, licenses, δημόσια εγγραφή **χωρίς** secrets), users του συλλόγου **χωρίς** password hashes. `scope: club`. **Όνομα αρχείου:** `TeamSuite-{όνομα-συλλόγου}-YYYY-MM-DD-ΩΩ-ΛΛ.json` π.χ. `TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-04-17-25.json` (ελληνικοί χαρακτήρες· τελείες/κενά στο όνομα γίνονται `-`). **Restore:** club Settings ή Platform Admin «Επαναφορά συλλόγου» (.json) | Άλλους συλλόγους, `platformConfig`, platform admins, SMTP password, Viva clientSecret, password hashes |
+| **Club JSON** | Ρυθμίσεις → Backup → Λήψη JSON · ή Platform Admin → Backup συλλόγου · ή κλικ στο logo συλλόγου (διαχειριστής / γραμματεία / PA) | Μόνο τον ενεργό/επιλεγμένο σύλλογο: `AppData` (αθλητές, τμήματα, πρόγραμμα, παρουσίες, οικονομικά, αποθήκη, αιτήσεις, GDPR logs εντός AppData, κ.λπ.), το record του συλλόγου (προφίλ, licenses, δημόσια εγγραφή **χωρίς** secrets), users του συλλόγου **χωρίς** password hashes. `scope: club`. **Όνομα αρχείου:** `TeamSuite-{όνομα-συλλόγου}-YYYY-MM-DD-ΩΩ-ΛΛ.json` π.χ. `TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-04-17-25.json` (ελληνικοί χαρακτήρες· τελείες/κενά στο όνομα γίνονται `-`). **Κλικ logo:** το ίδιο JSON **και** Excel λίστας αθλητών. **Restore:** club Settings ή Platform Admin «Επαναφορά συλλόγου» (.json) | Άλλους συλλόγους, `platformConfig`, platform admins, SMTP password, Viva clientSecret, password hashes |
 | **Club scheduled backup** | Ρυθμίσεις → Backup → Προγραμματισμένο backup | Ίδιο με **Club JSON** (mode=λήψη JSON) ή **Cloud mirror** την ορισμένη ημερομηνία/ώρα (μία φορά) ή καθημερινά/εβδομαδιαία. Τρέχει στο browser όσο η εφαρμογή είναι ανοιχτή· αν χάθηκε η ώρα, εκτελείται στο επόμενο άνοιγμα | Secrets όπως Club JSON· δεν τρέχει με κλειστό tab |
 | **Platform full JSON** | Platform Admin → Backup → Λήψη full backup | Όλους τους συλλόγους (`appDataByClub`), ενεργό `appData`, `users` (χωρίς hashes), `clubs` (χωρίς SMTP/Viva secrets), πλήρες `platformConfig`. `scope: platform`. **Restore:** μόνο «Επαναφορά όλης της εφαρμογής» (.json, όχι club-only αρχεία) | SMTP passwords, Viva secrets, password hashes (redacted στο download) |
 | **Scheduled full (browser)** | Platform Admin → Πρόγραμμα backup → fullApp | Ίδιο με Platform full JSON αν mode=download· αν mode=cloud: push mirror **όλων** των συλλόγων | Secrets στα JSON (redacted)· δεν τρέχει αν δεν είναι ανοιχτή η εφαρμογή ως Platform Admin |
@@ -42,7 +42,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
-| `TeamSuite_2026-09-05_17-35-37.zip` | 2026-09-05 | Συγχρονισμός μητρώου ανά αθλητή (`/api/sync/mirror-students`) · το cloud κρατά επιπλέον αθλητές και δεν τους σβήνει παλιό browser (45 vs 46) |
+| `TeamSuite_2026-09-06_01-36-21.zip` | 2026-09-06 | Απόκρυψη banner διαφοράς μητρώου · κλικ στο logo συλλόγου: JSON backup + Excel αθλητών · Προεπισκόπηση στο μενού με αποθηκευμένο δικαίωμα |
 | `TeamSuite_2026-09-05_16-45-07.zip` | 2026-09-05 | Logo συλλόγου μέσω `/api/club-media` σε όλους τους browsers · νέος αθλητής χωρίς μπλοκ sync (ανενεργός αν γεμίσει το πακέτο αδειών) |
 | `TeamSuite_2026-09-05_10-38-18.zip` | 2026-09-05 | Banner διαγνωστικών μητρώου μόνο για Platform Admin |
 | `TeamSuite_2026-09-05_10-26-38.zip` | 2026-09-05 | Δικαιώματα: το checkbox Προεπισκόπηση αποθηκεύεται ως εξαίρεση χρήστη (διαχειριστής συλλόγου) |

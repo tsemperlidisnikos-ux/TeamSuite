@@ -287,7 +287,9 @@ async function handleAccountUser(req: VercelRequest, res: VercelResponse) {
         ? incoming.permissions.map((item) => String(item))
         : incoming.permissions === null
           ? null
-          : (existing?.permissions ?? null),
+          : Object.prototype.hasOwnProperty.call(incoming, 'permissions')
+            ? null
+            : (existing?.permissions ?? null),
     };
 
     const nextUsers = existing

@@ -538,6 +538,7 @@ export function PlatformAdminPage() {
 
   function toggleAcademyModule(moduleId: AcademyModuleId) {
     if (!catalogClubId) return;
+    if (moduleId === 'dashboard') return;
     const current = getAcademyModulesForClub(catalogClubId);
     const nextList = current.includes(moduleId)
       ? current.filter((id) => id !== moduleId)
