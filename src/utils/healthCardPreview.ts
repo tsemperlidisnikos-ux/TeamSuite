@@ -8,6 +8,7 @@ export async function openAthleteHealthCardPreview(
     Student,
     | 'id'
     | 'sport'
+    | 'sports'
     | 'amka'
     | 'gender'
     | 'lastName'
@@ -27,6 +28,7 @@ export async function openAthleteHealthCardPreview(
 ): Promise<{ success: boolean; error?: string }> {
   const result = await buildHealthCardPdf({
     sport: athlete.sport,
+    sports: athlete.sports,
     amka: athlete.amka,
     gender: athlete.gender,
     lastName: athlete.lastName,

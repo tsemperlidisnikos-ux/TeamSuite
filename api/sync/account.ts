@@ -1469,7 +1469,7 @@ async function handleMedia(req: VercelRequest, res: VercelResponse) {
   if (!clubId || !dataBase64) {
     return res.status(400).json({ ok: false, error: 'clubId and dataBase64 required' });
   }
-  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'].includes(contentType)) {
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'application/pdf'].includes(contentType)) {
     return res.status(400).json({ ok: false, error: 'Unsupported media type' });
   }
   if (!(await assertClubTenantAccess(req, res, clubId))) return;

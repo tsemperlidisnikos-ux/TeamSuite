@@ -1,8 +1,9 @@
 import type { PDFDocument as PDFDocumentType, PDFImage, PDFPage } from 'pdf-lib';
-import { isVolleyballSport } from './sport';
+import { resolveHealthCardTemplate } from './healthCardTemplates';
 
 export type HealthCardAthleteInput = {
   sport?: string;
+  sports?: string[];
   amka?: string;
   gender?: string;
   lastName?: string;
@@ -121,8 +122,8 @@ function truncateText(text: string, maxLen = 42): string {
   return `${value.slice(0, maxLen - 1)}…`;
 }
 
-function pdfBaselineY(baselineFromTop: number) {
-  return PAGE_HEIGHT - baselineFromTop;
+function pdfBaselineY(baselineFromTop: number, pageHeight: number) {
+  return pageHeight - baselineFromTop;
 }
 
 function buildFieldValues(athlete: HealthCardAthleteInput) {
@@ -177,13 +178,14 @@ async function drawPhotoCover(
   image: PDFImage,
   blueFrame: typeof DEFAULT_BLUE_FRAME,
   photoBox: ReturnType<typeof buildPhotoBox>,
+  pageHeight: number,
 ): Promise<void> {
   const { rgb } = await import('pdf-lib');
   const frameWidth = blueFrame.right - blueFrame.left;
   const frameHeight = blueFrame.bottom - blueFrame.top;
   page.drawRectangle({
     x: blueFrame.left,
-    y: PAGE_HEIGHT - blueFrame.bottom,
+    y: pageHeight - blueFrame.bottom,
     width: frameWidth,
     height: frameHeight,
     color: rgb(1, 1, 1),
@@ -193,7 +195,7 @@ async function drawPhotoCover(
   const width = image.width * scale;
   const height = image.height * scale;
   const x = photoBox.x + (photoBox.width - width) / 2;
-  const yBottom = PAGE_HEIGHT - photoBox.yTop - photoBox.height;
+  const yBottom = pageHeight - photoBox.yTop - photoBox.height;
   const y = yBottom + (photoBox.height - height) / 2;
   page.drawImage(image, { x, y, width, height });
 }
@@ -267,11 +269,10 @@ export async function buildHealthCardPdf(
       import('pdf-lib'),
       import('@pdf-lib/fontkit'),
     ]);
-    const volleyball = isVolleyballSport(athlete.sport);
-    const values = buildFieldValues(athlete);
-    const templateUrl = volleyball
-      ? '/health-card/health-card-volleyball-template.pdf'
-      : '/health-card/health-card-template.pdf';
+    const resolved = resolveHealthCardTemplate(athlete.sport, athlete.sports);
+    const volleyball = resolved.volleyball;
+    const values = buildFieldValues({ ...athlete, sport: resolved.sportName || athlete.sport });
+    const templateUrl = resolved.templateUrl;
 
     const [templateRes, fontRes] = await Promise.all([
       fetch(templateUrl),
@@ -291,16 +292,18 @@ export async function buildHealthCardPdf(
     pdfDoc.registerFontkit(fontkit);
     const font = await pdfDoc.embedFont(await fontRes.arrayBuffer());
     const page = pdfDoc.getPages()[0];
+    const pageHeight = page.getHeight() || PAGE_HEIGHT;
 
-    const blueFrame = volleyball ? VOLLEYBALL_BLUE_FRAME : DEFAULT_BLUE_FRAME;
-    const overlay = volleyball
-      ? buildTemplateOverlay(VOLLEYBALL_FIELD_ANCHORS, { valueX: VOLLEYBALL_VALUE_X })
-      : buildTemplateOverlay(DEFAULT_FIELD_ANCHORS);
+    const blueFrame = resolved.layout === 'volleyball' ? VOLLEYBALL_BLUE_FRAME : DEFAULT_BLUE_FRAME;
+    const overlay =
+      resolved.layout === 'volleyball'
+        ? buildTemplateOverlay(VOLLEYBALL_FIELD_ANCHORS, { valueX: VOLLEYBALL_VALUE_X })
+        : buildTemplateOverlay(DEFAULT_FIELD_ANCHORS);
     const photoBox = buildPhotoBox(blueFrame);
 
     const photo = await embedPhoto(pdfDoc, athlete.photoUrl);
     if (photo) {
-      await drawPhotoCover(page, photo, blueFrame, photoBox);
+      await drawPhotoCover(page, photo, blueFrame, photoBox, pageHeight);
     }
 
     for (const field of overlay) {
@@ -309,7 +312,7 @@ export async function buildHealthCardPdf(
       const text = truncateText(raw, field.maxLen);
       page.drawText(text, {
         x: field.x,
-        y: pdfBaselineY(field.baselineY),
+        y: pdfBaselineY(field.baselineY, pageHeight),
         size: OVERLAY_FONT_SIZE,
         font,
         color: (await import('pdf-lib')).rgb(0, 0, 0),

@@ -1102,6 +1102,7 @@ export function AthleteProfilePage() {
     setError('');
     const result = await buildHealthCardPdf({
       sport: form.sport,
+      sports: studentSports(form),
       amka: form.amka,
       gender: form.gender,
       lastName: form.lastName,

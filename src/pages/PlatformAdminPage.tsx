@@ -9,6 +9,7 @@ import {
   Cloud,
   Eye,
   FileImage,
+  FileText,
   Image,
   Landmark,
   Layers,
@@ -36,6 +37,7 @@ import { GoogleDriveBackupPanel } from '../components/GoogleDriveBackupPanel';
 import { ClubWaitlistPanel } from '../components/ClubWaitlistPanel';
 import { LoginActivityPanel } from '../components/LoginActivityPanel';
 import { ClubAuditLogPanel } from '../components/ClubAuditLogPanel';
+import { HealthCardTemplatesPanel } from '../components/HealthCardTemplatesPanel';
 import { PlatformDiagnosticPanel } from '../components/PlatformDiagnosticPanel';
 import { AdminDrill, type AdminDrillCategory } from '../components/layout/AdminDrill';
 import { PlatformAdminShell } from '../components/layout/PlatformAdminShell';
@@ -108,6 +110,7 @@ const PLATFORM_DRILL: AdminDrillCategory[] = [
       { id: 'logins', label: 'Ιστορικό εισόδων', hint: 'Φίλτρο συλλόγου', icon: Clock },
       { id: 'club-log', label: 'Ημερολόγιο συλλόγου', hint: 'Κινήσεις ανά ημέρα', icon: ScrollText },
       { id: 'jpegs', label: 'Φόρμες δημόσιας εγγραφής', hint: 'JPEG / υπογραφές', icon: FileImage },
+      { id: 'health-cards', label: 'Κάρτες υγείας ανά άθλημα', hint: 'PDF προτύπου', icon: FileText },
     ],
   },
   {
@@ -967,6 +970,33 @@ export function PlatformAdminPage() {
                   {joinFormAllClubs
                     ? `Όλοι οι σύλλογοι (${clubs.length})`
                     : `${joinFormClubIds.length} επιλεγμένοι`}
+                </RecordsRow>
+              </RecordsTable>
+            }
+          />
+
+          <AdminRow
+            drillId="health-cards"
+            activeDrill={platformItem}
+            id="health-cards"
+            title="Κάρτες υγείας ανά άθλημα"
+            description="Αντιστοιχίστε PDF κάρτας υγείας σε άθλημα. Όταν ο αθλητής έχει το άθλημα, χρησιμοποιείται η ανάλογη κάρτα."
+            entry={
+              <HealthCardTemplatesPanel
+                onSaved={(text, next) => {
+                  flash(text);
+                  if (next) setConfig(next);
+                }}
+              />
+            }
+            records={
+              <RecordsTable>
+                <RecordsRow title="Εμβέλεια">Όλοι οι σύλλογοι</RecordsRow>
+                <RecordsRow title="Αντιστοιχίσεις">
+                  {Object.keys(config.healthCardTemplatesBySport ?? {}).length || 'Καμία (προεπιλογές)'}
+                </RecordsRow>
+                <RecordsRow title="Αποθήκευση">
+                  PDF στο cloud · ρύθμιση στο account bundle (Push).
                 </RecordsRow>
               </RecordsTable>
             }

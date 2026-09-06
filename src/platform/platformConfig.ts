@@ -286,6 +286,13 @@ export function sanitizeFinanceTabs(value: unknown): FinanceTabId[] {
   return filtered.length > 0 ? filtered : all;
 }
 
+export type HealthCardLayout = 'standard' | 'volleyball';
+
+export type HealthCardSportTemplate = {
+  pdfUrl: string;
+  layout: HealthCardLayout;
+};
+
 export type PlatformConfig = {
   scfModulesByClub: Record<string, ScfModuleId[]>;
   academyModulesByClub: Record<string, AcademyModuleId[]>;
@@ -301,6 +308,11 @@ export type PlatformConfig = {
   appLogoUrl?: string | null;
   /** Λογότυπο εφαρμογής (κεφαλίδα SS) ανά σύλλογο. Override του appLogoUrl. */
   clubAppLogos?: Record<string, string>;
+  /**
+   * PDF κάρτας υγείας ανά άθλημα (κλειδί = κανονικό όνομα καταλόγου).
+   * Κενό pdfUrl = ενσωματωμένο πρότυπο (μπάσκετ / βόλεϊ ανά layout).
+   */
+  healthCardTemplatesBySport?: Record<string, HealthCardSportTemplate>;
   appName?: string;
   /** ocean-slate | graphite-ember | aegean-navy | ivory-club */
   appearanceTheme?: AppearanceTheme;
@@ -400,6 +412,29 @@ function sanitizeClubRolePermissions(
   return result;
 }
 
+function sanitizeHealthCardLayout(value: unknown): HealthCardLayout {
+  return value === 'volleyball' ? 'volleyball' : 'standard';
+}
+
+export function sanitizeHealthCardTemplatesBySport(
+  value: unknown,
+): Record<string, HealthCardSportTemplate> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const out: Record<string, HealthCardSportTemplate> = {};
+  for (const [sport, raw] of Object.entries(value as Record<string, unknown>)) {
+    const name = String(sport ?? '').trim();
+    if (!name) continue;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+    const row = raw as { pdfUrl?: unknown; layout?: unknown };
+    const pdfUrl = typeof row.pdfUrl === 'string' ? row.pdfUrl.trim() : '';
+    out[name] = {
+      pdfUrl,
+      layout: sanitizeHealthCardLayout(row.layout),
+    };
+  }
+  return out;
+}
+
 function sanitizeClubAppLogos(value: unknown): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const out: Record<string, string> = {};
@@ -426,6 +461,7 @@ export function defaultPlatformConfig(): PlatformConfig {
     seasons: ['2025–2026', '2026–2027'],
     appLogoUrl: null,
     clubAppLogos: {},
+    healthCardTemplatesBySport: {},
     appName: 'TeamSuite',
     appearanceTheme: 'ocean-slate',
     backupSchedules: defaultBackupSchedules(),
@@ -577,6 +613,9 @@ export function loadPlatformConfig(): PlatformConfig {
           ),
           appLogoUrl: parsed.appLogoUrl ?? base.appLogoUrl,
           clubAppLogos: sanitizeClubAppLogos(parsed.clubAppLogos),
+          healthCardTemplatesBySport: sanitizeHealthCardTemplatesBySport(
+            parsed.healthCardTemplatesBySport,
+          ),
           appName: parsed.appName ?? base.appName,
           appearanceTheme: sanitizeAppearanceTheme(parsed.appearanceTheme),
           backupSchedules: sanitizeBackupSchedules(parsed.backupSchedules),
@@ -618,6 +657,9 @@ export function loadPlatformConfig(): PlatformConfig {
       backupSchedules: sanitizeBackupSchedules(parsed.backupSchedules),
       appearanceTheme: sanitizeAppearanceTheme(parsed.appearanceTheme),
       clubAppLogos: sanitizeClubAppLogos(parsed.clubAppLogos),
+      healthCardTemplatesBySport: sanitizeHealthCardTemplatesBySport(
+        parsed.healthCardTemplatesBySport,
+      ),
       incomeCategories,
       expenseCategories,
       incomeDescriptions: resolveCatalogDescriptions(
@@ -675,6 +717,9 @@ export function savePlatformConfig(config: PlatformConfig): void {
     ...config,
     financeTabs: sanitizeFinanceTabs(config.financeTabs),
     appearanceTheme: sanitizeAppearanceTheme(config.appearanceTheme),
+    healthCardTemplatesBySport: sanitizeHealthCardTemplatesBySport(
+      config.healthCardTemplatesBySport,
+    ),
   };
   localStorage.setItem(CONFIG_KEY, JSON.stringify(next));
   applyAppearanceTheme(next.appearanceTheme);
@@ -796,6 +841,17 @@ export function startAppearanceTheme(): void {
 
 export function updateAppLogo(logoUrl: string | null): PlatformConfig {
   const next = { ...loadPlatformConfig(), appLogoUrl: logoUrl };
+  savePlatformConfig(next);
+  return next;
+}
+
+export function updateHealthCardTemplatesBySport(
+  templates: Record<string, HealthCardSportTemplate>,
+): PlatformConfig {
+  const next: PlatformConfig = {
+    ...loadPlatformConfig(),
+    healthCardTemplatesBySport: sanitizeHealthCardTemplatesBySport(templates),
+  };
   savePlatformConfig(next);
   return next;
 }
