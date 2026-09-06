@@ -1,5 +1,14 @@
 import { apiClient } from '../apiClient';
-import { createId, getData, mutateData } from '../../data/repository';
+import {
+  bookingAmount,
+  emptyRentalSettings,
+  lockerRoomFeeAmount,
+  occupancySliceForPublic,
+  ruleForFacility,
+  slotIsFree,
+} from '../../shared/facilityRentalAvailability';
+import { getClubData, createId, getData, mutateData } from '../../data/repository';
+import { resolveActiveClubId } from '../../data/store';
 import { getSession } from '../../auth/auth';
 import { getPreviewClubId } from '../../platform/platformConfig';
 import { rentalBookingInputSchema, rentalSettingsSchema, type RentalBookingInput } from '../../schemas';
@@ -7,13 +16,21 @@ import type { RentalBooking, RentalSettings } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import { syncAuthHeaders } from '../syncAuth';
 import { persistClubImageDataUrl } from './sessionService';
-import {
-  bookingAmount,
-  emptyRentalSettings,
-  lockerRoomFeeAmount,
-  ruleForFacility,
-  slotIsFree,
-} from '../../shared/facilityRentalAvailability';
+
+export async function publishRentalOccupancy(clubId: string) {
+  const data = resolveActiveClubId() === clubId ? getData() : getClubData(clubId);
+  const occupancy = occupancySliceForPublic(data);
+  const response = await fetch('/api/public-rent', {
+    method: 'PUT',
+    headers: syncAuthHeaders(),
+    body: JSON.stringify({ clubId, occupancy }),
+  });
+  if (response.status === 503) return;
+  const json = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  if (!response.ok || json.ok === false) {
+    throw new Error(json.error || 'Αποτυχία ενημέρωσης δημόσιας διαθεσιμότητας.');
+  }
+}
 
 export async function saveRentalSettings(input: RentalSettings) {
   return apiClient(async () => {
@@ -50,6 +67,7 @@ export async function saveRentalSettings(input: RentalSettings) {
         })),
       };
     });
+    if (clubId) await publishRentalOccupancy(clubId);
     return getData().rentalSettings ?? emptyRentalSettings();
   });
 }
@@ -58,7 +76,7 @@ export async function createRentalBooking(
   input: RentalBookingInput,
   source: RentalBooking['source'] = 'secretariat',
 ) {
-  return apiClient(() => {
+  return apiClient(async () => {
     const parsed = rentalBookingInputSchema.parse(input);
     const data = getData();
     const facility = (data.facilities ?? []).find((f) => f.id === parsed.facilityId);
@@ -110,12 +128,20 @@ export async function createRentalBooking(
       if (!store.rentalBookings) store.rentalBookings = [];
       store.rentalBookings.unshift(booking);
     });
+    const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
+    if (clubId) {
+      try {
+        await publishRentalOccupancy(clubId);
+      } catch {
+        /* τοπική κράτηση μένει · το δημόσιο ενημερώνεται στο επόμενο save */
+      }
+    }
     return booking;
   });
 }
 
 export async function cancelRentalBooking(id: string) {
-  return apiClient(() => {
+  return apiClient(async () => {
     let updated: RentalBooking | undefined;
     mutateData((data) => {
       const list = data.rentalBookings ?? [];
@@ -125,6 +151,14 @@ export async function cancelRentalBooking(id: string) {
       list[index] = updated;
       data.rentalBookings = list;
     });
+    const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
+    if (clubId) {
+      try {
+        await publishRentalOccupancy(clubId);
+      } catch {
+        /* ignore */
+      }
+    }
     return updated!;
   });
 }

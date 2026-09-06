@@ -176,7 +176,11 @@ export function FacilityRentalPanel() {
     setError('');
     setMessage('');
     try {
-      const result = await rentalBookingsService.saveRentalSettings({ ...draft, photoLook: 'g' });
+      const result = await rentalBookingsService.saveRentalSettings({
+        ...draft,
+        photoLook: 'g',
+        rules: facilities.map((facility) => ruleOf(facility)),
+      });
       if (!result.success) {
         setError(result.error ?? 'Αποτυχία αποθήκευσης.');
         return;

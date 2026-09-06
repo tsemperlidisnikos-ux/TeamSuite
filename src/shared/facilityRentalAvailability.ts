@@ -54,6 +54,28 @@ export function emptyRentalSettings(): RentalSettings {
   return { publicEnabled: false, notes: '', rules: [], heroImageUrl: null, photoLook: 'g' };
 }
 
+/** Μικρό payload για το δημόσιο /rent (χωρίς μητρώο αθλητών). */
+export function occupancySliceForPublic(source: RentalOccupancySource): RentalOccupancySource {
+  return {
+    facilities: (source.facilities ?? []).map((facility) => ({
+      ...facility,
+      photoUrl: facility.photoUrl?.startsWith('data:') ? null : facility.photoUrl ?? null,
+    })),
+    schedule: source.schedule ?? [],
+    trainings: source.trainings ?? [],
+    matches: source.matches ?? [],
+    rentalSettings: source.rentalSettings
+      ? {
+          ...source.rentalSettings,
+          heroImageUrl: source.rentalSettings.heroImageUrl?.startsWith('data:')
+            ? null
+            : source.rentalSettings.heroImageUrl,
+        }
+      : emptyRentalSettings(),
+    rentalBookings: source.rentalBookings ?? [],
+  };
+}
+
 export function minutesOf(hhmm: string): number {
   const [h, m] = String(hhmm || '0:0').split(':').map((n) => Number(n));
   return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);

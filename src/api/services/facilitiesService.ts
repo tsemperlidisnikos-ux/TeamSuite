@@ -5,6 +5,7 @@ import { getPreviewClubId } from '../../platform/platformConfig';
 import { persistClubImageDataUrl } from './sessionService';
 import { facilitySchema, type FacilityInput } from '../../schemas';
 import type { Facility } from '../../types';
+import { publishRentalOccupancy } from './rentalBookingsService';
 
 async function persistPhoto(photoUrl: string | null | undefined, fileName: string) {
   const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
@@ -29,6 +30,14 @@ export async function createFacility(input: FacilityInput) {
       if (!data.facilities) data.facilities = [];
       data.facilities.push(facility);
     });
+    const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
+    if (clubId) {
+      try {
+        await publishRentalOccupancy(clubId);
+      } catch {
+        /* ignore */
+      }
+    }
     return facility;
   });
 }
@@ -52,6 +61,14 @@ export async function updateFacility(id: string, input: FacilityInput) {
       };
       data.facilities[index] = updated;
     });
+    const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
+    if (clubId) {
+      try {
+        await publishRentalOccupancy(clubId);
+      } catch {
+        /* ignore */
+      }
+    }
     return updated!;
   });
 }
@@ -61,6 +78,14 @@ export async function deleteFacility(id: string) {
     mutateData((data) => {
       data.facilities = (data.facilities ?? []).filter((item) => item.id !== id);
     });
+    const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
+    if (clubId) {
+      try {
+        await publishRentalOccupancy(clubId);
+      } catch {
+        /* ignore */
+      }
+    }
     return { id };
   });
 }

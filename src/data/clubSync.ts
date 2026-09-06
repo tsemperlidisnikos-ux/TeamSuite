@@ -384,6 +384,19 @@ function localHasUnsyncedEdits(local: AppData, cloud: AppData): boolean {
   if (hasLocalOnlyRows(local.receiptNumberRanges, cloud.receiptNumberRanges)) return true;
   if (hasLocalOnlyRows(local.receiptIssues, cloud.receiptIssues)) return true;
 
+  const localRent = JSON.stringify({
+    publicEnabled: Boolean(local.rentalSettings?.publicEnabled),
+    notes: local.rentalSettings?.notes ?? '',
+    rules: local.rentalSettings?.rules ?? [],
+  });
+  const cloudRent = JSON.stringify({
+    publicEnabled: Boolean(cloud.rentalSettings?.publicEnabled),
+    notes: cloud.rentalSettings?.notes ?? '',
+    rules: cloud.rentalSettings?.rules ?? [],
+  });
+  if (localRent !== cloudRent) return true;
+  if (hasLocalOnlyRows(local.rentalBookings, cloud.rentalBookings)) return true;
+
   if (
     local.sizeChart &&
     sizeChartCount(local.sizeChart) > sizeChartCount(cloud.sizeChart) &&

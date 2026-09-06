@@ -10,6 +10,7 @@ import {
   loadPublicClubBySlug,
   requestAddress,
   saveMirror,
+  assertClubTenantAccess,
 } from './lib/serverStore.js';
 import {
   emptyRentalSettings,
@@ -86,6 +87,33 @@ function rentableFacilities(source: RentalOccupancySource): Facility[] {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Cache-Control', 'no-store');
+
+  if (req.method === 'PUT') {
+    const body = (req.body ?? {}) as {
+      clubId?: string;
+      occupancy?: RentalOccupancySource;
+    };
+    const clubId = String(body.clubId ?? '').trim();
+    if (!clubId) return res.status(400).json({ ok: false, error: 'clubId required' });
+    if (!(await assertClubTenantAccess(req, res, clubId))) return;
+    const occupancy = body.occupancy && typeof body.occupancy === 'object' ? body.occupancy : null;
+    if (!occupancy) return res.status(400).json({ ok: false, error: 'occupancy required' });
+    const mirror = await loadMirror(clubId);
+    const prev = asSource(mirror?.payload) as RentalOccupancySource & Record<string, unknown>;
+    const next = {
+      ...prev,
+      facilities: occupancy.facilities ?? prev.facilities,
+      schedule: occupancy.schedule ?? prev.schedule,
+      trainings: occupancy.trainings ?? prev.trainings,
+      matches: occupancy.matches ?? prev.matches,
+      rentalSettings: occupancy.rentalSettings ?? prev.rentalSettings,
+      rentalBookings: occupancy.rentalBookings ?? prev.rentalBookings,
+    };
+    await saveMirror(clubId, next);
+    return res.status(200).json({ ok: true, durable: isDurableStoreEnabled() });
+  }
+
   if (req.method === 'GET') {
     const clubId = String(req.query.clubId ?? '').trim();
     if (clubId) {
@@ -177,7 +205,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'GET, POST');
+    res.setHeader('Allow', 'GET, POST, PUT');
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 

@@ -76,6 +76,32 @@ export function PublicRentPage() {
       setLoading(true);
       setLoadError('');
       const normalized = slug.trim().toLowerCase();
+      let remoteError = '';
+      try {
+        const response = await fetch(`/api/public-rent?slug=${encodeURIComponent(normalized)}`, {
+          cache: 'no-store',
+        });
+        const body = (await response.json()) as {
+          ok?: boolean;
+          error?: string;
+          club?: RentClubView;
+        };
+        if (cancelled) return;
+        if (response.ok && body.ok && body.club) {
+          setClub({
+            ...body.club,
+            source: 'remote',
+            heroImageUrl: body.club.heroImageUrl || body.club.logoUrl || null,
+            prices: body.club.prices ?? [],
+          });
+          setLoading(false);
+          return;
+        }
+        remoteError = body.error ?? (response.status === 404 ? 'Ο σύνδεσμος δεν βρέθηκε.' : '');
+      } catch {
+        remoteError = 'Αδυναμία φόρτωσης διαθεσιμότητας.';
+      }
+
       const local = getClubs().find((c) => {
         const s = (c.publicRegistration?.slug || slugifyClubName(c.name)).toLowerCase();
         return s === normalized;
@@ -85,6 +111,7 @@ export function PublicRentPage() {
         const data = getClubData(local.id);
         const rental = data.rentalSettings ?? emptyRentalSettings();
         if (!cancelled) {
+          setLoadError('');
           setClub({
             source: 'local',
             clubId: local.id,
@@ -114,32 +141,11 @@ export function PublicRentPage() {
         return;
       }
 
-      try {
-        const response = await fetch(`/api/public-rent?slug=${encodeURIComponent(normalized)}`);
-        const body = (await response.json()) as {
-          ok?: boolean;
-          error?: string;
-          club?: RentClubView;
-        };
-        if (cancelled) return;
-        if (!response.ok || !body.ok || !body.club) {
-          setClub(null);
-          setLoadError(body.error ?? 'Ο σύνδεσμος δεν βρέθηκε.');
-          setLoading(false);
-          return;
-        }
-        setClub({
-          ...body.club,
-          source: 'remote',
-          heroImageUrl: body.club.heroImageUrl || body.club.logoUrl || null,
-          prices: body.club.prices ?? [],
-        });
-      } catch {
-        if (!cancelled) {
-          setLoadError('Αδυναμία φόρτωσης διαθεσιμότητας.');
-        }
+      if (!cancelled) {
+        setClub(null);
+        setLoadError(remoteError || 'Ο σύνδεσμος δεν βρέθηκε.');
+        setLoading(false);
       }
-      if (!cancelled) setLoading(false);
     }
     void load();
     return () => {
@@ -173,7 +179,7 @@ export function PublicRentPage() {
         facilityId: selectedFacility.id,
         courtShare,
       });
-      const response = await fetch(`/api/public-rent?${params.toString()}`);
+      const response = await fetch(`/api/public-rent?${params.toString()}`, { cache: 'no-store' });
       const body = (await response.json()) as { ok?: boolean; slots?: typeof remoteSlots };
       if (!cancelled && body.ok && body.slots) setRemoteSlots(body.slots);
     })();
