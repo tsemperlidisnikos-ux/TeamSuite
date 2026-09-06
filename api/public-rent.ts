@@ -250,7 +250,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(409).json({ ok: false, error: check.reason });
   }
   const rule = ruleForFacility(settings, facility.id, facility);
-  const useLockerRoom = Boolean(useLockerRoomRequested);
+  const useLockerRoom = Boolean(useLockerRoomRequested) && Boolean(rule.lockerRoomAvailable);
   const booking: RentalBooking = {
     id: `rent_${randomBytes(6).toString('hex')}`,
     facilityId: facility.id,

@@ -158,6 +158,18 @@ export function PublicRentPage() {
     setFacilityId((prev) => prev || club.facilities[0]!.id);
   }, [club]);
 
+  useEffect(() => {
+    if (!club || !facilityId) return;
+    const price = club.prices?.find((p) => p.facilityId === facilityId);
+    const offered =
+      club.source === 'local'
+        ? Boolean(
+            ruleForFacility(getClubData(club.clubId).rentalSettings, facilityId).lockerRoomAvailable,
+          )
+        : Boolean(price?.lockerRoomAvailable);
+    if (!offered) setUseLockerRoom(false);
+  }, [club, facilityId]);
+
   const selectedFacility = club?.facilities.find((f) => f.id === facilityId) ?? null;
 
   const localSlots = useMemo(() => {
@@ -343,10 +355,15 @@ export function PublicRentPage() {
       )
     : null;
   const priceRow = club.prices?.find((p) => p.facilityId === selectedFacility?.id);
-  const lockerFee =
+  const lockerOffered =
     club.source === 'local'
+      ? Boolean(selectedRule?.lockerRoomAvailable)
+      : Boolean(priceRow?.lockerRoomAvailable);
+  const lockerFee = lockerOffered
+    ? club.source === 'local'
       ? Number(selectedRule?.lockerRoomFee) || 0
-      : Number(priceRow?.lockerRoomFee) || 0;
+      : Number(priceRow?.lockerRoomFee) || 0
+    : 0;
   const hourlyRate =
     courtShare === 'half' ? priceRow?.hourlyRateHalf ?? 0 : priceRow?.hourlyRateFull ?? 0;
   const hero = club.heroImageUrl || club.logoUrl;
@@ -463,6 +480,7 @@ export function PublicRentPage() {
                 </button>
               </div>
             </div>
+            {lockerOffered ? (
             <div className="field">
               <span className="field-label">{t('Χρήση αποδυτηρίου')}</span>
               <div className="rental-day-row">
@@ -483,6 +501,7 @@ export function PublicRentPage() {
                 </button>
               </div>
             </div>
+            ) : null}
             <div className="field public-rent-total">
               <span className="field-label">{t('Σύνολο')}</span>
               <div className="public-rent-total-value">{formatCurrency(totalDisplay)}</div>

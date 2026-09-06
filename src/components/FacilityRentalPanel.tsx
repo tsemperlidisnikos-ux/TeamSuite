@@ -747,6 +747,17 @@ export function FacilityRentalPanel() {
               : ''}
           </label>
         ) : null}
+        <div className="field public-rent-total rental-book-total">
+          <span className="field-label">{t('Σύνολο')}</span>
+          <div className="public-rent-total-value">
+            {selectedSlot && selectedRule ? formatCurrency(payableAmount) : '—'}
+          </div>
+          {selectedSlot && selectedRule && discountValue > 0 ? (
+            <p className="muted rental-book-total-hint">
+              {formatCurrency(baseAmount)} − {formatCurrency(discountValue)}
+            </p>
+          ) : null}
+        </div>
         </div>
         <div className="rental-book-contact">
         <label className="field">
@@ -841,14 +852,6 @@ export function FacilityRentalPanel() {
         <span className="field-label">{t('Σημείωση κράτησης')}</span>
         <input className="field-input" value={notes} onChange={(e) => setNotes(e.target.value)} />
       </label>
-      {selectedSlot && selectedRule ? (
-        <p>
-          Ποσό:{' '}
-          {discountValue > 0
-            ? `${formatCurrency(payableAmount)} (${formatCurrency(baseAmount)} − ${formatCurrency(discountValue)})`
-            : formatCurrency(payableAmount)}
-        </p>
-      ) : null}
       <div className="prints-filter-actions">
         <Button type="button" onClick={() => void submitBooking()} disabled={booking}>
           {booking ? t('Καταχώρηση…') : t('Καταχώρηση κράτησης')}

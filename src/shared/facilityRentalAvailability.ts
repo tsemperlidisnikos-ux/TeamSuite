@@ -434,7 +434,7 @@ export function lockerRoomFeeAmount(
   rule: FacilityRentalRule | null | undefined,
   useLockerRoom: boolean,
 ): number {
-  if (!useLockerRoom) return 0;
+  if (!useLockerRoom || !rule?.lockerRoomAvailable) return 0;
   const fee = Number(rule?.lockerRoomFee) || 0;
   return fee > 0 ? Math.round(fee * 100) / 100 : 0;
 }

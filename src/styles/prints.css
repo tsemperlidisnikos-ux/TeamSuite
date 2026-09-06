@@ -660,6 +660,18 @@
   white-space: nowrap;
 }
 
+.rental-book-top .rental-book-total {
+  flex: 0 0 auto;
+  margin-left: auto;
+  margin-right: 4.5rem;
+  justify-self: unset;
+}
+
+.rental-book-total-hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+}
+
 .rental-book-contact {
   grid-column: 1 / -1;
   display: grid;
@@ -674,6 +686,10 @@
 
   .rental-book-email {
     grid-column: 1 / -1;
+  }
+
+  .rental-book-top .rental-book-total {
+    margin-right: 0;
   }
 }
 
