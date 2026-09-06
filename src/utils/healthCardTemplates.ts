@@ -4,7 +4,7 @@ import {
   type HealthCardSportTemplate,
 } from '../platform/platformConfig';
 import { resolveCatalogSportName } from '../shared/sportsCatalog';
-import { isVolleyballSport, normalizeSportKey } from './sport';
+import { isBasketballSport, isVolleyballSport, normalizeSportKey } from './sport';
 
 export const BUILTIN_HEALTH_CARD_STANDARD = '/health-card/health-card-template.pdf';
 export const BUILTIN_HEALTH_CARD_VOLLEYBALL = '/health-card/health-card-volleyball-template.pdf';
@@ -47,15 +47,21 @@ function fromMapped(
   sportName: string,
   mapped: HealthCardSportTemplate,
 ): ResolvedHealthCardTemplate {
-  const volleyball = mapped.layout === 'volleyball';
   const custom = mapped.pdfUrl.trim();
+  const urlLooksVolleyball =
+    /volleyball-template/i.test(custom) || /volley/i.test(custom);
+  const volleyball =
+    mapped.layout === 'volleyball' ||
+    urlLooksVolleyball ||
+    isVolleyballSport(sportName) ||
+    Boolean(custom && !isBasketballSport(sportName));
   return {
     templateUrl: custom
       ? custom
       : volleyball
         ? BUILTIN_HEALTH_CARD_VOLLEYBALL
         : BUILTIN_HEALTH_CARD_STANDARD,
-    layout: mapped.layout,
+    layout: volleyball ? 'volleyball' : 'standard',
     volleyball,
     sportName,
   };

@@ -7,6 +7,18 @@ export function normalizeSportKey(value: string | undefined | null): string {
     .replace(/\s+/g, ' ');
 }
 
+export function isBasketballSport(sport: string | undefined | null): boolean {
+  const key = normalizeSportKey(sport);
+  if (!key) return false;
+  const compact = key.replace(/[^a-zα-ω0-9]/g, '');
+  return (
+    key.includes('basket') ||
+    key.includes('μπασκετ') ||
+    compact.includes('kalathosfair') ||
+    key.includes('καλαθοσφαιρ')
+  );
+}
+
 export function isVolleyballSport(sport: string | undefined | null): boolean {
   const key = normalizeSportKey(sport);
   if (!key) return false;

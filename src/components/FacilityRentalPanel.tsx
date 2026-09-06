@@ -175,14 +175,17 @@ export function FacilityRentalPanel() {
     setSaving(true);
     setError('');
     setMessage('');
-    const result = await rentalBookingsService.saveRentalSettings({ ...draft, photoLook: 'g' });
-    setSaving(false);
-    if (!result.success) {
-      setError(result.error ?? 'Αποτυχία αποθήκευσης.');
-      return;
+    try {
+      const result = await rentalBookingsService.saveRentalSettings({ ...draft, photoLook: 'g' });
+      if (!result.success) {
+        setError(result.error ?? 'Αποτυχία αποθήκευσης.');
+        return;
+      }
+      setMessage('Οι ρυθμίσεις ενοικίασης αποθηκεύτηκαν.');
+      refresh();
+    } finally {
+      setSaving(false);
     }
-    setMessage('Οι ρυθμίσεις ενοικίασης αποθηκεύτηκαν.');
-    refresh();
   }
 
   async function readCoverFile(file: File): Promise<string> {

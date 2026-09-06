@@ -331,7 +331,7 @@ export const rentalSettingsSchema = z.object({
       slotMinutes: z.coerce.number().int().min(30).max(180).default(60),
       windows: z.array(
         z.object({
-          days: z.array(z.coerce.number().int().min(0).max(6)).min(1),
+          days: z.array(z.coerce.number().int().min(0).max(6)).default([]),
           startTime: z.string().min(4),
           endTime: z.string().min(4),
         }),

@@ -31,6 +31,8 @@ const PHOTO_WIDTH_CM = 3.35;
 const PHOTO_HEIGHT_CM = 4.1;
 const PHOTO_SHIFT_DOWN = 3;
 const TITLE_VALUE_GAP = 18;
+/** Ίδια στήλη τιμών, δεξιά από «ΑΡ. ΜΗΤΡΩΟΥ ΕΟΚ». */
+const DEFAULT_VALUE_X = 612;
 
 const DEFAULT_BLUE_FRAME = {
   left: 497.8,
@@ -47,13 +49,13 @@ const VOLLEYBALL_BLUE_FRAME = {
 };
 
 const DEFAULT_FIELD_ANCHORS: Record<string, { labelEndX: number; baselineY: number }> = {
-  registration_card_no: { labelEndX: 584.1, baselineY: 310.3 },
-  first_name: { labelEndX: 537.6, baselineY: 335.8 },
-  last_name: { labelEndX: 544.1, baselineY: 361.8 },
-  father_name: { labelEndX: 554.6, baselineY: 387.8 },
-  date_of_birth: { labelEndX: 565.1, baselineY: 413.4 },
-  amka: { labelEndX: 539.6, baselineY: 438.9 },
-  medical_cert_expires: { labelEndX: 580.4, baselineY: 528.5 },
+  registration_card_no: { labelEndX: 584.1, baselineY: 325.8 },
+  first_name: { labelEndX: 537.6, baselineY: 351.3 },
+  last_name: { labelEndX: 544.1, baselineY: 377.3 },
+  father_name: { labelEndX: 554.6, baselineY: 403.3 },
+  date_of_birth: { labelEndX: 565.1, baselineY: 428.9 },
+  amka: { labelEndX: 539.6, baselineY: 454.4 },
+  medical_cert_expires: { labelEndX: 580.4, baselineY: 544.0 },
 };
 
 const VOLLEYBALL_VALUE_X = 612;
@@ -292,18 +294,22 @@ export async function buildHealthCardPdf(
     pdfDoc.registerFontkit(fontkit);
     const font = await pdfDoc.embedFont(await fontRes.arrayBuffer());
     const page = pdfDoc.getPages()[0];
-    const pageHeight = page.getHeight() || PAGE_HEIGHT;
+    const overlayHeight = PAGE_HEIGHT;
 
-    const blueFrame = resolved.layout === 'volleyball' ? VOLLEYBALL_BLUE_FRAME : DEFAULT_BLUE_FRAME;
-    const overlay =
-      resolved.layout === 'volleyball'
-        ? buildTemplateOverlay(VOLLEYBALL_FIELD_ANCHORS, { valueX: VOLLEYBALL_VALUE_X })
-        : buildTemplateOverlay(DEFAULT_FIELD_ANCHORS);
+    const useVolleyballOverlay =
+      resolved.layout === 'volleyball' ||
+      resolved.volleyball ||
+      /volleyball-template/i.test(templateUrl);
+
+    const blueFrame = useVolleyballOverlay ? VOLLEYBALL_BLUE_FRAME : DEFAULT_BLUE_FRAME;
+    const overlay = useVolleyballOverlay
+      ? buildTemplateOverlay(VOLLEYBALL_FIELD_ANCHORS, { valueX: VOLLEYBALL_VALUE_X })
+      : buildTemplateOverlay(DEFAULT_FIELD_ANCHORS, { valueX: DEFAULT_VALUE_X });
     const photoBox = buildPhotoBox(blueFrame);
 
     const photo = await embedPhoto(pdfDoc, athlete.photoUrl);
     if (photo) {
-      await drawPhotoCover(page, photo, blueFrame, photoBox, pageHeight);
+      await drawPhotoCover(page, photo, blueFrame, photoBox, overlayHeight);
     }
 
     for (const field of overlay) {
@@ -312,7 +318,7 @@ export async function buildHealthCardPdf(
       const text = truncateText(raw, field.maxLen);
       page.drawText(text, {
         x: field.x,
-        y: pdfBaselineY(field.baselineY, pageHeight),
+        y: pdfBaselineY(field.baselineY, overlayHeight),
         size: OVERLAY_FONT_SIZE,
         font,
         color: (await import('pdf-lib')).rgb(0, 0, 0),

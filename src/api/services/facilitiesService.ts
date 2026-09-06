@@ -16,11 +16,6 @@ async function persistPhoto(photoUrl: string | null | undefined, fileName: strin
   return persistClubImageDataUrl(clubId, photoUrl, fileName);
 }
 
-async function flushMirror() {
-  const { flushClubMirrorPush } = await import('../../data/clubSync');
-  await flushClubMirrorPush();
-}
-
 export async function createFacility(input: FacilityInput) {
   return apiClient(async () => {
     const parsed = facilitySchema.parse(input);
@@ -34,7 +29,6 @@ export async function createFacility(input: FacilityInput) {
       if (!data.facilities) data.facilities = [];
       data.facilities.push(facility);
     });
-    await flushMirror();
     return facility;
   });
 }
@@ -58,7 +52,6 @@ export async function updateFacility(id: string, input: FacilityInput) {
       };
       data.facilities[index] = updated;
     });
-    await flushMirror();
     return updated!;
   });
 }
@@ -68,7 +61,6 @@ export async function deleteFacility(id: string) {
     mutateData((data) => {
       data.facilities = (data.facilities ?? []).filter((item) => item.id !== id);
     });
-    await flushMirror();
     return { id };
   });
 }

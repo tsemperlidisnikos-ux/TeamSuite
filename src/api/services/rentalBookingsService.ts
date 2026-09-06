@@ -50,8 +50,6 @@ export async function saveRentalSettings(input: RentalSettings) {
         })),
       };
     });
-    const { flushClubMirrorPush } = await import('../../data/clubSync');
-    await flushClubMirrorPush();
     return getData().rentalSettings ?? emptyRentalSettings();
   });
 }
