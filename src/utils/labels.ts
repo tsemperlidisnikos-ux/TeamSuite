@@ -3,7 +3,7 @@ import type {
   PaymentStatus,
   RevenueCategory,
   StudentStatus,
-} from '../types';
+} from '../types/index.js';
 
 export const dayNames = [
   'Κυριακή',

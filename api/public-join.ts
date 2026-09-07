@@ -216,10 +216,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : null;
   const students = Array.isArray(payload?.students) ? (payload.students as Array<{ status?: string; amka?: string; id?: string; firstName?: string; lastName?: string }>) : [];
   const bundle = await loadAccountBundle();
-  const accountClub = (bundle?.clubs ?? []).find(
-    (item) => item && typeof item === 'object' && String((item as { id?: string }).id) === club.clubId,
-  ) as { athleteLicenseLimit?: number } | undefined;
-  const limit = Number(accountClub?.athleteLicenseLimit);
+  const accountClub = Array.isArray(bundle?.clubs)
+    ? bundle.clubs.find(
+        (item: unknown) =>
+          item && typeof item === 'object' && String((item as { id?: string }).id) === club.clubId,
+      )
+    : undefined;
+  const limit = Number((accountClub as { athleteLicenseLimit?: number } | undefined)?.athleteLicenseLimit);
   const remaining =
     Number.isFinite(limit) && limit > 0
       ? Math.max(0, Math.floor(limit) - students.filter((s) => (s.status ?? 'active') === 'active').length)

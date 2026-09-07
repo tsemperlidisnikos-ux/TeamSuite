@@ -1,5 +1,5 @@
-import { formatCurrency } from './labels';
-import type { RentalBooking } from '../types';
+import { formatCurrency } from './labels.js';
+import type { RentalBooking } from '../types/index.js';
 
 function escapeHtml(value: string): string {
   return value
@@ -18,11 +18,10 @@ export function buildRentalBookingEmail(input: {
     | 'startTime'
     | 'endTime'
     | 'courtShare'
-    | 'useLockerRoom'
     | 'customerName'
     | 'amount'
     | 'notes'
-  >;
+  > & { useLockerRoom?: boolean };
 }): { subject: string; text: string; html: string } {
   const club = input.clubName.trim() || 'Σύλλογος';
   const b = input.booking;

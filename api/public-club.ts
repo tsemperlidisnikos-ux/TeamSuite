@@ -32,10 +32,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const mirror = await loadMirror(club.clubId);
     const bundle = await loadAccountBundle();
-    const accountClub = (bundle?.clubs ?? []).find(
-      (item) => item && typeof item === 'object' && String((item as { id?: string }).id) === club.clubId,
-    ) as { athleteLicenseLimit?: number } | undefined;
-    const limit = Number(accountClub?.athleteLicenseLimit);
+    const accountClub = Array.isArray(bundle?.clubs)
+      ? bundle.clubs.find(
+          (item: unknown) =>
+            item && typeof item === 'object' && String((item as { id?: string }).id) === club.clubId,
+        )
+      : undefined;
+    const limit = Number((accountClub as { athleteLicenseLimit?: number } | undefined)?.athleteLicenseLimit);
     const students = Array.isArray((mirror?.payload as { students?: unknown[] } | undefined)?.students)
       ? ((mirror?.payload as { students: Array<{ status?: string }> }).students ?? [])
       : [];

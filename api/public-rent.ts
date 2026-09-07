@@ -1,3 +1,5 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { randomBytes } from 'crypto';
 import nodemailer from 'nodemailer';
 import { buildRentalBookingEmail } from '../src/utils/rentalBookingEmail.js';
 import {
@@ -27,6 +29,10 @@ import type {
   RentalBooking,
   RentalOccupancySource,
 } from '../src/shared/facilityRentalAvailability.js';
+
+function clubsFromBundle(bundle: { clubs?: unknown } | null | undefined): unknown[] {
+  return Array.isArray(bundle?.clubs) ? bundle.clubs : [];
+}
 
 function asSource(payload: unknown): RentalOccupancySource {
   if (!payload || typeof payload !== 'object') return {};
@@ -59,7 +65,7 @@ async function resolveBySlug(slug: string): Promise<{
     };
   }
   const bundle = await loadAccountBundle();
-  const clubs = Array.isArray(bundle?.clubs) ? bundle!.clubs : [];
+  const clubs = clubsFromBundle(bundle);
   for (const item of clubs) {
     if (!item || typeof item !== 'object') continue;
     const raw = item as Record<string, unknown>;
@@ -96,7 +102,7 @@ async function clubVivaReady(clubId: string): Promise<{
   environment?: 'demo' | 'live';
 }> {
   const bundle = await loadAccountBundle();
-  const raw = (bundle?.clubs ?? []).find(
+  const raw = clubsFromBundle(bundle).find(
     (item) => item && typeof item === 'object' && String((item as { id?: string }).id) === clubId,
   ) as { viva?: Record<string, unknown> } | undefined;
   const viva = raw?.viva ?? {};

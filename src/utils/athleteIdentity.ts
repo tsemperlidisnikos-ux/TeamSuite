@@ -1,4 +1,4 @@
-import type { Student } from '../types';
+import type { Student } from '../types/index.js';
 
 export function normalizeAmkaDigits(value: string | undefined | null): string {
   return String(value ?? '').replace(/\D/g, '');
