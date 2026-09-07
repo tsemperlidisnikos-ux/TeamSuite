@@ -28,7 +28,7 @@ const emptyForm: TrainingInput = {
 };
 
 const emptyRecurring = {
-  weekday: 1,
+  weekdays: [1] as number[],
   startDate: '',
   endDate: '',
   startTime: '',
@@ -227,10 +227,15 @@ export function TrainingsPage() {
   }
 
   async function handleSaveRecurring() {
+    const weekdaysSelected = recForm.weekdays;
+    if (weekdaysSelected.length === 0) {
+      setError('Επιλέξτε τουλάχιστον μία ημέρα.');
+      return;
+    }
     setSaving(true);
     setError('');
     const result = await trainingsService.createRecurringTrainings({
-      weekday: recForm.weekday,
+      weekdays: weekdaysSelected,
       startDate: recForm.startDate,
       endDate: recForm.endDate,
       startTime: recForm.startTime,
@@ -532,21 +537,36 @@ export function TrainingsPage() {
                   ))}
                 </select>
               </label>
-              <label>
-                <span>Ημέρα εβδομάδας</span>
-                <select
-                  value={recForm.weekday}
-                  onChange={(e) =>
-                    setRecForm({ ...recForm, weekday: Number(e.target.value) })
-                  }
-                >
-                  {weekdays.map((d) => (
-                    <option key={d.value} value={d.value}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="training-weekdays">
+                <span>Ημέρες εβδομάδας</span>
+                <div className="training-weekday-row" role="group" aria-label="Ημέρες εβδομάδας">
+                  {weekdays.map((d) => {
+                    const on = recForm.weekdays.includes(d.value);
+                    return (
+                      <button
+                        key={d.value}
+                        type="button"
+                        className={on ? 'training-weekday is-on' : 'training-weekday'}
+                        aria-pressed={on}
+                        onClick={() => {
+                          setRecForm((prev) => {
+                            const has = prev.weekdays.includes(d.value);
+                            const next = has
+                              ? prev.weekdays.filter((w) => w !== d.value)
+                              : [...prev.weekdays, d.value].sort((a, b) => {
+                                  const order = (n: number) => (n === 0 ? 7 : n);
+                                  return order(a) - order(b);
+                                });
+                            return { ...prev, weekdays: next };
+                          });
+                        }}
+                      >
+                        {d.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <label>
                 <span>Ημ. έναρξης</span>
                 <input

@@ -4076,7 +4076,7 @@ html[data-appearance] .settings-backup-schedule-status {
 }
 
 .training-modal--wide {
-  width: min(460px, 100%);
+  width: min(560px, 100%);
 }
 
 .facility-modal {
@@ -4149,6 +4149,41 @@ html[data-appearance] .settings-backup-schedule-status {
   font: inherit;
   background: var(--surface, #fff);
   color: var(--ink, #111);
+}
+
+.training-weekdays {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.training-weekdays > span {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink, #111);
+}
+
+.training-weekday-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.training-weekday {
+  border: 1px solid var(--line, #cfd8d4);
+  background: var(--surface, #fff);
+  color: var(--ink, #111);
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.training-weekday.is-on {
+  border-color: var(--brand, #1a3e38);
+  background: var(--brand, #1a3e38);
+  color: #fff;
 }
 
 @media (max-width: 860px) {

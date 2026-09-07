@@ -40,7 +40,8 @@ export async function createTraining(input: TrainingInput) {
 }
 
 export async function createRecurringTrainings(input: {
-  weekday: number;
+  weekday?: number;
+  weekdays?: number[];
   startDate: string;
   endDate: string;
   startTime: string;
@@ -58,6 +59,17 @@ export async function createRecurringTrainings(input: {
       throw new Error('Ώρες έναρξης/λήξης υποχρεωτικές');
     }
 
+    const weekdays = [
+      ...new Set(
+        (input.weekdays?.length ? input.weekdays : input.weekday != null ? [input.weekday] : []).map(
+          (d) => Number(d),
+        ),
+      ),
+    ].filter((d) => d >= 0 && d <= 6);
+    if (weekdays.length === 0) {
+      throw new Error('Επιλέξτε τουλάχιστον μία ημέρα');
+    }
+
     const start = new Date(`${input.startDate}T12:00:00`);
     const end = new Date(`${input.endDate}T12:00:00`);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
@@ -67,7 +79,7 @@ export async function createRecurringTrainings(input: {
     const created: Training[] = [];
     const cursor = new Date(start);
     while (cursor <= end) {
-      if (cursor.getDay() === input.weekday) {
+      if (weekdays.includes(cursor.getDay())) {
         const date = localDateIso(cursor);
         assertNoRentalConflict(getData(), input.location, date, input.startTime, input.endTime);
         const training: Training = {
@@ -85,7 +97,7 @@ export async function createRecurringTrainings(input: {
     }
 
     if (created.length === 0) {
-      throw new Error('Δεν βρέθηκαν ημερομηνίες για την επιλεγμένη ημέρα');
+      throw new Error('Δεν βρέθηκαν ημερομηνίες για τις επιλεγμένες ημέρες');
     }
 
     mutateData((data) => {
