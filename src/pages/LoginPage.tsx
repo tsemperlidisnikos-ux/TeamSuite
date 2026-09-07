@@ -256,6 +256,14 @@ export function LoginPage() {
         void import('../api/services/feeChargesService')
           .then(({ runDueFeeReminders }) => runDueFeeReminders(result.data!.clubId!))
           .catch(() => undefined);
+        const role = result.data?.role;
+        if (role === 'admin' || role === 'secretariat' || role === 'platform_admin') {
+          void import('../api/services/warehouseNoticeService')
+            .then(({ runLowStockSecretariatNotice }) =>
+              runLowStockSecretariatNotice(result.data!.clubId!),
+            )
+            .catch(() => undefined);
+        }
       }
     }
 

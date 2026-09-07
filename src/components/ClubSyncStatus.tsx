@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CLUB_SYNC_STATUS_EVENT,
+  CLUB_WRITE_CONFLICT_EVENT,
+  getClubWriteConflict,
   getLastSyncAt,
   isAutoSyncEnabled,
   isClubMirrorDirty,
@@ -26,10 +28,12 @@ export function ClubSyncStatus({ clubId }: { clubId: string }) {
     const bump = () => setTick((n) => n + 1);
     const unsub = subscribeAppData(bump);
     window.addEventListener(CLUB_SYNC_STATUS_EVENT, bump);
+    window.addEventListener(CLUB_WRITE_CONFLICT_EVENT, bump);
     const id = window.setInterval(bump, 20_000);
     return () => {
       unsub();
       window.removeEventListener(CLUB_SYNC_STATUS_EVENT, bump);
+      window.removeEventListener(CLUB_WRITE_CONFLICT_EVENT, bump);
       window.clearInterval(id);
     };
   }, [clubId]);
@@ -38,11 +42,14 @@ export function ClubSyncStatus({ clubId }: { clubId: string }) {
   const auto = isAutoSyncEnabled(clubId);
   const dirty = isClubMirrorDirty(clubId);
   const last = getLastSyncAt(clubId);
-  const line = !auto
-    ? 'Auto sync ανενεργό'
-    : dirty
-      ? 'Εκκρεμεί αποστολή στο cloud'
-      : formatSyncAgo(last);
+  const conflict = getClubWriteConflict(clubId);
+  const line = conflict
+    ? `Σύγκρουση: ${conflict.cloudByName}`
+    : !auto
+      ? 'Auto sync ανενεργό'
+      : dirty
+        ? 'Εκκρεμεί αποστολή στο cloud'
+        : formatSyncAgo(last);
 
   return (
     <Link className="club-sync-status" to="/settings?tab=backup" title={line}>

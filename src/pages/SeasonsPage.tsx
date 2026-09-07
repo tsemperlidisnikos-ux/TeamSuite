@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CalendarRange, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarRange, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
 import * as clubSeasonsService from '../api/services/clubSeasonsService';
 import { Button } from '../components/ui/Button';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -26,6 +26,13 @@ export function SeasonsPage() {
   const [form, setForm] = useState<ClubSeasonInput>(emptyForm);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardSourceId, setWizardSourceId] = useState<string | null>(null);
+  const [copyClasses, setCopyClasses] = useState(true);
+  const [archiveSourceClasses, setArchiveSourceClasses] = useState(true);
+  const [moveAthletes, setMoveAthletes] = useState(true);
+  const [generateCharges, setGenerateCharges] = useState(true);
+  const [wizardSaving, setWizardSaving] = useState(false);
 
   const seasons = useMemo(() => data.clubSeasons ?? [], [data.clubSeasons]);
 
@@ -67,6 +74,60 @@ export function SeasonsPage() {
     refresh();
   }
 
+  function openWizard() {
+    const source =
+      seasons.find((s) => isSeasonActive(s)) ??
+      seasons.find((s) => isSeasonExpired(s)) ??
+      seasons[0] ??
+      null;
+    setWizardSourceId(source?.id ?? null);
+    setCopyClasses(true);
+    setArchiveSourceClasses(true);
+    setMoveAthletes(true);
+    setGenerateCharges(true);
+    setForm(emptyForm);
+    setError('');
+    setWizardOpen(true);
+  }
+
+  function closeWizard() {
+    setWizardOpen(false);
+    setError('');
+  }
+
+  async function handleWizard() {
+    setWizardSaving(true);
+    setError('');
+    const result = await clubSeasonsService.rolloverToNewSeason({
+      ...form,
+      sourceSeasonId: wizardSourceId,
+      copyClasses,
+      archiveSourceClasses,
+      moveAthletes,
+      generateCharges,
+    });
+    setWizardSaving(false);
+    if (!result.success) {
+      setError(result.error ?? 'Αποτυχία οδηγού');
+      return;
+    }
+    closeWizard();
+    refresh();
+    const d = result.data;
+    window.alert(
+      [
+        `Δημιουργήθηκε η σεζόν «${d?.seasonName ?? ''}».`,
+        d?.copiedClasses ? `Τμήματα: ${d.copiedClasses}` : null,
+        d?.archivedClasses ? `Αρχειοθετημένα παλιά τμήματα: ${d.archivedClasses}` : null,
+        d?.movedAthletes ? `Αθλητές που μεταφέρθηκαν: ${d.movedAthletes}` : null,
+        d?.clonedTemplates ? `Πρότυπα χρεώσεων: ${d.clonedTemplates}` : null,
+        d?.generatedCharges ? `Νέες χρεώσεις: ${d.generatedCharges}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    );
+  }
+
   async function handleDelete(id: string) {
     if (!confirm('Διαγραφή σεζόν;')) return;
     const result = await clubSeasonsService.deleteClubSeason(id);
@@ -83,9 +144,14 @@ export function SeasonsPage() {
         title="Σεζόν"
         subtitle="Ορίστε την περίοδο σεζόν του συλλόγου. Τα τμήματα και οι εγγραφές αθλητών ισχύουν μόνο εντός της ενεργής σεζόν· μετά τη λήξη οι αθλητές αποδεσμεύονται από τα τμήματα."
         actions={
-          <Button type="button" onClick={openCreate}>
-            <Plus size={16} /> Νέα σεζόν
-          </Button>
+          <>
+            <Button type="button" variant="secondary" onClick={openWizard}>
+              <Sparkles size={16} /> Οδηγός νέας σεζόν
+            </Button>
+            <Button type="button" onClick={openCreate}>
+              <Plus size={16} /> Νέα σεζόν
+            </Button>
+          </>
         }
       />
 
@@ -207,6 +273,117 @@ export function SeasonsPage() {
               </Button>
               <Button type="button" onClick={() => void handleSave()} disabled={saving}>
                 {saving ? 'Αποθήκευση…' : 'Αποθήκευση'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {wizardOpen ? (
+        <div className="training-modal-backdrop" role="presentation" onClick={closeWizard}>
+          <div
+            className="training-modal training-modal--wide"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="season-wizard-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="season-wizard-title">Οδηγός νέας σεζόν</h2>
+            <p className="muted">
+              Δημιουργεί νέα σεζόν, αντιγράφει τμήματα/πρόγραμμα, αρχειοθετεί τα παλιά, μεταφέρει
+              ενεργούς αθλητές και προαιρετικά ανοίγει χρεώσεις από τα πρότυπα.
+            </p>
+            <div className="training-modal-fields">
+              <label>
+                <span>Όνομα νέας σεζόν</span>
+                <input
+                  type="text"
+                  placeholder="π.χ. Σεζόν 2026–2027"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </label>
+              <label>
+                <span>Από ημερομηνία *</span>
+                <input
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                />
+              </label>
+              <label>
+                <span>Έως ημερομηνία *</span>
+                <input
+                  type="date"
+                  value={form.endDate}
+                  min={form.startDate || undefined}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                />
+              </label>
+              <label>
+                <span>Αντιγραφή από σεζόν</span>
+                <select
+                  value={wizardSourceId ?? ''}
+                  onChange={(e) => setWizardSourceId(e.target.value || null)}
+                >
+                  <option value="">— χωρίς αντιγραφή —</option>
+                  {seasons.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {seasonDisplayName(s)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="season-wizard-checks">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={copyClasses}
+                    disabled={!wizardSourceId}
+                    onChange={(e) => setCopyClasses(e.target.checked)}
+                  />
+                  Αντιγραφή τμημάτων και ωραρίου
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={archiveSourceClasses}
+                    disabled={!wizardSourceId}
+                    onChange={(e) => setArchiveSourceClasses(e.target.checked)}
+                  />
+                  Αρχειοθέτηση παλιών τμημάτων (μη ενεργά)
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={moveAthletes}
+                    disabled={!wizardSourceId || !copyClasses}
+                    onChange={(e) => setMoveAthletes(e.target.checked)}
+                  />
+                  Μεταφορά ενεργών αθλητών στα νέα τμήματα
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={generateCharges && Boolean(wizardSourceId)}
+                    disabled={!wizardSourceId}
+                    onChange={(e) => setGenerateCharges(e.target.checked)}
+                  />
+                  Νέες χρεώσεις από τα πρότυπα συνδρομών
+                </label>
+              </div>
+              {error ? <p className="form-error">{error}</p> : null}
+            </div>
+            <div className="training-modal-actions">
+              <Button type="button" variant="secondary" onClick={closeWizard}>
+                Ακύρωση
+              </Button>
+              <Button
+                type="button"
+                disabled={wizardSaving}
+                onClick={() => void handleWizard()}
+              >
+                {wizardSaving ? 'Εκτέλεση…' : 'Εκτέλεση οδηγού'}
               </Button>
             </div>
           </div>

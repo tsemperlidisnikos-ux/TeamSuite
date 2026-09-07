@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, HeartPulse, Layers, Banknote, Percent, UserCog } from 'lucide-react';
+import { ClipboardList, HeartPulse, Layers, Banknote, Percent, UserCog, AlertTriangle } from 'lucide-react';
 import { getSession } from '../auth/auth';
 import { AthletesIcon } from '../components/icons/AthletesIcon';
 import { Button } from '../components/ui/Button';
@@ -20,6 +20,7 @@ import { getActiveSeason, seasonDisplayName } from '../utils/clubSeasons';
 import { studentClassIds, studentInClass } from '../utils/studentClasses';
 import { studentSports } from '../utils/studentSports';
 import { clubSportsMatch, listActiveClubSportNames } from '../utils/clubSports';
+import { listLowStockProducts } from '../utils/warehouseStock';
 import {
   filterOwnFinanceEntries,
   sessionSeesOnlyOwnFinance,
@@ -191,7 +192,8 @@ function DoctorDashboard() {
 
 export function DashboardPage() {
   const { data } = useAppData();
-  const isDoctor = getSession()?.role === 'doctor';
+  const session = getSession();
+  const isDoctor = session?.role === 'doctor';
   const today = localDateIso();
 
   const classSportById = useMemo(() => {
@@ -341,6 +343,13 @@ export function DashboardPage() {
     return { activeAthletes, attendancePct, expiredHealth, pendingRegs };
   }, [data.students, data.attendance, data.registrationApplications, today]);
 
+  const lowStock = useMemo(() => listLowStockProducts(data.products), [data.products]);
+  const showLowStock =
+    lowStock.length > 0 &&
+    (session?.role === 'admin' ||
+      session?.role === 'secretariat' ||
+      session?.role === 'platform_admin');
+
   if (isDoctor) {
     return <DoctorDashboard />;
   }
@@ -355,6 +364,15 @@ export function DashboardPage() {
             : 'Διαχείριση ακαδημίας σε μία οθόνη.'
         }
       />
+
+      {showLowStock ? (
+        <Link className="ops-alert-banner is-warn" to="/warehouse?status=low">
+          <span>
+            <AlertTriangle size={16} aria-hidden /> Χαμηλό απόθεμα: {lowStock.length} προϊόντα
+            κάτω από το ελάχιστο.
+          </span>
+        </Link>
+      ) : null}
 
       <div className="stats-grid cols-5 dashboard-kpi-row">
         <StatCard

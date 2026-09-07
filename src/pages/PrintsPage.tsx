@@ -14,6 +14,9 @@ import {
   defaultRegistryFilters,
   filterAthleteRegistry,
   mapAthleteRegistryRow,
+  studentMatchesAssociationFilter,
+  studentMatchesMonthlyChargeFilter,
+  uniqueNormalizedLabels,
   type RegistryFilters,
   type TriState,
 } from '../utils/athleteRegistryFilter';
@@ -307,12 +310,8 @@ function AssociationSelect({
     const fromClubs = (data.associations ?? [])
       .filter((a) => a.active !== false)
       .map((a) => a.name);
-    const fromAthletes = data.students
-      .map((s) => s.clubName)
-      .filter((n): n is string => Boolean(n && n.trim()));
-    return Array.from(new Set([...fromClubs, ...fromAthletes])).sort((a, b) =>
-      a.localeCompare(b, 'el'),
-    );
+    const fromAthletes = data.students.map((s) => s.clubName);
+    return uniqueNormalizedLabels([...fromClubs, ...fromAthletes]);
   }, [data.associations, data.students]);
 
   return (
@@ -573,7 +572,7 @@ function AthleteRegistrySection() {
   return (
     <SectionShell
       title="Λίστα αθλητών"
-      desc="Φίλτρα αναζήτησης και εκτύπωση λίστας με ΑΜΚΑ, φύλο, επώνυμο, όνομα, πατρώνυμο, ημ. γέννησης, κάρτα υγείας, φωτογραφία και γνωμάτευση."
+      desc="Φίλτρα αναζήτησης και εκτύπωση λίστας. Η «Χρέωση μήνα = Όχι» δείχνει μόνο αθλητές με απενεργοποιημένη μηνιαία χρέωση στο προφίλ."
     >
       <FilterRow label="Από Ημερομηνία" htmlFor="reg-from">
         <input
@@ -630,6 +629,13 @@ function AthleteRegistrySection() {
           id="reg-fee"
           value={filters.registrationFee}
           onChange={(v) => setFilter('registrationFee', v)}
+        />
+      </FilterRow>
+      <FilterRow label="Χρέωση μήνα" htmlFor="reg-monthly">
+        <TriStateSelect
+          id="reg-monthly"
+          value={filters.monthlyCharge}
+          onChange={(v) => setFilter('monthlyCharge', v)}
         />
       </FilterRow>
       <FilterRow label="Φωτογραφία" htmlFor="reg-photo">
@@ -757,6 +763,7 @@ function AthleteBalancesSection() {
   const [teamId, setTeamId] = useState('');
   const [gender, setGender] = useState('');
   const [active, setActive] = useState<TriState>('');
+  const [monthlyCharge, setMonthlyCharge] = useState<TriState>('');
   const [hasBalance, setHasBalance] = useState<TriState>('yes');
   const [balanceOp, setBalanceOp] = useState('>=');
   const [balanceAmount, setBalanceAmount] = useState('');
@@ -772,7 +779,8 @@ function AthleteBalancesSection() {
         if (gender && s.gender !== gender) return false;
         if (active === 'yes' && s.status !== 'active') return false;
         if (active === 'no' && s.status === 'active') return false;
-        if (association && (s.clubName || '') !== association) return false;
+        if (!studentMatchesMonthlyChargeFilter(s, monthlyCharge)) return false;
+        if (!studentMatchesAssociationFilter(s, association)) return false;
         const charge = data.transactions
           .filter((t) => t.athleteId === s.id && t.type === 'charge')
           .reduce((sum, t) => sum + t.amount, 0);
@@ -852,6 +860,9 @@ function AthleteBalancesSection() {
       <FilterRow label="Ενεργοί" htmlFor="bal-active">
         <TriStateSelect id="bal-active" value={active} onChange={setActive} />
       </FilterRow>
+      <FilterRow label="Χρέωση μήνα" htmlFor="bal-monthly">
+        <TriStateSelect id="bal-monthly" value={monthlyCharge} onChange={setMonthlyCharge} />
+      </FilterRow>
       <FilterRow label="Έχει υπόλοιπο" htmlFor="bal-has">
         <TriStateSelect id="bal-has" value={hasBalance} onChange={setHasBalance} />
       </FilterRow>
@@ -900,6 +911,7 @@ function AttendanceLogSection() {
   const [teamId, setTeamId] = useState('');
   const [gender, setGender] = useState('');
   const [active, setActive] = useState<TriState>('');
+  const [monthlyCharge, setMonthlyCharge] = useState<TriState>('');
   const [hasAttendance, setHasAttendance] = useState<TriState>('');
   const [presenceOp, setPresenceOp] = useState('>=');
   const [presenceCount, setPresenceCount] = useState('');
@@ -917,7 +929,8 @@ function AttendanceLogSection() {
         if (gender && s.gender !== gender) return false;
         if (active === 'yes' && s.status !== 'active') return false;
         if (active === 'no' && s.status === 'active') return false;
-        if (association && (s.clubName || '') !== association) return false;
+        if (!studentMatchesMonthlyChargeFilter(s, monthlyCharge)) return false;
+        if (!studentMatchesAssociationFilter(s, association)) return false;
         const records = data.attendance.filter((a) => {
           if (a.studentId !== s.id) return false;
           if (fromDate && a.date < fromDate) return false;
@@ -1025,6 +1038,9 @@ function AttendanceLogSection() {
       </FilterRow>
       <FilterRow label="Ενεργοί" htmlFor="att-active">
         <TriStateSelect id="att-active" value={active} onChange={setActive} />
+      </FilterRow>
+      <FilterRow label="Χρέωση μήνα" htmlFor="att-monthly">
+        <TriStateSelect id="att-monthly" value={monthlyCharge} onChange={setMonthlyCharge} />
       </FilterRow>
       <FilterRow label="Έχει παρουσίες" htmlFor="att-has">
         <TriStateSelect id="att-has" value={hasAttendance} onChange={setHasAttendance} />
@@ -1707,6 +1723,7 @@ function DebtorsSection() {
   const [teamId, setTeamId] = useState('');
   const [gender, setGender] = useState('');
   const [active, setActive] = useState<TriState>('yes');
+  const [monthlyCharge, setMonthlyCharge] = useState<TriState>('');
   const [minBalance, setMinBalance] = useState('');
   const [association, setAssociation] = useState('');
   const [showResults, setShowResults] = useState(false);
@@ -1730,7 +1747,8 @@ function DebtorsSection() {
         if (gender && s.gender !== gender) return false;
         if (active === 'yes' && s.status !== 'active') return false;
         if (active === 'no' && s.status === 'active') return false;
-        if (association && (s.clubName || '') !== association) return false;
+        if (!studentMatchesMonthlyChargeFilter(s, monthlyCharge)) return false;
+        if (!studentMatchesAssociationFilter(s, association)) return false;
         if (minBalance && balance < Number(minBalance)) return false;
         void untilDate;
         return true;
@@ -1780,6 +1798,9 @@ function DebtorsSection() {
       </FilterRow>
       <FilterRow label="Ενεργοί" htmlFor="deb-active">
         <TriStateSelect id="deb-active" value={active} onChange={setActive} />
+      </FilterRow>
+      <FilterRow label="Χρέωση μήνα" htmlFor="deb-monthly">
+        <TriStateSelect id="deb-monthly" value={monthlyCharge} onChange={setMonthlyCharge} />
       </FilterRow>
       <FilterRow label="Ελάχιστο υπόλοιπο" htmlFor="deb-min">
         <input

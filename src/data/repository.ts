@@ -1,4 +1,5 @@
 import { getClubById, getClubs, saveClubs } from '../auth/clubs';
+import { getSession } from '../auth/auth';
 import { notifyAppDataChanged } from './appDataEvents';
 import { scheduleClubMirrorPush } from './clubSync';
 import {
@@ -28,6 +29,15 @@ import { defaultClothingPackages, normalizeClothingPackages } from '../utils/clo
 import { clubDiscountReasons } from '../utils/discountReasons';
 import { normalizeSizeChart } from '../utils/sizeChartOptions';
 import { normalizeReceiptIssues, normalizeReceiptRanges } from '../utils/receiptBook';
+
+function stampLocalWrite(data: AppData): void {
+  data.localWrittenAt = Date.now();
+  const session = getSession();
+  if (session?.id) {
+    data.lastWrittenByUserId = session.id;
+    data.lastWrittenByName = session.fullName || session.email || '—';
+  }
+}
 
 let cache: AppData | null = null;
 let cacheClubId: string | null = null;
@@ -397,7 +407,7 @@ export function mutateData(updater: (data: AppData) => void): AppData {
   updater(data);
   cache = data;
   cacheClubId = resolveActiveClubId();
-  data.localWrittenAt = Date.now();
+  stampLocalWrite(data);
   saveStore(data);
   notifyAppDataChanged();
   scheduleClubMirrorPush(cacheClubId);
@@ -426,7 +436,7 @@ export function clubHasStoredData(clubId: string): boolean {
 export function mutateClubData(clubId: string, updater: (data: AppData) => void): AppData {
   const data = getClubData(clubId);
   updater(data);
-  data.localWrittenAt = Date.now();
+  stampLocalWrite(data);
   writeClubStoreExclusive(clubId, data);
   if (resolveActiveClubId() === clubId) {
     cache = structuredClone(data);

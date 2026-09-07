@@ -822,4 +822,7 @@ export interface AppData {
   documentProtocolEntries?: DocumentProtocolEntry[];
   /** Τοπικό ρολόι τελευταίας αλλαγής στο browser — για να μην σβήνει εισαγωγή από παλιό cloud. */
   localWrittenAt?: number;
+  /** Ποιος αποθήκευσε τελευταία σε αυτό το αντίγραφο (σύγκρουση δύο γραμματειών). */
+  lastWrittenByUserId?: string;
+  lastWrittenByName?: string;
 }

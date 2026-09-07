@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   Calendar,
@@ -53,6 +53,12 @@ import { useCloudMirrorAutoPull } from '../../hooks/useCloudMirrorAutoPull';
 import { useT } from '../../i18n/LocaleContext';
 import { downloadClubBackupJsonAndAthletesXlsx } from '../../utils/clubQuickExport';
 import { ClubSyncStatus } from '../ClubSyncStatus';
+import { listLowStockProducts } from '../../utils/warehouseStock';
+import {
+  CLUB_WRITE_CONFLICT_EVENT,
+  getClubWriteConflict,
+  resolveClubWriteConflict,
+} from '../../data/clubSync';
 import * as publicClubCloudService from '../../api/services/publicClubCloudService';
 import { publishAppLogo, publishClubAppLogo } from '../../api/services/platformBrandingService';
 import { optimizeLogoDataUrl } from '../../utils/clubLogoFile';
@@ -132,6 +138,19 @@ export function AppLayout() {
         .length,
     [appData.registrationApplications],
   );
+  const lowStockCount = useMemo(
+    () => listLowStockProducts(appData.products).length,
+    [appData.products],
+  );
+  const [conflictTick, setConflictTick] = useState(0);
+  const [conflictBusy, setConflictBusy] = useState(false);
+  useEffect(() => {
+    const bump = () => setConflictTick((n) => n + 1);
+    window.addEventListener(CLUB_WRITE_CONFLICT_EVENT, bump);
+    return () => window.removeEventListener(CLUB_WRITE_CONFLICT_EVENT, bump);
+  }, []);
+  void conflictTick;
+  const writeConflict = clubId ? getClubWriteConflict(clubId) : null;
 
   useEffect(() => {
     const onClubsUpdated = () => setClubTick((n) => n + 1);
@@ -262,6 +281,26 @@ export function AppLayout() {
     (session?.role === 'admin' ||
       session?.role === 'secretariat' ||
       session?.role === 'platform_admin');
+
+  const showWarehouseStockAlert =
+    lowStockCount > 0 &&
+    enabledModules.has('warehouse') &&
+    userCanAccessModule(accessUser, 'warehouse') &&
+    session?.role !== 'coach' &&
+    session?.role !== 'parent' &&
+    session?.role !== 'athlete' &&
+    session?.role !== 'doctor';
+
+  async function handleResolveConflict(choice: 'keep-local' | 'take-cloud') {
+    if (!clubId || conflictBusy) return;
+    setConflictBusy(true);
+    const result = await resolveClubWriteConflict(clubId, choice);
+    setConflictBusy(false);
+    setConflictTick((n) => n + 1);
+    if (!result.success) {
+      window.alert(result.error ?? 'Αποτυχία επίλυσης σύγκρουσης');
+    }
+  }
 
   function handleClubLogoQuickExport() {
     if (!clubId || !canQuickClubExport) return;
@@ -419,6 +458,11 @@ export function AppLayout() {
                     {pendingRegistrationCount > 99 ? '99+' : pendingRegistrationCount}
                   </span>
                 ) : null}
+                {item.id === 'warehouse' && lowStockCount > 0 && showWarehouseStockAlert ? (
+                  <span className="nav-badge" title="Χαμηλό απόθεμα">
+                    {lowStockCount > 99 ? '99+' : lowStockCount}
+                  </span>
+                ) : null}
               </NavLink>
             ))}
             {visibleProvisions.length > 0 ? <p className="nav-section">{t('Παροχές')}</p> : null}
@@ -456,6 +500,41 @@ export function AppLayout() {
             </div>
           ) : null}
           <main className="page page--flush-top">
+            {writeConflict ? (
+              <div className="ops-alert-banner is-warn" role="status">
+                <p>
+                  Ο/Η <strong>{writeConflict.cloudByName}</strong> αποθήκευσε στο cloud στις{' '}
+                  {new Date(writeConflict.cloudAt).toLocaleString('el-GR')}. Οι αλλαγές σε αυτόν
+                  τον υπολογιστή δεν αντικατέστησαν σιωπηλά τις δικές του.
+                </p>
+                <div className="ops-alert-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={conflictBusy}
+                    onClick={() => void handleResolveConflict('keep-local')}
+                  >
+                    Κράτα τα δικά μου
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={conflictBusy}
+                    onClick={() => void handleResolveConflict('take-cloud')}
+                  >
+                    Φόρτωσε του άλλου
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {showWarehouseStockAlert ? (
+              <Link className="ops-alert-banner is-warn" to="/warehouse?status=low">
+                <p>
+                  <strong>{lowStockCount}</strong> προϊόντα στην αποθήκη είναι κάτω από το ελάχιστο
+                  απόθεμα.
+                </p>
+              </Link>
+            ) : null}
             <Outlet />
           </main>
         </div>

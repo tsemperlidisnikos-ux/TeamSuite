@@ -5,6 +5,36 @@ import { studentClassIds, studentMatchesTeamFilter } from './studentClasses';
 import { studentHasSport } from './studentSports';
 import { athleteHealthCardValid } from './classHelpers';
 
+/** Ίδιο με το προφίλ: κενό = Ναι (χρεώνεται μήνα). */
+export function studentHasMonthlyCharge(
+  student: Pick<Student, 'monthlyCharge'>,
+): boolean {
+  return student.monthlyCharge !== false;
+}
+
+export function studentMatchesAssociationFilter(
+  student: Pick<Student, 'clubName'>,
+  association: string,
+): boolean {
+  const wanted = normalizeSportKey(association);
+  if (!wanted) return true;
+  return normalizeSportKey(student.clubName) === wanted;
+}
+
+export function uniqueNormalizedLabels(names: Array<string | null | undefined>): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const name of names) {
+    const trimmed = String(name ?? '').trim();
+    if (!trimmed) continue;
+    const key = normalizeSportKey(trimmed);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+  return out.sort((a, b) => a.localeCompare(b, 'el'));
+}
+
 export type TriState = '' | 'yes' | 'no';
 
 export interface RegistryFilters {
@@ -15,6 +45,7 @@ export interface RegistryFilters {
   birthYearOp: '=' | '<' | '>' | '<=' | '>=';
   gender: string;
   registrationFee: TriState;
+  monthlyCharge: TriState;
   photo: TriState;
   active: TriState;
   doctorCheck: TriState;
@@ -42,6 +73,7 @@ export function defaultRegistryFilters(): RegistryFilters {
     birthYearOp: '=',
     gender: '',
     registrationFee: '',
+    monthlyCharge: '',
     photo: '',
     active: '',
     doctorCheck: '',
@@ -99,6 +131,13 @@ function triStateMatch(filterValue: TriState, isTruthy: boolean): boolean {
   return true;
 }
 
+export function studentMatchesMonthlyChargeFilter(
+  student: Pick<Student, 'monthlyCharge'>,
+  filter: TriState,
+): boolean {
+  return triStateMatch(filter, studentHasMonthlyCharge(student));
+}
+
 function sportsAreEquivalent(
   a: string | null | undefined,
   b: string | null | undefined,
@@ -146,6 +185,10 @@ export function filterAthleteRegistry(
       return false;
     }
 
+    if (!triStateMatch(filters.monthlyCharge, studentHasMonthlyCharge(athlete))) {
+      return false;
+    }
+
     if (!triStateMatch(filters.photo, Boolean(athlete.photoUrl))) return false;
 
     if (!triStateMatch(filters.active, athlete.status === 'active')) return false;
@@ -175,10 +218,7 @@ export function filterAthleteRegistry(
       return false;
     }
 
-    if (filters.association) {
-      const assoc = String(athlete.clubName || '').trim();
-      if (assoc !== filters.association) return false;
-    }
+    if (!studentMatchesAssociationFilter(athlete, filters.association)) return false;
 
     if (!triStateMatch(filters.seasonTicket, Boolean(athlete.seasonTicket))) return false;
 
@@ -245,6 +285,7 @@ export const REGISTRY_COLUMNS: Array<{ key: string; label: string }> = [
   { key: 'uniform_receipt', label: 'Παραλαβή στολής' },
   { key: 'uniform_size', label: 'Μέγεθος Στολής' },
   { key: 'registration_fee', label: 'Χρέωση Εγγραφής' },
+  { key: 'monthly_charge', label: 'Χρέωση μήνα' },
   { key: 'season_ticket', label: 'Εισιτήριο Διαρκείας' },
 ];
 
@@ -277,6 +318,7 @@ export function mapAthleteRegistryRow(
     registration_fee: yesNo(
       Boolean(athlete.registrationCharge ?? (athlete.registrationFee ?? 0) > 0),
     ),
+    monthly_charge: yesNo(studentHasMonthlyCharge(athlete)),
     season_ticket: yesNo(Boolean(athlete.seasonTicket)),
   };
 }

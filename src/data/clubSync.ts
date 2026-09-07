@@ -1,5 +1,6 @@
 import * as accountSyncService from '../api/services/accountSyncService';
 import * as backendSyncService from '../api/services/backendSyncService';
+import { getSession } from '../auth/auth';
 import { stripHeavyMedia } from './mediaStrip';
 import { resolveActiveClubId, whenClubMapPersisted } from './store';
 import type { AppData, ClothingPackageDef, DiscountReasonDef, ReceiptIssueRecord, SizeChart } from '../types';
@@ -23,10 +24,78 @@ const CLOUD_PREFERRED_KEY = 'academyhub-cloud-preferred-v1';
 const DIRTY_KEY = 'academyhub-club-dirty-v1';
 
 export const CLUB_SYNC_STATUS_EVENT = 'teamsuite-club-sync-status';
+export const CLUB_WRITE_CONFLICT_EVENT = 'teamsuite-write-conflict';
+
+export type ClubWriteConflict = {
+  clubId: string;
+  cloudByName: string;
+  cloudAt: number;
+  localByName: string;
+  localAt: number;
+};
+
+const CONFLICT_KEY = 'teamsuite-write-conflict-v1';
 
 function emitClubSyncStatus(): void {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new Event(CLUB_SYNC_STATUS_EVENT));
+}
+
+function emitClubWriteConflict(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(CLUB_WRITE_CONFLICT_EVENT));
+  emitClubSyncStatus();
+}
+
+export function getClubWriteConflict(clubId?: string | null): ClubWriteConflict | null {
+  const id = clubId ?? resolveActiveClubId();
+  if (!id) return null;
+  const map = readMap<Record<string, ClubWriteConflict>>(CONFLICT_KEY);
+  return map[id] ?? null;
+}
+
+function setClubWriteConflict(row: ClubWriteConflict): void {
+  const map = readMap<Record<string, ClubWriteConflict>>(CONFLICT_KEY);
+  map[row.clubId] = row;
+  writeMap(CONFLICT_KEY, map);
+  emitClubWriteConflict();
+}
+
+function clearClubWriteConflict(clubId: string): void {
+  const map = readMap<Record<string, ClubWriteConflict>>(CONFLICT_KEY);
+  if (!map[clubId]) return;
+  delete map[clubId];
+  writeMap(CONFLICT_KEY, map);
+  emitClubWriteConflict();
+}
+
+function isForeignCloudWrite(cloud: AppData, userId: string | undefined): boolean {
+  const cloudUser = String(cloud.lastWrittenByUserId ?? '').trim();
+  if (!cloudUser || !userId || cloudUser === userId) return false;
+  const cloudAt = Number(cloud.localWrittenAt) || 0;
+  return cloudAt > 0;
+}
+
+function shouldHoldWriteConflict(clubId: string, local: AppData, cloud: AppData): boolean {
+  void local;
+  if (!isClubMirrorDirty(clubId)) return false;
+  const sessionId = getSession()?.id;
+  if (!isForeignCloudWrite(cloud, sessionId)) return false;
+  const last = getLastSyncAt(clubId);
+  const lastMs = last ? Date.parse(last) : 0;
+  const cloudAt = Number(cloud.localWrittenAt) || 0;
+  if (!Number.isFinite(cloudAt) || cloudAt <= lastMs) return false;
+  return true;
+}
+
+function rememberWriteConflict(clubId: string, local: AppData, cloud: AppData): void {
+  setClubWriteConflict({
+    clubId,
+    cloudByName: cloud.lastWrittenByName?.trim() || 'άλλος χρήστης',
+    cloudAt: Number(cloud.localWrittenAt) || Date.now(),
+    localByName: local.lastWrittenByName?.trim() || 'αυτός ο υπολογιστής',
+    localAt: Number(local.localWrittenAt) || Date.now(),
+  });
 }
 
 type AutoSyncMap = Record<string, boolean>;
@@ -201,6 +270,15 @@ async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
       const { getClubData, replaceClubData } = await import('./repository');
       const local = getClubData(id);
       const cloud = pull.data.payload;
+      if (shouldHoldWriteConflict(id, local, cloud)) {
+        rememberWriteConflict(id, local, cloud);
+        return {
+          success: false as const,
+          data: null,
+          error:
+            'Άλλος χρήστης αποθήκευσε στο cloud. Επιλέξτε αν θα κρατήσετε τις αλλαγές σας ή του άλλου.',
+        };
+      }
       const merged = mergeLocalPreferredForPush(local, cloud);
       replaceClubData(id, merged, { skipCloudPush: true });
       result = await backendSyncService.pushClubMirror(id, {
@@ -218,6 +296,7 @@ async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
   if (result.success) {
     setLastSyncAt(id, result.data?.updatedAt ?? new Date().toISOString());
     clearClubMirrorDirty(id);
+    clearClubWriteConflict(id);
   }
   return result;
 }
@@ -622,6 +701,13 @@ function mergeClubSnapshots(
     new Set(),
     opts.preferLocal,
   );
+  if (opts.preferLocal) {
+    next.lastWrittenByUserId = local.lastWrittenByUserId ?? cloud.lastWrittenByUserId;
+    next.lastWrittenByName = local.lastWrittenByName ?? cloud.lastWrittenByName;
+  } else {
+    next.lastWrittenByUserId = cloud.lastWrittenByUserId ?? local.lastWrittenByUserId;
+    next.lastWrittenByName = cloud.lastWrittenByName ?? local.lastWrittenByName;
+  }
   return next;
 }
 
@@ -787,6 +873,10 @@ export async function hydrateAllClubMirrorsFromCloud(): Promise<void> {
           continue;
         }
         if (localRosterShouldKeep(local, result.data.payload)) {
+          if (shouldHoldWriteConflict(id, local, result.data.payload)) {
+            rememberWriteConflict(id, local, result.data.payload);
+            continue;
+          }
           replaceClubData(id, mergeLocalPreferredForPush(local, result.data.payload), {
             skipCloudPush: true,
           });
@@ -795,6 +885,10 @@ export async function hydrateAllClubMirrorsFromCloud(): Promise<void> {
           continue;
         }
         const preferLocal = isClubMirrorDirty(id);
+        if (preferLocal && shouldHoldWriteConflict(id, local, result.data.payload)) {
+          rememberWriteConflict(id, local, result.data.payload);
+          continue;
+        }
         replaceClubData(
           id,
           preferLocal
@@ -841,6 +935,10 @@ export async function ensureFreshCloudRoster(clubId?: string | null) {
   const local = getClubData(id);
   const cloud = result.data.payload;
   if (localRosterShouldKeep(local, cloud) || isClubMirrorDirty(id)) {
+    if (shouldHoldWriteConflict(id, local, cloud)) {
+      rememberWriteConflict(id, local, cloud);
+      return;
+    }
     replaceClubData(id, mergeLocalPreferredForPush(local, cloud), { skipCloudPush: true });
     markClubMirrorDirty(id);
     void flushClubMirrorPush(id);
@@ -854,6 +952,42 @@ export async function ensureFreshCloudRoster(clubId?: string | null) {
   }
   replaceClubData(id, applyCloudClubData(local, cloud), { skipCloudPush: true });
   setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
+}
+
+export async function resolveClubWriteConflict(
+  clubId: string,
+  choice: 'keep-local' | 'take-cloud',
+) {
+  const id = clubId;
+  clearClubWriteConflict(id);
+  const { getClubData, replaceClubData } = await import('./repository');
+  const pull = await backendSyncService.pullClubMirror(id);
+  const local = getClubData(id);
+  const cloud = pull.success && pull.data?.payload && pull.data.durable !== false
+    ? pull.data.payload
+    : null;
+
+  if (choice === 'take-cloud') {
+    if (!cloud) {
+      return { success: false as const, error: 'Δεν φορτώθηκε το cloud αντίγραφο.' };
+    }
+    replaceClubData(id, applyCloudClubData(local, cloud), { skipCloudPush: true });
+    setLastSyncAt(id, pull.data?.updatedAt ?? new Date().toISOString());
+    clearClubMirrorDirty(id);
+    return { success: true as const, error: null };
+  }
+
+  if (cloud) {
+    replaceClubData(id, mergeLocalPreferredForPush(local, cloud), { skipCloudPush: true });
+  }
+  markClubMirrorDirty(id);
+  const pushed = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: null });
+  if (!pushed.success) {
+    return { success: false as const, error: pushed.error ?? 'Αποτυχία αποστολής' };
+  }
+  setLastSyncAt(id, pushed.data?.updatedAt ?? new Date().toISOString());
+  clearClubMirrorDirty(id);
+  return { success: true as const, error: null };
 }
 
 /**

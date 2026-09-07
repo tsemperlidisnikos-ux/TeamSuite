@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowDownToLine,
@@ -22,6 +23,7 @@ import { useAppData } from '../hooks/useAppData';
 import { PRODUCT_CATEGORIES, type WarehouseProductInput } from '../schemas';
 import type { WarehouseProduct } from '../types';
 import { formatCurrency } from '../utils/labels';
+import { isLowStock, listLowStockProducts, minStockOf } from '../utils/warehouseStock';
 import {
   formatProductSize,
   sizeChartOptGroups,
@@ -43,14 +45,6 @@ const emptyForm: WarehouseProductInput = {
   minStock: 5,
   imageUrl: null,
 };
-
-function minStockOf(product: WarehouseProduct): number {
-  return product.minStock ?? 5;
-}
-
-function isLowStock(product: WarehouseProduct): boolean {
-  return (product.stockQty ?? 0) <= minStockOf(product);
-}
 
 function daysAgoIso(days: number): string {
   const d = new Date();
@@ -103,6 +97,7 @@ function exportProductsCsv(products: WarehouseProduct[]) {
 
 export function WarehousePage() {
   const { data, refresh } = useAppData();
+  const [searchParams, setSearchParams] = useSearchParams();
   const importRef = useRef<HTMLInputElement>(null);
 
   const [open, setOpen] = useState(false);
@@ -115,7 +110,9 @@ export function WarehousePage() {
   const [query, setQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(
+    () => (searchParams.get('status') === 'low' ? 'low' : ''),
+  );
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
@@ -130,6 +127,7 @@ export function WarehousePage() {
     () => [...(data.products ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'el')),
     [data.products],
   );
+  const lowItems = useMemo(() => listLowStockProducts(products), [products]);
 
   const brands = useMemo(() => {
     const set = new Set<string>();
@@ -346,6 +344,33 @@ export function WarehousePage() {
         </Button>
       </header>
 
+      {lowItems.length > 0 ? (
+        <section className="wh-low-banner panel">
+          <AlertTriangle size={18} />
+          <div>
+            <strong>{lowItems.length} προϊόντα κάτω από το ελάχιστο απόθεμα</strong>
+            <p>
+              {lowItems
+                .slice(0, 6)
+                .map((p) => `${p.name} (${p.stockQty ?? 0})`)
+                .join(' · ')}
+              {lowItems.length > 6 ? ` · +${lowItems.length - 6}` : ''}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="wh-io-btn"
+            onClick={() => {
+              setStatusFilter('low');
+              setPage(1);
+              setSearchParams({ status: 'low' }, { replace: true });
+            }}
+          >
+            Προβολή
+          </button>
+        </section>
+      ) : null}
+
       <section className="wh-stats">
         <article className="wh-stat panel">
           <Package size={20} />
@@ -441,8 +466,13 @@ export function WarehousePage() {
         <select
           value={statusFilter}
           onChange={(e) => {
-            setStatusFilter(e.target.value);
+            const next = e.target.value;
+            setStatusFilter(next);
             setPage(1);
+            const params = new URLSearchParams(searchParams);
+            if (next === 'low') params.set('status', 'low');
+            else params.delete('status');
+            setSearchParams(params, { replace: true });
           }}
         >
           <option value="">Κατάσταση · Όλα</option>
