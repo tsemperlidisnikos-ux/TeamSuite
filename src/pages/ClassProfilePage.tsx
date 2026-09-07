@@ -17,6 +17,8 @@ import { useAppData } from '../hooks/useAppData';
 import type { ClassInput } from '../schemas';
 import type { Gender, Student, StudentStatus } from '../types';
 import * as studentsService from '../api/services/studentsService';
+import * as feeChargesService from '../api/services/feeChargesService';
+import { remainingAthleteLicenseSeats } from '../utils/athleteLicenseCap';
 import { activeClubSportSelectOptions } from '../utils/clubSports';
 import {
   athleteAge,
@@ -35,6 +37,7 @@ import {
   studentMatchesBirthYearFilter,
   studentMatchesGenderFilter,
 } from '../utils/classHelpers';
+import { formatCurrency } from '../utils/labels';
 import { localDateIso } from '../utils/dates';
 import { studentClassIds, normalizeStudentClasses } from '../utils/studentClasses';
 import { mutateData } from '../data/repository';
@@ -165,6 +168,29 @@ export function ClassProfilePage() {
   const pageCount = Math.max(1, Math.ceil(roster.length / pageSize));
   const safePage = Math.min(page, pageCount);
   const pageRows = roster.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const classStats = useMemo(() => {
+    if (!cls) {
+      return { attendancePct: null as number | null, owed: 0, seats: '—', clubSeats: null as number | null };
+    }
+    const active = roster.filter((s) => s.status !== 'inactive');
+    let present = 0;
+    let total = 0;
+    let owed = 0;
+    for (const student of active) {
+      const att = athleteAttendanceStats(student.id, cls.id, data.attendance);
+      present += att.present;
+      total += att.total;
+      owed += Math.max(0, feeChargesService.athleteBalance(student.id, data.transactions ?? []));
+    }
+    const cap = Number(cls.maxStudents) || 0;
+    return {
+      attendancePct: total > 0 ? Math.round((present / total) * 100) : null,
+      owed,
+      seats: cap > 0 ? `${active.length} / ${cap}` : String(active.length),
+      clubSeats: remainingAthleteLicenseSeats(data.students),
+    };
+  }, [cls, roster, data.attendance, data.transactions, data.students]);
 
   const bulkSportOptions = useMemo(
     () =>
@@ -665,6 +691,34 @@ export function ClassProfilePage() {
                 <div>
                   <dt>Α&apos; Προπονητής</dt>
                   <dd>{coachDisplayName(cls.coachId, data.coaches)}</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="panel class-profile-card">
+              <h2>Στατιστικά τμήματος</h2>
+              <dl className="class-profile-dl">
+                <div>
+                  <dt>Παρουσίες</dt>
+                  <dd>
+                    {classStats.attendancePct == null
+                      ? 'Χωρίς καταχωρήσεις'
+                      : `${classStats.attendancePct}%`}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Οφειλές αθλητών</dt>
+                  <dd>{formatCurrency(classStats.owed)}</dd>
+                </div>
+                <div>
+                  <dt>Πληρότητα τμήματος</dt>
+                  <dd>{classStats.seats}</dd>
+                </div>
+                <div>
+                  <dt>Θέσεις αδειών συλλόγου</dt>
+                  <dd>
+                    {classStats.clubSeats == null ? 'Χωρίς όριο' : String(classStats.clubSeats)}
+                  </dd>
                 </div>
               </dl>
             </section>

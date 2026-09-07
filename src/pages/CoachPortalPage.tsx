@@ -8,6 +8,7 @@ import {
   Users,
 } from 'lucide-react';
 import { upsertAttendance } from '../api/services/attendanceService';
+import * as notificationService from '../api/services/notificationService';
 import { getSession } from '../auth/auth';
 import { Button } from '../components/ui/Button';
 import { useAppData } from '../hooks/useAppData';
@@ -37,6 +38,7 @@ export function CoachPortalPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [presentMap, setPresentMap] = useState<Record<string, boolean>>({});
+  const [notifyAbsence, setNotifyAbsence] = useState(false);
 
   const coach = useMemo(
     () => resolveCoachRecord(data.coaches, session?.coachId),
@@ -129,6 +131,23 @@ export function CoachPortalPage() {
       return;
     }
     refresh();
+    if (!next && notifyAbsence) {
+      const clubId = session?.clubId;
+      const className = myClasses.find((c) => c.id === activeClassId)?.name;
+      if (clubId) {
+        const mail = await notificationService.notifyAbsenceByEmail({
+          clubId,
+          studentId,
+          date,
+          className,
+        });
+        if (mail.success) {
+          setNotice(`Στάλθηκε ειδοποίηση απουσίας (${mail.data?.sent.join(', ')}).`);
+        } else if (mail.error) {
+          setNotice(mail.error);
+        }
+      }
+    }
   }
 
   async function saveAllPresent() {
@@ -243,6 +262,14 @@ export function CoachPortalPage() {
                     ))}
                   </select>
                   <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                  <label className="cport-notify">
+                    <input
+                      type="checkbox"
+                      checked={notifyAbsence}
+                      onChange={(e) => setNotifyAbsence(e.target.checked)}
+                    />
+                    Email σε απουσία
+                  </label>
                 </div>
               </div>
 

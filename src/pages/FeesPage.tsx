@@ -533,6 +533,19 @@ export function FeesPage() {
                       {payingId === athlete.id ? 'Viva…' : 'Viva'}
                     </Button>
                   ) : null}
+                  {balance > 0 ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={saving}
+                      onClick={() => {
+                        const row = feeChargesService.debtReminderRowForAthlete(athlete.id);
+                        if (row) void handleSendReminder(row);
+                      }}
+                    >
+                      {t('Υπενθύμιση')}
+                    </Button>
+                  ) : null}
                   <Link className="btn btn-secondary" to={`/athletes/${athlete.id}`}>
                     {t('Προφίλ')}
                   </Link>

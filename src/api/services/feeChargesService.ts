@@ -580,8 +580,11 @@ export function listDebtReminders(): DebtReminderRow[] {
   const data = getData();
   const today = localDateIso();
   const todayMs = new Date(`${today}T12:00:00`).getTime();
-  const templates = data.feeChargeTemplates ?? [];
-  const defaultReminder = templates[0]?.reminderDays ?? 7;
+  const reminderDaysList = (data.feeChargeTemplates ?? [])
+    .map((item) => Number(item.reminderDays))
+    .filter((days) => Number.isFinite(days) && days > 0)
+    .map((days) => Math.floor(days));
+  const defaultReminder = reminderDaysList.length ? Math.min(...reminderDaysList) : 7;
 
   const rows: DebtReminderRow[] = [];
   for (const student of data.students) {
@@ -619,6 +622,46 @@ export function listDebtReminders(): DebtReminderRow[] {
   }
 
   return rows.sort((a, b) => b.balance - a.balance);
+}
+
+export function debtReminderRowForAthlete(athleteId: string): DebtReminderRow | null {
+  return (
+    listDebtReminders().find((row) => row.athleteId === athleteId) ??
+    (() => {
+      const data = getData();
+      const student = data.students.find((s) => s.id === athleteId);
+      if (!student || student.status === 'inactive') return null;
+      const txns = (data.transactions ?? []).filter((t) => t.athleteId === student.id);
+      const balance = athleteBalance(student.id, txns);
+      if (balance <= 0) return null;
+      const charges = txns
+        .filter((t) => t.type === 'charge')
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      const oldest = charges[0];
+      const today = localDateIso();
+      const chargeDay = oldest?.createdAt.slice(0, 10) || today;
+      const daysOverdue = Math.max(
+        0,
+        Math.floor(
+          (new Date(`${today}T12:00:00`).getTime() - new Date(`${chargeDay}T12:00:00`).getTime()) /
+            86_400_000,
+        ),
+      );
+      return {
+        athleteId: student.id,
+        athleteName: `${student.lastName} ${student.firstName}`.trim(),
+        balance,
+        oldestChargeDate: chargeDay,
+        daysOverdue,
+        reminderDays: 0,
+        email:
+          student.motherEmail?.trim() ||
+          student.fatherEmail?.trim() ||
+          student.email?.trim() ||
+          '',
+      };
+    })()
+  );
 }
 
 /** Origin for payment CTAs in reminder emails. */

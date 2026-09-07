@@ -3,6 +3,7 @@ import { createId, getData, mutateData } from '../../data/repository';
 import { scheduleSlotSchema, type ScheduleSlotInput } from '../../schemas';
 import { weeklySlotConflictsWithRentals } from '../../shared/facilityRentalAvailability';
 import type { ScheduleSlot } from '../../types';
+import { publishClubOpsSlice } from './clubOpsSyncService';
 import { syncRemoteRentalBookings } from './rentalBookingsService';
 
 function assertWeeklyNoRentalConflict(input: {
@@ -37,6 +38,7 @@ export async function createScheduleSlot(input: ScheduleSlotInput) {
     mutateData((data) => {
       data.schedule.push(slot);
     });
+    void publishClubOpsSlice();
     return slot;
   });
 }
@@ -53,6 +55,7 @@ export async function updateScheduleSlot(id: string, input: ScheduleSlotInput) {
       updated = { ...parsed, id };
       data.schedule[index] = updated;
     });
+    void publishClubOpsSlice();
     return updated!;
   });
 }
@@ -62,6 +65,7 @@ export async function deleteScheduleSlot(id: string) {
     mutateData((data) => {
       data.schedule = data.schedule.filter((s) => s.id !== id);
     });
+    void publishClubOpsSlice();
     return { id };
   });
 }

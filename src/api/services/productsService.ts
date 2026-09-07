@@ -9,6 +9,7 @@ import {
 } from '../../schemas';
 import type { StockMovement, WarehouseProduct } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
+import { publishClubOpsSlice } from './clubOpsSyncService';
 
 export async function createProduct(input: WarehouseProductInput) {
   return apiClient(() => {
@@ -23,6 +24,7 @@ export async function createProduct(input: WarehouseProductInput) {
       if (!data.products) data.products = [];
       data.products.push(product);
     });
+    void publishClubOpsSlice();
     return product;
   });
 }
@@ -42,6 +44,7 @@ export async function updateProduct(id: string, input: WarehouseProductInput) {
       };
       data.products[index] = updated;
     });
+    void publishClubOpsSlice();
     return updated!;
   });
 }
@@ -52,6 +55,7 @@ export async function deleteProduct(id: string) {
       data.products = (data.products ?? []).filter((p) => p.id !== id);
       data.stockMovements = (data.stockMovements ?? []).filter((m) => m.productId !== id);
     });
+    void publishClubOpsSlice();
     return { id };
   });
 }
@@ -92,7 +96,7 @@ export async function recordStockMovement(input: StockMovementInput) {
       };
       data.stockMovements.unshift(movement);
     });
-
+    void publishClubOpsSlice();
     return movement!;
   });
 }

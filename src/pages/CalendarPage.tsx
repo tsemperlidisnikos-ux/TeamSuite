@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { CalendarPlus, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, Download, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import * as rentalBookingsService from '../api/services/rentalBookingsService';
 import { getSession } from '../auth/auth';
+import { Button } from '../components/ui/Button';
 import { PageHeader } from '../components/ui/PageHeader';
 import { useAppData } from '../hooks/useAppData';
 import { getPreviewClubId } from '../platform/platformConfig';
@@ -17,6 +18,7 @@ import {
 import { localDateIso } from '../utils/dates';
 import { listActiveFacilities, resolveFacilityForLocation } from '../utils/facilityHours';
 import { dayNames } from '../utils/labels';
+import { downloadIcsFile } from '../utils/icsCalendar';
 
 const MONTH_LABELS = [
   'Ιανουάριος',
@@ -281,6 +283,46 @@ export function CalendarPage() {
     return true;
   }
 
+  function handleDownloadIcs() {
+    const today = localDateIso();
+    const horizon = new Date(`${today}T12:00:00`);
+    horizon.setDate(horizon.getDate() + 90);
+    const until = localDateIso(horizon);
+    const events: Array<{
+      uid: string;
+      title: string;
+      date: string;
+      startTime: string;
+      endTime?: string;
+      location?: string;
+      description?: string;
+    }> = [];
+    for (const [iso, list] of eventsByDate) {
+      if (iso < today || iso > until) continue;
+      for (const event of list.filter(passesFilters)) {
+        if (!event.time) continue;
+        let endTime = event.endTime || undefined;
+        if (!endTime && event.kind === 'match') {
+          const [hh, mm] = event.time.split(':').map(Number);
+          const total = (Number(hh) || 0) * 60 + (Number(mm) || 0) + 120;
+          endTime = `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+        }
+        events.push({
+          uid: event.id,
+          title: event.title,
+          date: iso,
+          startTime: event.time,
+          endTime,
+          location: event.location,
+          description: event.kind === 'match' ? 'Αγώνας' : event.kind === 'rental' ? 'Ενοικίαση' : 'Προπόνηση',
+        });
+      }
+    }
+    events.sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
+    if (events.length === 0) return;
+    downloadIcsFile(events, 'teamsuite-calendar.ics', 'TeamSuite ημερολόγιο');
+  }
+
   const cells = useMemo(() => buildMonthCells(year, monthIndex), [year, monthIndex]);
 
   const miniCells = useMemo(() => buildMonthCells(year, monthIndex), [year, monthIndex]);
@@ -402,7 +444,15 @@ export function CalendarPage() {
 
   return (
     <div className="cal-page">
-      <PageHeader title="Ημερολόγιο" subtitle="Προπονήσεις, αγώνες και ενοικιάσεις γηπέδων." />
+      <PageHeader
+        title="Ημερολόγιο"
+        subtitle="Προπονήσεις, αγώνες και ενοικιάσεις γηπέδων."
+        actions={
+          <Button type="button" variant="secondary" onClick={handleDownloadIcs}>
+            <Download size={16} /> Λήψη ημερολογίου (.ics)
+          </Button>
+        }
+      />
 
       <div className="cal-toolbar">
         <div className="cal-toolbar-left">

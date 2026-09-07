@@ -249,8 +249,16 @@ export function TrainingsPage() {
       setError(result.error ?? 'Σφάλμα αποθήκευσης');
       return;
     }
+    const skipped = result.data?.skipped ?? [];
     closeModals();
     refresh();
+    if (skipped.length) {
+      window.alert(
+        `Δημιουργήθηκαν ${result.data?.count ?? 0} προπονήσεις. Παραλείφθηκαν λόγω σύγκρουσης γηπέδου:\n${skipped
+          .slice(0, 8)
+          .join('\n')}${skipped.length > 8 ? `\n… και ${skipped.length - 8} ακόμη` : ''}`,
+      );
+    }
   }
 
   async function handleBulkDelete() {

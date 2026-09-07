@@ -345,6 +345,37 @@ export function slotConflictsWithRentals(
   return { ok: true };
 }
 
+/** Προπόνηση: σύγκρουση με πρόγραμμα, άλλη προπόνηση, αγώνα ή ενοικίαση. */
+export function slotConflictsWithClubOccupancy(
+  source: RentalOccupancySource,
+  location: string,
+  date: string,
+  startTime: string,
+  endTime: string,
+  opts?: { excludeTrainingIds?: string[] },
+): { ok: true } | { ok: false; reason: string } {
+  const facility = facilityByLocation(source, location);
+  if (!facility || !date || !startTime) return { ok: true };
+  const filtered: RentalOccupancySource = {
+    ...source,
+    trainings: (source.trainings ?? []).filter((item) => !opts?.excludeTrainingIds?.includes(item.id)),
+  };
+  const startMin = minutesOf(startTime);
+  let endMin = minutesOf(endTime);
+  if (!endTime) endMin = startMin + 60;
+  if (endMin <= startMin) endMin += 24 * 60;
+  const occ = occupancyForRange(occupancyForDate(filtered, facility, date), startMin, endMin);
+  if (occ.blocked || occ.full || occ.halfCount > 0) {
+    return {
+      ok: false,
+      reason: `Το γήπεδο δεν είναι ελεύθερο στις ${date} ${startTime}–${endTime || startTime}${
+        occ.reason ? ` (${occ.reason})` : ''
+      }.`,
+    };
+  }
+  return { ok: true };
+}
+
 export function weeklySlotConflictsWithRentals(
   source: RentalOccupancySource,
   location: string,

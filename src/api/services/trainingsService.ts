@@ -1,19 +1,23 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
 import { trainingSchema, type TrainingInput } from '../../schemas';
-import { slotConflictsWithRentals } from '../../shared/facilityRentalAvailability';
+import { slotConflictsWithClubOccupancy } from '../../shared/facilityRentalAvailability';
 import type { AppData, Training } from '../../types';
 import { localDateIso } from '../../utils/dates';
+import { publishClubOpsSlice } from './clubOpsSyncService';
 import { syncRemoteRentalBookings } from './rentalBookingsService';
 
-function assertNoRentalConflict(
+function assertNoFacilityConflict(
   data: AppData,
   location: string,
   date: string,
   startTime: string,
   endTime: string,
+  excludeTrainingIds?: string[],
 ) {
-  const check = slotConflictsWithRentals(data, location, date, startTime, endTime);
+  const check = slotConflictsWithClubOccupancy(data, location, date, startTime, endTime, {
+    excludeTrainingIds,
+  });
   if (!check.ok) throw new Error(check.reason);
 }
 
@@ -25,7 +29,7 @@ export async function createTraining(input: TrainingInput) {
   await syncRemoteRentalBookings();
   return apiClient(() => {
     const parsed = trainingSchema.parse(input);
-    assertNoRentalConflict(getData(), parsed.location, parsed.date, parsed.startTime, parsed.endTime);
+    assertNoFacilityConflict(getData(), parsed.location, parsed.date, parsed.startTime, parsed.endTime);
     const training: Training = {
       ...parsed,
       id: createId('trn'),
@@ -35,6 +39,7 @@ export async function createTraining(input: TrainingInput) {
       if (!data.trainings) data.trainings = [];
       data.trainings.push(training);
     });
+    void publishClubOpsSlice();
     return training;
   });
 }
@@ -77,34 +82,51 @@ export async function createRecurringTrainings(input: {
     }
 
     const created: Training[] = [];
+    const skipped: string[] = [];
+    const working = structuredClone(getData()) as AppData;
+    if (!working.trainings) working.trainings = [];
     const cursor = new Date(start);
     while (cursor <= end) {
       if (weekdays.includes(cursor.getDay())) {
         const date = localDateIso(cursor);
-        assertNoRentalConflict(getData(), input.location, date, input.startTime, input.endTime);
-        const training: Training = {
-          id: createId('trn'),
+        const check = slotConflictsWithClubOccupancy(
+          working,
+          input.location,
           date,
-          startTime: input.startTime,
-          endTime: input.endTime,
-          location: input.location,
-          notes: input.notes,
-          classId: input.classId,
-        };
-        created.push(training);
+          input.startTime,
+          input.endTime,
+        );
+        if (!check.ok) {
+          skipped.push(`${date} ${input.startTime}–${input.endTime} (${check.reason})`);
+        } else {
+          const training: Training = {
+            id: createId('trn'),
+            date,
+            startTime: input.startTime,
+            endTime: input.endTime,
+            location: input.location,
+            notes: input.notes,
+            classId: input.classId,
+          };
+          created.push(training);
+          working.trainings.push(training);
+        }
       }
       cursor.setDate(cursor.getDate() + 1);
     }
 
     if (created.length === 0) {
-      throw new Error('Δεν βρέθηκαν ημερομηνίες για τις επιλεγμένες ημέρες');
+      throw new Error(
+        skipped[0] ?? 'Δεν βρέθηκαν ημερομηνίες για τις επιλεγμένες ημέρες',
+      );
     }
 
     mutateData((data) => {
       if (!data.trainings) data.trainings = [];
       data.trainings.push(...created);
     });
-    return { count: created.length, items: created };
+    void publishClubOpsSlice();
+    return { count: created.length, items: created, skipped };
   });
 }
 
@@ -112,7 +134,14 @@ export async function updateTraining(id: string, input: TrainingInput) {
   await syncRemoteRentalBookings();
   return apiClient(() => {
     const parsed = trainingSchema.parse(input);
-    assertNoRentalConflict(getData(), parsed.location, parsed.date, parsed.startTime, parsed.endTime);
+    assertNoFacilityConflict(
+      getData(),
+      parsed.location,
+      parsed.date,
+      parsed.startTime,
+      parsed.endTime,
+      [id],
+    );
     let updated: Training | undefined;
     mutateData((data) => {
       if (!data.trainings) data.trainings = [];
@@ -125,6 +154,7 @@ export async function updateTraining(id: string, input: TrainingInput) {
       };
       data.trainings[index] = updated;
     });
+    void publishClubOpsSlice();
     return updated!;
   });
 }
@@ -134,6 +164,7 @@ export async function deleteTraining(id: string) {
     mutateData((data) => {
       data.trainings = (data.trainings ?? []).filter((t) => t.id !== id);
     });
+    void publishClubOpsSlice();
     return { id };
   });
 }
@@ -144,6 +175,7 @@ export async function bulkDeleteTrainings(ids: string[]) {
     mutateData((data) => {
       data.trainings = (data.trainings ?? []).filter((t) => !idSet.has(t.id));
     });
+    void publishClubOpsSlice();
     return { deleted: ids.length };
   });
 }

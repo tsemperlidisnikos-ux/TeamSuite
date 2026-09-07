@@ -2,6 +2,7 @@ import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
 import { matchSchema, type MatchInput } from '../../schemas';
 import type { Match } from '../../types';
+import { publishClubOpsSlice } from './clubOpsSyncService';
 import { localDateTimeIso } from '../../utils/dates';
 
 export async function listMatches() {
@@ -34,6 +35,7 @@ export async function createMatch(input: MatchInput) {
       if (!data.matches) data.matches = [];
       data.matches.unshift(match);
     });
+    void publishClubOpsSlice();
     return match;
   });
 }
@@ -55,6 +57,7 @@ export async function updateMatch(id: string, input: MatchInput) {
       };
       data.matches[index] = updated;
     });
+    void publishClubOpsSlice();
     return updated!;
   });
 }
@@ -64,6 +67,7 @@ export async function deleteMatch(id: string) {
     mutateData((data) => {
       data.matches = (data.matches ?? []).filter((m) => m.id !== id);
     });
+    void publishClubOpsSlice();
     return { id };
   });
 }

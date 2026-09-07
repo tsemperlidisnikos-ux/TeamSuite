@@ -406,6 +406,11 @@ function localHasUnsyncedEdits(local: AppData, cloud: AppData): boolean {
   });
   if (localRent !== cloudRent) return true;
   if (hasLocalOnlyRows(local.rentalBookings, cloud.rentalBookings)) return true;
+  if (hasLocalOnlyRows(local.schedule, cloud.schedule)) return true;
+  if (hasLocalOnlyRows(local.trainings, cloud.trainings)) return true;
+  if (hasLocalOnlyRows(local.matches, cloud.matches)) return true;
+  if (hasLocalOnlyRows(local.products, cloud.products)) return true;
+  if (hasLocalOnlyRows(local.stockMovements, cloud.stockMovements)) return true;
 
   if (
     local.sizeChart &&
@@ -600,6 +605,16 @@ function mergeClubSnapshots(
     opts.preferLocal,
   );
   next.receiptIssues = mergeReceiptIssues(local.receiptIssues, cloud.receiptIssues);
+  next.schedule = mergeById(local.schedule, cloud.schedule, new Set(), opts.preferLocal);
+  next.trainings = mergeById(local.trainings, cloud.trainings, new Set(), opts.preferLocal);
+  next.matches = mergeById(local.matches, cloud.matches, new Set(), opts.preferLocal);
+  next.products = mergeById(local.products, cloud.products, new Set(), opts.preferLocal);
+  next.stockMovements = mergeById(
+    local.stockMovements,
+    cloud.stockMovements,
+    new Set(),
+    opts.preferLocal,
+  );
   return next;
 }
 

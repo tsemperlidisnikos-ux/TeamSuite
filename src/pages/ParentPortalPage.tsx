@@ -179,6 +179,25 @@ export function ParentPortalPage() {
       .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
   }, [data.trainings, linkedAthletes, today]);
 
+  const upcomingMatches = useMemo(() => {
+    const classIds = new Set(linkedAthletes.flatMap((a) => studentClassIds(a)));
+    const sports = new Set(
+      linkedAthletes
+        .map((a) => (a.sport || '').trim())
+        .filter(Boolean)
+        .map((s) => s.toLocaleLowerCase('el')),
+    );
+    return (data.matches ?? [])
+      .filter((m) => {
+        if (m.status === 'cancelled') return false;
+        if (m.date < today) return false;
+        if (m.classId && classIds.has(m.classId)) return true;
+        const sport = (m.sport || '').trim().toLocaleLowerCase('el');
+        return Boolean(sport && sports.has(sport));
+      })
+      .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+  }, [data.matches, linkedAthletes, today]);
+
   const recentAttendance = useMemo(() => {
     return (data.attendance ?? [])
       .filter((row) => athleteIds.has(row.studentId))
@@ -221,6 +240,42 @@ export function ParentPortalPage() {
   }, [linkedAthletes]);
 
   const nextTraining = upcomingTrainings[0] ?? null;
+  const nextMatch = upcomingMatches[0] ?? null;
+
+  function handleDownloadSchedule() {
+    const trainingEvents = upcomingTrainings.map((t) => ({
+      uid: t.id,
+      title: (t.classId ? classNameById.get(t.classId) : null) || t.notes || 'Προπόνηση',
+      date: t.date,
+      startTime: t.startTime,
+      endTime: t.endTime,
+      location: t.location,
+      description: t.notes,
+    }));
+    const matchEvents = upcomingMatches.map((m) => {
+      const [hh, mm] = (m.time || '00:00').split(':').map(Number);
+      const total = (Number(hh) || 0) * 60 + (Number(mm) || 0) + 120;
+      const endTime = `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+      return {
+        uid: m.id,
+        title: `Αγώνας vs ${m.opponent}`,
+        date: m.date,
+        startTime: m.time || '00:00',
+        endTime,
+        location: m.location,
+        description: m.venue === 'away' ? 'Εκτός έδρας' : 'Εντός / ουδέτερη',
+      };
+    });
+    const events = [...trainingEvents, ...matchEvents].sort((a, b) =>
+      `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`),
+    );
+    if (events.length === 0) return;
+    downloadIcsFile(
+      events,
+      'programma-teamsuite.ics',
+      club?.name ? `Πρόγραμμα · ${club.name}` : 'Πρόγραμμα',
+    );
+  }
 
   async function handlePay(
     athleteId: string,
@@ -246,24 +301,6 @@ export function ParentPortalPage() {
     if (!result.success) {
       setPayError(result.error ?? 'Αποτυχία έναρξης πληρωμής');
     }
-  }
-
-  function handleDownloadSchedule() {
-    if (upcomingTrainings.length === 0) return;
-    downloadIcsFile(
-      upcomingTrainings.map((t) => ({
-        uid: t.id,
-        title:
-          (t.classId ? classNameById.get(t.classId) : null) || t.notes || 'Προπόνηση',
-        date: t.date,
-        startTime: t.startTime,
-        endTime: t.endTime,
-        location: t.location,
-        description: t.notes,
-      })),
-      'proponiseis-teamsuite.ics',
-      club?.name ? `Προπονήσεις · ${club.name}` : 'Προπονήσεις',
-    );
   }
 
   return (
@@ -329,10 +366,14 @@ export function ParentPortalPage() {
               icon={CalendarDays}
             />
             <StatCard
-              label="Ανακοινώσεις"
-              value={String(announcements.length)}
-              hint="Ορατές για εσάς"
-              icon={Bell}
+              label="Επόμενος αγώνας"
+              value={nextMatch ? formatDate(nextMatch.date) : '—'}
+              hint={
+                nextMatch
+                  ? `vs ${nextMatch.opponent}${nextMatch.time ? ` · ${nextMatch.time}` : ''}`
+                  : 'Δεν υπάρχει προγραμματισμένος'
+              }
+              icon={CalendarDays}
             />
           </div>
 
@@ -389,7 +430,7 @@ export function ParentPortalPage() {
               <h2>
                 <CalendarDays size={18} /> Επόμενες προπονήσεις
               </h2>
-              {upcomingTrainings.length > 0 ? (
+              {upcomingTrainings.length > 0 || upcomingMatches.length > 0 ? (
                 <Button type="button" variant="secondary" onClick={handleDownloadSchedule}>
                   <Download size={16} />
                   Λήψη ημερολογίου (.ics)
@@ -419,6 +460,31 @@ export function ParentPortalPage() {
             <p className="settings-hint">
               Μπορείτε να εισάγετε το αρχείο .ics στο Google Calendar ή Outlook για ειδοποιήσεις.
             </p>
+          </section>
+
+          <section className="panel parent-portal-section">
+            <h2>
+              <CalendarDays size={18} /> Επόμενοι αγώνες
+            </h2>
+            {upcomingMatches.length === 0 ? (
+              <p className="muted">Δεν υπάρχουν προγραμματισμένοι αγώνες.</p>
+            ) : (
+              <ul className="parent-portal-list">
+                {upcomingMatches.map((m) => (
+                  <li key={m.id}>
+                    <strong>
+                      {formatDate(m.date)}
+                      {m.time ? ` · ${m.time}` : ''}
+                    </strong>
+                    <span className="muted">
+                      vs {m.opponent}
+                      {m.location ? ` · ${m.location}` : ''}
+                      {m.venue === 'away' ? ' · Εκτός' : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <section className="panel parent-portal-section">

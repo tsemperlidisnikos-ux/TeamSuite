@@ -507,3 +507,34 @@
   border-radius: 10px;
   background: #fff;
 }
+
+.cport-notify {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .cport-att-table th:last-child,
+  .cport-att-table td:last-child {
+    width: 42%;
+  }
+
+  .cport-toggle {
+    min-height: 44px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .cport-att-filters {
+    width: 100%;
+  }
+
+  .cport-att-filters select,
+  .cport-att-filters input[type='date'] {
+    flex: 1 1 8rem;
+  }
+}
