@@ -303,7 +303,7 @@ export function CoachPortalPage() {
                       checked={notifyAbsence}
                       onChange={(e) => setNotifyAbsence(e.target.checked)}
                     />
-                    Email σε απουσία
+                    Email / SMS σε απουσία
                   </label>
                 </div>
               </div>

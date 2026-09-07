@@ -29,9 +29,20 @@ import type {
   RentalBooking,
   RentalOccupancySource,
 } from '../src/shared/facilityRentalAvailability.js';
+import { clubMatchesPublicSlug } from '../src/utils/publicClubSlug.js';
 
 function clubsFromBundle(bundle: { clubs?: unknown } | null | undefined): unknown[] {
   return Array.isArray(bundle?.clubs) ? bundle.clubs : [];
+}
+
+function requestPublicOrigin(req: VercelRequest, bodyOrigin?: string): string {
+  const fromBody = String(bodyOrigin ?? '').trim().replace(/\/+$/, '');
+  if (/^https?:\/\//i.test(fromBody)) return fromBody;
+  const proto = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0]!.trim();
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || 'teamsuite-seven.vercel.app')
+    .split(',')[0]!
+    .trim();
+  return `${proto}://${host}`;
 }
 
 function asSource(payload: unknown): RentalOccupancySource {
@@ -76,6 +87,34 @@ async function resolveBySlug(slug: string): Promise<{
       raw.publicRegistration && typeof raw.publicRegistration === 'object'
         ? (raw.publicRegistration as Record<string, unknown>)
         : null;
+    return {
+      clubId: id,
+      name: String(raw.name ?? ''),
+      logoUrl: typeof raw.logoUrl === 'string' ? raw.logoUrl : null,
+      heroImageUrl: typeof registration?.heroImageUrl === 'string' ? registration.heroImageUrl : null,
+    };
+  }
+  for (const item of clubs) {
+    if (!item || typeof item !== 'object') continue;
+    const raw = item as Record<string, unknown>;
+    const registration =
+      raw.publicRegistration && typeof raw.publicRegistration === 'object'
+        ? (raw.publicRegistration as Record<string, unknown>)
+        : null;
+    if (
+      !clubMatchesPublicSlug(
+        {
+          id: String(raw.id ?? ''),
+          name: String(raw.name ?? ''),
+          publicRegistration: { slug: String(registration?.slug ?? '') },
+        },
+        slug,
+      )
+    ) {
+      continue;
+    }
+    const id = String(raw.id ?? '').trim();
+    if (!id) continue;
     return {
       clubId: id,
       name: String(raw.name ?? ''),
@@ -130,6 +169,8 @@ async function createVivaCheckoutUrl(input: {
   merchantTrns: string;
   email?: string;
   fullName?: string;
+  successUrl?: string;
+  failureUrl?: string;
 }): Promise<{ checkoutUrl: string; orderCode: string }> {
   const hosts =
     input.environment === 'live'
@@ -167,6 +208,9 @@ async function createVivaCheckoutUrl(input: {
       customerTrns: input.merchantTrns,
       merchantTrns: input.merchantTrns,
       sourceCode: input.sourceCode,
+      successUrl: input.successUrl || undefined,
+      failureUrl: input.failureUrl || undefined,
+      failUrl: input.failureUrl || undefined,
       customer: {
         email: input.email || undefined,
         fullName: input.fullName || undefined,
@@ -453,6 +497,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     booking.status = 'pending_payment';
     booking.paymentProvider = 'viva';
     try {
+      const origin = requestPublicOrigin(req, String(body.returnOrigin ?? ''));
+      const embed = body.embed === true || body.embed === 'true' || body.embed === 1;
+      const returnQs = new URLSearchParams({
+        pay: '1',
+        s: '1',
+        bid: booking.id,
+        slug,
+      });
+      if (embed) returnQs.set('embed', '1');
+      const failQs = new URLSearchParams({ pay: '0', slug });
+      if (embed) failQs.set('embed', '1');
       const checkout = await createVivaCheckoutUrl({
         clientId: viva.clientId,
         clientSecret: viva.clientSecret,
@@ -462,6 +517,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         merchantTrns: `Ενοικίαση ${booking.id}`,
         email: customerEmail,
         fullName: customerName,
+        successUrl: `${origin}/rent/${encodeURIComponent(slug)}?${returnQs.toString()}`,
+        failureUrl: `${origin}/rent/${encodeURIComponent(slug)}?${failQs.toString()}`,
       });
       booking.paymentRef = checkout.orderCode;
       const list = Array.isArray(payload.rentalBookings) ? payload.rentalBookings : [];

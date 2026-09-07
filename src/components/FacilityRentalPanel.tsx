@@ -3,7 +3,8 @@ import { ClipboardCopy, Code2, Download, ExternalLink, ImagePlus, Trash2 } from 
 import * as rentalBookingsService from '../api/services/rentalBookingsService';
 import * as facilitiesService from '../api/services/facilitiesService';
 import { getSession, isPlatformAdmin } from '../auth/auth';
-import { getClubById, getClubPublicRegistration, slugifyClubName } from '../auth/clubs';
+import { getClubById, getClubPublicRegistration, getClubs, slugifyClubName } from '../auth/clubs';
+import { listPublicSlugCollisions } from '../utils/publicClubSlug';
 import { Button } from './ui/Button';
 import { useAppData } from '../hooks/useAppData';
 import { useT } from '../i18n/LocaleContext';
@@ -42,6 +43,21 @@ function escapeHtmlAttr(value: string): string {
 }
 
 const RENT_EMBED_ORIGIN = 'https://teamsuite-seven.vercel.app';
+const RENT_EMBED_SCRIPT = `<script>
+window.addEventListener("message", function (event) {
+  if (event.origin !== "${RENT_EMBED_ORIGIN}" && event.origin !== "https://www.teamsuite.me") return;
+  if (!event.data || event.data.type !== "teamsuite-rent-height") return;
+  var height = Number(event.data.height);
+  if (!(height > 180)) return;
+  var frames = document.getElementsByTagName("iframe");
+  for (var i = 0; i < frames.length; i++) {
+    if (frames[i].contentWindow === event.source) {
+      frames[i].style.height = height + "px";
+      break;
+    }
+  }
+});
+</script>`;
 
 function rentalEmbedSrc(slug: string): string {
   return `${RENT_EMBED_ORIGIN}/rent/${slug.trim() || 'ΕΔΩ-ΤΟ-SLUG'}`;
@@ -60,38 +76,42 @@ function rentalEmbedHtml(slug: string, clubName: string): string {
   style="width:100%;min-height:920px;border:0;border-radius:12px;"
   loading="lazy"
   allow="payment"
-></iframe>`;
+></iframe>
+${RENT_EMBED_SCRIPT}`;
 }
 
 function RentalEmbedSnippet({ slug, clubName }: { slug: string; clubName: string }) {
   const src = rentalEmbedSrc(slug);
   const title = rentalEmbedTitle(clubName);
   return (
-    <pre className="rental-embed-pre">
-      <span className="tok-tag">{'<iframe'}</span>
-      {'\n  '}
-      <span className="tok-attr">src</span>
-      <span className="tok-eq">=</span>
-      <span className="tok-str">{`"${src}"`}</span>
-      {'\n  '}
-      <span className="tok-attr">title</span>
-      <span className="tok-eq">=</span>
-      <span className="tok-str">{`"${title}"`}</span>
-      {'\n  '}
-      <span className="tok-attr">style</span>
-      <span className="tok-eq">=</span>
-      <span className="tok-str">{'"width:100%;min-height:920px;border:0;border-radius:12px;"'}</span>
-      {'\n  '}
-      <span className="tok-attr">loading</span>
-      <span className="tok-eq">=</span>
-      <span className="tok-str">{'"lazy"'}</span>
-      {'\n  '}
-      <span className="tok-attr">allow</span>
-      <span className="tok-eq">=</span>
-      <span className="tok-str">{'"payment"'}</span>
-      {'\n'}
-      <span className="tok-tag">{'></iframe>'}</span>
-    </pre>
+    <>
+      <pre className="rental-embed-pre">
+        <span className="tok-tag">{'<iframe'}</span>
+        {'\n  '}
+        <span className="tok-attr">src</span>
+        <span className="tok-eq">=</span>
+        <span className="tok-str">{`"${src}"`}</span>
+        {'\n  '}
+        <span className="tok-attr">title</span>
+        <span className="tok-eq">=</span>
+        <span className="tok-str">{`"${title}"`}</span>
+        {'\n  '}
+        <span className="tok-attr">style</span>
+        <span className="tok-eq">=</span>
+        <span className="tok-str">{'"width:100%;min-height:920px;border:0;border-radius:12px;"'}</span>
+        {'\n  '}
+        <span className="tok-attr">loading</span>
+        <span className="tok-eq">=</span>
+        <span className="tok-str">{'"lazy"'}</span>
+        {'\n  '}
+        <span className="tok-attr">allow</span>
+        <span className="tok-eq">=</span>
+        <span className="tok-str">{'"payment"'}</span>
+        {'\n'}
+        <span className="tok-tag">{'></iframe>'}</span>
+      </pre>
+      <pre className="rental-embed-pre rental-embed-script">{RENT_EMBED_SCRIPT}</pre>
+    </>
   );
 }
 
@@ -110,6 +130,8 @@ export function FacilityRentalPanel() {
   const slug = club
     ? (getClubPublicRegistration(club.id).slug || slugifyClubName(club.name)).trim()
     : '';
+  const slugCollisions = useMemo(() => listPublicSlugCollisions(getClubs()), [clubId]);
+  const suggestedSlug = club ? slugifyClubName(club.name) : '';
   const rentPath = slug ? `/rent/${slug}` : '';
   const rentUrl =
     typeof window !== 'undefined' && rentPath ? `${window.location.origin}${rentPath}` : rentPath;
@@ -480,6 +502,23 @@ export function FacilityRentalPanel() {
         {isPlatformAdmin() ? (
           <div className="rental-public-embed">
             <h3 className="rental-embed-heading">{t('2. Κώδικας για την ιστοσελίδα')}</h3>
+            {slugCollisions.length > 0 ? (
+              <p className="form-error">
+                {t('Διπλό slug:')}{' '}
+                {slugCollisions
+                  .map((row) => `«${row.slug}» (${row.names.join(', ')})`)
+                  .join(' · ')}
+                . {t('Άλλαξέ το στις Ρυθμίσεις → Εγγραφή.')}
+              </p>
+            ) : null}
+            {club && suggestedSlug && suggestedSlug !== slug ? (
+              <p className="settings-hint">
+                {t('Προτεινόμενο μοναδικό slug:')} <code>{suggestedSlug}</code>
+                {slug === 'club'
+                  ? t(' — το /rent/club συνεχίζει να δουλεύει για αυτόν τον σύλλογο.')
+                  : ''}
+              </p>
+            ) : null}
             <div className="rental-embed-card">
               <RentalEmbedSnippet slug={slug} clubName={club?.name ?? ''} />
               <Button type="button" variant="secondary" className="rental-embed-copy" onClick={() => void copyEmbed()}>

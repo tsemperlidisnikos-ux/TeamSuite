@@ -90,6 +90,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const incomingPassword = String(body.notify.smtp?.password ?? '').trim();
       const keepPreviousPassword =
         !incomingPassword || incomingPassword === '********';
+      const incomingSmsKey = String(body.notify.sms?.apiKey ?? '').trim();
+      const keepPreviousSmsKey = !incomingSmsKey || incomingSmsKey === '********';
       const notify: ClubNotifyConfig = {
         ...body.notify,
         clubId: body.notify.clubId,
@@ -101,6 +103,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 : incomingPassword,
             }
           : previous?.smtp,
+        sms: body.notify.sms
+          ? {
+              ...body.notify.sms,
+              apiKey: keepPreviousSmsKey ? (previous?.sms?.apiKey ?? '') : incomingSmsKey,
+            }
+          : previous?.sms,
         updatedAt: now,
       };
       await saveClubNotifyConfig(notify);

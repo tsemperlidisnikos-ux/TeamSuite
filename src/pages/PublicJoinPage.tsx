@@ -6,8 +6,8 @@ import type { RemotePublicClub } from '../api/services/publicClubCloudService';
 import {
   getClubPublicRegistration,
   getClubs,
-  slugifyClubName,
 } from '../auth/clubs';
+import { clubMatchesPublicSlug } from '../utils/publicClubSlug';
 import { SignaturePad } from '../components/SignaturePad';
 import { Button } from '../components/ui/Button';
 import { getClubData } from '../data/repository';
@@ -134,10 +134,7 @@ export function PublicJoinPage() {
       setLoading(true);
       setLoadError('');
       const normalized = slug.trim().toLowerCase();
-      const local = getClubs().find((c) => {
-        const s = (c.publicRegistration?.slug || slugifyClubName(c.name)).toLowerCase();
-        return s === normalized;
-      });
+      const local = getClubs().find((c) => clubMatchesPublicSlug(c, normalized));
       if (local) {
         const settings = getClubPublicRegistration(local.id);
         const data = getClubData(local.id);

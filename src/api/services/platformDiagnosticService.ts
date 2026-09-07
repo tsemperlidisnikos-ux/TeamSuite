@@ -1,6 +1,7 @@
 import { getUsers, migratePlaintextPasswords, saveUsers, type AppUser } from '../../auth/auth';
 import { isPasswordHashed } from '../../auth/password';
 import { getClubs, getClubSmtp, getClubViva, type Club } from '../../auth/clubs';
+import { listPublicSlugCollisions } from '../../utils/publicClubSlug';
 import {
   clubHasStoredData,
   exportAllClubsData,
@@ -526,6 +527,18 @@ function checkClubs(clubs: Club[]): DiagnosticFinding[] {
         }),
       );
     }
+  }
+
+  for (const row of listPublicSlugCollisions(clubs)) {
+    out.push(
+      finding({
+        category: 'PublicJoin',
+        severity: 'warning',
+        title: `Ίδιο δημόσιο slug «${row.slug}»`,
+        detail: `Το χρησιμοποιούν: ${row.names.join(' · ')}.`,
+        fix: 'Ρυθμίσεις → Δημόσια εγγραφή: βάλε μοναδικό latin slug (π.χ. apollon-patron) και Αποθήκευση.',
+      }),
+    );
   }
 
   return out;

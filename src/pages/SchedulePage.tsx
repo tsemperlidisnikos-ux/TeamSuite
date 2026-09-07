@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Info, Pencil, Plus } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, Info, Pencil, Plus } from 'lucide-react';
 import * as scheduleService from '../api/services/scheduleService';
+import * as trainingsService from '../api/services/trainingsService';
 import { getSession } from '../auth/auth';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -147,6 +148,7 @@ export function SchedulePage() {
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const activeClassId =
     classId && classesForSport.some((c) => c.id === classId)
@@ -345,6 +347,41 @@ export function SchedulePage() {
     refresh();
   }
 
+  async function handleGenerateTrainings() {
+    const classIds = activeClassId ? [activeClassId] : classesForSport.map((cls) => cls.id);
+    const scope = activeClassId
+      ? 'το επιλεγμένο τμήμα'
+      : sportFilter.trim()
+        ? 'τα τμήματα του αθλήματος'
+        : 'όλα τα τμήματα';
+    if (
+      !confirm(
+        `Να δημιουργηθούν προπονήσεις ημερολογίου από το εβδομαδιαίο πρόγραμμα για ${scope} (ενεργή σεζόν ή έως 12 εβδομάδες); Τα πρότυπα προγράμματος μένουν ως έχουν.`,
+      )
+    ) {
+      return;
+    }
+    setGenerating(true);
+    setError('');
+    const result = await trainingsService.generateTrainingsFromSchedule({ classIds });
+    setGenerating(false);
+    if (!result.success) {
+      setError(result.error ?? 'Αποτυχία δημιουργίας προπονήσεων');
+      return;
+    }
+    const skipped = result.data?.skipped ?? [];
+    refresh();
+    window.alert(
+      `Δημιουργήθηκαν ${result.data?.count ?? 0} προπονήσεις (${result.data?.startDate} – ${result.data?.endDate}).${
+        skipped.length
+          ? `\nΠαραλείφθηκαν ${skipped.length}:\n${skipped.slice(0, 8).join('\n')}${
+              skipped.length > 8 ? `\n… και ${skipped.length - 8} ακόμη` : ''
+            }`
+          : ''
+      }`,
+    );
+  }
+
   function shiftWeek(delta: number) {
     setWeekStart((prev) => addDays(prev, delta * 7));
   }
@@ -405,11 +442,19 @@ export function SchedulePage() {
           <button type="button" className="prog-today-btn" onClick={goToday}>
             Σήμερα
           </button>
+          {!isCoach ? (
+            <Button type="button" variant="secondary" disabled={generating} onClick={() => void handleGenerateTrainings()}>
+              <CalendarPlus size={16} />
+              {generating ? 'Δημιουργία…' : 'Προπονήσεις από πρόγραμμα'}
+            </Button>
+          ) : null}
           <Button type="button" onClick={openCreate}>
             <Plus size={16} /> Νέα Ώρα
           </Button>
         </div>
       </div>
+
+      {!open && error ? <p className="form-error">{error}</p> : null}
 
       <section className="prog-board panel">
         <div className="prog-grid-head">

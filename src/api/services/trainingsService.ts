@@ -3,6 +3,7 @@ import { createId, getData, mutateData } from '../../data/repository';
 import { trainingSchema, type TrainingInput } from '../../schemas';
 import { slotConflictsWithClubOccupancy } from '../../shared/facilityRentalAvailability';
 import type { AppData, Training } from '../../types';
+import { getActiveSeason } from '../../utils/clubSeasons';
 import { localDateIso } from '../../utils/dates';
 import { publishClubOpsSlice } from './clubOpsSyncService';
 import { syncRemoteRentalBookings } from './rentalBookingsService';
@@ -141,6 +142,122 @@ export async function createRecurringTrainings(input: {
     });
     void publishClubOpsSlice();
     return { count: created.length, items: created, skipped };
+  });
+}
+
+function addCalendarDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return localDateIso(d);
+}
+
+function trainingAlreadyExists(
+  data: AppData,
+  input: { classId: string | null; date: string; startTime: string; location: string },
+): boolean {
+  return (data.trainings ?? []).some(
+    (row) =>
+      row.date === input.date &&
+      row.startTime === input.startTime &&
+      (row.location || '') === (input.location || '') &&
+      (row.classId || null) === (input.classId || null),
+  );
+}
+
+/** Δημιουργεί προπονήσεις ημερολογίου από το εβδομαδιαίο πρόγραμμα (πρότυπα), χωρίς να τα συγχωνεύει. */
+export async function generateTrainingsFromSchedule(input?: {
+  startDate?: string;
+  endDate?: string;
+  classIds?: string[];
+}) {
+  await syncRemoteRentalBookings();
+  return apiClient(() => {
+    const data = getData();
+    const today = localDateIso();
+    const season = getActiveSeason(data.clubSeasons, today);
+    const startDate =
+      (input?.startDate || '').trim() ||
+      (season?.startDate && season.startDate > today ? season.startDate : today);
+    const endDate =
+      (input?.endDate || '').trim() || season?.endDate || addCalendarDays(today, 84);
+    const start = new Date(`${startDate}T12:00:00`);
+    const end = new Date(`${endDate}T12:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+      throw new Error('Μη έγκυρο διάστημα ημερομηνιών (ορίστε ενεργή σεζόν ή ημερομηνίες).');
+    }
+
+    const classFilter = new Set((input?.classIds ?? []).filter(Boolean));
+    const slots = (data.schedule ?? []).filter((slot) => {
+      if (!slot.classId || !slot.startTime || !slot.endTime || !slot.location) return false;
+      if (classFilter.size > 0 && !classFilter.has(slot.classId)) return false;
+      return true;
+    });
+    if (slots.length === 0) {
+      throw new Error('Δεν υπάρχουν ώρες στο πρόγραμμα για δημιουργία προπονήσεων.');
+    }
+
+    const created: Training[] = [];
+    const skipped: string[] = [];
+    const working = structuredClone(data) as AppData;
+    if (!working.trainings) working.trainings = [];
+
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      const date = localDateIso(cursor);
+      if (date >= today) {
+        const day = cursor.getDay();
+        for (const slot of slots) {
+          if (slot.dayOfWeek !== day) continue;
+          if (
+            trainingAlreadyExists(working, {
+              classId: slot.classId,
+              date,
+              startTime: slot.startTime,
+              location: slot.location,
+            })
+          ) {
+            skipped.push(`${date} ${slot.startTime} — υπάρχει ήδη`);
+            continue;
+          }
+          const check = slotConflictsWithClubOccupancy(
+            working,
+            slot.location,
+            date,
+            slot.startTime,
+            slot.endTime,
+          );
+          if (!check.ok) {
+            skipped.push(`${date} ${slot.startTime}–${slot.endTime} (${check.reason})`);
+            continue;
+          }
+          const training: Training = {
+            id: createId('trn'),
+            date,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            location: slot.location,
+            notes: '',
+            classId: slot.classId,
+          };
+          created.push(training);
+          working.trainings.push(training);
+        }
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    if (created.length === 0) {
+      throw new Error(
+        skipped[0] ?? 'Δεν δημιουργήθηκαν προπονήσεις (ήδη υπάρχουν ή υπάρχουν συγκρούσεις).',
+      );
+    }
+
+    mutateData((store) => {
+      if (!store.trainings) store.trainings = [];
+      store.trainings.push(...created);
+    });
+    void publishClubOpsSlice();
+    return { count: created.length, skipped, startDate, endDate };
   });
 }
 

@@ -71,6 +71,14 @@ type BundleClub = {
     fromName?: string;
     passwordSet?: boolean;
   };
+  sms?: {
+    enabled?: boolean;
+    provider?: string;
+    apiKey?: string;
+    sender?: string;
+    httpUrl?: string;
+    apiKeySet?: boolean;
+  };
   viva?: unknown;
   publicRegistration?: {
     heroImageUrl?: string | null;
@@ -351,6 +359,29 @@ function mergeSmtpPreserveSecret(
   };
 }
 
+function mergeSmsPreserveSecret(
+  incoming: BundleClub['sms'] | undefined,
+  prev: BundleClub['sms'] | undefined,
+): BundleClub['sms'] | undefined {
+  if (!incoming && !prev) return undefined;
+  if (!incoming) return prev;
+  if (!prev) {
+    if (incoming && isBlankOrMaskedSecret(incoming.apiKey)) {
+      return { ...incoming, apiKey: '' };
+    }
+    return incoming;
+  }
+  return {
+    ...prev,
+    ...incoming,
+    apiKey: isBlankOrMaskedSecret(incoming.apiKey)
+      ? isBlankOrMaskedSecret(prev.apiKey)
+        ? ''
+        : (prev.apiKey ?? '')
+      : String(incoming.apiKey ?? ''),
+  };
+}
+
 function mergeVivaPreserveSecret(
   incoming: BundleClub['viva'] | undefined,
   prev: BundleClub['viva'] | undefined,
@@ -397,6 +428,7 @@ function mergeBundleClubs(existing: unknown, incoming: unknown): unknown {
       return {
         ...club,
         smtp: mergeSmtpPreserveSecret(club.smtp, undefined),
+        sms: mergeSmsPreserveSecret(club.sms, undefined),
         viva: mergeVivaPreserveSecret(club.viva, undefined),
       };
     }
@@ -407,6 +439,7 @@ function mergeBundleClubs(existing: unknown, incoming: unknown): unknown {
       ...club,
       logoUrl: pickKeptMedia(club.logoUrl, prev.logoUrl),
       smtp: mergeSmtpPreserveSecret(club.smtp, prev.smtp),
+      sms: mergeSmsPreserveSecret(club.sms, prev.sms),
       viva: mergeVivaPreserveSecret(club.viva, prev.viva),
       publicRegistration:
         incomingReg || prevReg
@@ -962,6 +995,14 @@ function sanitizeClubForTenant(club: BundleClub): BundleClub {
       ...next.smtp,
       password: '',
       passwordSet: hasPassword || Boolean(next.smtp.passwordSet),
+    };
+  }
+  if (next.sms && typeof next.sms === 'object') {
+    const hasKey = Boolean(String(next.sms.apiKey ?? '').trim()) && next.sms.apiKey !== '********';
+    next.sms = {
+      ...next.sms,
+      apiKey: '',
+      apiKeySet: hasKey || Boolean(next.sms.apiKeySet),
     };
   }
   if (next.viva && typeof next.viva === 'object') {

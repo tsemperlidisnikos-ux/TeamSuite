@@ -11,6 +11,12 @@ import {
   normalizeOnlinePaymentProviders,
   type OnlinePaymentProviderId,
 } from '../shared/onlinePayments';
+import {
+  allocateUniquePublicSlug,
+  clubMatchesPublicSlug,
+  slugifyClubName as slugifyClubNameFromUtil,
+  usedPublicSlugs,
+} from '../utils/publicClubSlug';
 
 export interface ClubSmtpSettings {
   enabled: boolean;
@@ -25,6 +31,16 @@ export interface ClubSmtpSettings {
   requireAuth: boolean;
   /** True when a real App Password exists (local or cloud) even if the form field is empty. */
   passwordSet?: boolean;
+}
+
+export interface ClubSmsSettings {
+  enabled: boolean;
+  /** sms_to = SMS.to REST · http = generic JSON POST */
+  provider: 'sms_to' | 'http';
+  apiKey: string;
+  sender: string;
+  httpUrl: string;
+  apiKeySet?: boolean;
 }
 
 export interface ClubSmtpSendLog {
@@ -92,6 +108,7 @@ export interface Club {
   email?: string;
   smtp?: ClubSmtpSettings;
   smtpSendLog?: ClubSmtpSendLog[];
+  sms?: ClubSmsSettings;
   viva?: ClubVivaSettings;
   stripe?: ClubStripeSettings;
   eurobank?: ClubEurobankSettings;
@@ -228,8 +245,28 @@ function normalizeSmtpSecrets(smtp: ClubSmtpSettings): ClubSmtpSettings {
 }
 
 function normalizeClubSecrets(club: Club): Club {
-  if (!club.smtp) return club;
-  return { ...club, smtp: normalizeSmtpSecrets(club.smtp) };
+  return {
+    ...club,
+    smtp: club.smtp ? normalizeSmtpSecrets(club.smtp) : club.smtp,
+    sms: club.sms ? normalizeSmsSecrets(club.sms) : club.sms,
+  };
+}
+
+function normalizeSmsSecrets(sms: ClubSmsSettings): ClubSmsSettings {
+  const wasMasked = (sms.apiKey ?? '').trim() === '********';
+  const apiKey = isMaskedOrBlankSecret(sms.apiKey) ? '' : sms.apiKey;
+  return {
+    ...sms,
+    apiKey,
+    apiKeySet: Boolean(sms.apiKeySet) || wasMasked || apiKey.length > 0,
+  };
+}
+
+export function smsHasStoredSecret(sms: ClubSmsSettings | undefined | null): boolean {
+  if (!sms) return false;
+  if (sms.apiKeySet) return true;
+  const apiKey = (sms.apiKey ?? '').trim();
+  return apiKey.length > 0;
 }
 
 /**
@@ -262,6 +299,35 @@ export function mergeSmtpSettings(
       Boolean(existing.passwordSet) ||
       incoming.password === '********' ||
       !isMaskedOrBlankSecret(password),
+  });
+}
+
+export function mergeSmsSettings(
+  incoming: ClubSmsSettings | undefined,
+  existing: ClubSmsSettings | undefined,
+): ClubSmsSettings | undefined {
+  if (!incoming && !existing) return undefined;
+  if (!incoming) return existing ? normalizeSmsSecrets(existing) : undefined;
+  if (!existing) {
+    return normalizeSmsSecrets({
+      ...incoming,
+      apiKey: isMaskedOrBlankSecret(incoming.apiKey) ? '' : incoming.apiKey,
+    });
+  }
+  const apiKey = isMaskedOrBlankSecret(incoming.apiKey)
+    ? isMaskedOrBlankSecret(existing.apiKey)
+      ? ''
+      : existing.apiKey
+    : incoming.apiKey;
+  return normalizeSmsSecrets({
+    ...existing,
+    ...incoming,
+    apiKey,
+    apiKeySet:
+      Boolean(incoming.apiKeySet) ||
+      Boolean(existing.apiKeySet) ||
+      incoming.apiKey === '********' ||
+      !isMaskedOrBlankSecret(apiKey),
   });
 }
 
@@ -329,6 +395,7 @@ export function mergeClubCatalog(localClubs: Club[], incomingClubs: Club[]): Clu
         ...incoming,
         logoUrl: canonicalizeClubLogoUrl(incoming.id, incoming.logoUrl),
         smtp: mergeSmtpSettings(incoming.smtp, undefined),
+        sms: mergeSmsSettings(incoming.sms, undefined),
         viva: mergeVivaSettings(incoming.viva, undefined),
         stripe: mergeKeyedSecretSettings(incoming.stripe, undefined, 'secretKey'),
         eurobank: mergeKeyedSecretSettings(incoming.eurobank, undefined, 'secretKey'),
@@ -346,6 +413,7 @@ export function mergeClubCatalog(localClubs: Club[], incomingClubs: Club[]): Clu
         pickMediaUrl(incoming.logoUrl, local.logoUrl),
       ),
       smtp: mergeSmtpSettings(incoming.smtp, local.smtp),
+      sms: mergeSmsSettings(incoming.sms, local.sms),
       viva: mergeVivaSettings(incoming.viva, local.viva),
       stripe: mergeKeyedSecretSettings(incoming.stripe, local.stripe, 'secretKey'),
       eurobank: mergeKeyedSecretSettings(incoming.eurobank, local.eurobank, 'secretKey'),
@@ -753,6 +821,78 @@ export function updateClubSmtp(
   return ok(clubs[index]);
 }
 
+export const clubSmsSchema = z.object({
+  enabled: z.boolean(),
+  provider: z.enum(['sms_to', 'http']).optional().default('sms_to'),
+  apiKey: z.string().optional().default(''),
+  sender: z.string().optional().default(''),
+  httpUrl: z.string().optional().default(''),
+  apiKeySet: z.boolean().optional(),
+});
+
+export type ClubSmsInput = z.infer<typeof clubSmsSchema>;
+
+export function getDefaultClubSms(): ClubSmsSettings {
+  return {
+    enabled: false,
+    provider: 'sms_to',
+    apiKey: '',
+    sender: '',
+    httpUrl: '',
+    apiKeySet: false,
+  };
+}
+
+export function getClubSms(clubId: string | null | undefined): ClubSmsSettings {
+  const club = getClubById(clubId);
+  const merged = normalizeSmsSecrets({
+    ...getDefaultClubSms(),
+    ...(club?.sms ?? {}),
+  });
+  merged.apiKey = isMaskedOrBlankSecret(merged.apiKey) ? '' : merged.apiKey;
+  return merged;
+}
+
+export function updateClubSms(clubId: string, input: ClubSmsInput): ApiResult<Club> {
+  const parsed = clubSmsSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? 'Μη έγκυρες ρυθμίσεις SMS');
+  }
+  const data = parsed.data;
+  const clubs = getClubs();
+  const index = clubs.findIndex((c) => c.id === clubId);
+  if (index < 0) return fail('Ο σύλλογος δεν βρέθηκε');
+
+  const previous = clubs[index].sms;
+  const kept =
+    previous?.apiKey && !isMaskedOrBlankSecret(previous.apiKey) ? previous.apiKey : '';
+  const apiKey = isMaskedOrBlankSecret(data.apiKey) ? kept : data.apiKey;
+  const apiKeySet =
+    !isMaskedOrBlankSecret(apiKey) || Boolean(previous?.apiKeySet) || Boolean(data.apiKeySet);
+
+  if (data.enabled) {
+    if (!apiKey.trim() && !apiKeySet) {
+      return fail('Συμπληρώστε API key SMS');
+    }
+    if (data.provider === 'http' && !String(data.httpUrl ?? '').trim()) {
+      return fail('Συμπληρώστε URL αποστολής SMS');
+    }
+  }
+
+  const sms: ClubSmsSettings = {
+    enabled: data.enabled,
+    provider: data.provider ?? 'sms_to',
+    apiKey,
+    sender: (data.sender ?? '').trim(),
+    httpUrl: (data.httpUrl ?? '').trim(),
+    apiKeySet,
+  };
+  clubs[index] = { ...clubs[index], sms };
+  saveClubs(clubs);
+  window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
+  return ok(clubs[index]);
+}
+
 export function appendClubSmtpSendLog(
   clubId: string,
   entry: Omit<ClubSmtpSendLog, 'id' | 'at'> & { at?: string },
@@ -968,13 +1108,7 @@ export function updateClubEurobank(
 }
 
 export function slugifyClubName(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48) || 'club';
+  return slugifyClubNameFromUtil(name);
 }
 
 export function getDefaultPublicRegistration(
@@ -1018,11 +1152,13 @@ export type ClubPublicRegistrationInput = z.infer<typeof clubPublicRegistrationS
 export function getClubByJoinSlug(slug: string): Club | null {
   const normalized = slug.trim().toLowerCase();
   if (!normalized) return null;
+  const matches = getClubs().filter(
+    (c) => clubMatchesPublicSlug(c, normalized) && Boolean(c.publicRegistration?.enabled),
+  );
+  if (matches.length === 0) return null;
   return (
-    getClubs().find((c) => {
-      const s = (c.publicRegistration?.slug || slugifyClubName(c.name)).toLowerCase();
-      return s === normalized && Boolean(c.publicRegistration?.enabled);
-    }) ?? null
+    matches.find((c) => (c.publicRegistration?.slug || '').trim().toLowerCase() === normalized) ??
+    matches[0]
   );
 }
 
@@ -1041,17 +1177,15 @@ export function updateClubPublicRegistration(
 
   const club = clubs[index];
   let slug = (parsed.data.slug || '').trim().toLowerCase();
-  if (!slug) slug = slugifyClubName(club.name);
+  const taken = usedPublicSlugs(clubs, clubId);
+  if (!slug) slug = allocateUniquePublicSlug(slugifyClubName(club.name), taken);
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
     return fail('Το slug επιτρέπει μόνο λατινικά πεζά, αριθμούς και παύλες.');
   }
 
-  const conflict = clubs.find(
-    (c) =>
-      c.id !== clubId &&
-      (c.publicRegistration?.slug || slugifyClubName(c.name)).toLowerCase() === slug,
-  );
-  if (conflict) return fail('Το slug χρησιμοποιείται ήδη από άλλο σύλλογο.');
+  if (taken.has(slug)) {
+    return fail('Το slug χρησιμοποιείται ήδη από άλλο σύλλογο. Διάλεξε μοναδικό (π.χ. apollon-patron).');
+  }
 
   if (parsed.data.enabled && !club.dpaAcceptedAt) {
     return fail(

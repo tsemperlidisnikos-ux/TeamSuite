@@ -4,6 +4,7 @@ import { getUserById } from '../../auth/auth';
 import {
   getClubById,
   getClubPublicRegistration,
+  getClubSms,
   getClubSmtp,
   updateClubPublicRegistration,
 } from '../../auth/clubs';
@@ -90,6 +91,7 @@ export async function publishPublicClubCloud(clubId: string) {
     if (!club) throw new Error('Ο σύλλογος δεν βρέθηκε.');
     const settings = getClubPublicRegistration(clubId);
     const smtpForm = getClubSmtp(clubId);
+    const smsForm = getClubSms(clubId);
     // Prefer real password from storage (never publish blank / masked placeholders).
     const storedPassword = club.smtp?.password?.trim() ?? '';
     const publishPassword =
@@ -97,6 +99,13 @@ export async function publishPublicClubCloud(clubId: string) {
         ? storedPassword
         : smtpForm.password?.trim() && smtpForm.password !== '********'
           ? smtpForm.password.trim()
+          : '';
+    const storedSmsKey = club.sms?.apiKey?.trim() ?? '';
+    const publishSmsKey =
+      storedSmsKey && storedSmsKey !== '********'
+        ? storedSmsKey
+        : smsForm.apiKey?.trim() && smsForm.apiKey !== '********'
+          ? smsForm.apiKey.trim()
           : '';
     const data = getClubData(clubId);
     const adminEmail = getUserById(club.adminUserId)?.email?.trim() || '';
@@ -154,6 +163,13 @@ export async function publishPublicClubCloud(clubId: string) {
             username: smtpForm.username,
             password: publishPassword,
             fromName: smtpForm.fromName || club.name,
+          },
+          sms: {
+            enabled: smsForm.enabled,
+            provider: smsForm.provider,
+            apiKey: publishSmsKey,
+            sender: smsForm.sender,
+            httpUrl: smsForm.httpUrl,
           },
           updatedAt: new Date().toISOString(),
         },

@@ -44,6 +44,7 @@ import { saveClubLogoFromFile } from '../utils/clubLogoFile';
 import { BackupPanel } from '../components/BackupPanel';
 import { ChangePasswordPanel } from '../components/ChangePasswordPanel';
 import { ClubEmailPanel } from '../components/ClubEmailPanel';
+import { ClubSmsPanel } from '../components/ClubSmsPanel';
 import { SmtpSetupGuideButton, SmtpSetupGuideModal } from '../components/SmtpSetupGuideModal';
 import { ClubPublicRegistrationPanel } from '../components/ClubPublicRegistrationPanel';
 import { ClubUsersPanel } from '../components/ClubUsersPanel';
@@ -70,6 +71,7 @@ type SettingsTab =
   | 'club'
   | 'users'
   | 'email'
+  | 'sms'
   | 'viva'
   | 'stripe'
   | 'eurobank'
@@ -104,6 +106,7 @@ const PRIMARY_TABS: Array<{ id: SettingsTab; label: string }> = [
   { id: 'facilities', label: 'Γήπεδο' },
   { id: 'users', label: 'Χρήστες' },
   { id: 'email', label: 'Email' },
+  { id: 'sms', label: 'SMS' },
   { id: 'viva', label: 'Viva' },
   { id: 'eurobank', label: 'Eurobank' },
   { id: 'stripe', label: 'Stripe' },
@@ -833,6 +836,7 @@ export function SettingsPage() {
 
       {tab === 'users' && clubId ? <ClubUsersPanel clubId={clubId} mode="users" /> : null}
       {tab === 'email' && clubId ? <ClubEmailPanel clubId={clubId} /> : null}
+      {tab === 'sms' && clubId ? <ClubSmsPanel clubId={clubId} /> : null}
       {tab === 'viva' && clubId ? <ClubVivaPanel clubId={clubId} /> : null}
       {tab === 'eurobank' && clubId ? <ClubEurobankPanel clubId={clubId} /> : null}
       {tab === 'stripe' && clubId ? <ClubStripePanel clubId={clubId} /> : null}

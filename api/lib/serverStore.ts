@@ -68,11 +68,20 @@ export type ClubNotifySmtp = {
   fromName: string;
 };
 
+export type ClubNotifySms = {
+  enabled: boolean;
+  provider: 'sms_to' | 'http';
+  apiKey: string;
+  sender: string;
+  httpUrl: string;
+};
+
 export type ClubNotifyConfig = {
   clubId: string;
   clubName: string;
   notifyEmail: string;
   smtp: ClubNotifySmtp;
+  sms?: ClubNotifySms;
   updatedAt: string;
 };
 

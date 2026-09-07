@@ -10,7 +10,10 @@ import { sportsMatch } from '../../utils/coachScope';
 import { normalizeSportKey } from '../../utils/sport';
 import { studentClassIds, studentInClass } from '../../utils/studentClasses';
 import { studentHasSport } from '../../utils/studentSports';
+import { getClubSms } from '../../auth/clubs';
+import { localDateIso } from '../../utils/dates';
 import { sendClubEmail } from './emailService';
+import { sendClubSms, studentContactPhones } from './smsService';
 
 function uniqueEmails(emails: Array<string | undefined | null>): string[] {
   const set = new Set<string>();
@@ -23,6 +26,22 @@ function uniqueEmails(emails: Array<string | undefined | null>): string[] {
 
 function studentContactEmails(student: Student): string[] {
   return uniqueEmails([student.motherEmail, student.fatherEmail, student.email]);
+}
+
+async function sendSmsToStudent(clubId: string, student: Student, text: string) {
+  const sms = getClubSms(clubId);
+  if (!sms.enabled) return { sent: [] as string[] };
+  const sent: string[] = [];
+  for (const to of studentContactPhones(student)) {
+    const result = await sendClubSms({
+      clubId,
+      to,
+      text,
+      athleteId: student.id,
+    });
+    if (result.success) sent.push(to);
+  }
+  return { sent };
 }
 
 function idsOf(recipients: AnnouncementRecipient[], kind: AnnouncementRecipient['kind']): string[] {
@@ -187,14 +206,6 @@ export async function notifyAbsenceByEmail(input: {
     return { success: false as const, data: null, error: 'Δεν βρέθηκε αθλητής' };
   }
   const emails = studentContactEmails(student);
-  if (emails.length === 0) {
-    return {
-      success: false as const,
-      data: null,
-      error: 'Δεν υπάρχει email γονέα/αθλητή για ειδοποίηση απουσίας',
-    };
-  }
-
   const name = `${student.lastName} ${student.firstName}`.trim();
   const subject = `Απουσία — ${name}`;
   const text = [
@@ -208,17 +219,105 @@ export async function notifyAbsenceByEmail(input: {
   ]
     .filter(Boolean)
     .join('\n');
+  const smsText = `Απουσία: ${name} · ${input.date}${input.className ? ` · ${input.className}` : ''}`;
 
   const sent: string[] = [];
   for (const to of emails) {
-    const result = await sendClubEmail({ clubId: input.clubId, to, subject, text });
+    const result = await sendClubEmail({
+      clubId: input.clubId,
+      to,
+      subject,
+      text,
+      athleteId: student.id,
+    });
     if (result.success) sent.push(to);
   }
+  const sms = await sendSmsToStudent(input.clubId, student, smsText);
+  sent.push(...sms.sent);
+
   return {
     success: sent.length > 0,
     data: { sent },
-    error: sent.length ? null : 'Αποτυχία αποστολής ειδοποίησης απουσίας',
+    error: sent.length ? null : 'Δεν στάλθηκε ειδοποίηση (email/SMS / συγκατάθεση / ρυθμίσεις)',
   };
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return localDateIso(d);
+}
+
+export async function notifyClassSessionMessage(input: {
+  clubId: string;
+  classId: string;
+  date: string;
+  startTime?: string;
+  className?: string;
+  kind: 'cancelled' | 'tomorrow';
+}) {
+  const data = getData();
+  const students = data.students.filter(
+    (s) => s.status !== 'inactive' && studentInClass(s, input.classId),
+  );
+  const className =
+    input.className || data.classes.find((c) => c.id === input.classId)?.name || 'τμήμα';
+  const timeBit = input.startTime ? ` ${input.startTime}` : '';
+  const text =
+    input.kind === 'cancelled'
+      ? `Ακύρωση προπόνησης ${className} στις ${input.date}${timeBit}.`
+      : `Υπενθύμιση: προπόνηση ${className} αύριο ${input.date}${timeBit}.`;
+  const subject =
+    input.kind === 'cancelled' ? `Ακύρωση προπόνησης — ${className}` : `Προπόνηση αύριο — ${className}`;
+
+  let sent = 0;
+  let skipped = 0;
+  for (const student of students) {
+    let ok = false;
+    for (const to of studentContactEmails(student)) {
+      const mail = await sendClubEmail({
+        clubId: input.clubId,
+        to,
+        subject,
+        text,
+        athleteId: student.id,
+      });
+      if (mail.success) ok = true;
+    }
+    const sms = await sendSmsToStudent(input.clubId, student, text);
+    if (sms.sent.length) ok = true;
+    if (ok) sent += 1;
+    else skipped += 1;
+  }
+  return { success: true as const, data: { sent, skipped }, error: null };
+}
+
+export async function notifyTomorrowTrainings(clubId: string) {
+  const data = getData();
+  const tomorrow = addDaysIso(localDateIso(), 1);
+  const trainings = (data.trainings ?? []).filter(
+    (t) => t.date === tomorrow && t.classId,
+  );
+  if (trainings.length === 0) {
+    return { success: false as const, data: null, error: 'Δεν υπάρχουν προπονήσεις αύριο.' };
+  }
+  let sent = 0;
+  let skipped = 0;
+  const seen = new Set<string>();
+  for (const training of trainings) {
+    if (!training.classId || seen.has(`${training.classId}|${training.startTime}`)) continue;
+    seen.add(`${training.classId}|${training.startTime}`);
+    const result = await notifyClassSessionMessage({
+      clubId,
+      classId: training.classId,
+      date: training.date,
+      startTime: training.startTime,
+      kind: 'tomorrow',
+    });
+    sent += result.data?.sent ?? 0;
+    skipped += result.data?.skipped ?? 0;
+  }
+  return { success: true as const, data: { sent, skipped, date: tomorrow }, error: null };
 }
 
 function escapeHtml(value: string): string {

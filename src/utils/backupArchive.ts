@@ -53,6 +53,12 @@ export function redactClubForBackup(club: Club): Club {
           password: '',
         }
       : club.smtp,
+    sms: club.sms
+      ? {
+          ...club.sms,
+          apiKey: '',
+        }
+      : club.sms,
     viva: club.viva
       ? {
           ...club.viva,
@@ -103,6 +109,14 @@ export function mergeClubsPreservingSecrets(
               : club.smtp.password,
           }
         : prev.smtp,
+      sms: club.sms
+        ? {
+            ...club.sms,
+            apiKey: isBlankSecret(club.sms.apiKey)
+              ? (prev.sms?.apiKey ?? '')
+              : club.sms.apiKey,
+          }
+        : prev.sms,
       viva: club.viva
         ? {
             ...club.viva,

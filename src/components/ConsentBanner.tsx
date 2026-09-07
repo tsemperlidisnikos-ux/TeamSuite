@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   acceptAllCookies,
   getCookieConsent,
@@ -33,13 +33,22 @@ async function logConsentToServer(state: CookieConsentState) {
   }
 }
 
+function isPublicVisitorPath(pathname: string): boolean {
+  return /^\/(rent|join|id)(\/|$)/.test(pathname);
+}
+
 export function ConsentBanner() {
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [customize, setCustomize] = useState(false);
   const [analytics, setAnalytics] = useState(false);
   const [marketing, setMarketing] = useState(false);
 
   useEffect(() => {
+    if (isPublicVisitorPath(location.pathname)) {
+      setOpen(false);
+      return;
+    }
     if (!hasCookieConsentDecision()) setOpen(true);
     const existing = getCookieConsent();
     if (existing) {
@@ -54,7 +63,7 @@ export function ConsentBanner() {
     void logConsentToServer(state);
   }
 
-  if (!open) return null;
+  if (!open || isPublicVisitorPath(location.pathname)) return null;
 
   return (
     <div className="consent-banner" role="dialog" aria-labelledby="consent-banner-title">

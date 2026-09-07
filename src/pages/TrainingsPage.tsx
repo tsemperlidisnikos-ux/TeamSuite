@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import * as trainingsService from '../api/services/trainingsService';
+import * as notificationService from '../api/services/notificationService';
 import { getSession } from '../auth/auth';
 import { TrainingsIcon } from '../components/icons/TrainingsIcon';
 import { useAppData } from '../hooks/useAppData';
@@ -109,6 +110,7 @@ export function TrainingsPage() {
   const [bulkForm, setBulkForm] = useState(emptyBulk);
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [error, setError] = useState('');
+  const [notifying, setNotifying] = useState(false);
 
   const classesForFormSport = useMemo(() => {
     if (!formSport.trim()) return visibleClasses;
@@ -319,7 +321,20 @@ export function TrainingsPage() {
   }
 
   async function handleDelete(id: string) {
+    const training = data.trainings?.find((row) => row.id === id);
     if (!confirm('Διαγραφή προπόνησης;')) return;
+    const notify =
+      Boolean(training?.classId) &&
+      confirm('Να ειδοποιηθούν οι αθλητές του τμήματος (email/SMS);');
+    if (notify && training?.classId && session?.clubId) {
+      await notificationService.notifyClassSessionMessage({
+        clubId: session.clubId,
+        classId: training.classId,
+        date: training.date,
+        startTime: training.startTime,
+        kind: 'cancelled',
+      });
+    }
     await trainingsService.deleteTraining(id);
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -327,6 +342,22 @@ export function TrainingsPage() {
       return next;
     });
     refresh();
+  }
+
+  async function handleNotifyTomorrow() {
+    if (!session?.clubId) return;
+    if (!confirm('Να σταλούν υπενθυμίσεις (email/SMS) για τις προπονήσεις αύριο;')) return;
+    setNotifying(true);
+    setError('');
+    const result = await notificationService.notifyTomorrowTrainings(session.clubId);
+    setNotifying(false);
+    if (!result.success) {
+      setError(result.error ?? 'Αποτυχία υπενθύμισης');
+      return;
+    }
+    window.alert(
+      `Υπενθυμίσεις: στάλθηκαν σε ${result.data?.sent ?? 0} αθλητές (παραλείφθηκαν ${result.data?.skipped ?? 0}).`,
+    );
   }
 
   return (
@@ -339,6 +370,14 @@ export function TrainingsPage() {
         <div className="trainings-actions">
           <button type="button" className="trn-btn trn-btn-secondary" onClick={openRecurring}>
             Επαναλαμβανόμενες προπονήσεις
+          </button>
+          <button
+            type="button"
+            className="trn-btn trn-btn-secondary"
+            disabled={notifying || isCoach}
+            onClick={() => void handleNotifyTomorrow()}
+          >
+            {notifying ? 'Αποστολή…' : 'Υπενθύμιση αύριο'}
           </button>
           <button
             type="button"
@@ -365,6 +404,7 @@ export function TrainingsPage() {
           </button>
         </div>
       </header>
+      {error ? <p className="form-error">{error}</p> : null}
 
       <section className="panel table-wrap">
         {trainings.length === 0 ? (

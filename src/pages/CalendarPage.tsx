@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { CalendarPlus, ChevronLeft, ChevronRight, Download, Info } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import * as rentalBookingsService from '../api/services/rentalBookingsService';
 import { getSession } from '../auth/auth';
 import { Button } from '../components/ui/Button';
@@ -46,6 +46,7 @@ type CalEvent = {
   kind: EventKind;
   classId: string | null;
   location: string;
+  date: string;
 };
 
 function eventOccupiesSlot(event: CalEvent, slot: string, nextSlot: string): boolean {
@@ -145,6 +146,7 @@ function buildMonthCells(year: number, monthIndex: number) {
 
 export function CalendarPage() {
   const { data, refresh } = useAppData();
+  const navigate = useNavigate();
   const session = getSession();
   const clubId = getPreviewClubId() ?? session?.clubId ?? null;
   const isCoach = session?.role === 'coach';
@@ -231,6 +233,7 @@ export function CalendarPage() {
         kind: 'training',
         classId: training.classId,
         location: training.location || '',
+        date,
       });
     }
 
@@ -249,6 +252,7 @@ export function CalendarPage() {
         kind: 'match',
         classId: match.classId,
         location: match.location || '',
+        date,
       });
     }
 
@@ -267,6 +271,7 @@ export function CalendarPage() {
         kind: 'rental',
         classId: null,
         location: booking.facilityName || '',
+        date,
       });
     }
 
@@ -395,7 +400,20 @@ export function CalendarPage() {
   function eventEditPath(event: CalEvent): string {
     if (event.kind === 'match') return '/matches';
     if (event.kind === 'rental') return '/rental';
+    if (event.classId && event.date) {
+      const q = new URLSearchParams({
+        classId: event.classId,
+        date: event.date,
+        trainingId: event.id,
+      });
+      return `/attendance?${q.toString()}`;
+    }
     return '/trainings';
+  }
+
+  function openCalendarEvent(event: CalEvent, e?: { stopPropagation: () => void }) {
+    e?.stopPropagation();
+    navigate(eventEditPath(event));
   }
 
   function renderFacilityEvent(event: CalEvent) {
@@ -431,8 +449,10 @@ export function CalendarPage() {
             <i aria-hidden />
             <div>
               <strong>
-                {event.time ? `${event.time} · ` : ''}
-                {event.title}
+                <Link to={eventEditPath(event)}>
+                  {event.time ? `${event.time} · ` : ''}
+                  {event.title}
+                </Link>
               </strong>
               {event.location ? <span>{event.location}</span> : null}
             </div>
@@ -540,6 +560,15 @@ export function CalendarPage() {
                             key={event.id}
                             className={`cal-event is-${event.kind}`}
                             title={`${event.time} ${event.title}`}
+                            onClick={(e) => openCalendarEvent(event, e)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                openCalendarEvent(event, e);
+                              }
+                            }}
+                            role="link"
+                            tabIndex={0}
                           >
                             <i aria-hidden />
                             <span>
@@ -626,7 +655,7 @@ export function CalendarPage() {
                       </li>
                     </ul>
                     <p>
-                      <Info size={14} /> Κάντε κλικ σε ένα μπλοκ για επεξεργασία
+                      <Info size={14} /> Κάντε κλικ σε προπόνηση για παρουσίες, ή σε αγώνα/ενοικίαση για επεξεργασία
                     </p>
                   </footer>
                 </>
@@ -718,7 +747,7 @@ export function CalendarPage() {
                       </li>
                     </ul>
                     <p>
-                      <Info size={14} /> Κάντε κλικ σε ένα μπλοκ για επεξεργασία
+                      <Info size={14} /> Κάντε κλικ σε προπόνηση για παρουσίες, ή σε αγώνα/ενοικίαση για επεξεργασία
                     </p>
                   </footer>
                 </section>

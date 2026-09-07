@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Bell, Plus, Receipt } from 'lucide-react';
 import * as emailService from '../api/services/emailService';
+import * as smsService from '../api/services/smsService';
 import * as feeChargesService from '../api/services/feeChargesService';
 import * as vivaService from '../api/services/vivaService';
 import { getSession } from '../auth/auth';
-import { getClubById, getClubSmtp, getClubViva } from '../auth/clubs';
+import { getClubById, getClubSms, getClubSmtp, getClubViva } from '../auth/clubs';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -294,16 +295,17 @@ export function FeesPage() {
       setError('Δεν βρέθηκε σύλλογος.');
       return;
     }
-    if (!row.email.includes('@')) {
+    if (!row.email.includes('@') && !row.phone?.trim()) {
       setError(
-        `Ο ${row.athleteName} δεν έχει έγκυρο email γονέα/αθλητή. Συμπληρώστε το στο προφίλ.`,
+        `Ο ${row.athleteName} δεν έχει email ούτε τηλέφωνο γονέα/αθλητή. Συμπληρώστε τα στο προφίλ.`,
       );
       return;
     }
 
     const smtp = getClubSmtp(clubId);
-    if (!smtp.enabled) {
-      setError('Ενεργοποιήστε το SMTP στις Ρυθμίσεις → Email για αποστολή υπενθυμίσεων.');
+    const sms = getClubSms(clubId);
+    if (!smtp.enabled && !sms.enabled) {
+      setError('Ενεργοποιήστε SMTP (Email) ή SMS στις Ρυθμίσεις για υπενθυμίσεις.');
       return;
     }
 
@@ -320,25 +322,39 @@ export function FeesPage() {
 
     setSaving(true);
     setError('');
-    const send = await emailService.sendClubEmail({
-      clubId,
-      to: row.email,
-      subject: emailBody.subject,
-      text: emailBody.text,
-      html: emailBody.html,
-    });
+    const channels: string[] = [];
+    if (smtp.enabled && row.email.includes('@')) {
+      const send = await emailService.sendClubEmail({
+        clubId,
+        to: row.email,
+        subject: emailBody.subject,
+        text: emailBody.text,
+        html: emailBody.html,
+        athleteId: row.athleteId,
+      });
+      if (send.success) channels.push(`email ${row.email}`);
+    }
+    if (sms.enabled && row.phone?.trim()) {
+      const smsSend = await smsService.sendClubSms({
+        clubId,
+        to: row.phone,
+        text: `${emailBody.subject}\n${emailBody.text}`.slice(0, 480),
+        athleteId: row.athleteId,
+      });
+      if (smsSend.success) channels.push(`SMS ${row.phone}`);
+    }
     setSaving(false);
-    if (!send.success) {
-      setError(send.error ?? 'Αποτυχία αποστολής email');
+    if (channels.length === 0) {
+      setError('Αποτυχία αποστολής υπενθύμισης (email/SMS).');
       return;
     }
 
     await feeChargesService.logDebtReminder({
       athleteId: row.athleteId,
       amount: row.balance,
-      note: `Email υπενθύμισης + σύνδεσμος πληρωμής σε ${row.email} · ${formatCurrency(row.balance)}`,
+      note: `Υπενθύμιση (${channels.join(', ')}) · ${formatCurrency(row.balance)}`,
     });
-    setMessage(`Στάλθηκε υπενθύμιση email στον/στην ${row.athleteName} (${row.email}).`);
+    setMessage(`Στάλθηκε υπενθύμιση στον/στην ${row.athleteName} (${channels.join(', ')}).`);
     refresh();
   }
 
@@ -348,51 +364,22 @@ export function FeesPage() {
       return;
     }
     const smtp = getClubSmtp(clubId);
-    if (!smtp.enabled) {
-      setError('Ενεργοποιήστε το SMTP στις Ρυθμίσεις → Email.');
+    const sms = getClubSms(clubId);
+    if (!smtp.enabled && !sms.enabled) {
+      setError('Ενεργοποιήστε SMTP (Email) ή SMS στις Ρυθμίσεις.');
       return;
     }
-    const rows = reminders.filter((r) => r.email.includes('@'));
-    if (rows.length === 0) {
-      setError('Δεν υπάρχουν οφειλές με έγκυρο email.');
+    if (!confirm('Αποστολή υπενθυμίσεων οφειλών (email/SMS) σε όσους πληρούν τις προϋποθέσεις σήμερα;')) {
       return;
     }
-    if (!confirm(`Αποστολή υπενθύμισης σε ${rows.length} παραλήπτες;`)) return;
-
-    const club = getClubById(clubId);
-    const viva = getClubViva(clubId);
-    const payUrl = feeChargesService.feePaymentLoginUrl();
-
-    setSaving(true);
-    setError('');
-    let ok = 0;
-    for (const row of rows) {
-      const emailBody = feeChargesService.buildDebtReminderEmail({
-        clubName: club?.name ?? 'TeamSuite',
-        athleteName: row.athleteName,
-        balance: row.balance,
-        daysOverdue: row.daysOverdue,
-        payUrl,
-        vivaEnabled: Boolean(viva?.enabled),
-      });
-      const send = await emailService.sendClubEmail({
-        clubId,
-        to: row.email,
-        subject: emailBody.subject,
-        text: emailBody.text,
-        html: emailBody.html,
-      });
-      if (send.success) {
-        ok += 1;
-        await feeChargesService.logDebtReminder({
-          athleteId: row.athleteId,
-          amount: row.balance,
-          note: `Email υπενθύμισης + σύνδεσμος πληρωμής σε ${row.email} · ${formatCurrency(row.balance)}`,
-        });
-      }
+    const result = await feeChargesService.runDueFeeReminders(clubId);
+    if (!result.success) {
+      setError(result.error ?? 'Αποτυχία μαζικής υπενθύμισης');
+      return;
     }
-    setSaving(false);
-    setMessage(`Στάλθηκαν ${ok}/${rows.length} υπενθυμίσεις.`);
+    setMessage(
+      `Υπενθυμίσεις: στάλθηκαν ${result.data?.sent ?? 0}, παραλείφθηκαν ${result.data?.skipped ?? 0}.`,
+    );
     refresh();
   }
 
@@ -937,7 +924,8 @@ export function FeesPage() {
                   disabled={saving}
                   onClick={() => void handleSendAllReminders()}
                 >
-                  Αποστολή όλων ({reminders.filter((r) => r.email.includes('@')).length})
+                  Αποστολή όλων (
+                  {reminders.filter((r) => r.email.includes('@') || r.phone?.trim()).length})
                 </Button>
               </div>
             <div className="table-wrap">
@@ -956,7 +944,10 @@ export function FeesPage() {
                     <tr key={row.athleteId}>
                       <td>
                         <strong>{row.athleteName}</strong>
-                        <div className="muted">{row.email || '—'}</div>
+                        <div className="muted">
+                          {row.email || '—'}
+                          {row.phone ? ` · ${row.phone}` : ''}
+                        </div>
                       </td>
                       <td>{formatCurrency(row.balance)}</td>
                       <td>

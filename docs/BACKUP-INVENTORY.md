@@ -1,6 +1,6 @@
 # Κατάλογος Backup — TeamSuite
 
-Τελευταία ενημέρωση περιεχομένου: **2026-09-07** (ZIP `C:\TeamSuite_backup` + deploy `teamsuite`).
+Τελευταία ενημέρωση περιεχομένου: **2026-09-08** (ZIP `C:\TeamSuite_backup` + deploy `teamsuite`).
 
 Αυτό το αρχείο ενημερώνεται κάθε φορά που αλλάζει τι περιλαμβάνει κάποιο backup, ή μετά από **BACKUP + DEPLOY** (νέα γραμμή στο ιστορικό ZIP κώδικα).
 
@@ -10,13 +10,13 @@
 
 | Ονομασία backup | Πού / πώς | Τι ακριβώς περιλαμβάνει | Τι ΔΕΝ περιλαμβάνει |
 |-----------------|-----------|-------------------------|---------------------|
-| **Club JSON** | Ρυθμίσεις → Backup → Λήψη JSON · ή Platform Admin → Backup συλλόγου · ή κλικ στο logo συλλόγου (διαχειριστής / γραμματεία / PA) | Μόνο τον ενεργό/επιλεγμένο σύλλογο: `AppData` (αθλητές, τμήματα, πρόγραμμα, παρουσίες, οικονομικά, αποθήκη, αιτήσεις, GDPR logs εντός AppData, κ.λπ.), το record του συλλόγου (προφίλ, licenses, δημόσια εγγραφή **χωρίς** secrets), users του συλλόγου **χωρίς** password hashes. `scope: club`. **Όνομα αρχείου:** `TeamSuite-{όνομα-συλλόγου}-YYYY-MM-DD-ΩΩ-ΛΛ.json` π.χ. `TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-04-17-25.json` (ελληνικοί χαρακτήρες· τελείες/κενά στο όνομα γίνονται `-`). **Κλικ logo:** το ίδιο JSON **και** Excel λίστας αθλητών. **Restore:** club Settings ή Platform Admin «Επαναφορά συλλόγου» (.json) | Άλλους συλλόγους, `platformConfig`, platform admins, SMTP password, Viva clientSecret, password hashes |
+| **Club JSON** | Ρυθμίσεις → Backup → Λήψη JSON · ή Platform Admin → Backup συλλόγου · ή κλικ στο logo συλλόγου (διαχειριστής / γραμματεία / PA) | Μόνο τον ενεργό/επιλεγμένο σύλλογο: `AppData` (αθλητές, τμήματα, πρόγραμμα, παρουσίες, οικονομικά, αποθήκη, αιτήσεις, GDPR logs εντός AppData, κ.λπ.), το record του συλλόγου (προφίλ, licenses, δημόσια εγγραφή **χωρίς** secrets), users του συλλόγου **χωρίς** password hashes. `scope: club`. **Όνομα αρχείου:** `TeamSuite-{όνομα-συλλόγου}-YYYY-MM-DD-ΩΩ-ΛΛ.json` π.χ. `TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-04-17-25.json` (ελληνικοί χαρακτήρες· τελείες/κενά στο όνομα γίνονται `-`). **Κλικ logo:** το ίδιο JSON **και** Excel λίστας αθλητών. **Restore:** club Settings ή Platform Admin «Επαναφορά συλλόγου» (.json) | Άλλους συλλόγους, `platformConfig`, platform admins, SMTP password, SMS API key, Viva clientSecret, password hashes |
 | **Club scheduled backup** | Ρυθμίσεις → Backup → Προγραμματισμένο backup | Ίδιο με **Club JSON** (mode=λήψη JSON) ή **Cloud mirror** την ορισμένη ημερομηνία/ώρα (μία φορά) ή καθημερινά/εβδομαδιαία. Τρέχει στο browser όσο η εφαρμογή είναι ανοιχτή· αν χάθηκε η ώρα, εκτελείται στο επόμενο άνοιγμα | Secrets όπως Club JSON· δεν τρέχει με κλειστό tab |
-| **Platform full JSON** | Platform Admin → Backup → Λήψη full backup | Όλους τους συλλόγους (`appDataByClub`), ενεργό `appData`, `users` (χωρίς hashes), `clubs` (χωρίς SMTP/Viva secrets), πλήρες `platformConfig` (modules, δικαιώματα, λογότυπα, **PDF κάρτας υγείας ανά άθλημα**). `scope: platform`. **Restore:** μόνο «Επαναφορά όλης της εφαρμογής» (.json, όχι club-only αρχεία) | SMTP passwords, Viva secrets, password hashes (redacted στο download) |
+| **Platform full JSON** | Platform Admin → Backup → Λήψη full backup | Όλους τους συλλόγους (`appDataByClub`), ενεργό `appData`, `users` (χωρίς hashes), `clubs` (χωρίς SMTP/SMS/Viva secrets), πλήρες `platformConfig` (modules, δικαιώματα, λογότυπα, **PDF κάρτας υγείας ανά άθλημα**). `scope: platform`. **Restore:** μόνο «Επαναφορά όλης της εφαρμογής» (.json, όχι club-only αρχεία) | SMTP passwords, SMS API keys, Viva secrets, password hashes (redacted στο download) |
 | **Scheduled full (browser)** | Platform Admin → Πρόγραμμα backup → fullApp | Ίδιο με Platform full JSON αν mode=download· αν mode=cloud: push mirror **όλων** των συλλόγων | Secrets στα JSON (redacted)· δεν τρέχει αν δεν είναι ανοιχτή η εφαρμογή ως Platform Admin |
 | **Scheduled per-club (browser)** | Πρόγραμμα backup → perClub | Ανά επιλεγμένο σύλλογο: ίδιο με **Club JSON** (ή cloud mirror push) | Άλλους συλλόγους· secrets στα JSON |
 | **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) · `POST /api/sync/mirror-students` | Live `AppData` στο Blob/Redis. Πλήρες Push ενώνει αθλητές με το υπάρχον cloud (δεν σβήνει όσους λείπουν από παλιό browser). **Συγχρονισμός ανά αθλητή:** κάθε συσκευή στέλνει όσους έχει μόνο αυτή και τραβά όσους λείπουν. Auto sync ενεργό από προεπιλογή (opt-out) | Users/clubs/config, SMTP/Viva στο mirror |
-| **Cloud account bundle** | Platform Admin: Push/Pull λογαριασμοί | `users`, `clubs`, `platformConfig` στο cloud. Pull/push **διατηρεί** υπάρχοντα SMTP/Viva secrets αν το εισερχόμενο έχει κενό/`********` | AppData αθλητών (αυτό είναι στο mirror) |
+| **Cloud account bundle** | Platform Admin: Push/Pull λογαριασμοί | `users`, `clubs`, `platformConfig` στο cloud. Pull/push **διατηρεί** υπάρχοντα SMTP/SMS/Viva secrets αν το εισερχόμενο έχει κενό/`********` | AppData αθλητών (αυτό είναι στο mirror) |
 | **Ημερολόγιο συλλόγου (PA)** | Platform Admin → Λειτουργία → Ημερολόγιο συλλόγου | Cloud log ανά σύλλογο: είσοδος/έξοδος και σύνοψη καταχωρήσεων (ποιος, πότε, τι). Λήψη TXT ημέρας. Διαγραφή γραμμής ή όλου του ημερολογίου συλλόγου. Μόνο PA. | Πλήρες αντίγραφο AppData· AMKA· κινήσεις πριν το deploy αυτού του feature |
 | **Server cron snapshot** | Vercel cron `0 2 * * *` → `/api/gdpr?op=backup` | Ημερήσιο αντίγραφο **υπαρχόντων** club mirrors (`ss360:backup-snap:ΗΜΕΡΟΜΗΝΙΑ:clubId`). Αν είναι συνδεδεμένο Google Drive, ανεβάζει και JSON σε `TeamSuite-Backups/{σύλλογος}/ΗΜΕΡΟΜΗΝΙΑ.json` | Account bundle· συλλόγους χωρίς προηγούμενο mirror push· δεν υπάρχει UI restore στην εφαρμογή |
 | **Google Drive (platform)** | Platform Admin → Backup → Google Drive | OAuth σε έναν φάκελο Drive, υποφάκελοι ανά σύλλογο. Αρχεία `TeamSuite-{όνομα}-YYYY-MM-DD-ΩΩ-ΛΛ.json` (ώρα Ελλάδας). Νυχτερινό ανέβασμα + δοκιμή τώρα. Token μόνο στον server (KV). Απαιτεί `GOOGLE_DRIVE_CLIENT_ID` / `GOOGLE_DRIVE_CLIENT_SECRET` | Λήψη στον υπολογιστή· ZIP κώδικα· σύλλογοι χωρίς mirror |
@@ -31,6 +31,7 @@
 |----------|-------------------|
 | Password hashes χρηστών | Κενά (διατηρούνται τοπικά στην επαναφορά Platform Admin) |
 | SMTP password | Κενό |
+| SMS API key | Κενό |
 | Viva clientSecret | Κενό |
 | `smtpSendLog` | Δεν εξάγεται |
 
@@ -42,6 +43,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `TeamSuite_2026-09-08_01-23-31.zip` | 2026-09-08 | Πρόγραμμα→προπονήσεις σεζόν · Viva checkout από iframe σε νέα καρτέλα · ημερολόγιο→παρουσίες · SMS/Viber υπενθυμίσεις και ακυρώσεις |
 | `TeamSuite_2026-09-07_23-00-19.zip` | 2026-09-07 | Embed δημόσιας ενοικίασης μόνο για Platform Admin · iframe με `teamsuite-seven.vercel.app/rent/{slug}` |
 | `TeamSuite_2026-09-07_17-34-29.zip` | 2026-09-07 | Εξαγωγή XLSX αποτελεσμάτων εκτυπώσεων · διατήρηση αρχικού 0 στο ΑΜΚΑ στην εισαγωγή Excel/φόρμα |
 | `TeamSuite_2026-09-07_17-00-00.zip` | 2026-09-07 | Χαμηλό απόθεμα αποθήκης (UI + email γραμματείας) · προστασία διπλής εγγραφής γραμματειών · οδηγός νέας σεζόν · φίλτρο χρέωσης μήνα στις εκτυπώσεις |

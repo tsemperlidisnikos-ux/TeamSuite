@@ -4,8 +4,8 @@ import { listReadyOnlineProviders } from '../api/services/onlineCheckoutService'
 import {
   getClubPublicRegistration,
   getClubs,
-  slugifyClubName,
 } from '../auth/clubs';
+import { clubMatchesPublicSlug, slugifyClubName } from '../utils/publicClubSlug';
 import { Button } from '../components/ui/Button';
 import { createId, getClubData, mutateClubData } from '../data/repository';
 import type { Facility, RentalBooking, RentalCourtShare } from '../types';
@@ -70,6 +70,7 @@ export function PublicRentPage() {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
+  const [payLink, setPayLink] = useState('');
   const [saving, setSaving] = useState(false);
   const [remoteSlots, setRemoteSlots] = useState<
     Array<{ startTime: string; endTime: string; available: boolean; reason: string }>
@@ -108,10 +109,7 @@ export function PublicRentPage() {
         remoteError = 'Αδυναμία φόρτωσης διαθεσιμότητας.';
       }
 
-      const local = getClubs().find((c) => {
-        const s = (c.publicRegistration?.slug || slugifyClubName(c.name)).toLowerCase();
-        return s === normalized;
-      });
+      const local = getClubs().find((c) => clubMatchesPublicSlug(c, normalized));
       if (local) {
         const settings = getClubPublicRegistration(local.id);
         const data = getClubData(local.id);
@@ -207,6 +205,37 @@ export function PublicRentPage() {
         : Boolean(price?.lockerRoomAvailable);
     if (!offered) setUseLockerRoom(false);
   }, [club, facilityId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.parent === window) return;
+    const send = () => {
+      const page = document.querySelector('.public-join-page');
+      const height = Math.ceil(
+        Math.max(
+          page instanceof HTMLElement ? page.scrollHeight : 0,
+          document.documentElement.scrollHeight,
+          document.body?.scrollHeight ?? 0,
+        ),
+      );
+      window.parent.postMessage({ type: 'teamsuite-rent-height', height }, '*');
+    };
+    send();
+    const page = document.querySelector('.public-join-page');
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(send) : null;
+    if (page && observer) observer.observe(page);
+    let ticks = 0;
+    const timer = window.setInterval(() => {
+      send();
+      ticks += 1;
+      if (ticks >= 12) window.clearInterval(timer);
+    }, 500);
+    window.addEventListener('resize', send);
+    return () => {
+      observer?.disconnect();
+      window.clearInterval(timer);
+      window.removeEventListener('resize', send);
+    };
+  }, [club, loading, date, facilityId, slot, done, error, courtShare, useLockerRoom, remoteSlots]);
 
   const selectedFacility = club?.facilities.find((f) => f.id === facilityId) ?? null;
 
@@ -346,6 +375,8 @@ export function PublicRentPage() {
           notes,
           useLockerRoom,
           payOnline,
+          embed: isEmbed || window.parent !== window,
+          returnOrigin: window.location.origin,
         }),
       });
       const body = (await response.json()) as {
@@ -360,8 +391,24 @@ export function PublicRentPage() {
       } else if (body.checkoutUrl) {
         sessionStorage.setItem('rent-pay-bid', body.bookingId ?? '');
         sessionStorage.setItem('rent-pay-slug', club.slug);
-        window.location.href = body.checkoutUrl;
-        return;
+        const inFrame = isEmbed || window.parent !== window;
+        if (inFrame) {
+          const opened = window.open(body.checkoutUrl, '_blank', 'noopener,noreferrer');
+          if (!opened) {
+            setPayLink(body.checkoutUrl);
+            setError(
+              'Επιτρέψτε τα αναδυόμενα παράθυρα ή ανοίξτε την πληρωμή από τον σύνδεσμο παρακάτω. Το site μένει ανοιχτό.',
+            );
+          } else {
+            setPayLink(body.checkoutUrl);
+            setDone(
+              'Άνοιξε η πληρωμή σε νέα καρτέλα. Όταν ολοκληρωθεί, επιστρέψτε εδώ — η κράτηση θα επιβεβαιωθεί αυτόματα.',
+            );
+          }
+        } else {
+          window.location.href = body.checkoutUrl;
+          return;
+        }
       } else {
         setDone(`Η κράτηση καταχωρήθηκε για ${date}, ${slot.startTime}–${slot.endTime}.`);
         setCustomerLastName('');
@@ -460,6 +507,13 @@ export function PublicRentPage() {
 
         {done ? <p className="muted">{done}</p> : null}
         {error ? <p className="form-error">{error}</p> : null}
+        {payLink ? (
+          <p>
+            <a href={payLink} target="_blank" rel="noopener noreferrer">
+              {t('Άνοιγμα πληρωμής Viva')}
+            </a>
+          </p>
+        ) : null}
 
         {club.facilities.length === 0 ? (
           <div className="public-join-card">

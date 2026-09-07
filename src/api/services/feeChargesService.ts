@@ -1,7 +1,7 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
 import { resolveActiveClubId } from '../../data/store';
-import { getClubById, getClubSmtp } from '../../auth/clubs';
+import { getClubById, getClubSms, getClubSmtp } from '../../auth/clubs';
 import { feeChargeTemplateSchema, type FeeChargeTemplateInput } from '../../schemas';
 import type {
   AthleteTransaction,
@@ -15,6 +15,7 @@ import { normalizeSportKey } from '../../utils/sport';
 import { studentInClass } from '../../utils/studentClasses';
 import { studentHasSport } from '../../utils/studentSports';
 import { sendClubEmail } from './emailService';
+import { sendClubSms } from './smsService';
 
 export const FEE_SEASON_MONTHS = [
   { month: 8, label: 'Αύγ' },
@@ -574,6 +575,7 @@ export type DebtReminderRow = {
   daysOverdue: number;
   reminderDays: number;
   email: string;
+  phone: string;
 };
 
 export function listDebtReminders(): DebtReminderRow[] {
@@ -618,6 +620,11 @@ export function listDebtReminders(): DebtReminderRow[] {
         student.fatherEmail?.trim() ||
         student.email?.trim() ||
         '',
+      phone:
+        student.guardianPhone?.trim() ||
+        student.motherPhone?.trim() ||
+        student.phone?.trim() ||
+        '',
     });
   }
 
@@ -658,6 +665,11 @@ export function debtReminderRowForAthlete(athleteId: string): DebtReminderRow | 
           student.motherEmail?.trim() ||
           student.fatherEmail?.trim() ||
           student.email?.trim() ||
+          '',
+        phone:
+          student.guardianPhone?.trim() ||
+          student.motherPhone?.trim() ||
+          student.phone?.trim() ||
           '',
       };
     })()
@@ -805,7 +817,7 @@ export async function runDueFeeGenerations() {
 
 /**
  * Αυτόματη αποστολή υπενθυμίσεων οφειλών (1 φορά / αθλητή / ημέρα).
- * Απαιτεί ενεργό SMTP συλλόγου.
+ * Απαιτεί ενεργό SMTP ή SMS συλλόγου.
  */
 export async function runDueFeeReminders(clubId: string) {
   return apiClient(async () => {
@@ -813,13 +825,16 @@ export async function runDueFeeReminders(clubId: string) {
       return { sent: 0, skipped: 0, reason: 'no-club' as const };
     }
     const smtp = getClubSmtp(clubId);
-    if (!smtp.enabled) {
+    const sms = getClubSms(clubId);
+    if (!smtp.enabled && !sms.enabled) {
       return { sent: 0, skipped: 0, reason: 'smtp-disabled' as const };
     }
 
     const today = localDateIso();
     const logs = getData().feeReminderLogs ?? [];
-    const rows = listDebtReminders().filter((row) => row.email.includes('@'));
+    const rows = listDebtReminders().filter(
+      (row) => (smtp.enabled && row.email.includes('@')) || (sms.enabled && row.phone.trim()),
+    );
     if (rows.length === 0) {
       return { sent: 0, skipped: 0, reason: 'none-due' as const };
     }
@@ -853,15 +868,37 @@ export async function runDueFeeReminders(clubId: string) {
         vivaEnabled,
       });
 
-      const send = await sendClubEmail({
-        clubId,
-        to: row.email,
-        subject: emailBody.subject,
-        text: emailBody.text,
-        html: emailBody.html,
-      });
+      let delivered = false;
+      const channels: string[] = [];
+      if (smtp.enabled && row.email.includes('@')) {
+        const send = await sendClubEmail({
+          clubId,
+          to: row.email,
+          subject: emailBody.subject,
+          text: emailBody.text,
+          html: emailBody.html,
+          athleteId: row.athleteId,
+        });
+        if (send.success) {
+          delivered = true;
+          channels.push(`email ${row.email}`);
+        }
+      }
+      if (sms.enabled && row.phone.trim()) {
+        const smsText = `Υπενθύμιση οφειλής ${clubName}: ${row.athleteName} · ${formatCurrencyLocal(row.balance)}. ${payUrl}`;
+        const smsSend = await sendClubSms({
+          clubId,
+          to: row.phone,
+          text: smsText,
+          athleteId: row.athleteId,
+        });
+        if (smsSend.success) {
+          delivered = true;
+          channels.push(`SMS ${row.phone}`);
+        }
+      }
 
-      if (!send.success) {
+      if (!delivered) {
         skipped += 1;
         continue;
       }
@@ -869,7 +906,7 @@ export async function runDueFeeReminders(clubId: string) {
       await logDebtReminder({
         athleteId: row.athleteId,
         amount: row.balance,
-        note: `Αυτόματη υπενθύμιση email σε ${row.email} · ${formatCurrencyLocal(row.balance)}`,
+        note: `Αυτόματη υπενθύμιση (${channels.join(', ')}) · ${formatCurrencyLocal(row.balance)}`,
       });
       sent += 1;
     }

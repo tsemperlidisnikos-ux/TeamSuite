@@ -4,9 +4,11 @@ import * as publicClubCloudService from '../api/services/publicClubCloudService'
 import {
   getClubById,
   getClubPublicRegistration,
+  getClubs,
   updateClubPublicRegistration,
   type ClubPublicRegistrationSettings,
 } from '../auth/clubs';
+import { allocateUniquePublicSlug, listPublicSlugCollisions, slugifyClubName, usedPublicSlugs } from '../utils/publicClubSlug';
 import { Button } from './ui/Button';
 import { SettingsFormRow } from './ui/SettingsFormRow';
 
@@ -49,6 +51,16 @@ export function ClubPublicRegistrationPanel({ clubId, onOpenGdpr }: Props) {
     const slug = form.slug.trim() || 'club';
     return `/join/${slug}`;
   }, [form.slug]);
+
+  const suggestedSlug = useMemo(() => {
+    const clubs = getClubs();
+    return allocateUniquePublicSlug(slugifyClubName(club?.name ?? form.slug), usedPublicSlugs(clubs, clubId));
+  }, [club?.name, clubId, form.slug]);
+
+  const slugCollision = useMemo(() => {
+    const current = (form.slug.trim() || suggestedSlug).toLowerCase();
+    return listPublicSlugCollisions(getClubs()).find((row) => row.slug === current) ?? null;
+  }, [form.slug, suggestedSlug]);
 
   const joinUrl = useMemo(() => {
     if (typeof window === 'undefined') return joinPath;
@@ -273,9 +285,27 @@ export function ClubPublicRegistrationPanel({ clubId, onOpenGdpr }: Props) {
               i
             </span>
             <p>
-              Το URL θα είναι <code>/join/{'{slug}'}</code>. Αν μείνει κενό, δημιουργείται αυτόματα.
+              Το URL θα είναι <code>/join/{'{slug}'}</code> και <code>/rent/{'{slug}'}</code>. Αν μείνει
+              κενό, δημιουργείται αυτόματα μοναδικό latin slug (π.χ. {suggestedSlug}).
             </p>
           </div>
+          {slugCollision ? (
+            <p className="form-error">
+              Το slug «{slugCollision.slug}» το έχουν ήδη: {slugCollision.names.join(', ')}.
+            </p>
+          ) : null}
+          {form.slug.trim() && suggestedSlug !== form.slug.trim() ? (
+            <p className="settings-hint">
+              Προτεινόμενο μοναδικό:{' '}
+              <button
+                type="button"
+                className="public-reg-link"
+                onClick={() => setField('slug', suggestedSlug)}
+              >
+                {suggestedSlug}
+              </button>
+            </p>
+          ) : null}
           <div className="public-reg-link-row">
             <code className="public-reg-link">{joinUrl}</code>
             <Button type="button" variant="secondary" onClick={handleCopyLink}>

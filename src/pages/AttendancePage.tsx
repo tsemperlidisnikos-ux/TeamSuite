@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   CalendarDays,
@@ -51,9 +51,13 @@ export function AttendancePage() {
     () => visibleClassesForSession(data.classes, data.coaches, session, { seasons: data.clubSeasons }),
     [data.classes, data.coaches, data.clubSeasons, session],
   );
-  const [sportFilter, setSportFilter] = useState(
-    () => (searchParams.get('sport') ?? '').trim(),
-  );
+  const [sportFilter, setSportFilter] = useState(() => {
+    const sport = (searchParams.get('sport') ?? '').trim();
+    if (sport) return sport;
+    const qClass = (searchParams.get('classId') ?? '').trim();
+    const cls = data.classes.find((c) => c.id === qClass);
+    return (cls?.sport ?? '').trim();
+  });
   const sportOptions = useMemo(
     () =>
       activeClubSportSelectOptions(data.sports, {
@@ -67,11 +71,25 @@ export function AttendancePage() {
     if (!sportFilter) return visibleClasses;
     return visibleClasses.filter((c) => sportsMatch(c.sport, sportFilter));
   }, [visibleClasses, sportFilter]);
-  const [classId, setClassId] = useState('');
-  const [date, setDate] = useState(() => localDateIso());
+  const [classId, setClassId] = useState(() => (searchParams.get('classId') ?? '').trim());
+  const [date, setDate] = useState(() => {
+    const q = (searchParams.get('date') ?? '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(q) ? q : localDateIso();
+  });
   const [notifyAbsence, setNotifyAbsence] = useState(false);
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const qClass = (searchParams.get('classId') ?? '').trim();
+    const qDate = (searchParams.get('date') ?? '').trim();
+    if (qClass) setClassId(qClass);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(qDate)) setDate(qDate);
+    const cls = data.classes.find((c) => c.id === qClass);
+    if (cls?.sport && !(searchParams.get('sport') ?? '').trim()) {
+      setSportFilter(cls.sport);
+    }
+  }, [searchParams, data.classes]);
 
   const activeClassId =
     classId && classesForSport.some((c) => c.id === classId)
@@ -253,7 +271,7 @@ export function AttendancePage() {
               checked={notifyAbsence}
               onChange={(e) => setNotifyAbsence(e.target.checked)}
             />
-            <span>Email σε απουσία</span>
+            <span>Ειδοποίηση σε απουσία</span>
           </label>
           <button
             type="button"
