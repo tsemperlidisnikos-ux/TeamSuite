@@ -104,12 +104,8 @@
 .prog-grid-head,
 .prog-grid-body {
   display: grid;
-  grid-template-columns: 64px repeat(7, minmax(110px, 1fr));
-  min-width: 920px;
-}
-
-.prog-time-gutter {
-  background: var(--brand-dark, #0b1f3a);
+  grid-template-columns: 64px repeat(7, minmax(var(--prog-day-min, 110px), 1fr));
+  min-width: calc(64px + 7 * var(--prog-day-min, 110px));
 }
 
 .prog-day-head {
@@ -119,8 +115,42 @@
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.03em;
-  padding: 0.7rem 0.35rem;
+  padding: 0;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.prog-day-head-label {
+  padding: 0.55rem 0.3rem 0.4rem;
+}
+
+.prog-day-lane-heads {
+  display: grid;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.prog-day-lane-heads span {
+  min-width: 0;
+  padding: 0.22rem 0.18rem 0.28rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  opacity: 0.92;
+}
+
+.prog-day-lane-heads span:first-child {
+  border-left: 0;
+}
+
+.prog-time-gutter {
+  background: var(--brand-dark, #0b1f3a);
 }
 
 .prog-grid-body {
@@ -152,8 +182,28 @@
 
 .prog-day-col {
   position: relative;
+  display: grid;
   border-left: 1px solid var(--line);
   background: var(--surface);
+  min-width: 0;
+}
+
+.prog-hour-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.prog-day-lane {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  min-height: 100%;
+}
+
+.prog-day-lane + .prog-day-lane {
+  border-left: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
 
 .prog-hour-line {
@@ -178,6 +228,25 @@
   font: inherit;
   color: #0b1f3a;
   box-shadow: 0 1px 0 rgba(11, 31, 58, 0.08);
+  box-sizing: border-box;
+}
+
+.prog-block.is-compact {
+  padding: 0.22rem 0.28rem 0.18rem;
+  border-radius: 6px;
+  gap: 0.04rem;
+}
+
+.prog-block.is-compact .prog-block-time {
+  font-size: 0.58rem;
+}
+
+.prog-block.is-compact .prog-block-title {
+  font-size: 0.66rem;
+}
+
+.prog-block.is-compact .prog-block-edit {
+  display: none;
 }
 
 .prog-block.is-training {

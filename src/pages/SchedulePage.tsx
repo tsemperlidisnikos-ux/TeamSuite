@@ -10,7 +10,7 @@ import { Modal } from '../components/ui/Modal';
 import { Select } from '../components/ui/Select';
 import { useAppData } from '../hooks/useAppData';
 import type { ScheduleSlotInput } from '../schemas';
-import type { ScheduleSlot } from '../types';
+import type { Facility, ScheduleSlot } from '../types';
 import {
   classIdsOf,
   isClassInCoachScope,
@@ -21,6 +21,7 @@ import {
 import { localDateIso } from '../utils/dates';
 import { dayNames } from '../utils/labels';
 import { listActiveClubSportNames } from '../utils/clubSports';
+import { listActiveFacilities, resolveFacilityForLocation } from '../utils/facilityHours';
 import { normalizeSportKey } from '../utils/sport';
 
 const HOUR_START = 8;
@@ -90,6 +91,106 @@ type GridBlock = {
   location: string;
   slot?: ScheduleSlot;
 };
+
+type LaidOutBlock = GridBlock & { col: number; cols: number };
+
+function layoutOverlappingBlocks(blocks: GridBlock[]): LaidOutBlock[] {
+  if (blocks.length === 0) return [];
+  const sorted = [...blocks].sort(
+    (a, b) =>
+      a.startMin - b.startMin ||
+      a.endMin - b.endMin ||
+      a.location.localeCompare(b.location, 'el') ||
+      a.id.localeCompare(b.id),
+  );
+  const colEnd: number[] = [];
+  const withCol = sorted.map((block) => {
+    let col = colEnd.findIndex((end) => end <= block.startMin);
+    if (col < 0) {
+      col = colEnd.length;
+      colEnd.push(block.endMin);
+    } else {
+      colEnd[col] = block.endMin;
+    }
+    return { ...block, col, cols: 1 };
+  });
+
+  const parent = withCol.map((_, i) => i);
+  const find = (i: number): number => {
+    let cur = i;
+    while (parent[cur] !== cur) {
+      parent[cur] = parent[parent[cur]];
+      cur = parent[cur];
+    }
+    return cur;
+  };
+  for (let i = 0; i < withCol.length; i += 1) {
+    for (let j = i + 1; j < withCol.length; j += 1) {
+      if (withCol[i].startMin < withCol[j].endMin && withCol[j].startMin < withCol[i].endMin) {
+        const a = find(i);
+        const b = find(j);
+        if (a !== b) parent[b] = a;
+      }
+    }
+  }
+  const maxCol = new Map<number, number>();
+  withCol.forEach((block, i) => {
+    const root = find(i);
+    maxCol.set(root, Math.max(maxCol.get(root) ?? 0, block.col));
+  });
+  return withCol.map((block, i) => ({
+    ...block,
+    cols: (maxCol.get(find(i)) ?? 0) + 1,
+  }));
+}
+
+function collectScheduleLanes(
+  facilities: Facility[] | undefined,
+  blocks: GridBlock[],
+): string[] {
+  const active = listActiveFacilities(facilities);
+  const lanes: string[] = active.map((item) => item.name);
+  const known = new Set(lanes.map((name) => name.trim().toLowerCase()));
+  const extras: string[] = [];
+  let needsEmpty = false;
+  for (const block of blocks) {
+    const loc = (block.location || '').trim();
+    if (!loc) {
+      needsEmpty = true;
+      continue;
+    }
+    if (known.has(loc.toLowerCase())) continue;
+    const resolved = resolveFacilityForLocation(facilities, loc);
+    if (resolved && known.has(resolved.name.trim().toLowerCase())) continue;
+    if (!extras.some((name) => name.toLowerCase() === loc.toLowerCase())) extras.push(loc);
+  }
+  extras.sort((a, b) => a.localeCompare(b, 'el'));
+  lanes.push(...extras);
+  if (needsEmpty) lanes.push('Χωρίς γήπεδο');
+  return lanes.length > 0 ? lanes : ['Γήπεδο'];
+}
+
+function laneIndexForLocation(
+  location: string,
+  lanes: string[],
+  facilities: Facility[] | undefined,
+): number {
+  const loc = location.trim();
+  if (!loc) {
+    const empty = lanes.indexOf('Χωρίς γήπεδο');
+    return empty >= 0 ? empty : 0;
+  }
+  const exact = lanes.findIndex((name) => name.toLowerCase() === loc.toLowerCase());
+  if (exact >= 0) return exact;
+  const resolved = resolveFacilityForLocation(facilities, loc);
+  if (resolved) {
+    const byFacility = lanes.findIndex(
+      (name) => name.toLowerCase() === resolved.name.trim().toLowerCase(),
+    );
+    if (byFacility >= 0) return byFacility;
+  }
+  return Math.max(0, lanes.length - 1);
+}
 
 export function SchedulePage() {
   const { data, refresh } = useAppData();
@@ -299,6 +400,13 @@ export function SchedulePage() {
     coach,
   ]);
 
+  const laneNames = useMemo(
+    () => collectScheduleLanes(data.facilities, blocks),
+    [data.facilities, blocks],
+  );
+  const compactLanes = laneNames.length > 2;
+  const dayMinWidth = Math.max(120, laneNames.length * 84);
+
   function openCreate() {
     setEditingId(null);
     setForm({
@@ -457,16 +565,34 @@ export function SchedulePage() {
       {!open && error ? <p className="form-error">{error}</p> : null}
 
       <section className="prog-board panel">
-        <div className="prog-grid-head">
+        <div
+          className={`prog-grid-head${laneNames.length > 1 ? ' has-lanes' : ''}`}
+          style={{ ['--prog-day-min' as string]: `${dayMinWidth}px` }}
+        >
           <div className="prog-time-gutter" aria-hidden />
           {weekDays.map((day) => (
             <div key={day.iso} className="prog-day-head">
-              {day.label}
+              <span className="prog-day-head-label">{day.label}</span>
+              {laneNames.length > 1 ? (
+                <div
+                  className="prog-day-lane-heads"
+                  style={{ gridTemplateColumns: `repeat(${laneNames.length}, minmax(0, 1fr))` }}
+                >
+                  {laneNames.map((name) => (
+                    <span key={`${day.iso}-${name}`} title={name}>
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
 
-        <div className="prog-grid-body">
+        <div
+          className="prog-grid-body"
+          style={{ ['--prog-day-min' as string]: `${dayMinWidth}px` }}
+        >
           <div className="prog-time-col" style={{ height: gridHeight }}>
             {HOURS.map((hour) => (
               <div key={hour} className="prog-hour-label" style={{ height: PX_PER_HOUR }}>
@@ -477,48 +603,75 @@ export function SchedulePage() {
 
           <div className="prog-days" style={{ height: gridHeight }}>
             {weekDays.map((day, dayIndex) => (
-              <div key={day.iso} className="prog-day-col">
-                {HOURS.map((hour) => (
-                  <div key={hour} className="prog-hour-line" style={{ height: PX_PER_HOUR }} />
-                ))}
-                {blocks
-                  .filter((b) => b.dayIndex === dayIndex)
-                  .map((block) => {
-                    const top = ((block.startMin - dayStartMin) / 60) * PX_PER_HOUR;
-                    const height = Math.max(
-                      36,
-                      ((block.endMin - block.startMin) / 60) * PX_PER_HOUR - 4,
-                    );
-                    const startHour = Math.floor(block.startMin / 60) % 24;
-                    const endHour = Math.floor(block.endMin / 60) % 24;
-                    const startLabel = `${pad(startHour)}:${pad(block.startMin % 60)}`;
-                    const endLabel = `${pad(endHour)}:${pad(block.endMin % 60)}`;
-                    return (
-                      <button
-                        key={block.id}
-                        type="button"
-                        className={`prog-block is-${block.kind}`}
-                        style={{ top, height }}
-                        onClick={() => {
-                          if (block.slot) openEdit(block.slot);
-                        }}
-                        title={`${startLabel} – ${endLabel} · ${block.title}`}
-                      >
-                        <span className="prog-block-time">
-                          {startLabel} - {endLabel}
-                        </span>
-                        <strong className="prog-block-title">{block.title}</strong>
-                        {block.location ? (
-                          <span className="prog-block-loc">{block.location}</span>
-                        ) : null}
-                        {block.slot ? (
-                          <span className="prog-block-edit" aria-hidden>
-                            <Pencil size={12} />
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
+              <div
+                key={day.iso}
+                className="prog-day-col"
+                style={{ gridTemplateColumns: `repeat(${laneNames.length}, minmax(0, 1fr))` }}
+              >
+                <div className="prog-hour-lines" aria-hidden>
+                  {HOURS.map((hour) => (
+                    <div key={hour} className="prog-hour-line" style={{ height: PX_PER_HOUR }} />
+                  ))}
+                </div>
+                {laneNames.map((lane, laneIndex) => {
+                  const laneBlocks = layoutOverlappingBlocks(
+                    blocks.filter(
+                      (b) =>
+                        b.dayIndex === dayIndex &&
+                        laneIndexForLocation(b.location, laneNames, data.facilities) === laneIndex,
+                    ),
+                  );
+                  return (
+                    <div key={`${day.iso}-${lane}`} className="prog-day-lane">
+                      {laneBlocks.map((block) => {
+                        const top = ((block.startMin - dayStartMin) / 60) * PX_PER_HOUR;
+                        const height = Math.max(
+                          compactLanes ? 28 : 36,
+                          ((block.endMin - block.startMin) / 60) * PX_PER_HOUR - 4,
+                        );
+                        const startHour = Math.floor(block.startMin / 60) % 24;
+                        const endHour = Math.floor(block.endMin / 60) % 24;
+                        const startLabel = `${pad(startHour)}:${pad(block.startMin % 60)}`;
+                        const endLabel = `${pad(endHour)}:${pad(block.endMin % 60)}`;
+                        const widthPct = 100 / block.cols;
+                        const leftPct = (block.col / block.cols) * 100;
+                        return (
+                          <button
+                            key={block.id}
+                            type="button"
+                            className={`prog-block is-${block.kind}${compactLanes ? ' is-compact' : ''}`}
+                            style={{
+                              top,
+                              height,
+                              left: `calc(${leftPct}% + 1px)`,
+                              width: `calc(${widthPct}% - 2px)`,
+                              right: 'auto',
+                            }}
+                            onClick={() => {
+                              if (block.slot) openEdit(block.slot);
+                            }}
+                            title={`${startLabel} – ${endLabel} · ${block.title}${
+                              block.location ? ` · ${block.location}` : ''
+                            }`}
+                          >
+                            <span className="prog-block-time">
+                              {startLabel}–{endLabel}
+                            </span>
+                            <strong className="prog-block-title">{block.title}</strong>
+                            {!compactLanes && block.location ? (
+                              <span className="prog-block-loc">{block.location}</span>
+                            ) : null}
+                            {block.slot ? (
+                              <span className="prog-block-edit" aria-hidden>
+                                <Pencil size={12} />
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>

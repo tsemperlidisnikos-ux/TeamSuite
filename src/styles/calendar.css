@@ -706,6 +706,10 @@ a.cal-new-btn:active {
 .cal-agenda-cell {
   padding: 0.12rem;
   background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  overflow: visible;
 }
 
 .cal-agenda-cell.is-quarter {
@@ -730,7 +734,8 @@ a.cal-new-btn:active {
   padding: 0.28rem 0.35rem;
   text-decoration: none;
   color: inherit;
-  min-height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
   box-sizing: border-box;
 }
 

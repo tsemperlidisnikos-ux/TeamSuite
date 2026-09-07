@@ -17,6 +17,7 @@ import {
 } from '../utils/coachScope';
 import { localDateIso } from '../utils/dates';
 import { listActiveFacilities, resolveFacilityForLocation } from '../utils/facilityHours';
+import type { Facility } from '../types';
 import { dayNames } from '../utils/labels';
 import { downloadIcsFile } from '../utils/icsCalendar';
 
@@ -56,6 +57,17 @@ function eventOccupiesSlot(event: CalEvent, slot: string, nextSlot: string): boo
   const end = event.endTime && event.endTime > start ? event.endTime : '';
   if (end) return start < slotEnd && end > slot;
   return start >= slot && start < slotEnd;
+}
+
+function eventMatchesFacilityRow(
+  event: CalEvent,
+  row: { id: string; name: string },
+  facilities: Facility[] | undefined | null,
+): boolean {
+  const loc = (event.location || '').trim();
+  if (!loc) return row.id === 'cal-no-location';
+  if (loc === row.name) return true;
+  return resolveFacilityForLocation(facilities, loc)?.id === row.id;
 }
 
 function pad(n: number): string {
@@ -391,11 +403,34 @@ export function CalendarPage() {
         : `${MONTH_LABELS[monthIndex]} ${year}`;
 
   const facilityColumns = useMemo(() => {
-    if (locationFilter) {
-      return activeFacilities.filter((item) => item.name === locationFilter);
+    const rows: Array<{ id: string; name: string }> = activeFacilities.map((item) => ({
+      id: item.id,
+      name: item.name,
+    }));
+    const knownIds = new Set(activeFacilities.map((item) => item.id));
+    const extra = new Set<string>();
+    for (const list of eventsByDate.values()) {
+      for (const event of list.filter(passesFilters)) {
+        const loc = (event.location || '').trim();
+        if (!loc) {
+          extra.add('');
+          continue;
+        }
+        const resolved = resolveFacilityForLocation(data.facilities, loc);
+        if (resolved && knownIds.has(resolved.id)) continue;
+        if (activeFacilities.some((item) => item.name === loc)) continue;
+        extra.add(loc);
+      }
     }
-    return activeFacilities;
-  }, [activeFacilities, locationFilter]);
+    if (extra.has('')) rows.push({ id: 'cal-no-location', name: 'Χωρίς γήπεδο' });
+    for (const name of [...extra].filter(Boolean).sort((a, b) => a.localeCompare(b, 'el'))) {
+      rows.push({ id: `cal-loc:${name}`, name });
+    }
+    if (locationFilter) {
+      return rows.filter((item) => item.name === locationFilter);
+    }
+    return rows;
+  }, [activeFacilities, locationFilter, eventsByDate, data.facilities, categoryFilter, teamFilter]);
 
   function eventEditPath(event: CalEvent): string {
     if (event.kind === 'match') return '/matches';
@@ -621,9 +656,7 @@ export function CalendarPage() {
                                 {FACILITY_HOUR_COLUMNS.map((col) => {
                                   const cellEvents = dayEvents.filter(
                                     (event) =>
-                                      (event.location === facility.name ||
-                                        resolveFacilityForLocation(data.facilities, event.location)
-                                          ?.id === facility.id) &&
+                                      eventMatchesFacilityRow(event, facility, data.facilities) &&
                                       eventOccupiesSlot(event, col.start, col.end),
                                   );
                                   return (
@@ -690,11 +723,8 @@ export function CalendarPage() {
                       {facilityColumns.map((facility) => {
                         const dayEvents = (eventsByDate.get(selectedIso) ?? [])
                           .filter(passesFilters)
-                          .filter(
-                            (event) =>
-                              event.location === facility.name ||
-                              resolveFacilityForLocation(data.facilities, event.location)?.id ===
-                                facility.id,
+                          .filter((event) =>
+                            eventMatchesFacilityRow(event, facility, data.facilities),
                           );
                         const used = new Set<number>();
                         const cells: ReactNode[] = [];
