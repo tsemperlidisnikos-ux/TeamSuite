@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Trash2 } from 'lucide-react';
+import { FileSpreadsheet, Trash2 } from 'lucide-react';
 import * as registrationApplicationsService from '../api/services/registrationApplicationsService';
 import { getSession, isPlatformAdmin } from '../auth/auth';
 import { getClubById } from '../auth/clubs';
@@ -34,6 +34,7 @@ import {
   studentMatchesTeamFilter,
 } from '../utils/studentClasses';
 import { studentHasSport } from '../utils/studentSports';
+import { downloadXlsx } from '../utils/xlsxDownload';
 
 const COMPARE_OPS = ['=', '<', '>', '<=', '>='] as const;
 
@@ -360,6 +361,37 @@ function parseMoney(value: string | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function printExportFilename(title: string): string {
+  const slug = title
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9α-ω]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+  return `${slug || 'ektyposi'}-${todayIso()}.xlsx`;
+}
+
+function exportPrintRowsXlsx(
+  title: string,
+  columns: Array<{ key: string; label: string }>,
+  rows: Array<Record<string, string>>,
+  moneyKey: string | null,
+  moneyTotal: number | null,
+): void {
+  const headers = columns.map((col) => col.label);
+  const body = rows.map((row) => columns.map((col) => row[col.key] ?? ''));
+  if (moneyKey && moneyTotal != null && rows.length > 0) {
+    body.push(
+      columns.map((col, colIndex) =>
+        colIndex === 0 ? 'Σύνολο' : col.key === moneyKey ? `${moneyTotal.toFixed(2)} €` : '',
+      ),
+    );
+  }
+  downloadXlsx(title.slice(0, 31) || 'Εκτύπωση', headers, body, printExportFilename(title));
+}
+
 function moneyColumnKey(columns: Array<{ key: string }>): string | null {
   if (columns.some((c) => c.key === 'amount')) return 'amount';
   if (columns.some((c) => c.key === 'balance')) return 'balance';
@@ -416,6 +448,16 @@ function ResultsModal({
               <Trash2 size={16} /> Διαγραφή όλων
             </Button>
           ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() =>
+              exportPrintRowsXlsx(title, columns, rows, moneyKey, moneyTotal)
+            }
+            disabled={rows.length === 0}
+          >
+            <FileSpreadsheet size={16} /> Εξαγωγή XLSX
+          </Button>
           <Button
             type="button"
             variant="secondary"

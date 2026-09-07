@@ -20,6 +20,7 @@ import {
   athleteIdentityConflictMessage,
   findStudentsByAmka,
   findStudentsByRegistrationNumber,
+  preserveAmkaLeadingZeros,
 } from './athleteIdentity';
 
 export type AthleteSheetClass = { id: string; name: string };
@@ -521,7 +522,7 @@ function applyCell(
       return;
     }
     case 'amka':
-      draft.amka = value;
+      draft.amka = preserveAmkaLeadingZeros(value);
       return;
     case 'adt':
       draft.adt = value;

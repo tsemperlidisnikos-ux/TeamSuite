@@ -475,7 +475,7 @@ export function PublicJoinPage() {
               <input
                 className="field-input"
                 value={amka}
-                onChange={(e) => setAmka(e.target.value)}
+                onChange={(e) => setAmka(e.target.value.replace(/\D/g, '').slice(0, 11))}
                 inputMode="numeric"
                 maxLength={11}
                 required

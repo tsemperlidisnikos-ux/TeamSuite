@@ -5,6 +5,25 @@ export function normalizeAmkaDigits(value: string | undefined | null): string {
   return String(value ?? '').replace(/\D/g, '');
 }
 
+/**
+ * Excel often stores AMKA as a number and drops leading zeros (091009 → 91009).
+ * Restore typical lost zeros without inventing a full 11-digit AMKA from a short test value.
+ */
+export function preserveAmkaLeadingZeros(raw: string | undefined | null): string {
+  const trimmed = String(raw ?? '').trim();
+  if (!trimmed) return '';
+  let source = trimmed;
+  if (/^[+-]?\d+(?:\.\d+)?[eE][+-]?\d+$/.test(trimmed)) {
+    const n = Number(trimmed);
+    if (Number.isFinite(n)) source = String(Math.trunc(Math.abs(n)));
+  }
+  const digits = source.replace(/\D/g, '');
+  if (!digits) return trimmed;
+  if (digits.length >= 8 && digits.length < 11) return digits.padStart(11, '0');
+  if (digits.length === 5) return digits.padStart(6, '0');
+  return digits;
+}
+
 export function normalizeRegistrationNumber(value: string | undefined | null): string {
   return String(value ?? '')
     .trim()

@@ -20,6 +20,50 @@ function xmlText(node: Element | null): string {
   return (node.textContent ?? '').replace(/\u00a0/g, ' ');
 }
 
+function zeroPadWidthFromFormat(formatCode: string): number {
+  const section = (formatCode.split(';')[0] ?? '')
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/"[^"]*"/g, '');
+  if (!section || section.includes('@') || section.includes('/') || section.includes('.')) {
+    return 0;
+  }
+  const zeros = section.match(/0+/g);
+  if (!zeros) return 0;
+  const width = zeros.reduce((max, run) => Math.max(max, run.length), 0);
+  return width >= 2 ? width : 0;
+}
+
+function parseExcelZeroPadWidths(stylesXml: string): number[] {
+  const doc = new DOMParser().parseFromString(stylesXml, 'application/xml');
+  const custom = new Map<number, string>();
+  for (const node of [...doc.getElementsByTagName('numFmt')]) {
+    const id = Number(node.getAttribute('numFmtId'));
+    const code = node.getAttribute('formatCode') ?? '';
+    if (Number.isFinite(id) && code) custom.set(id, code);
+  }
+  const cellXfs = doc.getElementsByTagName('cellXfs')[0];
+  const xfs = cellXfs ? [...cellXfs.getElementsByTagName('xf')] : [];
+  return xfs.map((xf) => {
+    const id = Number(xf.getAttribute('numFmtId') ?? '0');
+    const code = custom.get(id) ?? (id === 1 ? '0' : '');
+    return zeroPadWidthFromFormat(code);
+  });
+}
+
+function numericCellAsText(raw: string, padWidth: number): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  if (/^[+-]?\d+(?:\.\d+)?[eE][+-]?\d+$/.test(trimmed)) {
+    const n = Number(trimmed);
+    if (!Number.isFinite(n)) return trimmed;
+    const digits = String(Math.trunc(Math.abs(n)));
+    return padWidth > 0 ? digits.padStart(padWidth, '0') : digits;
+  }
+  const intPart = (trimmed.split('.')[0] ?? trimmed).replace(/^-/, '');
+  if (padWidth > 0 && /^\d+$/.test(intPart)) return intPart.padStart(padWidth, '0');
+  return trimmed;
+}
+
 function parseSharedStrings(xml: string): string[] {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
   const items = [...doc.getElementsByTagName('si')];
@@ -29,7 +73,7 @@ function parseSharedStrings(xml: string): string[] {
   });
 }
 
-function cellValue(cell: Element, shared: string[]): string {
+function cellValue(cell: Element, shared: string[], padWidth: number): string {
   const type = cell.getAttribute('t') ?? '';
   if (type === 'inlineStr') {
     const t = cell.getElementsByTagName('t')[0];
@@ -41,7 +85,8 @@ function cellValue(cell: Element, shared: string[]): string {
     return Number.isFinite(index) ? (shared[index] ?? '') : '';
   }
   if (type === 'b') return v === '1' || v === 'true' ? 'Ναι' : 'Όχι';
-  return v;
+  if (type === 'str') return v;
+  return numericCellAsText(v, padWidth);
 }
 
 /** First worksheet as a dense grid of strings (row-major). */
@@ -54,6 +99,8 @@ export async function parseXlsxSheetGrid(buffer: ArrayBuffer): Promise<string[][
 
   const sharedName = [...files.keys()].find((name) => /xl\/sharedStrings\.xml$/i.test(name));
   const shared = sharedName ? parseSharedStrings(files.get(sharedName) ?? '') : [];
+  const stylesName = [...files.keys()].find((name) => /xl\/styles\.xml$/i.test(name));
+  const padWidths = stylesName ? parseExcelZeroPadWidths(files.get(stylesName) ?? '') : [];
 
   const doc = new DOMParser().parseFromString(files.get(sheetEntry) ?? '', 'application/xml');
   const cells = [...doc.getElementsByTagName('c')];
@@ -64,7 +111,9 @@ export async function parseXlsxSheetGrid(buffer: ArrayBuffer): Promise<string[][
   for (const cell of cells) {
     const ref = parseCellRef(cell.getAttribute('r') ?? '');
     if (!ref) continue;
-    const value = cellValue(cell, shared);
+    const styleIndex = Number(cell.getAttribute('s') ?? '');
+    const padWidth = Number.isFinite(styleIndex) ? (padWidths[styleIndex] ?? 0) : 0;
+    const value = cellValue(cell, shared, padWidth);
     sparse.set(`${ref.row}:${ref.col}`, value);
     maxRow = Math.max(maxRow, ref.row);
     maxCol = Math.max(maxCol, ref.col);

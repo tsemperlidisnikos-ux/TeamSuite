@@ -20,6 +20,7 @@ import {
   athleteIdentityConflictMessage,
   findStudentsByAmka,
   findStudentsByRegistrationNumber,
+  preserveAmkaLeadingZeros,
   withAmkaFingerprint,
 } from '../../utils/athleteIdentity';
 import { appendAthleteChangeLog } from '../../utils/athleteChangeLog';
@@ -34,6 +35,7 @@ function withUpperIdentity(input: StudentInput): StudentInput {
     address: input.address != null ? toUpperEl(input.address) : input.address,
     city: input.city != null ? toUpperEl(input.city) : input.city,
     county: input.county != null ? toUpperEl(input.county) : input.county,
+    amka: input.amka != null ? preserveAmkaLeadingZeros(input.amka) : input.amka,
   };
 }
 

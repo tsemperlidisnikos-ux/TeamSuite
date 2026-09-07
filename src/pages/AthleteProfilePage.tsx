@@ -1445,7 +1445,9 @@ export function AthleteProfilePage() {
                   <ApField label="ΑΜΚΑ" className="ap-field-amka">
                     {amkaAllowed ? (
                       <>
-                        {textInput(form.amka, (v) => setField('amka', v))}
+                        {textInput(form.amka, (v) =>
+                          setField('amka', v.replace(/\D/g, '').slice(0, 11)),
+                        )}
                         {editing ? (
                           <button
                             type="button"
