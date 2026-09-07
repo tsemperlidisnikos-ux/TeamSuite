@@ -330,6 +330,7 @@ export function AppLayout() {
         {headerGreeting ? <p className="app-header-greeting">{t(headerGreeting)}</p> : null}
 
         <div className="app-header-user">
+          {clubId ? <ClubSyncStatus clubId={clubId} /> : null}
           <div className="app-header-user-meta">
             <strong>{session?.fullName ?? t('Χρήστης')}</strong>
             <span>{session ? t(roleLabels[session.role]) : ''}</span>
@@ -433,7 +434,6 @@ export function AppLayout() {
               </NavLink>
             ))}
           </nav>
-          {clubId ? <ClubSyncStatus clubId={clubId} /> : null}
         </aside>
 
         <div className="main-area">
