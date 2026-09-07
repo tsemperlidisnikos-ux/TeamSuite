@@ -7,6 +7,7 @@ import { getPreviewClubId } from '../platform/platformConfig';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { useAppData } from '../hooks/useAppData';
+import { absenceReasonLabel } from '../api/services/attendanceService';
 import type { AcademyClass, Student } from '../types';
 import {
   REGISTRY_COLUMNS,
@@ -1097,15 +1098,22 @@ function TrainingAttendanceSheetSection() {
       (s) => studentInClass(s, teamId) && studentMatchesSportFilter(s, sport, data.classes),
     );
     setRows(
-      athletes.map((s, index) => ({
-        id: s.id,
-        index: String(index + 1),
-        last_name: s.lastName,
-        first_name: s.firstName,
-        present: '',
-        absent: '',
-        holiday: '',
-      })),
+      athletes.map((s, index) => {
+        const rec = data.attendance.find(
+          (a) => a.classId === teamId && a.studentId === s.id && a.date === date,
+        );
+        const reason = rec && !rec.present ? absenceReasonLabel(rec.absenceReason) : '';
+        return {
+          id: s.id,
+          index: String(index + 1),
+          last_name: s.lastName,
+          first_name: s.firstName,
+          present: rec?.present ? '✓' : '',
+          absent: rec && !rec.present ? '✓' : '',
+          holiday: '',
+          reason,
+        };
+      }),
     );
     setShowResults(true);
   }
@@ -1113,7 +1121,7 @@ function TrainingAttendanceSheetSection() {
   return (
     <SectionShell
       title="Παρουσιολόγιο προπόνησης"
-      desc="Κενό φύλλο παρουσίας για επιλεγμένη προπόνηση ή λίστα τμήματος. Εκτύπωση με checkbox παρόν/απών/αργία."
+      desc="Φύλλο παρουσίας για επιλεγμένη προπόνηση ή λίστα τμήματος, συμπληρωμένο από τις καταχωρήσεις της ημέρας."
     >
       <FilterRow label="Άθλημα" htmlFor="tas-sport">
         <SportSelect
@@ -1183,6 +1191,7 @@ function TrainingAttendanceSheetSection() {
           { key: 'present', label: 'Παρών' },
           { key: 'absent', label: 'Απών' },
           { key: 'holiday', label: 'Αργία' },
+          { key: 'reason', label: 'Αιτιολόγηση' },
         ]}
         rows={rows}
         onClose={() => setShowResults(false)}

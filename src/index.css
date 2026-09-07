@@ -4186,6 +4186,29 @@ html[data-appearance] .settings-backup-schedule-status {
   color: #fff;
 }
 
+.training-weekday-times {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  grid-column: 1 / -1;
+}
+
+.training-weekday-times > span {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.training-weekday-time-row {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 7rem) 1fr 1fr;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.training-weekday-time-row strong {
+  font-size: 0.85rem;
+}
+
 @media (max-width: 860px) {
   .trainings-actions {
     width: 100%;

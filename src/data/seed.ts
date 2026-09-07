@@ -6,6 +6,7 @@ export const seedData: AppData = {
   students: [],
   schedule: [],
   attendance: [],
+  athleteChangeLogs: [],
   revenues: [],
   expenses: [],
   transactions: [],

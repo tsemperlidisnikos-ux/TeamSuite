@@ -15,7 +15,7 @@ import * as emailService from './emailService';
 import { notifyClubNewRegistration } from './registrationApplicationsService';
 import {
   athleteIdentityConflictMessage,
-  findStudentsByAmka,
+  findStudentsByAmkaDeep,
 } from '../../utils/athleteIdentity';
 
 export type PublicJoinInput = {
@@ -101,7 +101,7 @@ export async function submitPublicJoin(input: PublicJoinInput) {
     if (remaining === 0 && !settings.allowWaitlist) {
       throw new Error('Το πακέτο αδειών είναι γεμάτο και η λίστα αναμονής δεν είναι ενεργή.');
     }
-    const amkaHits = findStudentsByAmka(clubData.students, amka);
+    const amkaHits = await findStudentsByAmkaDeep(clubData.students, amka, input.clubId);
     if (amkaHits.length) {
       throw new Error(athleteIdentityConflictMessage('amka', amkaHits));
     }

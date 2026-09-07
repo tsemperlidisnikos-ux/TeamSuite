@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import * as onlineCheckoutService from '../api/services/onlineCheckoutService';
 import * as feeChargesService from '../api/services/feeChargesService';
+import { upsertAttendance, absenceReasonLabel } from '../api/services/attendanceService';
 import { getSession } from '../auth/auth';
 import { getClubById } from '../auth/clubs';
 import { Button } from '../components/ui/Button';
@@ -25,6 +26,7 @@ import { announcementVisibleToParent } from '../utils/announcementAudience';
 import { studentClassIds } from '../utils/studentClasses';
 import { athleteHealthCardValid } from '../utils/classHelpers';
 import { downloadIcsFile } from '../utils/icsCalendar';
+import type { AbsenceReason } from '../types';
 
 type ParentTab = 'overview' | 'schedule' | 'payments' | 'documents';
 
@@ -84,6 +86,12 @@ export function ParentPortalPage() {
   const [payError, setPayError] = useState('');
   const [payingId, setPayingId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+  const [absenceAthleteId, setAbsenceAthleteId] = useState('');
+  const [absenceDate, setAbsenceDate] = useState(() => localDateIso());
+  const [absenceReason, setAbsenceReason] = useState<AbsenceReason>('sick');
+  const [absenceNotes, setAbsenceNotes] = useState('');
+  const [absenceBusy, setAbsenceBusy] = useState(false);
+  const [absenceMsg, setAbsenceMsg] = useState('');
 
   useEffect(() => {
     const txnId = searchParams.get('t');
@@ -275,6 +283,49 @@ export function ParentPortalPage() {
       'programma-teamsuite.ics',
       club?.name ? `Πρόγραμμα · ${club.name}` : 'Πρόγραμμα',
     );
+  }
+
+  async function handleAbsenceJustify() {
+    const athlete =
+      linkedAthletes.find((a) => a.id === absenceAthleteId) ?? linkedAthletes[0];
+    if (!athlete) {
+      setAbsenceMsg('Επιλέξτε αθλητή.');
+      return;
+    }
+    const ids = studentClassIds(athlete);
+    const classIds = (data.trainings ?? [])
+      .filter((t) => t.date === absenceDate && t.classId && ids.includes(t.classId))
+      .map((t) => t.classId as string);
+    const unique = [
+      ...new Set(
+        classIds.length ? classIds : ids.length ? ids : athlete.classId ? [athlete.classId] : [],
+      ),
+    ];
+    if (unique.length === 0) {
+      setAbsenceMsg('Δεν βρέθηκε τμήμα για καταχώρηση απουσίας.');
+      return;
+    }
+    setAbsenceBusy(true);
+    setAbsenceMsg('');
+    for (const classId of unique) {
+      const result = await upsertAttendance({
+        classId,
+        studentId: athlete.id,
+        date: absenceDate,
+        present: false,
+        absenceReason,
+        notes: absenceNotes.trim() || undefined,
+      });
+      if (!result.success) {
+        setAbsenceBusy(false);
+        setAbsenceMsg(result.error ?? 'Αποτυχία καταχώρησης');
+        return;
+      }
+    }
+    setAbsenceBusy(false);
+    setAbsenceNotes('');
+    setAbsenceMsg('Η αιτιολόγηση απουσίας καταχωρήθηκε και είναι ορατή στον προπονητή.');
+    refresh();
   }
 
   async function handlePay(
@@ -508,13 +559,79 @@ export function ParentPortalPage() {
                       <tr key={row.id}>
                         <td>{formatDate(row.date)}</td>
                         <td>{athleteNameById.get(row.studentId) ?? '—'}</td>
-                        <td>{row.present ? 'Παρών/ούσα' : 'Απών/ούσα'}</td>
+                        <td>
+                          {row.present
+                            ? 'Παρών/ούσα'
+                            : `Απών/ούσα${
+                                row.absenceReason
+                                  ? ` · ${absenceReasonLabel(row.absenceReason)}`
+                                  : ''
+                              }`}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
+          </section>
+
+          <section className="panel parent-portal-section">
+            <h2>
+              <Users size={18} /> Αιτιολόγηση απουσίας
+            </h2>
+            <p className="muted">
+              Δηλώστε ασθένεια ή άδεια. Η σημείωση εμφανίζεται στον προπονητή στο παρουσιολόγιο.
+            </p>
+            <div className="parent-absence-form">
+              <label>
+                <span>Αθλητής</span>
+                <select
+                  value={absenceAthleteId || linkedAthletes[0]?.id || ''}
+                  onChange={(e) => setAbsenceAthleteId(e.target.value)}
+                >
+                  {linkedAthletes.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.lastName} {a.firstName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Ημερομηνία</span>
+                <input
+                  type="date"
+                  value={absenceDate}
+                  onChange={(e) => setAbsenceDate(e.target.value)}
+                />
+              </label>
+              <label>
+                <span>Λόγος</span>
+                <select
+                  value={absenceReason}
+                  onChange={(e) => setAbsenceReason(e.target.value as AbsenceReason)}
+                >
+                  <option value="sick">Ασθένεια</option>
+                  <option value="leave">Άδεια</option>
+                </select>
+              </label>
+              <label>
+                <span>Σημειώσεις (προαιρετικά)</span>
+                <input
+                  value={absenceNotes}
+                  onChange={(e) => setAbsenceNotes(e.target.value)}
+                  placeholder="π.χ. πυρετός"
+                />
+              </label>
+              <Button
+                type="button"
+                disabled={absenceBusy}
+                onClick={() => void handleAbsenceJustify()}
+              >
+                {absenceBusy ? 'Αποθήκευση…' : 'Υποβολή'}
+              </Button>
+            </div>
+            {absenceMsg ? <p className="settings-hint">{absenceMsg}</p> : null}
           </section>
         </>
       ) : null}

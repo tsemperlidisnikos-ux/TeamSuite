@@ -1,6 +1,12 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
-import type { AttendanceRecord } from '../../types';
+import type { AbsenceReason, AttendanceRecord } from '../../types';
+
+export function absenceReasonLabel(reason?: AbsenceReason | null): string {
+  if (reason === 'sick') return 'Ασθένεια';
+  if (reason === 'leave') return 'Άδεια';
+  return '';
+}
 
 export async function getAttendance() {
   return apiClient(() => getData().attendance);
@@ -12,6 +18,7 @@ export async function upsertAttendance(input: {
   date: string;
   present: boolean;
   notes?: string;
+  absenceReason?: AbsenceReason | null;
 }) {
   return apiClient(() => {
     let record: AttendanceRecord | undefined;
@@ -24,12 +31,22 @@ export async function upsertAttendance(input: {
       );
       if (existing) {
         existing.present = input.present;
-        existing.notes = input.notes;
+        if (input.notes !== undefined) existing.notes = input.notes;
+        if (input.present) {
+          existing.absenceReason = null;
+        } else if (input.absenceReason !== undefined) {
+          existing.absenceReason = input.absenceReason;
+        }
         record = existing;
       } else {
         record = {
           id: createId('att'),
-          ...input,
+          classId: input.classId,
+          studentId: input.studentId,
+          date: input.date,
+          present: input.present,
+          notes: input.notes,
+          absenceReason: input.present ? null : (input.absenceReason ?? null),
         };
         data.attendance.push(record);
       }

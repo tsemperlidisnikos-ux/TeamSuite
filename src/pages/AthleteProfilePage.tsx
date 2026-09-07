@@ -69,6 +69,7 @@ import { studentClassIds, studentInAnyClass } from '../utils/studentClasses';
 import { studentCoachNames } from '../utils/studentCoaches';
 import { studentSports, normalizeStudentSports } from '../utils/studentSports';
 import { activeClubSportSelectOptions } from '../utils/clubSports';
+import { fieldLabel } from '../utils/athleteChangeLog';
 type ProfileTab =
   | 'personal'
   | 'identity'
@@ -415,6 +416,7 @@ export function AthleteProfilePage() {
     session?.role === 'admin' ||
     session?.role === 'secretariat' ||
     session?.role === 'platform_admin';
+  const canSeeChangeHistory = canDeleteJoinForm;
 
   const [editing, setEditing] = useState(
     Boolean((location.state as { editing?: boolean } | null)?.editing),
@@ -2279,6 +2281,38 @@ export function AthleteProfilePage() {
                 {totals.trainings}
               </p>
             </ApCard>
+            {canSeeChangeHistory ? (
+              <ApCard title="Αλλαγές καρτέλας">
+                {(() => {
+                  const logs = (data.athleteChangeLogs ?? [])
+                    .filter((row) => row.studentId === student.id)
+                    .sort((a, b) => b.at.localeCompare(a.at));
+                  if (logs.length === 0) {
+                    return <p className="muted">Δεν υπάρχουν καταγεγραμμένες αλλαγές πεδίων.</p>;
+                  }
+                  return (
+                    <ul className="ap-change-log">
+                      {logs.slice(0, 80).map((row) => (
+                        <li key={row.id}>
+                          <strong>
+                            {formatDate(row.at.slice(0, 10))}
+                            {row.at.length > 10 ? ` · ${row.at.slice(11, 16)}` : ''}
+                          </strong>
+                          <span className="muted"> · {row.byName || '—'}</span>
+                          <ul>
+                            {row.changes.map((change, idx) => (
+                              <li key={`${row.id}-${change.field}-${idx}`}>
+                                {fieldLabel(change.field)}: {change.from || '—'} → {change.to || '—'}
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()}
+              </ApCard>
+            ) : null}
           </div>
         ) : null}
       </div>

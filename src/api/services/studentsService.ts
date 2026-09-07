@@ -20,7 +20,9 @@ import {
   athleteIdentityConflictMessage,
   findStudentsByAmka,
   findStudentsByRegistrationNumber,
+  withAmkaFingerprint,
 } from '../../utils/athleteIdentity';
+import { appendAthleteChangeLog } from '../../utils/athleteChangeLog';
 
 function withUpperIdentity(input: StudentInput): StudentInput {
   return {
@@ -54,7 +56,7 @@ export async function createStudent(input: StudentInput) {
     const classes = normalizeStudentClasses(parsed.classIds, parsed.classId);
     const sports = normalizeStudentSports(parsed.sports, parsed.sport);
     const coaches = normalizeStudentCoaches(parsed.coachNames, parsed.coachName);
-    let student: Student = {
+    let student: Student = withAmkaFingerprint({
       ...parsed,
       ...classes,
       ...sports,
@@ -63,7 +65,7 @@ export async function createStudent(input: StudentInput) {
       lastName: parsed.lastName.trim() || 'ΑΘΛΗΤΗΣ',
       id: createId('stu'),
       enrolledAt: localDateIso(),
-    };
+    });
     const { flushClubMirrorPush } = await import('../../data/clubSync');
     const { upsertClubStudents } = await import('./backendSyncService');
     const { resolveActiveClubId } = await import('../../data/store');
@@ -115,13 +117,13 @@ export async function updateStudent(id: string, input: StudentInput) {
       if (regHits.length) {
         throw new Error(athleteIdentityConflictMessage('registration', regHits));
       }
-      updated = {
+      updated = withAmkaFingerprint({
         ...previous,
         ...parsed,
         ...classes,
         ...sports,
         ...coaches,
-      };
+      });
       const limit = clubAthleteLicenseLimit();
       if (
         wouldConsumeAthleteLicense(updated.status, previous.status) &&
@@ -133,6 +135,7 @@ export async function updateStudent(id: string, input: StudentInput) {
         );
       }
       data.students[index] = updated;
+      appendAthleteChangeLog(data, previous, updated);
       if (!data.transactions) data.transactions = [];
       applySubscriptionDiscountToCharges(updated, data.transactions);
       syncClubAthleteLicenseUsed(data.students);
@@ -199,14 +202,14 @@ export async function importStudents(rows: StudentImportRow[]) {
           prepared.push({
             mode: 'create',
             label: row.label,
-            student: {
+            student: withAmkaFingerprint({
               ...parsed,
               ...classes,
               ...sports,
               ...coaches,
               id: createId('stu'),
               enrolledAt,
-            },
+            }),
           });
           continue;
         }
@@ -255,29 +258,31 @@ export async function importStudents(rows: StudentImportRow[]) {
           failed.push(`${item.label}: ο αθλητής δεν βρέθηκε`);
           continue;
         }
+        const previous = data.students[index];
         const parsed = item.parsed;
         const classes = normalizeStudentClasses(parsed.classIds, parsed.classId);
         const sports = normalizeStudentSports(parsed.sports, parsed.sport);
         const coaches = normalizeStudentCoaches(parsed.coachNames, parsed.coachName);
-        let next: Student = {
-          ...data.students[index],
+        let next: Student = withAmkaFingerprint({
+          ...previous,
           ...parsed,
           ...classes,
           ...sports,
           ...coaches,
-        };
+        });
         if (
-          wouldConsumeAthleteLicense(next.status, data.students[index].status) &&
+          wouldConsumeAthleteLicense(next.status, previous.status) &&
           limit > 0 &&
           countActiveAthleteLicenses(data.students) >= limit
         ) {
-          next = { ...next, status: data.students[index].status };
+          next = { ...next, status: previous.status };
           licenseSkipped += 1;
           failed.push(
             `${item.label}: ενημερώθηκε χωρίς ενεργοποίηση — υπέρβαση αδειών (${countActiveAthleteLicenses(data.students)} / ${limit})`,
           );
         }
         data.students[index] = next;
+        appendAthleteChangeLog(data, previous, next);
         applySubscriptionDiscountToCharges(next, data.transactions);
         updated += 1;
       }
@@ -351,7 +356,9 @@ export async function bulkPatchStudents(patch: StudentBulkPatch) {
             ...(on ? {} : { healthCardExpires: '' }),
           };
         }
+        const previous = current;
         data.students[i] = next;
+        appendAthleteChangeLog(data, previous, next);
         updated += 1;
       }
       for (const id of wanted) missing.push(id);

@@ -411,6 +411,7 @@ function localHasUnsyncedEdits(local: AppData, cloud: AppData): boolean {
   if (hasLocalOnlyRows(local.matches, cloud.matches)) return true;
   if (hasLocalOnlyRows(local.products, cloud.products)) return true;
   if (hasLocalOnlyRows(local.stockMovements, cloud.stockMovements)) return true;
+  if (hasLocalOnlyRows(local.athleteChangeLogs, cloud.athleteChangeLogs)) return true;
 
   if (
     local.sizeChart &&
@@ -612,6 +613,12 @@ function mergeClubSnapshots(
   next.stockMovements = mergeById(
     local.stockMovements,
     cloud.stockMovements,
+    new Set(),
+    opts.preferLocal,
+  );
+  next.athleteChangeLogs = mergeById(
+    local.athleteChangeLogs ?? [],
+    cloud.athleteChangeLogs ?? [],
     new Set(),
     opts.preferLocal,
   );

@@ -18,10 +18,17 @@ import {
   stripClubJoinFormSnapshots,
   type RemoteRegistrationApplication,
 } from './lib/serverStore.js';
+import { deriveClubFieldKeyMaterial } from './lib/fieldCrypto.js';
+import { setAmkaFieldKeyFetcher } from '../src/utils/amkaCrypto.js';
 import {
   athleteIdentityConflictMessage,
-  findStudentsByAmka,
+  findStudentsByAmkaDeep,
 } from '../src/utils/athleteIdentity.js';
+
+setAmkaFieldKeyFetcher(async (clubId) => {
+  const material = deriveClubFieldKeyMaterial(clubId);
+  return material ? material.toString('base64') : null;
+});
 
 type Body = {
   slug?: string;
@@ -233,14 +240,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error: 'Το πακέτο αδειών είναι γεμάτο και η λίστα αναμονής δεν είναι ενεργή.',
     });
   }
-  const amkaHits = findStudentsByAmka(
+  const amkaHits = await findStudentsByAmkaDeep(
     students.map((row) => ({
       id: String(row.id ?? ''),
       amka: String(row.amka ?? ''),
+      amkaFp: String((row as { amkaFp?: string }).amkaFp ?? ''),
       firstName: String(row.firstName ?? ''),
       lastName: String(row.lastName ?? ''),
     })),
     amka,
+    club.clubId,
   );
   if (amkaHits.length) {
     return res.status(409).json({ ok: false, error: athleteIdentityConflictMessage('amka', amkaHits) });

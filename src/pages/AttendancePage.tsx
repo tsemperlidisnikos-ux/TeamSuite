@@ -4,9 +4,10 @@ import {
   CalendarDays,
   ChevronDown,
   Download,
+  Printer,
   Users,
 } from 'lucide-react';
-import { upsertAttendance } from '../api/services/attendanceService';
+import { upsertAttendance, absenceReasonLabel } from '../api/services/attendanceService';
 import * as notificationService from '../api/services/notificationService';
 import { getSession } from '../auth/auth';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -265,6 +266,13 @@ export function AttendancePage() {
           <button type="button" className="att-btn att-btn-ghost" onClick={exportCsv}>
             <Download size={16} /> Εξαγωγή
           </button>
+          <button
+            type="button"
+            className="att-btn att-btn-ghost"
+            onClick={() => window.print()}
+          >
+            <Printer size={16} /> Εκτύπωση
+          </button>
         </div>
       </div>
 
@@ -282,6 +290,13 @@ export function AttendancePage() {
               students.map((student, index) => {
                 const st = statusFor(student.id, date);
                 const present = st === 'present';
+                const record = data.attendance.find(
+                  (a) =>
+                    a.classId === activeClassId &&
+                    a.studentId === student.id &&
+                    a.date === date,
+                );
+                const reason = absenceReasonLabel(record?.absenceReason);
                 return (
                   <div key={student.id} className="att-row">
                     <span className="att-index">{index + 1}</span>
@@ -298,7 +313,9 @@ export function AttendancePage() {
                         {st === 'present'
                           ? 'Παρών'
                           : st === 'absent'
-                            ? 'Απών'
+                            ? reason
+                              ? `Απών · ${reason}`
+                              : 'Απών'
                             : 'Μη καταχωρημένο'}
                       </span>
                     </div>
@@ -404,6 +421,51 @@ export function AttendancePage() {
       <p className="att-footnote">
         Η καταγραφή αποθηκεύεται αυτόματα όταν αλλάζει η κατάσταση παρουσίας.
       </p>
+
+      <section className="att-print-sheet" aria-hidden>
+        <h1>Παρουσιολόγιο</h1>
+        <p>
+          {classesForSport.find((c) => c.id === activeClassId)?.name ?? 'Τμήμα'} ·{' '}
+          {formatDayLabel(date)}
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Επώνυμο</th>
+              <th>Όνομα</th>
+              <th>Παρών</th>
+              <th>Απών</th>
+              <th>Αιτιολόγηση</th>
+            </tr>
+          </thead>
+          <tbody>
+            {students.map((student, index) => {
+              const st = statusFor(student.id, date);
+              const record = data.attendance.find(
+                (a) =>
+                  a.classId === activeClassId &&
+                  a.studentId === student.id &&
+                  a.date === date,
+              );
+              return (
+                <tr key={student.id}>
+                  <td>{index + 1}</td>
+                  <td>{student.lastName}</td>
+                  <td>{student.firstName}</td>
+                  <td>{st === 'present' ? '✓' : ''}</td>
+                  <td>{st === 'absent' ? '✓' : ''}</td>
+                  <td>{st === 'absent' ? absenceReasonLabel(record?.absenceReason) : ''}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <p>
+          Παρόντες {summary.present} · Απόντες {summary.absent} · Μη καταχωρημένο{' '}
+          {summary.unrecorded} · Σύνολο {summary.total}
+        </p>
+      </section>
     </div>
   );
 }

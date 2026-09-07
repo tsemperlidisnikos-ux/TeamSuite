@@ -477,3 +477,73 @@
     justify-self: start;
   }
 }
+
+.att-print-sheet {
+  display: none;
+}
+
+.parent-absence-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.parent-absence-form label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.parent-absence-form label span {
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.ap-change-log {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.ap-change-log ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1rem;
+}
+
+@media print {
+  .sidebar,
+  .topbar,
+  .app-header,
+  .page-header,
+  .attendance-page .att-toolbar,
+  .attendance-page .att-layout,
+  .attendance-page .att-summary,
+  .attendance-page .att-footnote,
+  .attendance-page .att-notice {
+    display: none !important;
+  }
+
+  .att-print-sheet {
+    display: block !important;
+  }
+
+  .att-print-sheet table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11pt;
+  }
+
+  .att-print-sheet th,
+  .att-print-sheet td {
+    border: 1px solid #333;
+    padding: 4px 6px;
+    text-align: left;
+  }
+
+  .att-print-sheet h1 {
+    margin: 0 0 0.35rem;
+    font-size: 16pt;
+  }
+}

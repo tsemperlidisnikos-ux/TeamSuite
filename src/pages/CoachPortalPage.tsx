@@ -7,7 +7,7 @@ import {
   Layers,
   Users,
 } from 'lucide-react';
-import { upsertAttendance } from '../api/services/attendanceService';
+import { upsertAttendance, absenceReasonLabel } from '../api/services/attendanceService';
 import * as notificationService from '../api/services/notificationService';
 import { getSession } from '../auth/auth';
 import { Button } from '../components/ui/Button';
@@ -69,6 +69,21 @@ export function CoachPortalPage() {
   );
 
   const nextTraining = upcoming[0] ?? null;
+
+  const missingAttendanceToday = useMemo(() => {
+    const ids = new Set<string>();
+    for (const t of data.trainings ?? []) {
+      if (t.date !== today || !t.classId || !classIds.has(t.classId)) continue;
+      ids.add(t.classId);
+    }
+    return [...ids]
+      .filter(
+        (cid) =>
+          !(data.attendance ?? []).some((a) => a.classId === cid && a.date === today),
+      )
+      .map((cid) => myClasses.find((c) => c.id === cid))
+      .filter((c): c is NonNullable<typeof c> => Boolean(c));
+  }, [data.trainings, data.attendance, classIds, today, myClasses]);
 
   const roster = useMemo(
     () =>
@@ -205,6 +220,26 @@ export function CoachPortalPage() {
 
       {!linkMissing && !linkBroken ? (
         <>
+          {missingAttendanceToday.length > 0 ? (
+            <section className="panel cport-card cport-remind">
+              <p>
+                Υπάρχει προπόνηση σήμερα χωρίς καταγραφή παρουσίας:{' '}
+                <strong>{missingAttendanceToday.map((c) => c.name).join(', ')}</strong>
+              </p>
+              <button
+                type="button"
+                className="cport-remind-btn"
+                onClick={() => {
+                  const first = missingAttendanceToday[0];
+                  if (first) setClassId(first.id);
+                  setDate(today);
+                  document.getElementById('attendance')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                Καταγραφή τώρα
+              </button>
+            </section>
+          ) : null}
           <div className="cport-stats">
             <article className="cport-stat panel">
               <Layers size={18} />
@@ -297,6 +332,13 @@ export function CoachPortalPage() {
                         const name = `${student.lastName} ${student.firstName}`.trim();
                         const present = isPresent(student.id);
                         const busy = savingId === student.id;
+                        const record = (data.attendance ?? []).find(
+                          (a) =>
+                            a.classId === activeClassId &&
+                            a.studentId === student.id &&
+                            a.date === date,
+                        );
+                        const reason = absenceReasonLabel(record?.absenceReason);
                         return (
                           <tr key={student.id}>
                             <td>
@@ -305,6 +347,9 @@ export function CoachPortalPage() {
                                   {initials(name)}
                                 </span>
                                 {name}
+                                {!present && reason ? (
+                                  <span className="cport-absence-reason">{reason}</span>
+                                ) : null}
                               </div>
                             </td>
                             <td>

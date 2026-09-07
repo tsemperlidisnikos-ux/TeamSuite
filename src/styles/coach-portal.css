@@ -164,8 +164,41 @@
 .cport-athlete {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.55rem;
   font-weight: 700;
+}
+
+.cport-absence-reason {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+}
+
+.cport-remind {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cport-remind p {
+  margin: 0;
+}
+
+.cport-remind-btn {
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent, #e0b13a);
+  color: #111;
+  font: inherit;
+  font-weight: 700;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
 }
 
 .cport-avatar {

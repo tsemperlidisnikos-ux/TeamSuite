@@ -179,9 +179,10 @@ export async function decryptAmka(value: string, clubId: string): Promise<string
 }
 
 export async function encryptStudentAmkaFields(
-  students: Array<{ amka?: string }>,
+  students: Array<{ amka?: string; amkaFp?: string }>,
   clubId: string,
 ): Promise<boolean> {
+  const { amkaFingerprint } = await import('./athleteIdentity.js');
   let changed = false;
   // Prefetch once per club batch
   await resolveClubFieldKey(clubId);
@@ -193,11 +194,21 @@ export async function encryptStudentAmkaFields(
       // Migrate v1 → v2 when server key is available
       const plain = await decryptAmka(amka, clubId);
       if (!plain || isAmkaEncrypted(plain)) continue;
+      const fp = amkaFingerprint(plain);
+      if (fp && student.amkaFp !== fp) {
+        student.amkaFp = fp;
+        changed = true;
+      }
       const v2Key = await resolveClubFieldKey(clubId);
       if (!v2Key) continue;
       student.amka = await encryptAmka(plain, clubId);
       changed = true;
       continue;
+    }
+    const fp = amkaFingerprint(amka);
+    if (fp && student.amkaFp !== fp) {
+      student.amkaFp = fp;
+      changed = true;
     }
     student.amka = await encryptAmka(amka, clubId);
     changed = true;
@@ -206,9 +217,10 @@ export async function encryptStudentAmkaFields(
 }
 
 export async function decryptStudentAmkaFields(
-  students: Array<{ amka?: string }>,
+  students: Array<{ amka?: string; amkaFp?: string }>,
   clubId: string,
 ): Promise<boolean> {
+  const { amkaFingerprint } = await import('./athleteIdentity.js');
   let changed = false;
   await resolveClubFieldKey(clubId);
   for (const student of students) {
@@ -218,6 +230,8 @@ export async function decryptStudentAmkaFields(
       const plain = await decryptAmka(amka, clubId);
       if (plain && plain !== amka && !isAmkaEncrypted(plain)) {
         student.amka = plain;
+        const fp = amkaFingerprint(plain);
+        if (fp) student.amkaFp = fp;
         changed = true;
       }
     } catch {

@@ -56,6 +56,8 @@ export interface Student {
   enrolledAt: string;
   // Academio-style profile
   amka?: string;
+  /** SHA-256 των 11 ψηφίων ΑΜΚΑ — για έλεγχο διπλοεγγραφής όταν το ΑΜΚΑ είναι κρυπτογραφημένο. */
+  amkaFp?: string;
   /** Αριθμός Δελτίου Ταυτότητας. */
   adt?: string;
   gender?: Gender;
@@ -203,6 +205,8 @@ export interface ScheduleSlot {
   location: string;
 }
 
+export type AbsenceReason = 'sick' | 'leave';
+
 export interface AttendanceRecord {
   id: string;
   classId: string;
@@ -210,6 +214,17 @@ export interface AttendanceRecord {
   date: string;
   present: boolean;
   notes?: string;
+  /** Αιτιολόγηση απουσίας από γονέα (ασθένεια / άδεια). */
+  absenceReason?: AbsenceReason | null;
+}
+
+export interface AthleteChangeLog {
+  id: string;
+  studentId: string;
+  at: string;
+  byUserId?: string;
+  byName?: string;
+  changes: Array<{ field: string; from: string; to: string }>;
 }
 
 export interface Revenue {
@@ -744,6 +759,8 @@ export interface AppData {
   classes: AcademyClass[];
   schedule: ScheduleSlot[];
   attendance: AttendanceRecord[];
+  /** Ιστορικό αλλαγών καρτέλας αθλητή (γραμματεία). */
+  athleteChangeLogs?: AthleteChangeLog[];
   revenues: Revenue[];
   expenses: Expense[];
   transactions: AthleteTransaction[];

@@ -51,6 +51,7 @@ export async function createRecurringTrainings(input: {
   endDate: string;
   startTime: string;
   endTime: string;
+  weekdayTimes?: Record<number, { startTime?: string; endTime?: string }>;
   location: string;
   notes: string;
   classId: string | null;
@@ -59,9 +60,6 @@ export async function createRecurringTrainings(input: {
   return apiClient(() => {
     if (!input.startDate || !input.endDate) {
       throw new Error('Ημερομηνίες έναρξης/λήξης υποχρεωτικές');
-    }
-    if (!input.startTime || !input.endTime) {
-      throw new Error('Ώρες έναρξης/λήξης υποχρεωτικές');
     }
 
     const weekdays = [
@@ -73,6 +71,20 @@ export async function createRecurringTrainings(input: {
     ].filter((d) => d >= 0 && d <= 6);
     if (weekdays.length === 0) {
       throw new Error('Επιλέξτε τουλάχιστον μία ημέρα');
+    }
+
+    const timesFor = (day: number) => {
+      const override = input.weekdayTimes?.[day];
+      return {
+        startTime: (override?.startTime || input.startTime || '').trim(),
+        endTime: (override?.endTime || input.endTime || '').trim(),
+      };
+    };
+    for (const day of weekdays) {
+      const times = timesFor(day);
+      if (!times.startTime || !times.endTime) {
+        throw new Error('Ώρες έναρξης/λήξης υποχρεωτικές για κάθε επιλεγμένη ημέρα');
+      }
     }
 
     const start = new Date(`${input.startDate}T12:00:00`);
@@ -87,23 +99,25 @@ export async function createRecurringTrainings(input: {
     if (!working.trainings) working.trainings = [];
     const cursor = new Date(start);
     while (cursor <= end) {
-      if (weekdays.includes(cursor.getDay())) {
+      const day = cursor.getDay();
+      if (weekdays.includes(day)) {
         const date = localDateIso(cursor);
+        const times = timesFor(day);
         const check = slotConflictsWithClubOccupancy(
           working,
           input.location,
           date,
-          input.startTime,
-          input.endTime,
+          times.startTime,
+          times.endTime,
         );
         if (!check.ok) {
-          skipped.push(`${date} ${input.startTime}–${input.endTime} (${check.reason})`);
+          skipped.push(`${date} ${times.startTime}–${times.endTime} (${check.reason})`);
         } else {
           const training: Training = {
             id: createId('trn'),
             date,
-            startTime: input.startTime,
-            endTime: input.endTime,
+            startTime: times.startTime,
+            endTime: times.endTime,
             location: input.location,
             notes: input.notes,
             classId: input.classId,
@@ -177,5 +191,63 @@ export async function bulkDeleteTrainings(ids: string[]) {
     });
     void publishClubOpsSlice();
     return { deleted: ids.length };
+  });
+}
+
+export async function bulkUpdateTrainings(
+  ids: string[],
+  patch: { startTime?: string; endTime?: string; location?: string },
+) {
+  await syncRemoteRentalBookings();
+  return apiClient(() => {
+    const idSet = new Set(ids.filter(Boolean));
+    if (idSet.size === 0) throw new Error('Δεν επιλέχθηκαν προπονήσεις');
+    const startTime = patch.startTime?.trim() ?? '';
+    const endTime = patch.endTime?.trim() ?? '';
+    const location = patch.location?.trim() ?? '';
+    if (!startTime && !endTime && !location) {
+      throw new Error('Συμπληρώστε ώρα ή γήπεδο για αλλαγή');
+    }
+
+    const working = structuredClone(getData()) as AppData;
+    if (!working.trainings) working.trainings = [];
+    const updated: Training[] = [];
+    const skipped: string[] = [];
+
+    for (const training of working.trainings) {
+      if (!idSet.has(training.id)) continue;
+      const next: Training = {
+        ...training,
+        startTime: startTime || training.startTime,
+        endTime: endTime || training.endTime,
+        location: location || training.location,
+      };
+      const check = slotConflictsWithClubOccupancy(
+        working,
+        next.location,
+        next.date,
+        next.startTime,
+        next.endTime,
+        { excludeTrainingIds: [training.id] },
+      );
+      if (!check.ok) {
+        skipped.push(`${next.date} ${next.startTime}–${next.endTime} (${check.reason})`);
+        continue;
+      }
+      const idx = working.trainings.findIndex((row) => row.id === training.id);
+      if (idx >= 0) working.trainings[idx] = next;
+      updated.push(next);
+    }
+
+    if (updated.length === 0) {
+      throw new Error(skipped[0] ?? 'Δεν ενημερώθηκε καμία προπόνηση');
+    }
+
+    const byId = new Map(updated.map((row) => [row.id, row]));
+    mutateData((data) => {
+      data.trainings = (data.trainings ?? []).map((row) => byId.get(row.id) ?? row);
+    });
+    void publishClubOpsSlice();
+    return { updated: updated.length, skipped };
   });
 }

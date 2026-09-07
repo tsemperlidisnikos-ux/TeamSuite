@@ -33,9 +33,16 @@ const emptyRecurring = {
   endDate: '',
   startTime: '',
   endTime: '',
+  weekdayTimes: {} as Record<number, { startTime: string; endTime: string }>,
   location: '',
   notes: '',
   classId: null as string | null,
+};
+
+const emptyBulk = {
+  startTime: '',
+  endTime: '',
+  location: '',
 };
 
 const weekdays = [
@@ -98,6 +105,9 @@ export function TrainingsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [bulkForm, setBulkForm] = useState(emptyBulk);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
   const [error, setError] = useState('');
 
   const classesForFormSport = useMemo(() => {
@@ -166,6 +176,7 @@ export function TrainingsPage() {
   function closeModals() {
     setShowAdd(false);
     setShowRecurring(false);
+    setShowBulkEdit(false);
     setEditing(null);
     setFormSport('');
     setRecSport('');
@@ -234,12 +245,21 @@ export function TrainingsPage() {
     }
     setSaving(true);
     setError('');
+    const weekdayTimes: Record<number, { startTime: string; endTime: string }> = {};
+    for (const day of weekdaysSelected) {
+      const row = recForm.weekdayTimes[day];
+      weekdayTimes[day] = {
+        startTime: (row?.startTime || recForm.startTime).trim(),
+        endTime: (row?.endTime || recForm.endTime).trim(),
+      };
+    }
     const result = await trainingsService.createRecurringTrainings({
       weekdays: weekdaysSelected,
       startDate: recForm.startDate,
       endDate: recForm.endDate,
       startTime: recForm.startTime,
       endTime: recForm.endTime,
+      weekdayTimes,
       location: recForm.location,
       notes: recForm.notes,
       classId: recForm.classId,
@@ -271,6 +291,33 @@ export function TrainingsPage() {
     refresh();
   }
 
+  async function handleBulkUpdate() {
+    if (selectedIds.size === 0) return;
+    setBulkUpdating(true);
+    setError('');
+    const result = await trainingsService.bulkUpdateTrainings([...selectedIds], {
+      startTime: bulkForm.startTime,
+      endTime: bulkForm.endTime,
+      location: bulkForm.location,
+    });
+    setBulkUpdating(false);
+    if (!result.success) {
+      setError(result.error ?? 'Σφάλμα ενημέρωσης');
+      return;
+    }
+    const skipped = result.data?.skipped ?? [];
+    closeModals();
+    setSelectedIds(new Set());
+    refresh();
+    if (skipped.length) {
+      window.alert(
+        `Ενημερώθηκαν ${result.data?.updated ?? 0}. Παραλείφθηκαν λόγω σύγκρουσης:\n${skipped
+          .slice(0, 8)
+          .join('\n')}${skipped.length > 8 ? `\n… και ${skipped.length - 8} ακόμη` : ''}`,
+      );
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm('Διαγραφή προπόνησης;')) return;
     await trainingsService.deleteTraining(id);
@@ -292,6 +339,18 @@ export function TrainingsPage() {
         <div className="trainings-actions">
           <button type="button" className="trn-btn trn-btn-secondary" onClick={openRecurring}>
             Επαναλαμβανόμενες προπονήσεις
+          </button>
+          <button
+            type="button"
+            className="trn-btn trn-btn-secondary"
+            disabled={selectedIds.size === 0 || bulkUpdating}
+            onClick={() => {
+              setBulkForm(emptyBulk);
+              setError('');
+              setShowBulkEdit(true);
+            }}
+          >
+            Μαζική επεξεργασία
           </button>
           <button
             type="button"
@@ -565,7 +624,16 @@ export function TrainingsPage() {
                                   const order = (n: number) => (n === 0 ? 7 : n);
                                   return order(a) - order(b);
                                 });
-                            return { ...prev, weekdays: next };
+                            const weekdayTimes = { ...prev.weekdayTimes };
+                            if (has) {
+                              delete weekdayTimes[d.value];
+                            } else if (!weekdayTimes[d.value]) {
+                              weekdayTimes[d.value] = {
+                                startTime: prev.startTime,
+                                endTime: prev.endTime,
+                              };
+                            }
+                            return { ...prev, weekdays: next, weekdayTimes };
                           });
                         }}
                       >
@@ -593,7 +661,7 @@ export function TrainingsPage() {
                 />
               </label>
               <label>
-                <span>Ώρα έναρξης</span>
+                <span>Ώρα έναρξης (προεπιλογή)</span>
                 <input
                   type="time"
                   value={recForm.startTime}
@@ -601,13 +669,59 @@ export function TrainingsPage() {
                 />
               </label>
               <label>
-                <span>Ώρα λήξης</span>
+                <span>Ώρα λήξης (προεπιλογή)</span>
                 <input
                   type="time"
                   value={recForm.endTime}
                   onChange={(e) => setRecForm({ ...recForm, endTime: e.target.value })}
                 />
               </label>
+              {recForm.weekdays.length > 0 ? (
+                <div className="training-weekday-times">
+                  <span>Ώρες ανά ημέρα</span>
+                  {weekdays
+                    .filter((d) => recForm.weekdays.includes(d.value))
+                    .map((d) => {
+                      const row = recForm.weekdayTimes[d.value] ?? {
+                        startTime: recForm.startTime,
+                        endTime: recForm.endTime,
+                      };
+                      return (
+                        <div key={d.value} className="training-weekday-time-row">
+                          <strong>{d.label}</strong>
+                          <input
+                            type="time"
+                            aria-label={`${d.label} έναρξη`}
+                            value={row.startTime}
+                            onChange={(e) =>
+                              setRecForm((prev) => ({
+                                ...prev,
+                                weekdayTimes: {
+                                  ...prev.weekdayTimes,
+                                  [d.value]: { ...row, startTime: e.target.value },
+                                },
+                              }))
+                            }
+                          />
+                          <input
+                            type="time"
+                            aria-label={`${d.label} λήξη`}
+                            value={row.endTime}
+                            onChange={(e) =>
+                              setRecForm((prev) => ({
+                                ...prev,
+                                weekdayTimes: {
+                                  ...prev.weekdayTimes,
+                                  [d.value]: { ...row, endTime: e.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : null}
               <label>
                 <span>Τοποθεσία / Γήπεδο</span>
                 <select
@@ -643,6 +757,67 @@ export function TrainingsPage() {
                 onClick={() => void handleSaveRecurring()}
               >
                 {saving ? 'Αποθήκευση...' : 'Αποθήκευση'}
+              </button>
+              <button type="button" className="training-btn-cancel" onClick={closeModals}>
+                Ακύρωση
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showBulkEdit ? (
+        <div className="training-modal-backdrop" role="presentation" onClick={closeModals}>
+          <div
+            className="training-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bulk-edit-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="bulk-edit-modal-title">Μαζική επεξεργασία ({selectedIds.size})</h2>
+            <p className="muted">Κενό πεδίο = χωρίς αλλαγή.</p>
+            <div className="training-modal-fields">
+              <label>
+                <span>Ώρα έναρξης</span>
+                <input
+                  type="time"
+                  value={bulkForm.startTime}
+                  onChange={(e) => setBulkForm({ ...bulkForm, startTime: e.target.value })}
+                />
+              </label>
+              <label>
+                <span>Ώρα λήξης</span>
+                <input
+                  type="time"
+                  value={bulkForm.endTime}
+                  onChange={(e) => setBulkForm({ ...bulkForm, endTime: e.target.value })}
+                />
+              </label>
+              <label>
+                <span>Τοποθεσία / Γήπεδο</span>
+                <select
+                  value={bulkForm.location}
+                  onChange={(e) => setBulkForm({ ...bulkForm, location: e.target.value })}
+                >
+                  <option value="">— χωρίς αλλαγή —</option>
+                  {facilityLocations.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {error ? <p className="form-error">{error}</p> : null}
+            </div>
+            <div className="training-modal-actions">
+              <button
+                type="button"
+                className="training-btn-save"
+                disabled={bulkUpdating}
+                onClick={() => void handleBulkUpdate()}
+              >
+                {bulkUpdating ? 'Ενημέρωση...' : 'Εφαρμογή'}
               </button>
               <button type="button" className="training-btn-cancel" onClick={closeModals}>
                 Ακύρωση

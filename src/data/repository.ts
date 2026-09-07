@@ -109,7 +109,8 @@ function ensureCollections(data: AppData): boolean {
       changed = true;
     }
   }
-  if (!data.announcements) data.announcements = structuredClone(seedData.announcements);
+  if (!data.attendance) data.attendance = structuredClone(seedData.attendance);
+  if (!data.athleteChangeLogs) data.athleteChangeLogs = structuredClone(seedData.athleteChangeLogs ?? []);
   if (!data.budgets) data.budgets = structuredClone(seedData.budgets);
   if (!data.products) data.products = structuredClone(seedData.products);
   if (!data.stockMovements) data.stockMovements = structuredClone(seedData.stockMovements ?? []);
