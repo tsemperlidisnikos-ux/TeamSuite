@@ -6046,6 +6046,15 @@ html[data-appearance] .settings-backup-schedule-status {
   width: min(960px, 100%);
 }
 
+.public-join-page.is-rent-embed {
+  padding: 0.45rem 0.35rem 0.9rem;
+  max-width: none;
+}
+
+.public-join-page.is-rent-embed .public-rent-shell {
+  width: 100%;
+}
+
 .public-rent-hero {
   background: transparent;
   box-shadow: none;

@@ -53,6 +53,8 @@ export function PublicRentPage() {
   const { t } = useT();
   const { slug = '' } = useParams();
   const [searchParams] = useSearchParams();
+  const isEmbed = searchParams.get('embed') === '1';
+  const pageClass = isEmbed ? 'public-join-page is-rent-embed' : 'public-join-page';
   const [club, setClub] = useState<RentClubView | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -378,7 +380,7 @@ export function PublicRentPage() {
 
   if (loading) {
     return (
-      <div className="public-join-page">
+      <div className={pageClass}>
         <div className="public-join-card">
           <p className="muted">{t('Φόρτωση…')}</p>
         </div>
@@ -388,7 +390,7 @@ export function PublicRentPage() {
 
   if (!club) {
     return (
-      <div className="public-join-page">
+      <div className={pageClass}>
         <div className="public-join-card">
           <p>{loadError || t('Ο σύνδεσμος δεν βρέθηκε.')}</p>
           <Link to="/">{t('Επιστροφή')}</Link>
@@ -399,7 +401,7 @@ export function PublicRentPage() {
 
   if (!club.publicEnabled) {
     return (
-      <div className="public-join-page">
+      <div className={pageClass}>
         <div className="public-join-card">
           <h1>{club.name}</h1>
           <p>{t('Η δημόσια ενοικίαση δεν είναι ενεργή.')}</p>
@@ -445,7 +447,7 @@ export function PublicRentPage() {
   const totalDisplay = amount ?? hourlyRate + (useLockerRoom ? lockerFee : 0);
 
   return (
-    <div className="public-join-page">
+    <div className={pageClass}>
       <div className="public-join-shell public-rent-shell">
         <header className="public-join-hero public-rent-hero">
           {hero ? (

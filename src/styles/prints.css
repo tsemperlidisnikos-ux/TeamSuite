@@ -352,6 +352,59 @@
   min-width: 0;
 }
 
+.rental-public-embed {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.rental-embed-heading {
+  margin: 0.15rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.rental-embed-card {
+  position: relative;
+  background: #1b2430;
+  border-radius: 12px;
+  padding: 1rem 1.1rem 1.05rem;
+  overflow: auto;
+}
+
+.rental-embed-copy {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  background: #2c3644 !important;
+  color: #e8eef5 !important;
+  border-color: #3d4a5c !important;
+}
+
+.rental-embed-pre {
+  margin: 0;
+  padding: 0;
+  padding-right: 7.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #d7e3ef;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.rental-embed-pre .tok-tag,
+.rental-embed-pre .tok-attr,
+.rental-embed-pre .tok-eq {
+  color: #7ec8e3;
+}
+
+.rental-embed-pre .tok-str {
+  color: #f48fb1;
+}
+
 .rental-public-qr {
   padding-top: 0.25rem;
 }

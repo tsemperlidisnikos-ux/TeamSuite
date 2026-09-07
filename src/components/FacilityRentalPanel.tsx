@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { ClipboardCopy, Download, ExternalLink, ImagePlus, Trash2 } from 'lucide-react';
+import { ClipboardCopy, Code2, Download, ExternalLink, ImagePlus, Trash2 } from 'lucide-react';
 import * as rentalBookingsService from '../api/services/rentalBookingsService';
 import * as facilitiesService from '../api/services/facilitiesService';
-import { getSession } from '../auth/auth';
+import { getSession, isPlatformAdmin } from '../auth/auth';
 import { getClubById, getClubPublicRegistration, slugifyClubName } from '../auth/clubs';
 import { Button } from './ui/Button';
 import { useAppData } from '../hooks/useAppData';
@@ -35,6 +35,64 @@ function nextDays(count: number): string[] {
     d.setDate(today.getDate() + i);
     return localDateIso(d);
   });
+}
+
+function escapeHtmlAttr(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+const RENT_EMBED_ORIGIN = 'https://teamsuite-seven.vercel.app';
+
+function rentalEmbedSrc(slug: string): string {
+  return `${RENT_EMBED_ORIGIN}/rent/${slug.trim() || 'ΕΔΩ-ΤΟ-SLUG'}`;
+}
+
+function rentalEmbedTitle(clubName: string): string {
+  return `Ενοικίαση γηπέδου – ${clubName.trim() || 'σύλλογος'}`;
+}
+
+function rentalEmbedHtml(slug: string, clubName: string): string {
+  const src = rentalEmbedSrc(slug);
+  const title = escapeHtmlAttr(rentalEmbedTitle(clubName));
+  return `<iframe
+  src="${src}"
+  title="${title}"
+  style="width:100%;min-height:920px;border:0;border-radius:12px;"
+  loading="lazy"
+  allow="payment"
+></iframe>`;
+}
+
+function RentalEmbedSnippet({ slug, clubName }: { slug: string; clubName: string }) {
+  const src = rentalEmbedSrc(slug);
+  const title = rentalEmbedTitle(clubName);
+  return (
+    <pre className="rental-embed-pre">
+      <span className="tok-tag">{'<iframe'}</span>
+      {'\n  '}
+      <span className="tok-attr">src</span>
+      <span className="tok-eq">=</span>
+      <span className="tok-str">{`"${src}"`}</span>
+      {'\n  '}
+      <span className="tok-attr">title</span>
+      <span className="tok-eq">=</span>
+      <span className="tok-str">{`"${title}"`}</span>
+      {'\n  '}
+      <span className="tok-attr">style</span>
+      <span className="tok-eq">=</span>
+      <span className="tok-str">{'"width:100%;min-height:920px;border:0;border-radius:12px;"'}</span>
+      {'\n  '}
+      <span className="tok-attr">loading</span>
+      <span className="tok-eq">=</span>
+      <span className="tok-str">{'"lazy"'}</span>
+      {'\n  '}
+      <span className="tok-attr">allow</span>
+      <span className="tok-eq">=</span>
+      <span className="tok-str">{'"payment"'}</span>
+      {'\n'}
+      <span className="tok-tag">{'></iframe>'}</span>
+    </pre>
+  );
 }
 
 function formatDayChip(iso: string): string {
@@ -269,6 +327,16 @@ export function FacilityRentalPanel() {
     }
   }
 
+  async function copyEmbed() {
+    if (!isPlatformAdmin()) return;
+    try {
+      await navigator.clipboard.writeText(rentalEmbedHtml(slug, club?.name ?? ''));
+      setMessage('Το embed HTML αντιγράφηκε.');
+    } catch {
+      setError('Δεν ήταν δυνατή η αντιγραφή.');
+    }
+  }
+
   async function downloadQr() {
     if (!qrImageUrl) return;
     try {
@@ -409,6 +477,17 @@ export function FacilityRentalPanel() {
           ) : null}
         </div>
         </div>
+        {isPlatformAdmin() ? (
+          <div className="rental-public-embed">
+            <h3 className="rental-embed-heading">{t('2. Κώδικας για την ιστοσελίδα')}</h3>
+            <div className="rental-embed-card">
+              <RentalEmbedSnippet slug={slug} clubName={club?.name ?? ''} />
+              <Button type="button" variant="secondary" className="rental-embed-copy" onClick={() => void copyEmbed()}>
+                <Code2 size={16} /> {t('Αντιγραφή')}
+              </Button>
+            </div>
+          </div>
+        ) : null}
         <div className="rental-public-media">
         {qrImageUrl ? (
           <div className="rental-public-media-qr">
