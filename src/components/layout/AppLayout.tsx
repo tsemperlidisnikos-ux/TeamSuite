@@ -52,6 +52,7 @@ import { useAppData } from '../../hooks/useAppData';
 import { useCloudMirrorAutoPull } from '../../hooks/useCloudMirrorAutoPull';
 import { useT } from '../../i18n/LocaleContext';
 import { downloadClubBackupJsonAndAthletesXlsx } from '../../utils/clubQuickExport';
+import { ClubSyncStatus } from '../ClubSyncStatus';
 import * as publicClubCloudService from '../../api/services/publicClubCloudService';
 import { publishAppLogo, publishClubAppLogo } from '../../api/services/platformBrandingService';
 import { optimizeLogoDataUrl } from '../../utils/clubLogoFile';
@@ -432,6 +433,7 @@ export function AppLayout() {
               </NavLink>
             ))}
           </nav>
+          {clubId ? <ClubSyncStatus clubId={clubId} /> : null}
         </aside>
 
         <div className="main-area">

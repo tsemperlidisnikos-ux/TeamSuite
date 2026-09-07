@@ -23,6 +23,8 @@ export type RemotePublicClub = {
   autoApprove: boolean;
   allowTrial: boolean;
   allowWaitlist: boolean;
+  remainingSeats?: number | null;
+  licenseFull?: boolean;
   classes: Array<{ id: string; name: string; sport?: string; maxStudents?: number }>;
   sports?: string[];
   sizeChart?: SizeChart;

@@ -16,6 +16,11 @@ import { studentClassIds } from './studentClasses';
 import { studentCoachNames } from './studentCoaches';
 import { studentSports } from './studentSports';
 import { guardianDisplayName } from './greekSurname';
+import {
+  athleteIdentityConflictMessage,
+  findStudentsByAmka,
+  findStudentsByRegistrationNumber,
+} from './athleteIdentity';
 
 export type AthleteSheetClass = { id: string; name: string };
 
@@ -781,10 +786,20 @@ function findExisting(
   firstName: string,
   lastName: string,
   birthDate: string,
+  amka = '',
+  registrationNumber = '',
 ): Student | undefined {
   if (id) {
     const byId = students.find((s) => s.id === id);
     if (byId) return byId;
+  }
+  if (amka) {
+    const byAmka = findStudentsByAmka(students, amka);
+    if (byAmka.length === 1) return students.find((s) => s.id === byAmka[0]!.id);
+  }
+  if (registrationNumber) {
+    const byReg = findStudentsByRegistrationNumber(students, registrationNumber);
+    if (byReg.length === 1) return students.find((s) => s.id === byReg[0]!.id);
   }
   const mail = email.trim().toLowerCase();
   if (mail) {
@@ -841,6 +856,42 @@ export function planAthleteImport(
     if (!lastName && !firstName) continue;
 
     const id = cells.get('id') ?? '';
+    const amka = cells.get('amka') ?? '';
+    const registrationNumber = cells.get('registrationNumber') ?? '';
+    const amkaHits = findStudentsByAmka(students, amka);
+    if (amkaHits.length > 1) {
+      errors.push(`Γραμμή ${rowNumber}: ${athleteIdentityConflictMessage('amka', amkaHits)}`);
+      continue;
+    }
+    if (amkaHits.length === 1) {
+      const hit = amkaHits[0]!;
+      const sameName =
+        hit.lastName.trim().toLocaleLowerCase('el') === lastName.trim().toLocaleLowerCase('el') &&
+        hit.firstName.trim().toLocaleLowerCase('el') === firstName.trim().toLocaleLowerCase('el');
+      if ((id && id !== hit.id) || (!id && !sameName)) {
+        errors.push(`Γραμμή ${rowNumber}: ${athleteIdentityConflictMessage('amka', amkaHits)}`);
+        continue;
+      }
+    }
+    const regHits = findStudentsByRegistrationNumber(students, registrationNumber);
+    if (regHits.length > 1) {
+      errors.push(
+        `Γραμμή ${rowNumber}: ${athleteIdentityConflictMessage('registration', regHits)}`,
+      );
+      continue;
+    }
+    if (regHits.length === 1) {
+      const hit = regHits[0]!;
+      const sameName =
+        hit.lastName.trim().toLocaleLowerCase('el') === lastName.trim().toLocaleLowerCase('el') &&
+        hit.firstName.trim().toLocaleLowerCase('el') === firstName.trim().toLocaleLowerCase('el');
+      if ((id && id !== hit.id) || (!id && !sameName)) {
+        errors.push(
+          `Γραμμή ${rowNumber}: ${athleteIdentityConflictMessage('registration', regHits)}`,
+        );
+        continue;
+      }
+    }
     const existing = findExisting(
       students,
       id,
@@ -848,6 +899,8 @@ export function planAthleteImport(
       firstName,
       lastName,
       parseDate(cells.get('birthDate') ?? ''),
+      amka,
+      registrationNumber,
     );
 
     const draft: StudentInput = existing ? { ...studentToInput(existing) } : emptyInput();

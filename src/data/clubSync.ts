@@ -22,6 +22,13 @@ const LAST_SYNC_KEY = 'academyhub-last-sync-v1';
 const CLOUD_PREFERRED_KEY = 'academyhub-cloud-preferred-v1';
 const DIRTY_KEY = 'academyhub-club-dirty-v1';
 
+export const CLUB_SYNC_STATUS_EVENT = 'teamsuite-club-sync-status';
+
+function emitClubSyncStatus(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(CLUB_SYNC_STATUS_EVENT));
+}
+
 type AutoSyncMap = Record<string, boolean>;
 type LastSyncMap = Record<string, string>;
 
@@ -81,6 +88,7 @@ function setLastSyncAt(clubId: string, at: string): void {
   const map = readMap<LastSyncMap>(LAST_SYNC_KEY);
   map[clubId] = at;
   writeMap(LAST_SYNC_KEY, map);
+  emitClubSyncStatus();
 }
 
 export function clearLastSyncAt(clubId: string): void {
@@ -97,12 +105,14 @@ function markClubMirrorDirty(clubId: string): void {
   const map = readMap<Record<string, boolean>>(DIRTY_KEY);
   map[clubId] = true;
   writeMap(DIRTY_KEY, map);
+  emitClubSyncStatus();
 }
 
 function clearClubMirrorDirty(clubId: string): void {
   const map = readMap<Record<string, boolean>>(DIRTY_KEY);
   delete map[clubId];
   writeMap(DIRTY_KEY, map);
+  emitClubSyncStatus();
 }
 
 /** Debounced push of active club AppData + account bundle to cloud. */

@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { listReadyOnlineProviders } from '../api/services/onlineCheckoutService';
 import {
   getClubPublicRegistration,
   getClubs,
@@ -39,6 +40,7 @@ type RentClubView = {
     lockerRoomFee?: number;
   }>;
   photoLook?: 'g';
+  payOnline?: boolean;
 };
 
 function formatDayChip(iso: string): string {
@@ -50,6 +52,7 @@ function formatDayChip(iso: string): string {
 export function PublicRentPage() {
   const { t } = useT();
   const { slug = '' } = useParams();
+  const [searchParams] = useSearchParams();
   const [club, setClub] = useState<RentClubView | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -93,6 +96,7 @@ export function PublicRentPage() {
             source: 'remote',
             heroImageUrl: body.club.heroImageUrl || body.club.logoUrl || null,
             prices: body.club.prices ?? [],
+            payOnline: Boolean(body.club.payOnline),
           });
           setLoading(false);
           return;
@@ -135,6 +139,7 @@ export function PublicRentPage() {
                 lockerRoomFee: Number(rule.lockerRoomFee) || 0,
               };
             }),
+            payOnline: listReadyOnlineProviders(local.id).some((p) => p.id === 'viva'),
           });
           setLoading(false);
         }
@@ -152,6 +157,37 @@ export function PublicRentPage() {
       cancelled = true;
     };
   }, [slug]);
+
+  useEffect(() => {
+    const vivaTx = searchParams.get('t');
+    const paidReturn =
+      searchParams.get('pay') === '1' ||
+      searchParams.get('s') === '1' ||
+      Boolean(vivaTx);
+    const bid = searchParams.get('bid') || sessionStorage.getItem('rent-pay-bid') || '';
+    const paySlug = searchParams.get('slug') || sessionStorage.getItem('rent-pay-slug') || slug;
+    if (!bid || !paidReturn) return;
+    let cancelled = false;
+    void (async () => {
+      const response = await fetch('/api/public-rent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: paySlug, bookingId: bid, confirmPayment: true }),
+      });
+      const body = (await response.json()) as { ok?: boolean; error?: string };
+      if (cancelled) return;
+      sessionStorage.removeItem('rent-pay-bid');
+      sessionStorage.removeItem('rent-pay-slug');
+      if (response.ok && body.ok) {
+        setDone('Η πληρωμή καταχωρήθηκε και η κράτηση επιβεβαιώθηκε.');
+      } else {
+        setError(body.error ?? 'Η πληρωμή δεν επιβεβαιώθηκε ακόμα. Επικοινωνήστε με τον σύλλογο.');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, slug]);
 
   useEffect(() => {
     if (!club?.facilities[0]) return;
@@ -211,7 +247,7 @@ export function PublicRentPage() {
     });
   }, []);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent | { preventDefault: () => void }, payOnline = false) {
     event.preventDefault();
     if (!club || !club.publicEnabled || !selectedFacility || !slot) {
       setError('Επιλέξτε γήπεδο και διαθέσιμη ώρα.');
@@ -225,6 +261,19 @@ export function PublicRentPage() {
     setSaving(true);
     setError('');
     setDone('');
+
+    if (payOnline) {
+      if (club.source === 'local') {
+        setSaving(false);
+        setError('Η online πληρωμή είναι διαθέσιμη μόνο από τον δημόσιο σύνδεσμο (cloud).');
+        return;
+      }
+      if (!customerEmail.includes('@')) {
+        setSaving(false);
+        setError('Για online πληρωμή συμπληρώστε email.');
+        return;
+      }
+    }
 
     if (club.source === 'local') {
       const data = getClubData(club.clubId);
@@ -294,11 +343,23 @@ export function PublicRentPage() {
           customerEmail,
           notes,
           useLockerRoom,
+          payOnline,
         }),
       });
-      const body = (await response.json()) as { ok?: boolean; error?: string };
+      const body = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        checkoutUrl?: string;
+        bookingId?: string;
+        pendingPayment?: boolean;
+      };
       if (!response.ok || !body.ok) {
         setError(body.error ?? 'Αποτυχία κράτησης.');
+      } else if (body.checkoutUrl) {
+        sessionStorage.setItem('rent-pay-bid', body.bookingId ?? '');
+        sessionStorage.setItem('rent-pay-slug', club.slug);
+        window.location.href = body.checkoutUrl;
+        return;
       } else {
         setDone(`Η κράτηση καταχωρήθηκε για ${date}, ${slot.startTime}–${slot.endTime}.`);
         setCustomerLastName('');
@@ -565,7 +626,9 @@ export function PublicRentPage() {
               />
             </label>
             <label className="field">
-              <span className="field-label">Email</span>
+              <span className="field-label">
+                Email{club.payOnline ? ' *' : ''}
+              </span>
               <input
                 className="field-input"
                 type="email"
@@ -582,6 +645,16 @@ export function PublicRentPage() {
               <Button type="submit" disabled={saving}>
                 {saving ? t('Αποστολή…') : t('Κράτηση')}
               </Button>
+              {club.payOnline ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={saving}
+                  onClick={(e) => void handleSubmit(e, true)}
+                >
+                  {saving ? t('Αποστολή…') : t('Πληρωμή online')}
+                </Button>
+              ) : null}
             </div>
           </form>
         )}

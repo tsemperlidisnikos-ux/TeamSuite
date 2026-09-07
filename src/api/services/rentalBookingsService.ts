@@ -16,6 +16,9 @@ import type { RentalBooking, RentalSettings } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import { syncAuthHeaders } from '../syncAuth';
 import { persistClubImageDataUrl } from './sessionService';
+import * as emailService from './emailService';
+import { getClubById } from '../../auth/clubs';
+import { buildRentalBookingEmail } from '../../utils/rentalBookingEmail';
 
 export async function publishRentalOccupancy(clubId: string) {
   const data = resolveActiveClubId() === clubId ? getData() : getClubData(clubId);
@@ -134,6 +137,25 @@ export async function createRentalBooking(
         await publishRentalOccupancy(clubId);
       } catch {
         /* τοπική κράτηση μένει · το δημόσιο ενημερώνεται στο επόμενο save */
+      }
+      const to = booking.customerEmail;
+      if (to.includes('@')) {
+        const mail = buildRentalBookingEmail({
+          clubName: getClubById(clubId)?.name ?? '',
+          booking,
+        });
+        try {
+          await emailService.sendClubEmail({
+            clubId,
+            to,
+            subject: mail.subject,
+            text: mail.text,
+            html: mail.html,
+            transactional: true,
+          });
+        } catch {
+          /* κράτηση έγκυρη και χωρίς email */
+        }
       }
     }
     return booking;

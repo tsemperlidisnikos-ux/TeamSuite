@@ -16,6 +16,11 @@ import {
   syncClubAthleteLicenseUsed,
   wouldConsumeAthleteLicense,
 } from '../../utils/athleteLicenseCap';
+import {
+  athleteIdentityConflictMessage,
+  findStudentsByAmka,
+  findStudentsByRegistrationNumber,
+} from '../../utils/athleteIdentity';
 
 function withUpperIdentity(input: StudentInput): StudentInput {
   return {
@@ -37,6 +42,15 @@ export async function getStudents() {
 export async function createStudent(input: StudentInput) {
   return apiClient(async () => {
     const parsed = withUpperIdentity(studentCreateSchema.parse(input));
+    const existing = getData().students;
+    const amkaHits = findStudentsByAmka(existing, parsed.amka ?? '');
+    if (amkaHits.length) {
+      throw new Error(athleteIdentityConflictMessage('amka', amkaHits));
+    }
+    const regHits = findStudentsByRegistrationNumber(existing, parsed.registrationNumber ?? '');
+    if (regHits.length) {
+      throw new Error(athleteIdentityConflictMessage('registration', regHits));
+    }
     const classes = normalizeStudentClasses(parsed.classIds, parsed.classId);
     const sports = normalizeStudentSports(parsed.sports, parsed.sport);
     const coaches = normalizeStudentCoaches(parsed.coachNames, parsed.coachName);
@@ -89,6 +103,18 @@ export async function updateStudent(id: string, input: StudentInput) {
       const index = data.students.findIndex((s) => s.id === id);
       if (index === -1) throw new Error('Ο αθλητής δεν βρέθηκε');
       const previous = data.students[index];
+      const amkaHits = findStudentsByAmka(data.students, parsed.amka ?? '', id);
+      if (amkaHits.length) {
+        throw new Error(athleteIdentityConflictMessage('amka', amkaHits));
+      }
+      const regHits = findStudentsByRegistrationNumber(
+        data.students,
+        parsed.registrationNumber ?? '',
+        id,
+      );
+      if (regHits.length) {
+        throw new Error(athleteIdentityConflictMessage('registration', regHits));
+      }
       updated = {
         ...previous,
         ...parsed,

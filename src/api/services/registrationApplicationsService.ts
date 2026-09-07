@@ -17,6 +17,10 @@ import {
   wouldConsumeAthleteLicense,
 } from '../../utils/athleteLicenseCap';
 import * as emailService from './emailService';
+import {
+  athleteIdentityConflictMessage,
+  findStudentsByAmka,
+} from '../../utils/athleteIdentity';
 
 function clubNameForSession(): string {
   const session = getSession();
@@ -134,6 +138,10 @@ export async function approveRegistrationApplication(
         id: s.id,
         name: `${s.lastName} ${s.firstName}`.trim(),
       }));
+      const amkaHits = findStudentsByAmka(data.students, app.amka ?? '');
+      if (amkaHits.length && !options?.force) {
+        throw new Error(athleteIdentityConflictMessage('amka', amkaHits));
+      }
       if (duplicates.length > 0 && !options?.force) {
         throw new Error(
           `Πιθανό διπλότυπο: υπάρχει ήδη αθλητής «${duplicates[0].name}» με ίδιο τηλ. γονέα. Επιβεβαιώστε για συνέχεια.`,

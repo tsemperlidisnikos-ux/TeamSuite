@@ -11,6 +11,7 @@ import {
 import { SignaturePad } from '../components/SignaturePad';
 import { Button } from '../components/ui/Button';
 import { getClubData } from '../data/repository';
+import { remainingAthleteLicenseSeats } from '../utils/athleteLicenseCap';
 import {
   collectClubSportOptions,
   gdprItemsFromJoinDeclarations,
@@ -43,6 +44,9 @@ type JoinClubView = {
   classes: Array<{ id: string; name: string; sport?: string }>;
   sports: string[];
   sizeChart: SizeChart;
+  allowWaitlist?: boolean;
+  remainingSeats?: number | null;
+  licenseFull?: boolean;
 };
 
 function UpperJoinInput({
@@ -81,6 +85,9 @@ function fromRemote(club: RemotePublicClub): JoinClubView {
     classes: club.classes ?? [],
     sports: club.sports ?? [],
     sizeChart: club.sizeChart ?? { kids: [], men: [], women: [] },
+    allowWaitlist: club.allowWaitlist,
+    remainingSeats: club.remainingSeats ?? null,
+    licenseFull: Boolean(club.licenseFull),
   };
 }
 
@@ -147,6 +154,9 @@ export function PublicJoinPage() {
             classes: (data.classes ?? []).filter((c) => c.name),
             sports: collectClubSportOptions(data),
             sizeChart: data.sizeChart ?? EMPTY_SIZE_CHART,
+            allowWaitlist: settings.allowWaitlist,
+            remainingSeats: remainingAthleteLicenseSeats(data.students, local.id),
+            licenseFull: remainingAthleteLicenseSeats(data.students, local.id) === 0,
           });
           setLoading(false);
         }
@@ -229,6 +239,10 @@ export function PublicJoinPage() {
       return;
     }
 
+    if (club.licenseFull && club.allowWaitlist === false) {
+      setError('Το πακέτο αδειών είναι γεμάτο και η λίστα αναμονής δεν είναι ενεργή.');
+      return;
+    }
     const fieldError = validatePublicJoinRequiredFields({
       amka,
       firstName,
@@ -437,6 +451,19 @@ export function PublicJoinPage() {
 
         <form className="public-join-card" onSubmit={(e) => void handleSubmit(e)}>
           <h2>Φόρμα εγγραφής αθλητή</h2>
+          {club.licenseFull ? (
+            <p className="lede">
+              {club.allowWaitlist === false
+                ? 'Το πακέτο αδειών είναι γεμάτο. Οι νέες εγγραφές είναι κλειστές.'
+                : 'Το πακέτο αδειών είναι γεμάτο. Η αίτησή σας θα μπει σε λίστα αναμονής.'}
+            </p>
+          ) : club.remainingSeats != null ? (
+            <p className="muted">Διαθέσιμες θέσεις ενεργών αθλητών: {club.remainingSeats}</p>
+          ) : null}
+          {club.licenseFull && club.allowWaitlist === false ? (
+            <p className="form-error">Δεν μπορείτε να υποβάλετε αίτηση αυτή τη στιγμή.</p>
+          ) : (
+          <>
           <p className="lede">
             Συμπληρώστε τα στοιχεία του αθλητή και του γονέα/κηδεμόνα. Θα ενημερωθείτε μετά τον
             έλεγχο από τον σύλλογο.
@@ -829,6 +856,8 @@ export function PublicJoinPage() {
               })}
             </time>
           </div>
+          </>
+          )}
         </form>
       </div>
     </div>

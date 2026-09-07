@@ -379,9 +379,11 @@ export interface RentalBooking {
   /** Ειδική έκπτωση σε € (αφαιρείται από το ποσό ώρας). */
   specialDiscount?: number;
   source: 'secretariat' | 'public';
-  status: 'confirmed' | 'cancelled';
+  status: 'confirmed' | 'cancelled' | 'pending_payment';
   createdAt: string;
   createdByName: string;
+  paymentRef?: string;
+  paymentProvider?: 'viva' | 'stripe' | 'venue';
 }
 
 export interface SportItem {

@@ -2,7 +2,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
   assertClubTenantAccess,
   isDurableStoreEnabled,
+  loadAccountBundle,
   loadClubNotifyConfig,
+  loadMirror,
   loadPublicClubBySlug,
   saveClubNotifyConfig,
   savePublicClubConfig,
@@ -28,10 +30,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         error: 'Ο σύνδεσμος δεν βρέθηκε ή η δημόσια εγγραφή δεν είναι ενεργή.',
       });
     }
+    const mirror = await loadMirror(club.clubId);
+    const bundle = await loadAccountBundle();
+    const accountClub = (bundle?.clubs ?? []).find(
+      (item) => item && typeof item === 'object' && String((item as { id?: string }).id) === club.clubId,
+    ) as { athleteLicenseLimit?: number } | undefined;
+    const limit = Number(accountClub?.athleteLicenseLimit);
+    const students = Array.isArray((mirror?.payload as { students?: unknown[] } | undefined)?.students)
+      ? ((mirror?.payload as { students: Array<{ status?: string }> }).students ?? [])
+      : [];
+    const remainingSeats =
+      Number.isFinite(limit) && limit > 0
+        ? Math.max(0, Math.floor(limit) - students.filter((s) => (s.status ?? 'active') === 'active').length)
+        : null;
     return res.status(200).json({
       ok: true,
       durable: isDurableStoreEnabled(),
-      club,
+      club: {
+        ...club,
+        remainingSeats,
+        licenseFull: remainingSeats === 0,
+      },
     });
   }
 

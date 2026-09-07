@@ -12,11 +12,16 @@ import {
   loadClubNotifyConfig,
   loadMirror,
   loadPublicClubBySlug,
+  loadAccountBundle,
   requestAddress,
   saveMirror,
   stripClubJoinFormSnapshots,
   type RemoteRegistrationApplication,
 } from './lib/serverStore.js';
+import {
+  athleteIdentityConflictMessage,
+  findStudentsByAmka,
+} from '../src/utils/athleteIdentity.js';
 
 type Body = {
   slug?: string;
@@ -209,6 +214,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     mirror?.payload && typeof mirror.payload === 'object'
       ? (mirror.payload as Record<string, unknown>)
       : null;
+  const students = Array.isArray(payload?.students) ? (payload.students as Array<{ status?: string; amka?: string; id?: string; firstName?: string; lastName?: string }>) : [];
+  const bundle = await loadAccountBundle();
+  const accountClub = (bundle?.clubs ?? []).find(
+    (item) => item && typeof item === 'object' && String((item as { id?: string }).id) === club.clubId,
+  ) as { athleteLicenseLimit?: number } | undefined;
+  const limit = Number(accountClub?.athleteLicenseLimit);
+  const remaining =
+    Number.isFinite(limit) && limit > 0
+      ? Math.max(0, Math.floor(limit) - students.filter((s) => (s.status ?? 'active') === 'active').length)
+      : null;
+  if (remaining === 0 && !club.allowWaitlist) {
+    return res.status(403).json({
+      ok: false,
+      error: 'Το πακέτο αδειών είναι γεμάτο και η λίστα αναμονής δεν είναι ενεργή.',
+    });
+  }
+  const amkaHits = findStudentsByAmka(
+    students.map((row) => ({
+      id: String(row.id ?? ''),
+      amka: String(row.amka ?? ''),
+      firstName: String(row.firstName ?? ''),
+      lastName: String(row.lastName ?? ''),
+    })),
+    amka,
+  );
+  if (amkaHits.length) {
+    return res.status(409).json({ ok: false, error: athleteIdentityConflictMessage('amka', amkaHits) });
+  }
 
   const createdAt = new Date().toISOString().slice(0, 10);
   const applicationId = `rapp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;

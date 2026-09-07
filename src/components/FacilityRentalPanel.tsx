@@ -871,6 +871,7 @@ export function FacilityRentalPanel() {
               <th>{t('Όνομα')}</th>
               <th>{t('Τηλ.')}</th>
               <th>{t('Πηγή')}</th>
+              <th>{t('Κατάσταση')}</th>
               <th>{t('Τελικό κόστος')}</th>
               <th></th>
             </tr>
@@ -878,7 +879,7 @@ export function FacilityRentalPanel() {
           <tbody>
             {upcoming.length === 0 ? (
               <tr>
-                <td colSpan={10}>Δεν υπάρχουν κρατήσεις.</td>
+                <td colSpan={11}>Δεν υπάρχουν κρατήσεις.</td>
               </tr>
             ) : (
               upcoming.map((row) => (
@@ -893,6 +894,11 @@ export function FacilityRentalPanel() {
                   <td>{row.customerName}</td>
                   <td>{row.customerPhone}</td>
                   <td>{row.source === 'public' ? t('Δημόσιο link') : t('Γραμματεία')}</td>
+                  <td>
+                    {row.status === 'pending_payment'
+                      ? t('Εκκρεμεί πληρωμή')
+                      : t('Επιβεβαιωμένη')}
+                  </td>
                   <td>{formatCurrency(row.amount)}</td>
                   <td>
                     <Button type="button" variant="ghost" onClick={() => void cancelBooking(row.id)}>

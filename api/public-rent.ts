@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { randomBytes } from 'node:crypto';
+import nodemailer from 'nodemailer';
+import { buildRentalBookingEmail } from '../src/utils/rentalBookingEmail.js';
 import {
   allowRateLimit,
   assertSyncAuthorized,
@@ -8,9 +8,11 @@ import {
   loadAccountBundle,
   loadMirror,
   loadPublicClubBySlug,
+  loadClubNotifyConfig,
   requestAddress,
   saveMirror,
   assertClubTenantAccess,
+  consumeSettlement,
 } from './lib/serverStore.js';
 import {
   emptyRentalSettings,
@@ -84,6 +86,121 @@ function rentableFacilities(source: RentalOccupancySource): Facility[] {
     if (!facility?.active) return false;
     return ruleForFacility(settings, facility.id, facility).enabled;
   });
+}
+
+async function clubVivaReady(clubId: string): Promise<{
+  ready: boolean;
+  clientId?: string;
+  clientSecret?: string;
+  sourceCode?: string;
+  environment?: 'demo' | 'live';
+}> {
+  const bundle = await loadAccountBundle();
+  const raw = (bundle?.clubs ?? []).find(
+    (item) => item && typeof item === 'object' && String((item as { id?: string }).id) === clubId,
+  ) as { viva?: Record<string, unknown> } | undefined;
+  const viva = raw?.viva ?? {};
+  const clientId = String(viva.clientId ?? '').trim();
+  const clientSecret = String(viva.clientSecret ?? '').trim();
+  const sourceCode = String(viva.sourceCode ?? '').trim();
+  if (!viva.enabled || !clientId || !clientSecret || clientSecret === '********' || !sourceCode) {
+    return { ready: false };
+  }
+  return {
+    ready: true,
+    clientId,
+    clientSecret,
+    sourceCode,
+    environment: viva.environment === 'live' ? 'live' : 'demo',
+  };
+}
+
+async function createVivaCheckoutUrl(input: {
+  clientId: string;
+  clientSecret: string;
+  sourceCode: string;
+  environment: 'demo' | 'live';
+  amountCents: number;
+  merchantTrns: string;
+  email?: string;
+  fullName?: string;
+}): Promise<{ checkoutUrl: string; orderCode: string }> {
+  const hosts =
+    input.environment === 'live'
+      ? {
+          accounts: 'https://accounts.vivapayments.com',
+          api: 'https://api.vivapayments.com',
+          checkout: 'https://www.vivapayments.com/web/checkout',
+        }
+      : {
+          accounts: 'https://demo-accounts.vivapayments.com',
+          api: 'https://demo-api.vivapayments.com',
+          checkout: 'https://demo.vivapayments.com/web/checkout',
+        };
+  const basic = Buffer.from(`${input.clientId}:${input.clientSecret}`).toString('base64');
+  const tokenRes = await fetch(`${hosts.accounts}/connect/token`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${basic}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials',
+  });
+  const tokenJson = (await tokenRes.json()) as { access_token?: string };
+  if (!tokenRes.ok || !tokenJson.access_token) {
+    throw new Error('Αποτυχία σύνδεσης Viva');
+  }
+  const orderRes = await fetch(`${hosts.api}/checkout/v2/orders`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${tokenJson.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      amount: input.amountCents,
+      customerTrns: input.merchantTrns,
+      merchantTrns: input.merchantTrns,
+      sourceCode: input.sourceCode,
+      customer: {
+        email: input.email || undefined,
+        fullName: input.fullName || undefined,
+      },
+    }),
+  });
+  const orderJson = (await orderRes.json()) as { orderCode?: number | string };
+  if (!orderRes.ok || orderJson.orderCode == null) {
+    throw new Error('Αποτυχία δημιουργίας πληρωμής Viva');
+  }
+  const orderCode = String(orderJson.orderCode);
+  return { orderCode, checkoutUrl: `${hosts.checkout}?ref=${encodeURIComponent(orderCode)}` };
+}
+
+async function emailRentalBooking(clubId: string, clubName: string, booking: RentalBooking, extraTo?: string) {
+  const notify = await loadClubNotifyConfig(clubId);
+  if (!notify?.smtp?.enabled || !notify.smtp.host || !notify.smtp.username || !notify.smtp.password) {
+    return;
+  }
+  const mail = buildRentalBookingEmail({ clubName, booking });
+  const transporter = nodemailer.createTransport({
+    host: notify.smtp.host,
+    port: Number(notify.smtp.port) || 587,
+    secure: Number(notify.smtp.port) === 465,
+    auth: { user: notify.smtp.username, pass: notify.smtp.password },
+  });
+  const recipients = [extraTo, notify.notifyEmail].filter((v) => String(v ?? '').includes('@'));
+  for (const to of [...new Set(recipients)]) {
+    try {
+      await transporter.sendMail({
+        from: `"${notify.smtp.fromName || clubName}" <${notify.smtp.username}>`,
+        to,
+        subject: mail.subject,
+        text: mail.text,
+        html: mail.html,
+      });
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -199,6 +316,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           photoUrl: item.photoUrl ?? null,
         })),
         prices,
+        payOnline: (await clubVivaReady(club.clubId)).ready,
       },
       slots,
     });
@@ -218,6 +336,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const body = (req.body ?? {}) as Record<string, unknown>;
   const slug = String(body.slug ?? '').trim().toLowerCase();
+  if (body.confirmPayment === true || body.confirmPayment === 'true') {
+    const bookingId = String(body.bookingId ?? '').trim();
+    if (!slug || !bookingId) {
+      return res.status(400).json({ ok: false, error: 'Λείπει κράτηση πληρωμής.' });
+    }
+    const club = await resolveBySlug(slug);
+    if (!club) return res.status(404).json({ ok: false, error: 'Ο σύνδεσμος δεν βρέθηκε.' });
+    const mirror = await loadMirror(club.clubId);
+    const payload = asSource(mirror?.payload) as RentalOccupancySource & Record<string, unknown>;
+    const list = Array.isArray(payload.rentalBookings) ? payload.rentalBookings : [];
+    const index = list.findIndex((item) => item.id === bookingId);
+    if (index < 0) return res.status(404).json({ ok: false, error: 'Η κράτηση δεν βρέθηκε.' });
+    const current = list[index]!;
+    if (current.status === 'cancelled') {
+      return res.status(409).json({ ok: false, error: 'Η κράτηση έχει ακυρωθεί.' });
+    }
+    if (current.status === 'confirmed') {
+      return res.status(200).json({ ok: true, bookingId: current.id, paid: true });
+    }
+    if (current.paymentRef) {
+      try {
+        await consumeSettlement(current.paymentRef);
+      } catch {
+        /* webhook μπορεί να μην έχει φτάσει ακόμα */
+      }
+    }
+    const confirmed: RentalBooking = {
+      ...current,
+      status: 'confirmed',
+      paymentProvider: current.paymentProvider ?? 'viva',
+    };
+    list[index] = confirmed;
+    payload.rentalBookings = list;
+    await saveMirror(club.clubId, payload);
+    await emailRentalBooking(club.clubId, club.name, confirmed, confirmed.customerEmail);
+    return res.status(200).json({ ok: true, bookingId: confirmed.id, paid: true });
+  }
+
   const facilityId = String(body.facilityId ?? '').trim();
   const date = String(body.date ?? '').trim();
   const startTime = String(body.startTime ?? '').trim();
@@ -227,12 +383,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const customerPhone = String(body.customerPhone ?? '').trim();
   const customerEmail = String(body.customerEmail ?? '').trim();
   const notes = String(body.notes ?? '').trim();
+  const payOnline = body.payOnline === true || body.payOnline === 'true';
   const useLockerRoomRequested = body.useLockerRoom === true || body.useLockerRoom === 'true';
   if (!slug || !facilityId || !date || !startTime || !endTime) {
     return res.status(400).json({ ok: false, error: 'Συμπληρώστε γήπεδο, ημερομηνία και ώρα.' });
   }
   if (customerName.length < 2 || customerPhone.length < 6) {
     return res.status(400).json({ ok: false, error: 'Ονοματεπώνυμο και τηλέφωνο είναι υποχρεωτικά.' });
+  }
+  if (payOnline && !customerEmail.includes('@')) {
+    return res.status(400).json({ ok: false, error: 'Για online πληρωμή απαιτείται email.' });
   }
 
   const club = await resolveBySlug(slug);
@@ -251,6 +411,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const rule = ruleForFacility(settings, facility.id, facility);
   const useLockerRoom = Boolean(useLockerRoomRequested) && Boolean(rule.lockerRoomAvailable);
+  const amount =
+    bookingAmount(rule, startTime, endTime, courtShare) +
+    lockerRoomFeeAmount(rule, useLockerRoom);
   const booking: RentalBooking = {
     id: `rent_${randomBytes(6).toString('hex')}`,
     facilityId: facility.id,
@@ -264,16 +427,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     customerPhone,
     customerEmail,
     notes,
-    amount:
-      bookingAmount(rule, startTime, endTime, courtShare) +
-      lockerRoomFeeAmount(rule, useLockerRoom),
+    amount,
     source: 'public',
     status: 'confirmed',
     createdAt: new Date().toISOString(),
     createdByName: 'Δημόσιο link',
+    paymentProvider: 'venue',
   };
+
+  if (payOnline && amount < 0.3) {
+    return res.status(400).json({ ok: false, error: 'Το ποσό είναι πολύ μικρό για online πληρωμή.' });
+  }
+
+  if (payOnline && amount >= 0.3) {
+    const viva = await clubVivaReady(club.clubId);
+    if (!viva.ready || !viva.clientId || !viva.clientSecret || !viva.sourceCode) {
+      return res.status(400).json({ ok: false, error: 'Οι online πληρωμές δεν είναι ενεργές.' });
+    }
+    booking.status = 'pending_payment';
+    booking.paymentProvider = 'viva';
+    try {
+      const checkout = await createVivaCheckoutUrl({
+        clientId: viva.clientId,
+        clientSecret: viva.clientSecret,
+        sourceCode: viva.sourceCode,
+        environment: viva.environment ?? 'demo',
+        amountCents: Math.round(amount * 100),
+        merchantTrns: `Ενοικίαση ${booking.id}`,
+        email: customerEmail,
+        fullName: customerName,
+      });
+      booking.paymentRef = checkout.orderCode;
+      const list = Array.isArray(payload.rentalBookings) ? payload.rentalBookings : [];
+      payload.rentalBookings = [booking, ...list];
+      await saveMirror(club.clubId, payload);
+      return res.status(200).json({
+        ok: true,
+        bookingId: booking.id,
+        checkoutUrl: checkout.checkoutUrl,
+        pendingPayment: true,
+      });
+    } catch (err) {
+      return res.status(502).json({
+        ok: false,
+        error: err instanceof Error ? err.message : 'Αποτυχία πληρωμής.',
+      });
+    }
+  }
+
   const list = Array.isArray(payload.rentalBookings) ? payload.rentalBookings : [];
   payload.rentalBookings = [booking, ...list];
   await saveMirror(club.clubId, payload);
+  await emailRentalBooking(club.clubId, club.name, booking, customerEmail);
   return res.status(200).json({ ok: true, bookingId: booking.id });
 }

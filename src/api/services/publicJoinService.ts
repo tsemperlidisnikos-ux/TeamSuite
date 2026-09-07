@@ -1,6 +1,6 @@
 import { apiClient } from '../apiClient';
 import { getClubById, getClubPublicRegistration } from '../../auth/clubs';
-import { createId, mutateClubData } from '../../data/repository';
+import { createId, mutateClubData, getClubData } from '../../data/repository';
 import {
   gdprItemsFromPublicConsent,
   registrationApplicationFromPublicJoin,
@@ -9,9 +9,14 @@ import {
 } from '../../shared/publicJoinPayload';
 import { localDateIso } from '../../utils/dates';
 import type { RegistrationApplicationKind } from '../../types';
+import { remainingAthleteLicenseSeats } from '../../utils/athleteLicenseCap';
 import type { PublicJoinExtras } from '../../shared/publicJoinExtras';
 import * as emailService from './emailService';
 import { notifyClubNewRegistration } from './registrationApplicationsService';
+import {
+  athleteIdentityConflictMessage,
+  findStudentsByAmka,
+} from '../../utils/athleteIdentity';
 
 export type PublicJoinInput = {
   clubId: string;
@@ -90,6 +95,15 @@ export async function submitPublicJoin(input: PublicJoinInput) {
     const amka = input.amka?.trim() ?? '';
     if (!input.gdprItems?.amkaHealthCard) {
       throw new Error('Απαιτείται ρητή συγκατάθεση για τη συλλογή του ΑΜΚΑ.');
+    }
+    const clubData = getClubData(input.clubId);
+    const remaining = remainingAthleteLicenseSeats(clubData.students, input.clubId);
+    if (remaining === 0 && !settings.allowWaitlist) {
+      throw new Error('Το πακέτο αδειών είναι γεμάτο και η λίστα αναμονής δεν είναι ενεργή.');
+    }
+    const amkaHits = findStudentsByAmka(clubData.students, amka);
+    if (amkaHits.length) {
+      throw new Error(athleteIdentityConflictMessage('amka', amkaHits));
     }
 
     const gdprItems =
