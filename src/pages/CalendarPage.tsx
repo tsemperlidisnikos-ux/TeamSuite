@@ -615,7 +615,6 @@ export function CalendarPage() {
                           </li>
                         ))}
                       </ul>
-                      </ul>
                     </button>
                   );
                 })}
