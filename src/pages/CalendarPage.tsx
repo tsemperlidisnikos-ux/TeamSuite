@@ -590,11 +590,13 @@ export function CalendarPage() {
                     >
                       <span className="cal-day-num">{cell.day}</span>
                       <ul className="cal-events">
-                        {events.slice(0, 3).map((event) => (
+                        {events.map((event) => (
                           <li
                             key={event.id}
                             className={`cal-event is-${event.kind}`}
-                            title={`${event.time} ${event.title}`}
+                            title={`${event.time} ${event.title}${
+                              event.location ? ` · ${event.location}` : ''
+                            }`}
                             onClick={(e) => openCalendarEvent(event, e)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' || e.key === ' ') {
@@ -612,9 +614,7 @@ export function CalendarPage() {
                             </span>
                           </li>
                         ))}
-                        {events.length > 3 ? (
-                          <li className="cal-more">+{events.length - 3} ακόμη</li>
-                        ) : null}
+                      </ul>
                       </ul>
                     </button>
                   );

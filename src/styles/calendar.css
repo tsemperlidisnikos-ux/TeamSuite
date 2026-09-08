@@ -111,6 +111,10 @@ a.cal-new-btn:active {
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
+.cal-grid {
+  grid-auto-rows: minmax(176px, auto);
+}
+
 .cal-weekday {
   text-align: center;
   font-size: 0.78rem;
@@ -123,7 +127,8 @@ a.cal-new-btn:active {
 }
 
 .cal-cell {
-  min-height: 118px;
+  min-height: 176px;
+  height: 100%;
   border: 0;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -170,8 +175,9 @@ a.cal-new-btn:active {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.18rem;
   min-width: 0;
+  flex: 1;
 }
 
 .cal-event {
@@ -488,7 +494,11 @@ a.cal-new-btn:active {
   }
 
   .cal-cell {
-    min-height: 96px;
+    min-height: 148px;
+  }
+
+  .cal-grid {
+    grid-auto-rows: minmax(148px, auto);
   }
 
   .cal-week-view {
