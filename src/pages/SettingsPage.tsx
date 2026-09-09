@@ -86,17 +86,18 @@ type ClubForm = {
 
 const SETTINGS_NAV: Array<{
   title: string;
+  tab?: SettingsTab;
   items: Array<{ id: SettingsTab; label: string }>;
 }> = [
   {
-    title: 'Σύλλογος',
+    title: 'Προφίλ',
+    tab: 'club',
     items: [
-      { id: 'club', label: 'Προφίλ' },
       { id: 'facilities', label: 'Γήπεδα' },
       { id: 'sports', label: 'Αθλήματα' },
       { id: 'seasons', label: 'Σεζόν' },
       { id: 'users', label: 'Χρήστες' },
-      { id: 'publicRegistration', label: 'Εγγραφή' },
+      { id: 'publicRegistration', label: 'Εγγραφές' },
     ],
   },
   {
@@ -107,22 +108,26 @@ const SETTINGS_NAV: Array<{
     ],
   },
   {
-    title: 'Οικονομικά',
+    title: 'Πληρωμές',
     items: [
       { id: 'viva', label: 'Viva' },
       { id: 'eurobank', label: 'Eurobank' },
       { id: 'stripe', label: 'Stripe' },
       { id: 'receipts', label: 'Αποδείξεις' },
-      { id: 'discounts', label: 'Εκπτώσεις' },
     ],
   },
   {
-    title: 'Συμμόρφωση',
+    title: 'Εκτυπώσεις',
+    tab: 'clothing',
+    items: [],
+  },
+  {
+    title: 'Εγκατάσταση',
     items: [
       { id: 'password', label: 'Κωδικός' },
       { id: 'associations', label: 'Σωματείο' },
       { id: 'sizes', label: 'Μεγεθολόγιο' },
-      { id: 'clothing', label: 'Ρουχισμός' },
+      { id: 'discounts', label: 'Εκπτώσεις' },
       { id: 'terms', label: 'Όροι' },
       { id: 'amka', label: 'GDPR' },
       { id: 'backup', label: 'Backup' },
@@ -131,7 +136,9 @@ const SETTINGS_NAV: Array<{
 ];
 
 function isSettingsTab(value: string): value is SettingsTab {
-  return SETTINGS_NAV.some((group) => group.items.some((item) => item.id === value));
+  return SETTINGS_NAV.some(
+    (group) => group.tab === value || group.items.some((item) => item.id === value),
+  );
 }
 
 export function SettingsPage() {
@@ -269,7 +276,7 @@ export function SettingsPage() {
       if (item.id === 'stripe') return clubAllowsOnlineProvider(clubId, 'stripe');
       return true;
     }),
-  })).filter((group) => group.items.length > 0);
+  })).filter((group) => Boolean(group.tab) || group.items.length > 0);
   const smtp = getClubSmtp(clubId);
   const viva = getClubViva(clubId);
   const smtpReady = Boolean(
@@ -285,9 +292,22 @@ export function SettingsPage() {
 
       <div className="set-body">
       <nav className="set-nav" aria-label={t('Κατηγορίες ρυθμίσεων')}>
+        <p className="set-nav-kicker">{t('Ρυθμίσεις')}</p>
         {navGroups.map((group) => (
           <div key={group.title} className="set-nav-group">
-            <p className="set-nav-group-title">{t(group.title)}</p>
+            {group.tab ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === group.tab}
+                className={`set-nav-group-title${tab === group.tab ? ' is-active' : ''}`}
+                onClick={() => setTab(group.tab!)}
+              >
+                {t(group.title)}
+              </button>
+            ) : (
+              <p className="set-nav-group-title">{t(group.title)}</p>
+            )}
             {group.items.map((item) => (
               <button
                 key={item.id}
@@ -323,10 +343,10 @@ export function SettingsPage() {
           <p className="form-error">Δεν βρέθηκε σύλλογος για τον λογαριασμό.</p>
         ) : (
           <div className="set-club-layout">
-            <section className="set-card panel set-license-card">
+            <section className="set-license-hero">
               <div className="set-license-strip">
                 <div className="set-license-copy">
-                  <span>Συνδρομή</span>
+                  <span>Άδειες αθλητών</span>
                   <strong>{licensePackage?.name ?? 'Χωρίς πακέτο'}</strong>
                   <em>
                     {licensePackage
@@ -337,23 +357,25 @@ export function SettingsPage() {
                       : ''}
                   </em>
                 </div>
-                <div className="set-license-usage">
-                  <strong>
-                    {activeAthleteLicenses}/{licenseLimit || '—'}
-                  </strong>
-                  <em>ενεργές άδειες</em>
-                </div>
-                {licenseLimit > 0 ? (
-                  <div
-                    className="set-license-bar"
-                    role="progressbar"
-                    aria-valuenow={activeAthleteLicenses}
-                    aria-valuemin={0}
-                    aria-valuemax={licenseLimit}
-                  >
-                    <i style={{ width: `${licensePct}%` }} />
+                <div className="set-license-meter">
+                  <div className="set-license-usage">
+                    <strong>
+                      {activeAthleteLicenses}/{licenseLimit || '—'}
+                    </strong>
+                    <em>ενεργές άδειες</em>
                   </div>
-                ) : null}
+                  {licenseLimit > 0 ? (
+                    <div
+                      className="set-license-bar"
+                      role="progressbar"
+                      aria-valuenow={activeAthleteLicenses}
+                      aria-valuemin={0}
+                      aria-valuemax={licenseLimit}
+                    >
+                      <i style={{ width: `${licensePct}%` }} />
+                    </div>
+                  ) : null}
+                </div>
               </div>
               {licenseOver ? (
                 <p className="set-license-notice set-license-notice--over" role="status">
@@ -538,6 +560,7 @@ export function SettingsPage() {
                     {smtpReady ? 'Συνδεδεμένο' : 'Δεν έχει ρυθμιστεί'}
                   </em>
                 </span>
+                <b>Άνοιγμα ρυθμίσεων</b>
               </button>
               <button type="button" className="set-connect-card" onClick={() => setTab('sms')}>
                 <Smartphone size={18} />
@@ -545,6 +568,7 @@ export function SettingsPage() {
                   <strong>SMS</strong>
                   <em>Ρύθμιση στο tab SMS</em>
                 </span>
+                <b>Άνοιγμα ρυθμίσεων</b>
               </button>
               {clubAllowsOnlineProvider(clubId, 'viva') ? (
                 <button type="button" className="set-connect-card" onClick={() => setTab('viva')}>
@@ -555,6 +579,7 @@ export function SettingsPage() {
                       {vivaReady ? 'Συνδεδεμένο' : 'Δεν έχει ρυθμιστεί'}
                     </em>
                   </span>
+                  <b>Άνοιγμα ρυθμίσεων</b>
                 </button>
               ) : null}
             </div>
