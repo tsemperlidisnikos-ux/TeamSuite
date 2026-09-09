@@ -8,6 +8,7 @@ import {
   type PartnerOfferInput,
 } from '../../schemas';
 import type { PartnerBusiness, PartnerOffer } from '../../types';
+import { rememberDeletedId, rememberDeletedIds } from '../../data/financeSyncMerge';
 import { localDateTimeIso } from '../../utils/dates';
 
 function currentUserLabel(): string {
@@ -58,8 +59,13 @@ export async function updatePartnerBusiness(id: string, input: PartnerBusinessIn
 export async function deletePartnerBusiness(id: string) {
   return apiClient(() => {
     mutateData((data) => {
+      const removedOffers = (data.partnerOffers ?? [])
+        .filter((item) => item.businessId === id)
+        .map((item) => item.id);
       data.partnerBusinesses = (data.partnerBusinesses ?? []).filter((item) => item.id !== id);
       data.partnerOffers = (data.partnerOffers ?? []).filter((item) => item.businessId !== id);
+      data.deletedPartnerBusinessIds = rememberDeletedId(data.deletedPartnerBusinessIds, id);
+      data.deletedPartnerOfferIds = rememberDeletedIds(data.deletedPartnerOfferIds, removedOffers);
     });
     return { id };
   });
@@ -126,6 +132,7 @@ export async function deletePartnerOffer(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.partnerOffers = (data.partnerOffers ?? []).filter((item) => item.id !== id);
+      data.deletedPartnerOfferIds = rememberDeletedId(data.deletedPartnerOfferIds, id);
     });
     return { id };
   });

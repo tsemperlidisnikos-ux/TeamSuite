@@ -7,6 +7,7 @@ import {
 } from '../../schemas';
 import type { DocumentProtocolEntry } from '../../types';
 import { localDateIso, localDateTimeIso } from '../../utils/dates';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 
 function currentUserLabel(): string {
   const session = getSession();
@@ -158,6 +159,7 @@ export async function deleteDocumentProtocolEntry(id: string) {
       data.documentProtocolEntries = (data.documentProtocolEntries ?? []).filter(
         (row) => row.id !== id,
       );
+      data.deletedProtocolIds = rememberDeletedId(data.deletedProtocolIds, id);
     });
     return true;
   });

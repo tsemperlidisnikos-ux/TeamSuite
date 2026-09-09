@@ -5,6 +5,7 @@ import {
   CLUB_WRITE_CONFLICT_EVENT,
   getClubWriteConflict,
   getLastSyncAt,
+  getLastSyncError,
   isAutoSyncEnabled,
   isClubMirrorDirty,
 } from '../data/clubSync';
@@ -43,16 +44,27 @@ export function ClubSyncStatus({ clubId }: { clubId: string }) {
   const dirty = isClubMirrorDirty(clubId);
   const last = getLastSyncAt(clubId);
   const conflict = getClubWriteConflict(clubId);
+  const syncError = getLastSyncError(clubId);
+  const stale =
+    Boolean(last) && Date.now() - (Date.parse(last ?? '') || 0) >= 24 * 60 * 60 * 1000;
   const line = conflict
     ? `Σύγκρουση: ${conflict.cloudByName}`
-    : !auto
-      ? 'Auto sync ανενεργό'
-      : dirty
-        ? 'Εκκρεμεί αποστολή στο cloud'
-        : formatSyncAgo(last);
+    : syncError
+      ? `Cloud: αποτυχία — ${syncError}`
+      : !auto
+        ? 'Auto sync ανενεργό'
+        : dirty
+          ? 'Εκκρεμεί αποστολή στο cloud'
+          : stale
+            ? `Cloud: παλιό Push (${formatSyncAgo(last)})`
+            : formatSyncAgo(last);
 
   return (
-    <Link className="club-sync-status" to="/settings?tab=backup" title={line}>
+    <Link
+      className={`club-sync-status${conflict || syncError || stale ? ' is-warn' : ''}`}
+      to="/settings?tab=backup"
+      title={line}
+    >
       {line}
     </Link>
   );

@@ -1,6 +1,7 @@
 import { apiClient } from '../apiClient';
 import { getSession } from '../../auth/auth';
 import { createId, mutateData } from '../../data/repository';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 import type { ProgressReport } from '../../types';
 import { localDateIso, localDateTimeIso } from '../../utils/dates';
 
@@ -47,6 +48,7 @@ export async function deleteProgressReport(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.progressReports = (data.progressReports ?? []).filter((r) => r.id !== id);
+      data.deletedProgressReportIds = rememberDeletedId(data.deletedProgressReportIds, id);
     });
     return { id };
   });

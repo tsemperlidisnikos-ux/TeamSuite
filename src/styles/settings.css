@@ -4,7 +4,7 @@
   flex-direction: column;
   gap: 1rem;
   color: var(--ink);
-  padding-bottom: 4.5rem;
+  padding-bottom: 1.5rem;
 }
 
 .set-page-head h1 {
@@ -13,49 +13,61 @@
   color: var(--ink);
 }
 
-.set-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.15rem;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 0;
+.set-body {
+  display: grid;
+  grid-template-columns: minmax(11.5rem, 14rem) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
 }
 
-.set-tabs > button,
-.set-tabs-more > button {
+.set-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.85rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--bg));
+  position: sticky;
+  top: 0.75rem;
+}
+
+.set-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.set-nav-group-title {
+  margin: 0 0 0.2rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.set-nav-group > button {
   border: 0;
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-weight: 750;
-  font-size: 0.92rem;
-  padding: 0.7rem 0.95rem;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-}
-
-.set-tabs > button.is-active,
-.set-tabs-more > button.is-active {
-  color: var(--ink);
-  border-bottom-color: var(--accent, #e0b13a);
-}
-
-.set-tabs-more {
-  display: flex;
-  flex-wrap: wrap;
-  margin-left: auto;
-  gap: 0.1rem;
-}
-
-.set-tabs-more > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.82rem;
   font-weight: 700;
-  color: var(--muted);
+  font-size: 0.88rem;
+  padding: 0.42rem 0.7rem;
+  cursor: pointer;
+  border-radius: 10px;
+  text-align: left;
+}
+
+.set-nav-group > button:hover {
+  background: color-mix(in srgb, var(--bg) 70%, var(--surface));
+  color: var(--ink);
+}
+
+.set-nav-group > button.is-active {
+  background: color-mix(in srgb, var(--accent, #2563eb) 16%, var(--surface));
+  color: var(--ink);
 }
 
 .set-club-layout {
@@ -88,42 +100,45 @@
 
 .set-license-card {
   grid-column: 1 / -1;
+  gap: 0.7rem;
 }
 
-.set-license-grid {
+.set-license-strip {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
+  grid-template-columns: minmax(0, 1.4fr) auto minmax(8rem, 1fr);
+  gap: 0.9rem 1.1rem;
+  align-items: center;
 }
 
-.set-license-stat {
+.set-license-copy,
+.set-license-usage {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.75rem 0.85rem;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--bg) 70%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  gap: 0.12rem;
+  min-width: 0;
 }
 
-.set-license-stat span {
+.set-license-copy span,
+.set-license-usage em,
+.set-license-copy em {
   font-size: 0.75rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--muted);
-}
-
-.set-license-stat strong {
-  font-size: 1.15rem;
-  color: var(--ink);
-  font-weight: 700;
-}
-
-.set-license-stat em {
   font-style: normal;
-  font-size: 0.82rem;
-  color: var(--muted);
-  line-height: 1.35;
+}
+
+.set-license-copy strong,
+.set-license-usage strong {
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.set-license-usage {
+  text-align: right;
+}
+
+.set-license-usage strong {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .set-license-bar {
@@ -163,9 +178,9 @@
 .set-logo-drop {
   display: grid;
   place-items: center;
-  gap: 0.45rem;
-  min-height: 180px;
-  padding: 1.25rem;
+  gap: 0.3rem;
+  min-height: 132px;
+  padding: 0.9rem;
   border: 1.5px dashed color-mix(in srgb, var(--muted) 55%, var(--line));
   border-radius: 14px;
   background: color-mix(in srgb, var(--bg) 55%, var(--surface));
@@ -191,14 +206,14 @@
 
 .set-logo-current {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
 }
 
 .set-logo-current img {
-  width: 120px;
-  height: 120px;
+  width: 112px;
+  height: 112px;
   object-fit: contain;
   border-radius: 12px;
   border: 1px solid var(--line);
@@ -285,10 +300,75 @@
 }
 
 .set-save-bar {
-  position: fixed;
-  right: 1.25rem;
-  bottom: 1.25rem;
-  z-index: 20;
+  display: none;
+}
+
+.set-identity-card {
+  grid-column: 1 / -1;
+}
+
+.set-identity {
+  display: grid;
+  grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
+  gap: 1.35rem 1.5rem;
+  align-items: start;
+}
+
+.set-identity-logo h2,
+.set-identity-form h2 {
+  margin: 0 0 0.35rem;
+}
+
+.set-identity-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.35rem;
+}
+
+.set-connect-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.set-connect-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.set-connect-card:hover {
+  border-color: color-mix(in srgb, var(--accent, #2563eb) 45%, var(--line));
+}
+
+.set-connect-card span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.set-connect-card strong {
+  font-size: 0.92rem;
+}
+
+.set-connect-card em {
+  font-style: normal;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.set-connect-card em.is-on {
+  color: #0f7a4a;
 }
 
 .set-embed {
@@ -381,19 +461,25 @@
 }
 
 @media (max-width: 980px) {
-  .set-club-layout {
+  .set-body,
+  .set-club-layout,
+  .set-identity,
+  .set-license-strip,
+  .set-connect-grid {
     grid-template-columns: 1fr;
   }
 
-  .set-tabs-more {
-    margin-left: 0;
-    width: 100%;
+  .set-nav {
+    position: static;
+  }
+
+  .set-license-usage {
+    text-align: left;
   }
 }
 
 @media (max-width: 640px) {
-  .set-grid-2,
-  .set-license-grid {
+  .set-grid-2 {
     grid-template-columns: 1fr;
   }
 

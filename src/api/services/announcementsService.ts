@@ -1,8 +1,10 @@
 import { apiClient } from '../apiClient';
 import { createId, mutateData } from '../../data/repository';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { announcementSchema, type AnnouncementInput } from '../../schemas';
 import type { Announcement } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
+import { publishClubOpsSlice } from './clubOpsSyncService';
 
 function toAnnouncement(
   parsed: AnnouncementInput,
@@ -33,6 +35,7 @@ function toAnnouncement(
     audienceRoles: parsed.audienceRoles ?? [],
     classIds,
     recipientIds: parsed.recipientIds ?? [],
+    updatedAt: Date.now(),
   };
 }
 
@@ -47,6 +50,7 @@ export async function createAnnouncement(input: AnnouncementInput) {
     mutateData((data) => {
       data.announcements.unshift(announcement);
     });
+    void publishClubOpsSlice();
     return announcement;
   });
 }
@@ -61,6 +65,7 @@ export async function updateAnnouncement(id: string, input: AnnouncementInput) {
       updated = toAnnouncement(parsed, id, data.announcements[index].createdAt);
       data.announcements[index] = updated;
     });
+    void publishClubOpsSlice();
     return updated!;
   });
 }
@@ -69,7 +74,9 @@ export async function deleteAnnouncement(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.announcements = data.announcements.filter((a) => a.id !== id);
+      data.deletedAnnouncementIds = rememberDeletedId(data.deletedAnnouncementIds, id);
     });
+    void publishClubOpsSlice();
     return { id };
   });
 }

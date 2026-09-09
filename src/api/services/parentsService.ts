@@ -7,6 +7,7 @@ import {
   type AppUser,
 } from '../../auth/auth';
 import { createId, getData, mutateData } from '../../data/repository';
+import { rememberDeletedId, rememberDeletedIds } from '../../data/financeSyncMerge';
 import type { ParentAthleteLink, Student } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import { studentClassIds } from '../../utils/studentClasses';
@@ -456,6 +457,7 @@ export async function disconnectParentLink(clubId: string, linkId: string) {
     }
     mutateData((data) => {
       data.parentLinks = (data.parentLinks ?? []).filter((link) => link.id !== linkId);
+      data.deletedParentLinkIds = rememberDeletedId(data.deletedParentLinkIds, linkId);
     });
     return { id: linkId };
   });
@@ -469,6 +471,7 @@ export async function disconnectAllParentLinks(clubId: string, linkIds: string[]
     const set = new Set(linkIds);
     mutateData((data) => {
       data.parentLinks = (data.parentLinks ?? []).filter((link) => !set.has(link.id));
+      data.deletedParentLinkIds = rememberDeletedIds(data.deletedParentLinkIds, linkIds);
     });
     return { count: linkIds.length };
   });

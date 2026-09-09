@@ -3,7 +3,7 @@ import * as backendSyncService from '../api/services/backendSyncService';
 import { getSession } from '../auth/auth';
 import { stripHeavyMedia } from './mediaStrip';
 import { resolveActiveClubId, whenClubMapPersisted } from './store';
-import type { AppData, ClothingPackageDef, DiscountReasonDef, ReceiptIssueRecord, SizeChart } from '../types';
+import type { AppData, ClothingPackageDef, DiscountReasonDef, SizeChart } from '../types';
 import {
   defaultClothingPackages,
   normalizeClothingPackages,
@@ -11,17 +11,30 @@ import {
 import {
   clubDiscountReasons,
 } from '../utils/discountReasons';
-import {
-  normalizeReceiptIssues,
-  normalizeReceiptRanges,
-} from '../utils/receiptBook';
-import { transactionIsSuppressed } from '../utils/feeChargeKeys';
 import { emptyRentalSettings } from '../shared/facilityRentalAvailability';
+import {
+  applyFinanceCollections,
+  financeCollectionsChanged,
+  localFinanceNeedsPush,
+} from './financeSyncMerge';
+import {
+  applyOpsCollections,
+  localOpsNeedsPush,
+  opsCollectionsChanged,
+} from './opsSyncMerge';
+import {
+  applyContentCollections,
+  contentCollectionsChanged,
+  localContentNeedsPush,
+} from './clubContentSyncMerge';
+import { stampMissingUpdatedAt } from './stampUpdatedAt';
+import { mergeByIdPreferringUpdatedAt } from './entityFieldMerge';
 
 const AUTO_SYNC_KEY = 'academyhub-auto-sync-v1';
 const LAST_SYNC_KEY = 'academyhub-last-sync-v1';
 const CLOUD_PREFERRED_KEY = 'academyhub-cloud-preferred-v1';
 const DIRTY_KEY = 'academyhub-club-dirty-v1';
+const LAST_ERROR_KEY = 'academyhub-club-sync-error-v1';
 
 export const CLUB_SYNC_STATUS_EVENT = 'teamsuite-club-sync-status';
 export const CLUB_WRITE_CONFLICT_EVENT = 'teamsuite-write-conflict';
@@ -153,6 +166,23 @@ export function getLastSyncAt(clubId?: string | null): string | null {
   return readMap<LastSyncMap>(LAST_SYNC_KEY)[id] ?? null;
 }
 
+export const STALE_MIRROR_MS = 24 * 60 * 60 * 1000;
+
+/** Πόσο παλιό είναι το τελευταίο επιτυχές Push (ms). null = δεν έγινε ποτέ. */
+export function lastSuccessfulPushAgeMs(clubId?: string | null): number | null {
+  const at = getLastSyncAt(clubId);
+  if (!at) return null;
+  const ts = Date.parse(at);
+  if (!Number.isFinite(ts)) return null;
+  return Math.max(0, Date.now() - ts);
+}
+
+export function isMirrorPushStale(clubId?: string | null): boolean {
+  const age = lastSuccessfulPushAgeMs(clubId);
+  if (age == null) return false;
+  return age >= STALE_MIRROR_MS;
+}
+
 function setLastSyncAt(clubId: string, at: string): void {
   const map = readMap<LastSyncMap>(LAST_SYNC_KEY);
   map[clubId] = at;
@@ -170,7 +200,20 @@ export function isClubMirrorDirty(clubId: string): boolean {
   return readMap<Record<string, boolean>>(DIRTY_KEY)[clubId] === true;
 }
 
-function markClubMirrorDirty(clubId: string): void {
+export function getLastSyncError(clubId: string): string | null {
+  const msg = readMap<Record<string, string>>(LAST_ERROR_KEY)[clubId];
+  return msg?.trim() || null;
+}
+
+function setLastSyncError(clubId: string, message: string | null): void {
+  const map = readMap<Record<string, string>>(LAST_ERROR_KEY);
+  if (message) map[clubId] = message;
+  else delete map[clubId];
+  writeMap(LAST_ERROR_KEY, map);
+  emitClubSyncStatus();
+}
+
+export function markClubMirrorDirty(clubId: string): void {
   const map = readMap<Record<string, boolean>>(DIRTY_KEY);
   map[clubId] = true;
   writeMap(DIRTY_KEY, map);
@@ -297,6 +340,9 @@ async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
     setLastSyncAt(id, result.data?.updatedAt ?? new Date().toISOString());
     clearClubMirrorDirty(id);
     clearClubWriteConflict(id);
+    setLastSyncError(id, null);
+  } else if (result.error) {
+    setLastSyncError(id, result.error);
   }
   return result;
 }
@@ -452,6 +498,14 @@ function localHasUnsyncedEdits(local: AppData, cloud: AppData): boolean {
   if (hasLocalOnlyRows(local.coaches, cloud.coaches)) return true;
   if (hasLocalOnlyRows(local.staff, cloud.staff)) return true;
   if (hasLocalOnlyRows(local.transactions, cloud.transactions)) return true;
+  if (hasLocalOnlyRows(local.revenues, cloud.revenues)) return true;
+  if (hasLocalOnlyRows(local.expenses, cloud.expenses)) return true;
+  if (hasLocalOnlyRows(local.cashAccounts, cloud.cashAccounts)) return true;
+  if (hasLocalOnlyRows(local.budgets, cloud.budgets)) return true;
+  if (hasLocalOnlyRows(local.feeChargeTemplates, cloud.feeChargeTemplates)) return true;
+  if (localFinanceNeedsPush(local, cloud)) return true;
+  if (localOpsNeedsPush(local, cloud)) return true;
+  if (localContentNeedsPush(local, cloud)) return true;
 
   const cloudDeletedTx = new Set(cloud.deletedTransactionIds ?? []);
   if ((local.deletedTransactionIds ?? []).some((id) => !cloudDeletedTx.has(id))) return true;
@@ -503,51 +557,6 @@ function localHasUnsyncedEdits(local: AppData, cloud: AppData): boolean {
   return false;
 }
 
-function mergeReceiptIssues(
-  local: ReceiptIssueRecord[] | undefined,
-  cloud: ReceiptIssueRecord[] | undefined,
-): ReceiptIssueRecord[] {
-  const map = new Map<string, ReceiptIssueRecord>();
-  const keyOf = (row: ReceiptIssueRecord) =>
-    `${row.series}:${row.number}`;
-  for (const row of normalizeReceiptIssues(cloud)) map.set(keyOf(row), row);
-  for (const row of normalizeReceiptIssues(local)) {
-    const key = keyOf(row);
-    const prev = map.get(key);
-    if (!prev) {
-      map.set(key, row);
-      continue;
-    }
-    map.set(key, {
-      ...prev,
-      ...row,
-      voidedAt: row.voidedAt || prev.voidedAt,
-      voidReason: row.voidReason || prev.voidReason,
-      emailedAt: row.emailedAt || prev.emailedAt,
-      issuedAt: prev.issuedAt <= row.issuedAt ? prev.issuedAt : row.issuedAt,
-    });
-  }
-  return [...map.values()];
-}
-
-function mergeById<T extends { id: string }>(
-  localRows: T[] | undefined,
-  cloudRows: T[] | undefined,
-  deleted: Set<string>,
-  preferLocal: boolean,
-): T[] {
-  const map = new Map<string, T>();
-  const first = preferLocal ? cloudRows ?? [] : localRows ?? [];
-  const second = preferLocal ? localRows ?? [] : cloudRows ?? [];
-  for (const row of first) {
-    if (!deleted.has(row.id)) map.set(row.id, row);
-  }
-  for (const row of second) {
-    if (!deleted.has(row.id)) map.set(row.id, row);
-  }
-  return [...map.values()];
-}
-
 function pickNonEmptyMediaUrl(
   primary?: string | null,
   fallback?: string | null,
@@ -557,21 +566,6 @@ function pickNonEmptyMediaUrl(
   const b = (fallback ?? '').trim();
   if (b) return b;
   return null;
-}
-
-function mergeFacilities(
-  localRows: AppData['facilities'] | undefined,
-  cloudRows: AppData['facilities'] | undefined,
-  preferLocal: boolean,
-): AppData['facilities'] {
-  const merged = mergeById(localRows, cloudRows, new Set(), preferLocal);
-  return merged.map((row) => {
-    const local = (localRows ?? []).find((item) => item.id === row.id);
-    const cloud = (cloudRows ?? []).find((item) => item.id === row.id);
-    const primary = preferLocal ? local?.photoUrl : cloud?.photoUrl;
-    const fallback = preferLocal ? cloud?.photoUrl : local?.photoUrl;
-    return { ...row, photoUrl: pickNonEmptyMediaUrl(primary, fallback) };
-  });
 }
 
 function mergeRentalSettings(
@@ -595,34 +589,12 @@ function mergeClubSnapshots(
   cloud: AppData,
   opts: { preferLocal: boolean; treatCloudOnlyTxAsDeleted: boolean },
 ): AppData {
+  stampMissingUpdatedAt(local);
+  stampMissingUpdatedAt(cloud);
   const deletedStudents = new Set([
     ...(local.deletedStudentIds ?? []),
     ...(cloud.deletedStudentIds ?? []),
   ]);
-  const deleted = new Set([
-    ...(local.deletedTransactionIds ?? []),
-    ...(cloud.deletedTransactionIds ?? []),
-  ]);
-  const suppressed = new Set([
-    ...(local.suppressedFeeChargeKeys ?? []),
-    ...(cloud.suppressedFeeChargeKeys ?? []),
-  ]);
-  const localTxnIds = new Set((local.transactions ?? []).map((t) => t.id));
-  if (opts.treatCloudOnlyTxAsDeleted) {
-    for (const tx of cloud.transactions ?? []) {
-      if (!localTxnIds.has(tx.id)) deleted.add(tx.id);
-    }
-  }
-
-  const byId = new Map<string, (typeof local.transactions)[number]>();
-  const ordered = opts.preferLocal
-    ? [...(cloud.transactions ?? []), ...(local.transactions ?? [])]
-    : [...(local.transactions ?? []), ...(cloud.transactions ?? [])];
-  for (const tx of ordered) {
-    if (transactionIsSuppressed(tx, deleted, suppressed)) continue;
-    byId.set(tx.id, tx);
-  }
-
   const next = structuredClone(cloud);
   const localWrittenAt = Number(local.localWrittenAt) || 0;
   const cloudWrittenAt = Number(cloud.localWrittenAt) || 0;
@@ -631,37 +603,20 @@ function mergeClubSnapshots(
     !cloudHasMissingLocalStudents(local, cloud) &&
     activeStudentCount(local) >= activeStudentCount(cloud) &&
     (opts.preferLocal || localWrittenAt >= cloudWrittenAt);
-  next.students = mergeById(
+  next.students = mergeByIdPreferringUpdatedAt(
     local.students,
     cloud.students,
     deletedStudents,
     preferLocalStudents,
   );
-  next.localWrittenAt = preferLocalStudents
-    ? local.localWrittenAt ?? cloud.localWrittenAt
-    : cloud.localWrittenAt ?? local.localWrittenAt;
-  next.classes = mergeById(local.classes, cloud.classes, new Set(), opts.preferLocal);
-  next.coaches = mergeById(local.coaches, cloud.coaches, new Set(), opts.preferLocal);
-  next.staff = mergeById(local.staff, cloud.staff, new Set(), opts.preferLocal);
-  next.associations = mergeById(local.associations, cloud.associations, new Set(), opts.preferLocal);
-  next.sports = mergeById(local.sports, cloud.sports, new Set(), opts.preferLocal);
-  next.facilities = mergeFacilities(local.facilities, cloud.facilities, opts.preferLocal);
-  next.rentalSettings = mergeRentalSettings(local.rentalSettings, cloud.rentalSettings, opts.preferLocal);
-  next.feeChargeTemplates = mergeById(
-    local.feeChargeTemplates,
-    cloud.feeChargeTemplates,
-    new Set(),
-    opts.preferLocal,
-  );
-  next.clubSeasons = mergeById(local.clubSeasons, cloud.clubSeasons, new Set(), opts.preferLocal);
-  next.expenses = mergeById(local.expenses, cloud.expenses, new Set(), opts.preferLocal);
-  next.transactions = [...byId.values()];
-  next.deletedTransactionIds = [...deleted].slice(-5000);
+  next.localWrittenAt = Math.max(localWrittenAt, cloudWrittenAt) || local.localWrittenAt || cloud.localWrittenAt;
   next.deletedStudentIds = [...deletedStudents].slice(-5000);
-  next.suppressedFeeChargeKeys = [...suppressed].slice(-5000);
-  next.revenues = mergeById(local.revenues, cloud.revenues, new Set(), opts.preferLocal).filter(
-    (row) => !row.linkedTransactionId || !deleted.has(row.linkedTransactionId),
-  );
+  applyFinanceCollections(next, local, cloud, {
+    preferLocal: opts.preferLocal,
+    treatCloudOnlyTxAsDeleted: opts.treatCloudOnlyTxAsDeleted,
+  });
+  applyOpsCollections(next, local, cloud, opts.preferLocal);
+  applyContentCollections(next, local, cloud, opts.preferLocal);
   next.discountReasons = mergeIdCatalog(
     local.discountReasons,
     cloud.discountReasons,
@@ -677,30 +632,16 @@ function mergeClubSnapshots(
     opts.preferLocal,
   );
   next.sizeChart = mergeSizeCharts(local.sizeChart, cloud.sizeChart, opts.preferLocal);
-  next.receiptNumberRanges = mergeIdCatalog(
-    local.receiptNumberRanges,
-    cloud.receiptNumberRanges,
-    normalizeReceiptRanges,
-    (list) => list.length === 0,
-    opts.preferLocal,
-  );
-  next.receiptIssues = mergeReceiptIssues(local.receiptIssues, cloud.receiptIssues);
-  next.schedule = mergeById(local.schedule, cloud.schedule, new Set(), opts.preferLocal);
-  next.trainings = mergeById(local.trainings, cloud.trainings, new Set(), opts.preferLocal);
-  next.matches = mergeById(local.matches, cloud.matches, new Set(), opts.preferLocal);
-  next.products = mergeById(local.products, cloud.products, new Set(), opts.preferLocal);
-  next.stockMovements = mergeById(
-    local.stockMovements,
-    cloud.stockMovements,
-    new Set(),
-    opts.preferLocal,
-  );
-  next.athleteChangeLogs = mergeById(
-    local.athleteChangeLogs ?? [],
-    cloud.athleteChangeLogs ?? [],
-    new Set(),
-    opts.preferLocal,
-  );
+  next.rentalSettings = mergeRentalSettings(local.rentalSettings, cloud.rentalSettings, opts.preferLocal);
+  const pickHtml = (a?: string, b?: string) => {
+    const left = (a ?? '').trim();
+    const right = (b ?? '').trim();
+    if (opts.preferLocal) return left || right;
+    return right || left;
+  };
+  next.termsOfUseHtml = pickHtml(local.termsOfUseHtml, cloud.termsOfUseHtml);
+  next.dpaHtml = pickHtml(local.dpaHtml, cloud.dpaHtml);
+  next.retentionPolicyHtml = pickHtml(local.retentionPolicyHtml, cloud.retentionPolicyHtml);
   if (opts.preferLocal) {
     next.lastWrittenByUserId = local.lastWrittenByUserId ?? cloud.lastWrittenByUserId;
     next.lastWrittenByName = local.lastWrittenByName ?? cloud.lastWrittenByName;
@@ -747,18 +688,43 @@ export async function reconcileClubRoster(clubId?: string | null) {
   const { getClubData, replaceClubData } = await import('./repository');
   const local = getClubData(id);
   const cloud = result.data.payload;
-  const merged = applyCloudClubData(local, cloud);
   const cloudRicher =
     cloudHasMissingLocalStudents(local, cloud) ||
     (cloud.students?.length ?? 0) > (local.students?.length ?? 0) ||
     activeStudentCount(cloud) > activeStudentCount(local);
+  const dirty = isClubMirrorDirty(id);
+  const cloudAt = result.data.updatedAt ?? new Date().toISOString();
+  const mergedLive = mergeClubSnapshots(local, cloud, {
+    preferLocal: dirty,
+    treatCloudOnlyTxAsDeleted: false,
+  });
+  const liveChanged =
+    financeCollectionsChanged(local, mergedLive) ||
+    opsCollectionsChanged(local, mergedLive) ||
+    contentCollectionsChanged(local, mergedLive) ||
+    JSON.stringify(local.students) !== JSON.stringify(mergedLive.students) ||
+    JSON.stringify(local.sizeChart) !== JSON.stringify(mergedLive.sizeChart) ||
+    JSON.stringify(local.discountReasons ?? []) !== JSON.stringify(mergedLive.discountReasons ?? []) ||
+    JSON.stringify(local.clothingPackages ?? []) !== JSON.stringify(mergedLive.clothingPackages ?? []) ||
+    (local.termsOfUseHtml ?? '') !== (mergedLive.termsOfUseHtml ?? '');
 
-  if (cloudRicher) {
-    replaceClubData(id, merged, { skipCloudPush: true });
-    setLastSyncAt(id, result.data.updatedAt ?? new Date().toISOString());
-    setCloudPreferred(true);
-    void import('./rosterSyncHealth').then((m) => m.notifyRosterHealthChanged(id));
+  if (liveChanged || cloudRicher) {
+    replaceClubData(id, mergedLive, { skipCloudPush: true });
+    if (cloudRicher) setCloudPreferred(true);
   }
+  const after = getClubData(id);
+  if (
+    dirty ||
+    localHasUnsyncedEdits(after, cloud) ||
+    localFinanceNeedsPush(after, cloud) ||
+    localOpsNeedsPush(after, cloud) ||
+    localContentNeedsPush(after, cloud)
+  ) {
+    markClubMirrorDirty(id);
+  } else {
+    setLastSyncAt(id, cloudAt);
+  }
+  void import('./rosterSyncHealth').then((m) => m.notifyRosterHealthChanged(id));
 
   const latest = getClubData(id);
   const cloudIds = new Set((cloud.students ?? []).map((row) => row.id));

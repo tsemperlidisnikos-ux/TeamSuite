@@ -24,7 +24,9 @@ export async function closeFinanceMonth(month: string) {
     if (!/^\d{4}-\d{2}$/.test(key)) throw new Error('Μη έγκυρος μήνας (YYYY-MM)');
     mutateData((data) => {
       if (!data.closedFinanceMonths) data.closedFinanceMonths = [];
+      if (!data.financeMonthLockRev) data.financeMonthLockRev = {};
       if (!data.closedFinanceMonths.includes(key)) data.closedFinanceMonths.push(key);
+      data.financeMonthLockRev[key] = Date.now();
     });
     return { month: key };
   });
@@ -34,7 +36,9 @@ export async function reopenFinanceMonth(month: string) {
   return apiClient(() => {
     const key = month.slice(0, 7);
     mutateData((data) => {
+      if (!data.financeMonthLockRev) data.financeMonthLockRev = {};
       data.closedFinanceMonths = (data.closedFinanceMonths ?? []).filter((m) => m !== key);
+      data.financeMonthLockRev[key] = Date.now();
     });
     return { month: key };
   });

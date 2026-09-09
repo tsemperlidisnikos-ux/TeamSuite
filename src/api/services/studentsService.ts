@@ -67,6 +67,7 @@ export async function createStudent(input: StudentInput) {
       lastName: parsed.lastName.trim() || 'ΑΘΛΗΤΗΣ',
       id: createId('stu'),
       enrolledAt: localDateIso(),
+      updatedAt: Date.now(),
     });
     const { flushClubMirrorPush } = await import('../../data/clubSync');
     const { upsertClubStudents } = await import('./backendSyncService');
@@ -126,6 +127,7 @@ export async function updateStudent(id: string, input: StudentInput) {
         ...sports,
         ...coaches,
       });
+      updated.updatedAt = Date.now();
       const limit = clubAthleteLicenseLimit();
       if (
         wouldConsumeAthleteLicense(updated.status, previous.status) &&

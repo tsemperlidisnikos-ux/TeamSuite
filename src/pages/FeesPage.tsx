@@ -143,6 +143,7 @@ export function FeesPage() {
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const owedOnly = searchParams.get('owed') === '1';
     return data.students
       .filter((s) => s.status !== 'inactive')
       .filter((s) => {
@@ -165,8 +166,9 @@ export function FeesPage() {
             .join(', '),
         };
       })
-      .sort((a, b) => b.balance - a.balance);
-  }, [data.students, data.classes, transactions, query]);
+      .sort((a, b) => b.balance - a.balance)
+      .filter((row) => !owedOnly || row.balance > 0.009);
+  }, [data.students, data.classes, transactions, query, searchParams, session?.role]);
 
   const totals = useMemo(
     () => ({

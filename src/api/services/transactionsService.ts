@@ -9,6 +9,22 @@ import {
   removeRevenuesForPaymentInData,
   syncRevenuesForPaymentInData,
 } from './athletePaymentRevenueBridge';
+import { assertPaymentDoesNotOverpay } from './paymentMatchingService';
+
+function paymentIdempotencyKey(
+  row: Pick<AthleteTransaction, 'athleteId' | 'amount' | 'allocatesChargeId' | 'month' | 'year' | 'createdAt' | 'type'>,
+): string {
+  const minute = String(row.createdAt ?? '').slice(0, 16);
+  return [
+    row.type,
+    row.athleteId,
+    Number(row.amount).toFixed(2),
+    row.allocatesChargeId ?? '',
+    row.month,
+    row.year,
+    minute,
+  ].join('|');
+}
 
 export async function getTransactions() {
   return apiClient(() => getData().transactions ?? []);
@@ -21,10 +37,33 @@ export async function createTransaction(input: TransactionInput) {
       ...parsed,
       id: createId('txn'),
       createdAt: localDateTimeIso(),
+      updatedAt: Date.now(),
       allocatesChargeId: parsed.allocatesChargeId ?? null,
     };
     mutateData((data) => {
       if (!data.transactions) data.transactions = [];
+      if (transaction.type === 'payment') {
+        const cutoff = Date.now() - 20 * 60 * 1000;
+        const pending = (data.onlineCheckouts ?? []).find((row) => {
+          if (row.athleteId !== transaction.athleteId) return false;
+          const ts = Date.parse(row.createdAt);
+          return Number.isFinite(ts) ? ts >= cutoff : false;
+        });
+        if (pending && (parsed.paymentMethod === 'viva' || parsed.paymentMethod === 'stripe' || parsed.paymentMethod === 'eurobank')) {
+          throw new Error(
+            'Υπάρχει εκκρεμές online checkout (τελευταία 20 λεπτά). Ολοκληρώστε το ή καταχωρήστε μετρητά/έμβασμα.',
+          );
+        }
+        const fingerprint = paymentIdempotencyKey(transaction);
+        const duplicate = data.transactions.find((row) => {
+          if (row.type !== 'payment' || row.athleteId !== transaction.athleteId) return false;
+          return paymentIdempotencyKey(row) === fingerprint;
+        });
+        if (duplicate) {
+          throw new Error('Η ίδια πληρωμή καταχωρήθηκε ήδη (ίδιο ποσό / χρέωση / λεπτό).');
+        }
+        assertPaymentDoesNotOverpay(data, transaction);
+      }
       data.transactions.push(transaction);
     });
 
@@ -63,6 +102,7 @@ export async function updateTransaction(id: string, input: TransactionInput) {
       updated = {
         ...data.transactions[index],
         ...parsed,
+        updatedAt: Date.now(),
       };
       data.transactions[index] = updated;
       if (updated.type === 'payment') {

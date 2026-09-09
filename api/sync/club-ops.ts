@@ -3,11 +3,12 @@ import {
   assertClubTenantAccess,
   isDurableStoreEnabled,
   loadMirror,
+  mergeOpsSliceIntoPayload,
   saveMirror,
 } from '../lib/serverStore.js';
 
 /**
- * PUT /api/sync/club-ops — γρήγορο patch προγράμματος / προπονήσεων / αγώνων / αποθήκης
+ * PUT /api/sync/club-ops — γρήγορο patch προγράμματος, ανακοινώσεων, αιτήσεων, κρατήσεων
  * χωρίς να περιμένει πλήρες roster mirror.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -31,16 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     mirror?.payload && typeof mirror.payload === 'object'
       ? (mirror.payload as Record<string, unknown>)
       : {};
-  const next = {
-    ...prev,
-    schedule: Array.isArray(slice.schedule) ? slice.schedule : prev.schedule,
-    trainings: Array.isArray(slice.trainings) ? slice.trainings : prev.trainings,
-    matches: Array.isArray(slice.matches) ? slice.matches : prev.matches,
-    products: Array.isArray(slice.products) ? slice.products : prev.products,
-    stockMovements: Array.isArray(slice.stockMovements)
-      ? slice.stockMovements
-      : prev.stockMovements,
-  };
+  const next = mergeOpsSliceIntoPayload(prev, slice);
   await saveMirror(clubId, next);
   return res.status(200).json({ ok: true, durable: isDurableStoreEnabled() });
 }

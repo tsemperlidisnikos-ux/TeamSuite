@@ -1,5 +1,6 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
+import { publishClubOpsSlice } from './clubOpsSyncService';
 import type { AbsenceReason, AttendanceRecord } from '../../types';
 
 export function absenceReasonLabel(reason?: AbsenceReason | null): string {
@@ -37,6 +38,7 @@ export async function upsertAttendance(input: {
         } else if (input.absenceReason !== undefined) {
           existing.absenceReason = input.absenceReason;
         }
+        existing.updatedAt = Date.now();
         record = existing;
       } else {
         record = {
@@ -47,10 +49,12 @@ export async function upsertAttendance(input: {
           present: input.present,
           notes: input.notes,
           absenceReason: input.present ? null : (input.absenceReason ?? null),
+          updatedAt: Date.now(),
         };
         data.attendance.push(record);
       }
     });
+    void publishClubOpsSlice();
     return record!;
   });
 }

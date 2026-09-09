@@ -1,5 +1,6 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { matchSchema, type MatchInput } from '../../schemas';
 import type { Match } from '../../types';
 import { publishClubOpsSlice } from './clubOpsSyncService';
@@ -30,6 +31,7 @@ export async function createMatch(input: MatchInput) {
       opponentScore: parsed.opponentScore ?? null,
       notes: parsed.notes ?? '',
       createdAt: localDateTimeIso(),
+      updatedAt: Date.now(),
     };
     mutateData((data) => {
       if (!data.matches) data.matches = [];
@@ -54,6 +56,7 @@ export async function updateMatch(id: string, input: MatchInput) {
         classId: parsed.classId ?? null,
         ourScore: parsed.ourScore ?? null,
         opponentScore: parsed.opponentScore ?? null,
+        updatedAt: Date.now(),
       };
       data.matches[index] = updated;
     });
@@ -66,6 +69,7 @@ export async function deleteMatch(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.matches = (data.matches ?? []).filter((m) => m.id !== id);
+      data.deletedMatchIds = rememberDeletedId(data.deletedMatchIds, id);
     });
     void publishClubOpsSlice();
     return { id };

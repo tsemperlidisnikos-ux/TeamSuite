@@ -13,6 +13,7 @@ import {
   currentFinanceActor,
   filterOwnFinanceEntries,
 } from '../../utils/financeOwnEntries';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { ensureAthletePaymentRevenuesSynced } from './athletePaymentRevenueBridge';
 import { assertFinanceMonthOpen } from './financePeriodService';
 import { ensureLegacyPaymentsMatched } from './paymentMatchingService';
@@ -74,6 +75,7 @@ export async function deleteRevenue(id: string) {
         assertFinanceMonthOpen(existing.date);
       }
       data.revenues = data.revenues.filter((r) => r.id !== id);
+      data.deletedRevenueIds = rememberDeletedId(data.deletedRevenueIds, id);
     });
     return { id };
   });
@@ -132,6 +134,7 @@ export async function deleteExpense(id: string) {
         assertFinanceMonthOpen(existing.date);
       }
       data.expenses = data.expenses.filter((e) => e.id !== id);
+      data.deletedExpenseIds = rememberDeletedId(data.deletedExpenseIds, id);
     });
     return { id };
   });

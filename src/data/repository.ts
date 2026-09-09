@@ -29,6 +29,7 @@ import { defaultClothingPackages, normalizeClothingPackages } from '../utils/clo
 import { clubDiscountReasons } from '../utils/discountReasons';
 import { normalizeSizeChart } from '../utils/sizeChartOptions';
 import { normalizeReceiptIssues, normalizeReceiptRanges } from '../utils/receiptBook';
+import { stampMissingUpdatedAt } from './stampUpdatedAt';
 
 function stampLocalWrite(data: AppData): void {
   data.localWrittenAt = Date.now();
@@ -48,7 +49,33 @@ function ensureCollections(data: AppData): boolean {
   let changed = false;
   if (!data.transactions) data.transactions = structuredClone(seedData.transactions);
   if (!data.deletedTransactionIds) data.deletedTransactionIds = [];
+  if (!data.deletedRevenueIds) data.deletedRevenueIds = [];
+  if (!data.deletedExpenseIds) data.deletedExpenseIds = [];
+  if (!data.deletedCashAccountIds) data.deletedCashAccountIds = [];
+  if (!data.deletedBudgetIds) data.deletedBudgetIds = [];
   if (!data.deletedStudentIds) data.deletedStudentIds = [];
+  if (!data.deletedClassIds) data.deletedClassIds = [];
+  if (!data.deletedScheduleIds) data.deletedScheduleIds = [];
+  if (!data.deletedTrainingIds) data.deletedTrainingIds = [];
+  if (!data.deletedAttendanceIds) data.deletedAttendanceIds = [];
+  if (!data.deletedProductIds) data.deletedProductIds = [];
+  if (!data.deletedStockMovementIds) data.deletedStockMovementIds = [];
+  if (!data.deletedMatchIds) data.deletedMatchIds = [];
+  if (!data.deletedCoachIds) data.deletedCoachIds = [];
+  if (!data.deletedStaffIds) data.deletedStaffIds = [];
+  if (!data.deletedAssociationIds) data.deletedAssociationIds = [];
+  if (!data.deletedFacilityIds) data.deletedFacilityIds = [];
+  if (!data.deletedSportIds) data.deletedSportIds = [];
+  if (!data.deletedSeasonIds) data.deletedSeasonIds = [];
+  if (!data.deletedAnnouncementIds) data.deletedAnnouncementIds = [];
+  if (!data.deletedPartnerBusinessIds) data.deletedPartnerBusinessIds = [];
+  if (!data.deletedPartnerOfferIds) data.deletedPartnerOfferIds = [];
+  if (!data.deletedPhotoIds) data.deletedPhotoIds = [];
+  if (!data.deletedParentLinkIds) data.deletedParentLinkIds = [];
+  if (!data.deletedProgressReportIds) data.deletedProgressReportIds = [];
+  if (!data.deletedRegistrationApplicationIds) data.deletedRegistrationApplicationIds = [];
+  if (!data.deletedProtocolIds) data.deletedProtocolIds = [];
+  if (!data.deletedRentalBookingIds) data.deletedRentalBookingIds = [];
   if (!data.suppressedFeeChargeKeys) data.suppressedFeeChargeKeys = [];
   if (!data.trainings) data.trainings = structuredClone(seedData.trainings);
   if (!data.staff) data.staff = structuredClone(seedData.staff);
@@ -195,6 +222,8 @@ function ensureCollections(data: AppData): boolean {
       changed = true;
     }
   }
+  if (!data.receiptNextBySeries) data.receiptNextBySeries = {};
+  if (!data.onlineCheckouts) data.onlineCheckouts = [];
   if (data.termsOfUseHtml === undefined) data.termsOfUseHtml = seedData.termsOfUseHtml ?? '';
   if (data.dpaHtml === undefined) data.dpaHtml = seedData.dpaHtml ?? '';
   if (data.retentionPolicyHtml === undefined) {
@@ -224,6 +253,7 @@ function ensureCollections(data: AppData): boolean {
   if (!data.closedFinanceMonths) {
     data.closedFinanceMonths = structuredClone(seedData.closedFinanceMonths ?? []);
   }
+  if (!data.financeMonthLockRev) data.financeMonthLockRev = {};
   if (!data.matches) data.matches = structuredClone(seedData.matches ?? []);
   if (!data.rentalSettings) {
     data.rentalSettings = structuredClone(
@@ -309,6 +339,7 @@ function ensureCollections(data: AppData): boolean {
       changed = true;
     }
   }
+  if (stampMissingUpdatedAt(data)) changed = true;
   return changed;
 }
 
@@ -405,6 +436,7 @@ export function mutateData(updater: (data: AppData) => void): AppData {
   const before = getData();
   const data = structuredClone(before);
   updater(data);
+  stampMissingUpdatedAt(data);
   cache = data;
   cacheClubId = resolveActiveClubId();
   stampLocalWrite(data);
@@ -436,6 +468,7 @@ export function clubHasStoredData(clubId: string): boolean {
 export function mutateClubData(clubId: string, updater: (data: AppData) => void): AppData {
   const data = getClubData(clubId);
   updater(data);
+  stampMissingUpdatedAt(data);
   stampLocalWrite(data);
   writeClubStoreExclusive(clubId, data);
   if (resolveActiveClubId() === clubId) {

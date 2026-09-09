@@ -1,5 +1,6 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
+import { rememberDeletedId, rememberDeletedIds } from '../../data/financeSyncMerge';
 import { trainingSchema, type TrainingInput } from '../../schemas';
 import { slotConflictsWithClubOccupancy } from '../../shared/facilityRentalAvailability';
 import type { AppData, Training } from '../../types';
@@ -35,6 +36,7 @@ export async function createTraining(input: TrainingInput) {
       ...parsed,
       id: createId('trn'),
       classId: parsed.classId ?? null,
+      updatedAt: Date.now(),
     };
     mutateData((data) => {
       if (!data.trainings) data.trainings = [];
@@ -123,6 +125,7 @@ export async function createRecurringTrainings(input: {
             location: times.location,
             notes: input.notes,
             classId: input.classId,
+            updatedAt: Date.now(),
           };
           created.push(training);
           working.trainings.push(training);
@@ -239,6 +242,7 @@ export async function generateTrainingsFromSchedule(input?: {
             location: slot.location,
             notes: '',
             classId: slot.classId,
+            updatedAt: Date.now(),
           };
           created.push(training);
           working.trainings.push(training);
@@ -284,6 +288,7 @@ export async function updateTraining(id: string, input: TrainingInput) {
         ...parsed,
         classId: parsed.classId ?? null,
       };
+      updated.updatedAt = Date.now();
       data.trainings[index] = updated;
     });
     void publishClubOpsSlice();
@@ -295,6 +300,7 @@ export async function deleteTraining(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.trainings = (data.trainings ?? []).filter((t) => t.id !== id);
+      data.deletedTrainingIds = rememberDeletedId(data.deletedTrainingIds, id);
     });
     void publishClubOpsSlice();
     return { id };
@@ -306,6 +312,7 @@ export async function bulkDeleteTrainings(ids: string[]) {
     const idSet = new Set(ids);
     mutateData((data) => {
       data.trainings = (data.trainings ?? []).filter((t) => !idSet.has(t.id));
+      data.deletedTrainingIds = rememberDeletedIds(data.deletedTrainingIds, ids);
     });
     void publishClubOpsSlice();
     return { deleted: ids.length };
@@ -339,6 +346,7 @@ export async function bulkUpdateTrainings(
         startTime: startTime || training.startTime,
         endTime: endTime || training.endTime,
         location: location || training.location,
+        updatedAt: Date.now(),
       };
       const check = slotConflictsWithClubOccupancy(
         working,

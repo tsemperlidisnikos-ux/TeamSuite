@@ -123,6 +123,11 @@ export interface Club {
   customChargeLabel?: string;
   /** Αποθηκευμένη τιμή (πάντα ελληνικά). */
   locale?: AppLocale;
+  /** Οδηγός πρώτης ρύθμισης — συγχρονίζεται με account bundle. */
+  setupWizard?: {
+    dismissed?: boolean;
+    skipped?: Partial<Record<'profile' | 'classes' | 'publicJoin' | 'payments' | 'secretariat', boolean>>;
+  };
 }
 
 const CLUBS_KEY = 'academyhub-clubs-v1';
@@ -717,6 +722,29 @@ export function updateClubBackupSchedule(
   clubs[index] = {
     ...clubs[index],
     backupSchedule: schedule,
+  };
+  saveClubs(clubs);
+  window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
+  return ok(clubs[index]);
+}
+
+export function updateClubSetupWizard(
+  clubId: string,
+  patch: NonNullable<Club['setupWizard']>,
+): ApiResult<Club> {
+  const clubs = getClubs();
+  const index = clubs.findIndex((c) => c.id === clubId);
+  if (index < 0) return fail('Ο σύλλογος δεν βρέθηκε');
+  clubs[index] = {
+    ...clubs[index],
+    setupWizard: {
+      ...clubs[index].setupWizard,
+      ...patch,
+      skipped: {
+        ...clubs[index].setupWizard?.skipped,
+        ...patch.skipped,
+      },
+    },
   };
   saveClubs(clubs);
   window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "vitest run",
     "test:security": "node scripts/security-regression-check.mjs",
     "preview": "vite preview",
     "promo:capture": "node scripts/capture-promo-screens.mjs",
@@ -35,6 +36,7 @@
     "oxlint": "^1.75.0",
     "playwright": "^1.62.1",
     "typescript": "~6.0.2",
-    "vite": "^8.2.0"
+    "vite": "^8.2.0",
+    "vitest": "^3.2.4"
   }
 }

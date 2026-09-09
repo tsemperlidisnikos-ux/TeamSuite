@@ -419,6 +419,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
     list[index] = confirmed;
     payload.rentalBookings = list;
+    if (!Array.isArray(payload.revenues)) payload.revenues = [];
+    const rentRevId = `rev_rent_${confirmed.id}`;
+    const rentRev = {
+      id: rentRevId,
+      date: confirmed.date,
+      amount: Number(confirmed.amount) || 0,
+      category: 'events',
+      description: `Ενοικίαση ${confirmed.facilityName} (${confirmed.startTime}–${confirmed.endTime})`,
+      paymentStatus: 'paid',
+      subcategory: 'ΕΝΟΙΚΙΑΣΗ ΓΗΠΕΔΟΥ',
+      notes: `${confirmed.customerName} · ${confirmed.customerPhone}`.trim(),
+      paymentMethod: 'viva',
+      linkedRentalBookingId: confirmed.id,
+    };
+    const revList = payload.revenues as Array<Record<string, unknown>>;
+    const revIdx = revList.findIndex(
+      (row) => row.id === rentRevId || row.linkedRentalBookingId === confirmed.id,
+    );
+    if (revIdx >= 0) revList[revIdx] = { ...revList[revIdx], ...rentRev };
+    else revList.push(rentRev);
+    payload.revenues = revList;
     await saveMirror(club.clubId, payload);
     await emailRentalBooking(club.clubId, club.name, confirmed, confirmed.customerEmail);
     return res.status(200).json({ ok: true, bookingId: confirmed.id, paid: true });

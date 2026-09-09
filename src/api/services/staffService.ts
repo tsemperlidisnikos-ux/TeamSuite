@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
+import { publishClubOpsSlice } from './clubOpsSyncService';
 import type { StaffMember } from '../../types';
 import { localDateIso } from '../../utils/dates';
 
@@ -56,6 +58,7 @@ export async function createStaff(input: StaffInput) {
       if (!data.staff) data.staff = [];
       data.staff.push(member);
     });
+    void publishClubOpsSlice();
     return member;
   });
 }
@@ -72,6 +75,7 @@ export async function updateStaff(id: string, input: StaffInput) {
       updated = { ...data.staff[index], ...parsed, fullName };
       data.staff[index] = updated;
     });
+    void publishClubOpsSlice();
     return updated!;
   });
 }
@@ -80,7 +84,9 @@ export async function deleteStaff(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.staff = (data.staff ?? []).filter((s) => s.id !== id);
+      data.deletedStaffIds = rememberDeletedId(data.deletedStaffIds, id);
     });
+    void publishClubOpsSlice();
     return { id };
   });
 }

@@ -3,6 +3,7 @@ import { createId, mutateData } from '../../data/repository';
 import { getSession } from '../../auth/auth';
 import { getPreviewClubId } from '../../platform/platformConfig';
 import { persistClubImageDataUrl } from './sessionService';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { facilitySchema, type FacilityInput } from '../../schemas';
 import type { Facility } from '../../types';
 import { publishRentalOccupancy } from './rentalBookingsService';
@@ -77,6 +78,7 @@ export async function deleteFacility(id: string) {
   return apiClient(async () => {
     mutateData((data) => {
       data.facilities = (data.facilities ?? []).filter((item) => item.id !== id);
+      data.deletedFacilityIds = rememberDeletedId(data.deletedFacilityIds, id);
     });
     const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
     if (clubId) {

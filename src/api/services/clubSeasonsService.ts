@@ -6,6 +6,7 @@ import { localDateTimeIso } from '../../utils/dates';
 import { seasonDisplayName } from '../../utils/clubSeasons';
 import { studentClassIds } from '../../utils/studentClasses';
 import { publishClubOpsSlice } from './clubOpsSyncService';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 
 function normalizeSeason(input: ClubSeasonInput): Omit<ClubSeason, 'id'> {
   const parsed = clubSeasonSchema.parse(input);
@@ -28,6 +29,7 @@ export async function createClubSeason(input: ClubSeasonInput) {
       data.clubSeasons.push(season);
       data.clubSeasons.sort((a, b) => b.startDate.localeCompare(a.startDate));
     });
+    void publishClubOpsSlice();
     return season;
   });
 }
@@ -44,6 +46,7 @@ export async function updateClubSeason(id: string, input: ClubSeasonInput) {
       data.clubSeasons[index] = updated;
       data.clubSeasons.sort((a, b) => b.startDate.localeCompare(a.startDate));
     });
+    void publishClubOpsSlice();
     return updated!;
   });
 }
@@ -58,7 +61,9 @@ export async function deleteClubSeason(id: string) {
         );
       }
       data.clubSeasons = (data.clubSeasons ?? []).filter((s) => s.id !== id);
+      data.deletedSeasonIds = rememberDeletedId(data.deletedSeasonIds, id);
     });
+    void publishClubOpsSlice();
     return { id };
   });
 }

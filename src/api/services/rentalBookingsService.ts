@@ -17,8 +17,10 @@ import { localDateTimeIso } from '../../utils/dates';
 import { syncAuthHeaders } from '../syncAuth';
 import { persistClubImageDataUrl } from './sessionService';
 import * as emailService from './emailService';
-import { getClubById } from '../../auth/clubs';
 import { buildRentalBookingEmail } from '../../utils/rentalBookingEmail';
+import { getClubById } from '../../auth/clubs';
+import { upsertRentalBookingRevenueInData } from './rentalRevenueBridge';
+import { publishClubOpsSlice } from './clubOpsSyncService';
 
 export async function publishRentalOccupancy(clubId: string) {
   const data = resolveActiveClubId() === clubId ? getData() : getClubData(clubId);
@@ -130,7 +132,9 @@ export async function createRentalBooking(
     mutateData((store) => {
       if (!store.rentalBookings) store.rentalBookings = [];
       store.rentalBookings.unshift(booking);
+      upsertRentalBookingRevenueInData(store, booking);
     });
+    void publishClubOpsSlice();
     const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
     if (clubId) {
       try {
@@ -172,7 +176,9 @@ export async function cancelRentalBooking(id: string) {
       updated = { ...list[index], status: 'cancelled' };
       list[index] = updated;
       data.rentalBookings = list;
+      upsertRentalBookingRevenueInData(data, updated);
     });
+    void publishClubOpsSlice();
     const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
     if (clubId) {
       try {
@@ -189,12 +195,15 @@ export async function mergeRemoteRentalBookings(bookings: RentalBooking[]) {
   return apiClient(() => {
     mutateData((data) => {
       if (!data.rentalBookings) data.rentalBookings = [];
-      const ids = new Set(data.rentalBookings.map((item) => item.id));
+      const byId = new Map(data.rentalBookings.map((item) => [item.id, item]));
       for (const booking of bookings) {
-        if (!booking?.id || ids.has(booking.id)) continue;
-        data.rentalBookings.unshift(booking);
-        ids.add(booking.id);
+        if (!booking?.id) continue;
+        const prev = byId.get(booking.id);
+        const next = prev ? { ...prev, ...booking } : booking;
+        byId.set(booking.id, next);
+        upsertRentalBookingRevenueInData(data, next);
       }
+      data.rentalBookings = [...byId.values()];
     });
     return getData().rentalBookings ?? [];
   });

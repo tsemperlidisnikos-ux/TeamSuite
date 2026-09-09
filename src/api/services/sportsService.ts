@@ -1,6 +1,7 @@
 import { apiClient } from '../apiClient';
 import { isPlatformAdmin } from '../../auth/auth';
 import { createId, mutateData } from '../../data/repository';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { sportItemSchema, type SportItemInput } from '../../schemas';
 import {
   flattenCatalogSports,
@@ -44,6 +45,7 @@ export async function deleteSport(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.sports = data.sports.filter((s) => s.id !== id);
+      data.deletedSportIds = rememberDeletedId(data.deletedSportIds, id);
     });
     return { id };
   });

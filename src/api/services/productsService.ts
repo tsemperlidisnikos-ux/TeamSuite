@@ -1,6 +1,7 @@
 import { apiClient } from '../apiClient';
 import { getSession } from '../../auth/auth';
 import { createId, mutateData } from '../../data/repository';
+import { rememberDeletedId, rememberDeletedIds } from '../../data/financeSyncMerge';
 import {
   stockMovementSchema,
   warehouseProductSchema,
@@ -19,6 +20,7 @@ export async function createProduct(input: WarehouseProductInput) {
       stockQty: parsed.stockQty ?? 0,
       id: createId('product'),
       createdAt: localDateTimeIso(),
+      updatedAt: Date.now(),
     };
     mutateData((data) => {
       if (!data.products) data.products = [];
@@ -41,6 +43,7 @@ export async function updateProduct(id: string, input: WarehouseProductInput) {
         ...data.products[index],
         ...parsed,
         stockQty: parsed.stockQty ?? data.products[index].stockQty ?? 0,
+        updatedAt: Date.now(),
       };
       data.products[index] = updated;
     });
@@ -52,8 +55,13 @@ export async function updateProduct(id: string, input: WarehouseProductInput) {
 export async function deleteProduct(id: string) {
   return apiClient(() => {
     mutateData((data) => {
+      const removedStock = (data.stockMovements ?? [])
+        .filter((m) => m.productId === id)
+        .map((m) => m.id);
       data.products = (data.products ?? []).filter((p) => p.id !== id);
       data.stockMovements = (data.stockMovements ?? []).filter((m) => m.productId !== id);
+      data.deletedProductIds = rememberDeletedId(data.deletedProductIds, id);
+      data.deletedStockMovementIds = rememberDeletedIds(data.deletedStockMovementIds, removedStock);
     });
     void publishClubOpsSlice();
     return { id };
@@ -93,6 +101,7 @@ export async function recordStockMovement(input: StockMovementInput) {
         note: parsed.note.trim(),
         createdAt: localDateTimeIso(),
         createdByName: session?.fullName || session?.email || 'Χρήστης',
+        updatedAt: Date.now(),
       };
       data.stockMovements.unshift(movement);
     });

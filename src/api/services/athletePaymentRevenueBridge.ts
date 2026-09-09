@@ -1,3 +1,4 @@
+import { rememberDeletedIds } from '../../data/financeSyncMerge';
 import { createId, getData, mutateData } from '../../data/repository';
 import type { AppData, AthleteTransaction, Revenue, RevenueCategory, Student } from '../../types';
 
@@ -147,7 +148,11 @@ export function syncRevenuesForPaymentInData(data: AppData, paymentId: string): 
 }
 
 export function removeRevenuesForPaymentInData(data: AppData, paymentId: string): void {
+  const removedIds = data.revenues
+    .filter((r) => r.linkedTransactionId === paymentId)
+    .map((r) => r.id);
   data.revenues = data.revenues.filter((r) => r.linkedTransactionId !== paymentId);
+  data.deletedRevenueIds = rememberDeletedIds(data.deletedRevenueIds, removedIds);
 }
 
 export async function syncRevenuesForPayment(paymentId: string) {

@@ -53,10 +53,16 @@ import { useCloudMirrorAutoPull } from '../../hooks/useCloudMirrorAutoPull';
 import { useT } from '../../i18n/LocaleContext';
 import { downloadClubBackupJsonAndAthletesXlsx } from '../../utils/clubQuickExport';
 import { ClubSyncStatus } from '../ClubSyncStatus';
+import { RosterSyncHealthBanner } from '../RosterSyncHealthBanner';
 import { listLowStockProducts } from '../../utils/warehouseStock';
 import {
+  CLUB_SYNC_STATUS_EVENT,
   CLUB_WRITE_CONFLICT_EVENT,
+  flushClubMirrorPush,
   getClubWriteConflict,
+  getLastSyncAt,
+  getLastSyncError,
+  isMirrorPushStale,
   resolveClubWriteConflict,
 } from '../../data/clubSync';
 import * as publicClubCloudService from '../../api/services/publicClubCloudService';
@@ -144,13 +150,21 @@ export function AppLayout() {
   );
   const [conflictTick, setConflictTick] = useState(0);
   const [conflictBusy, setConflictBusy] = useState(false);
+  const [retryBusy, setRetryBusy] = useState(false);
   useEffect(() => {
     const bump = () => setConflictTick((n) => n + 1);
     window.addEventListener(CLUB_WRITE_CONFLICT_EVENT, bump);
-    return () => window.removeEventListener(CLUB_WRITE_CONFLICT_EVENT, bump);
+    window.addEventListener(CLUB_SYNC_STATUS_EVENT, bump);
+    return () => {
+      window.removeEventListener(CLUB_WRITE_CONFLICT_EVENT, bump);
+      window.removeEventListener(CLUB_SYNC_STATUS_EVENT, bump);
+    };
   }, []);
   void conflictTick;
   const writeConflict = clubId ? getClubWriteConflict(clubId) : null;
+  const lastSyncError = clubId ? getLastSyncError(clubId) : null;
+  const lastSyncAt = clubId ? getLastSyncAt(clubId) : null;
+  const mirrorStale = Boolean(clubId && isMirrorPushStale(clubId) && !lastSyncError && !writeConflict);
 
   useEffect(() => {
     const onClubsUpdated = () => setClubTick((n) => n + 1);
@@ -500,6 +514,59 @@ export function AppLayout() {
             </div>
           ) : null}
           <main className="page page--flush-top">
+            <RosterSyncHealthBanner clubId={clubId} />
+            {lastSyncError && !writeConflict ? (
+              <div className="ops-alert-banner is-warn" role="status">
+                <p>Αποτυχία αποστολής στο cloud: {lastSyncError}</p>
+                <div className="ops-alert-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={retryBusy}
+                    onClick={() => {
+                      if (!clubId) return;
+                      setRetryBusy(true);
+                      void flushClubMirrorPush(clubId, { force: true }).finally(() =>
+                        setRetryBusy(false),
+                      );
+                    }}
+                  >
+                    {retryBusy ? 'Επανάληψη…' : 'Επανάληψη Push'}
+                  </button>
+                  <Link className="btn btn-secondary" to="/settings?tab=backup">
+                    Backup / sync
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+            {mirrorStale ? (
+              <div className="ops-alert-banner is-warn" role="status">
+                <p>
+                  Τελευταίο επιτυχές Push:{' '}
+                  {lastSyncAt ? new Date(lastSyncAt).toLocaleString('el-GR') : 'ποτέ'}. Το νυχτερινό
+                  backup αντιγράφει μόνο ό,τι έχει ήδη ανέβει στο cloud.
+                </p>
+                <div className="ops-alert-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={retryBusy}
+                    onClick={() => {
+                      if (!clubId) return;
+                      setRetryBusy(true);
+                      void flushClubMirrorPush(clubId, { force: true }).finally(() =>
+                        setRetryBusy(false),
+                      );
+                    }}
+                  >
+                    {retryBusy ? 'Αποστολή…' : 'Push τώρα'}
+                  </button>
+                  <Link className="btn btn-secondary" to="/settings?tab=backup">
+                    Backup
+                  </Link>
+                </div>
+              </div>
+            ) : null}
             {writeConflict ? (
               <div className="ops-alert-banner is-warn" role="status">
                 <p>

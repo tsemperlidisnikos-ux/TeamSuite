@@ -34,8 +34,21 @@ export interface AthleteTransaction {
   paymentMethod: PaymentMethod;
   comments: string;
   createdAt: string;
+  /** ms — νεότερη επεξεργασία κερδίζει στο sync. */
+  updatedAt?: number;
   /** Για type=payment: χρέωση στην οποία αντιστοιχίστηκε. */
   allocatesChargeId?: string | null;
+}
+
+export interface OnlineCheckoutPending {
+  id: string;
+  clubId: string;
+  orderCode: string;
+  athleteId: string;
+  amountEuro: number;
+  athleteName: string;
+  createdAt: string;
+  provider?: 'viva' | 'stripe' | 'eurobank';
 }
 
 export interface Student {
@@ -101,6 +114,8 @@ export interface Student {
   photoUrl?: string | null;
   /** Στιγμιότυπο υποβληθείσας δημόσιας φόρμας εγγραφής. */
   registrationFormImageUrl?: string | null;
+  /** ms — merge πεδίων μεταξύ συσκευών. */
+  updatedAt?: number;
   gdprConsent?: 'full' | 'pending' | 'locked';
   gdprItems?: {
     personalData: boolean;
@@ -163,6 +178,7 @@ export interface Coach {
   firstAidDocumentName?: string | null;
   firstAidValidFrom?: string;
   firstAidValidUntil?: string;
+  updatedAt?: number;
 }
 
 export type ClassGender = 'male' | 'female' | 'mixed' | '';
@@ -186,6 +202,7 @@ export interface AcademyClass {
   birthYearTo?: number | null;
   /** Χειροκίνητη απενεργοποίηση (Μη ενεργά). */
   manualInactive?: boolean;
+  updatedAt?: number;
 }
 
 /** Σεζόν συλλόγου (Ρυθμίσεις → Σεζόν) — καθορίζει ενεργά τμήματα/εγγραφές. */
@@ -194,6 +211,7 @@ export interface ClubSeason {
   name: string;
   startDate: string;
   endDate: string;
+  updatedAt?: number;
 }
 
 export interface ScheduleSlot {
@@ -203,6 +221,7 @@ export interface ScheduleSlot {
   startTime: string;
   endTime: string;
   location: string;
+  updatedAt?: number;
 }
 
 export type AbsenceReason = 'sick' | 'leave';
@@ -216,6 +235,7 @@ export interface AttendanceRecord {
   notes?: string;
   /** Αιτιολόγηση απουσίας από γονέα (ασθένεια / άδεια). */
   absenceReason?: AbsenceReason | null;
+  updatedAt?: number;
 }
 
 export interface AthleteChangeLog {
@@ -246,6 +266,8 @@ export interface Revenue {
   accountId?: string;
   vatRate?: number;
   linkedTransactionId?: string;
+  /** Έσοδο από δημόσια/γραμματειακή ενοικίαση γηπέδου. */
+  linkedRentalBookingId?: string;
   createdByUserId?: string;
   createdByEmail?: string;
 }
@@ -305,6 +327,7 @@ export interface Training {
   location: string;
   notes: string;
   classId: string | null;
+  updatedAt?: number;
 }
 
 export interface StaffMember {
@@ -319,6 +342,7 @@ export interface StaffMember {
   hireDate: string;
   teamLabel?: string;
   photoUrl?: string | null;
+  updatedAt?: number;
 }
 
 export interface Association {
@@ -329,6 +353,7 @@ export interface Association {
   email: string;
   address: string;
   active: boolean;
+  updatedAt?: number;
 }
 
 /** Γήπεδο / εγκατάσταση συλλόγου (Ρυθμίσεις → Γήπεδο). */
@@ -342,6 +367,7 @@ export interface Facility {
   sortOrder: number;
   /** Φωτογραφία γηπέδου στο δημόσιο link ενοικίασης. */
   photoUrl?: string | null;
+  updatedAt?: number;
 }
 
 export interface RentalWindow {
@@ -399,6 +425,7 @@ export interface RentalBooking {
   createdByName: string;
   paymentRef?: string;
   paymentProvider?: 'viva' | 'stripe' | 'venue';
+  updatedAt?: number;
 }
 
 export interface SportItem {
@@ -415,6 +442,7 @@ export interface SportItem {
     | 'gym'
     | 'winter'
     | 'other';
+  updatedAt?: number;
 }
 
 export type AnnouncementAudienceRole = 'athletes' | 'coaches' | 'staff' | 'parents';
@@ -448,6 +476,7 @@ export interface Announcement {
   audienceRoles?: AnnouncementAudienceRole[];
   classIds?: string[];
   recipientIds?: AnnouncementRecipient[];
+  updatedAt?: number;
 }
 
 export interface BudgetLine {
@@ -484,6 +513,7 @@ export interface WarehouseProduct {
   /** Ελάχιστο απόθεμα για ειδοποίηση. */
   minStock?: number;
   imageUrl?: string | null;
+  updatedAt?: number;
 }
 
 export type StockMovementType = 'in' | 'out' | 'adjust';
@@ -496,6 +526,7 @@ export interface StockMovement {
   note: string;
   createdAt: string;
   createdByName: string;
+  updatedAt?: number;
 }
 
 export type PartnerStatus = 'active' | 'inactive';
@@ -612,6 +643,7 @@ export interface Match {
   opponentScore: number | null;
   notes: string;
   createdAt: string;
+  updatedAt?: number;
 }
 
 export interface FeeReminderLog {
@@ -648,6 +680,7 @@ export interface GalleryPhoto {
   /** Ανήλικοι στη φωτογραφία (extra GDPR flag). */
   includesMinors?: boolean;
   consentVerifiedAt?: string;
+  updatedAt?: number;
 }
 
 export type GdprAuditAction =
@@ -677,6 +710,7 @@ export interface ParentAthleteLink {
   parentUserId: string;
   athleteId: string;
   createdAt: string;
+  updatedAt?: number;
 }
 
 /** Αναφορά προόδου αθλητή (προπονητής / γραμματεία). */
@@ -689,6 +723,7 @@ export interface ProgressReport {
   rating: number;
   createdByName: string;
   createdAt: string;
+  updatedAt?: number;
 }
 
 export type RegistrationApplicationKind = 'full' | 'trial' | 'waitlist';
@@ -731,6 +766,7 @@ export interface RegistrationApplication {
   guardianSignature?: string;
   /** Στιγμιότυπο της υποβληθείσας φόρμας (JPEG data URL ή Blob URL). */
   formSnapshotUrl?: string | null;
+  updatedAt?: number;
 }
 
 export type DocumentProtocolDirection = 'incoming' | 'outgoing';
@@ -751,6 +787,7 @@ export interface DocumentProtocolEntry {
   status: DocumentProtocolStatus;
   createdAt: string;
   createdByName: string;
+  updatedAt?: number;
 }
 
 export interface AppData {
@@ -766,8 +803,38 @@ export interface AppData {
   transactions: AthleteTransaction[];
   /** Κινήσεις που διαγράφηκαν ρητά — δεν επαναφέρονται από cloud/login. */
   deletedTransactionIds?: string[];
+  /** Χειροκίνητα έσοδα που διαγράφηκαν ρητά. */
+  deletedRevenueIds?: string[];
+  /** Έξοδα που διαγράφηκαν ρητά. */
+  deletedExpenseIds?: string[];
+  /** Ταμεία που διαγράφηκαν ρητά. */
+  deletedCashAccountIds?: string[];
+  /** Γραμμές προϋπολογισμού που διαγράφηκαν ρητά. */
+  deletedBudgetIds?: string[];
   /** Αθλητές που διαγράφηκαν ρητά — δεν επαναφέρονται από παλιό mirror. */
   deletedStudentIds?: string[];
+  deletedClassIds?: string[];
+  deletedScheduleIds?: string[];
+  deletedTrainingIds?: string[];
+  deletedAttendanceIds?: string[];
+  deletedProductIds?: string[];
+  deletedStockMovementIds?: string[];
+  deletedMatchIds?: string[];
+  deletedCoachIds?: string[];
+  deletedStaffIds?: string[];
+  deletedAssociationIds?: string[];
+  deletedFacilityIds?: string[];
+  deletedSportIds?: string[];
+  deletedSeasonIds?: string[];
+  deletedAnnouncementIds?: string[];
+  deletedPartnerBusinessIds?: string[];
+  deletedPartnerOfferIds?: string[];
+  deletedPhotoIds?: string[];
+  deletedParentLinkIds?: string[];
+  deletedProgressReportIds?: string[];
+  deletedRegistrationApplicationIds?: string[];
+  deletedProtocolIds?: string[];
+  deletedRentalBookingIds?: string[];
   /** Αυτόματες χρεώσεις συνδρομής που ο χρήστης διέγραψε — δεν ξαναδημιουργούνται. */
   suppressedFeeChargeKeys?: string[];
   trainings: Training[];
@@ -802,8 +869,12 @@ export interface AppData {
   discountReasons?: DiscountReasonDef[];
   /** Εύρη σειράς/αριθμών αποδείξεων είσπραξης. */
   receiptNumberRanges?: ReceiptNumberRange[];
-  /** Εκδοθείσες/ακυρωμένες αποδείξεις (η αρίθμηση δεν γυρίζει πίσω). */
+  /** Εκδοθείσες / ακυρωμένες αποδείξεις (ο αριθμός δεν επαναχρησιμοποιείται). */
   receiptIssues?: ReceiptIssueRecord[];
+  /** Επόμενος αριθμός απόδειξης ανά σειρά (max δύο συσκευών). */
+  receiptNextBySeries?: Record<string, number>;
+  /** Εκκρεμή online checkout (Viva/Stripe/Eurobank) — συγχρονίζονται στο mirror. */
+  onlineCheckouts?: OnlineCheckoutPending[];
   /** HTML όρων χρήσης / πολιτικής απορρήτου (εγγραφή). */
   termsOfUseHtml?: string;
   /** Συμφωνία επεξεργασίας (DPA) συλλόγου–πλατφόρμας. */
@@ -815,6 +886,8 @@ export interface AppData {
   cashAccounts?: CashAccount[];
   /** Κλειστοί μήνες YYYY-MM — δεν επιτρέπεται επεξεργασία κινήσεων. */
   closedFinanceMonths?: string[];
+  /** Τελευταία αλλαγή κλεισίματος/ανοίγματος ανά YYYY-MM (ms) — για merge δύο συσκευών. */
+  financeMonthLockRev?: Record<string, number>;
   matches?: Match[];
   rentalSettings?: RentalSettings;
   rentalBookings?: RentalBooking[];

@@ -18,6 +18,7 @@ import {
   stripClubJoinFormSnapshots,
   type RemoteRegistrationApplication,
 } from './lib/serverStore.js';
+import { publicJoinConfirmationCopy } from '../src/shared/publicJoinMessages.js';
 import { deriveClubFieldKeyMaterial } from './lib/fieldCrypto.js';
 import { setAmkaFieldKeyFetcher } from '../src/utils/amkaCrypto.js';
 import {
@@ -305,6 +306,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await saveMirror(club.clubId, payload);
   }
 
+  const copy = publicJoinConfirmationCopy({
+    clubName: club.name,
+    firstName,
+    lastName,
+    licenseFull: remaining === 0,
+  });
+
   const notify = await loadClubNotifyConfig(club.clubId);
   let clubEmailSent = false;
   let guardianEmailSent = false;
@@ -345,7 +353,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           `Αγαπητέ/ή ${guardianName},`,
           '',
           `Λάβαμε την αίτηση εγγραφής για τον/την ${firstName} ${lastName} στον σύλλογο ${club.name}.`,
-          'Η αίτηση μπήκε σε αναμονή. Ο σύλλογος θα ενεργοποιήσει τον αθλητή μετά τον έλεγχο.',
+          copy.emailLine,
           '',
           'Ευχαριστούμε.',
           club.name,
@@ -364,8 +372,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     clubEmailSent,
     guardianEmailSent,
     applicationId,
-    message:
-      'Η αίτηση μπήκε σε αναμονή. Ο σύλλογος θα ενεργοποιήσει τον αθλητή από Αθλητές → εκκρεμείς αιτήσεις.',
+    message: copy.message,
   });
 }
 

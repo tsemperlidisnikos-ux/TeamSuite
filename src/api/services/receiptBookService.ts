@@ -49,10 +49,25 @@ export async function allocateReceiptIssue(input: {
       } else {
         const next = previewNextReceipt(input.series, ranges, issues);
         if (!next.ok) throw new Error(next.error);
+        const key = next.series;
+        const cursor = Math.floor(Number(data.receiptNextBySeries?.[key]) || 0);
+        let number = Math.max(next.number, cursor);
+        const spanMax = Math.max(
+          ...ranges.filter((row) => row.series === key).map((row) => row.to),
+          0,
+        );
+        if (spanMax > 0 && number > spanMax) {
+          throw new Error(
+            `Η σειρά ${key} έφτασε στο όριο. Προσθέστε νέο εύρος στις Ρυθμίσεις → Αποδείξεις.`,
+          );
+        }
+        if (issues.some((row) => row.series === key && row.number === number)) {
+          number += 1;
+        }
         holder.value = {
           id: createId('ris'),
-          series: next.series,
-          number: next.number,
+          series: key,
+          number,
           transactionId: input.transactionId ?? null,
           athleteId: input.athleteId ?? null,
           issuedAt: now,
@@ -61,6 +76,10 @@ export async function allocateReceiptIssue(input: {
           voidReason: null,
         };
         data.receiptIssues = [...issues, holder.value];
+        data.receiptNextBySeries = {
+          ...(data.receiptNextBySeries ?? {}),
+          [key]: number + 1,
+        };
       }
       const allocated = holder.value;
       if (allocated && input.transactionId) {

@@ -46,7 +46,7 @@ import {
   studentDiscountReasonIds,
 } from '../utils/discountReasons';
 import { sizeChartOptGroups } from '../utils/sizeChartOptions';
-import { formatDate } from '../utils/labels';
+import { formatCurrency, formatDate } from '../utils/labels';
 import { localDateIso } from '../utils/dates';
 import { getPreviewClubId, getAppLogoUrl, loadPlatformConfig } from '../platform/platformConfig';
 import { athletePublicCode, buildAthleteIdCardUrl } from '../utils/athleteIdCard';
@@ -1180,6 +1180,18 @@ export function AthleteProfilePage() {
 
   const inputClass = 'ap-input';
   const disabled = !editing || !canEditProfile;
+  const todayIso = localDateIso();
+  const athleteOwed = feeChargesService.athleteBalance(student.id, data.transactions ?? []);
+  const lastAthletePayment = [...(data.transactions ?? [])]
+    .filter((row) => row.athleteId === student.id && row.type === 'payment')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const athleteClassIds = studentClassIds(student);
+  const nextAthleteTraining = [...(data.trainings ?? [])]
+    .filter(
+      (row) =>
+        row.date >= todayIso && Boolean(row.classId) && athleteClassIds.includes(row.classId ?? ''),
+    )
+    .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`))[0];
 
   const textInput = (
     value: string | undefined,
@@ -1316,6 +1328,30 @@ export function AthleteProfilePage() {
                 <span className={`ap-live-dot ap-live-dot--${form.status}`} aria-hidden />
                 <span>Κατάσταση {statusText(form.status)}</span>
               </div>
+            </div>
+            <div className="ap-ops-strip">
+              <Link className="ap-ops-chip" to="/fees?owed=1">
+                Οφειλή {formatCurrency(athleteOwed)}
+              </Link>
+              <span className="ap-ops-chip">
+                Τελευταία πληρωμή{' '}
+                {lastAthletePayment
+                  ? `${formatCurrency(lastAthletePayment.amount)} · ${formatDate(lastAthletePayment.createdAt.slice(0, 10))}`
+                  : '—'}
+              </span>
+              <Link
+                className="ap-ops-chip"
+                to={
+                  nextAthleteTraining
+                    ? `/attendance?date=${encodeURIComponent(nextAthleteTraining.date)}&classId=${encodeURIComponent(nextAthleteTraining.classId ?? '')}`
+                    : '/calendar'
+                }
+              >
+                Επόμενη προπόνηση{' '}
+                {nextAthleteTraining
+                  ? `${formatDate(nextAthleteTraining.date)} ${nextAthleteTraining.startTime}`
+                  : '—'}
+              </Link>
             </div>
           </div>
         </div>

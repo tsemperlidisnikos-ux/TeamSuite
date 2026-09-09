@@ -9,7 +9,10 @@ import {
 import type { AppData, AthleteTransaction } from '../../types';
 import { syncRevenuesForPaymentInData } from './athletePaymentRevenueBridge';
 
-function chargeRemaining(charge: AthleteTransaction, payments: AthleteTransaction[]): number {
+export function chargeRemaining(
+  charge: AthleteTransaction,
+  payments: AthleteTransaction[],
+): number {
   const allocated = payments
     .filter((p) => p.type === 'payment' && p.allocatesChargeId === charge.id)
     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -60,6 +63,36 @@ export function listUnallocatedPayments(athleteId: string) {
   );
 }
 
+/** Μπλοκάρει πληρωμή που θα ξεπερνούσε ανοιχτή χρέωση (διπλή εξόφληση δύο συσκευών). */
+export function assertPaymentDoesNotOverpay(
+  data: AppData,
+  payment: Pick<
+    AthleteTransaction,
+    'amount' | 'athleteId' | 'month' | 'year' | 'allocatesChargeId'
+  >,
+): void {
+  const amount = Number(payment.amount) || 0;
+  if (amount <= 0) return;
+  const txs = data.transactions ?? [];
+  const open = openChargesFor(payment.athleteId, txs);
+  const target = payment.allocatesChargeId
+    ? open.find((row) => row.charge.id === payment.allocatesChargeId) ??
+      (() => {
+        const charge = txs.find(
+          (t) => t.id === payment.allocatesChargeId && t.type === 'charge',
+        );
+        if (!charge) return null;
+        return { charge, remaining: chargeRemaining(charge, txs) };
+      })()
+    : pickChargeForPayment(payment as AthleteTransaction, open);
+  if (!target) return;
+  if (amount - target.remaining > 0.009) {
+    throw new Error(
+      `Η χρέωση είναι ήδη εξοφλημένη ή το ποσό υπερβαίνει το υπόλοιπο (${target.remaining.toFixed(2)} €).`,
+    );
+  }
+}
+
 /** Αντιστοιχεί πληρωμή σε ανοιχτή χρέωση (ίδια περίοδος, αλλιώς FIFO). */
 export async function applyPaymentToCharge(input: {
   paymentId: string;
@@ -78,6 +111,11 @@ export async function applyPaymentToCharge(input: {
           ? open.find((row) => row.charge.id === input.chargeId)
           : pickChargeForPayment(payment, open)) ?? null;
       if (!target) throw new Error('Δεν υπάρχει ανοιχτή χρέωση για αντιστοίχιση');
+      if ((Number(payment.amount) || 0) - target.remaining > 0.009) {
+        throw new Error(
+          `Η χρέωση είναι ήδη εξοφλημένη ή το ποσό υπερβαίνει το υπόλοιπο (${target.remaining.toFixed(2)} €).`,
+        );
+      }
       payment.allocatesChargeId = target.charge.id;
       syncRevenuesForPaymentInData(data, payment.id);
       result = {

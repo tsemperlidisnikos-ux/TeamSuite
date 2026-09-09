@@ -1,6 +1,7 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
 import { budgetSchema, type BudgetInput } from '../../schemas';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 import type { BudgetLine } from '../../types';
 
 export async function getBudgets() {
@@ -41,6 +42,7 @@ export async function deleteBudget(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.budgets = (data.budgets ?? []).filter((b) => b.id !== id);
+      data.deletedBudgetIds = rememberDeletedId(data.deletedBudgetIds, id);
     });
     return { id };
   });

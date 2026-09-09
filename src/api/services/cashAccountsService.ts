@@ -1,5 +1,6 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 import type { CashAccount } from '../../types';
 
 export type CashAccountInput = {
@@ -56,6 +57,7 @@ export async function deleteCashAccount(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.cashAccounts = (data.cashAccounts ?? []).filter((a) => a.id !== id);
+      data.deletedCashAccountIds = rememberDeletedId(data.deletedCashAccountIds, id);
     });
     return { id };
   });

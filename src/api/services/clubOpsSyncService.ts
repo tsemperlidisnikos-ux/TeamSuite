@@ -7,7 +7,32 @@ import { syncAuthHeaders } from '../syncAuth';
 
 export type ClubOpsSlice = Pick<
   AppData,
-  'schedule' | 'trainings' | 'matches' | 'products' | 'stockMovements'
+  | 'schedule'
+  | 'trainings'
+  | 'matches'
+  | 'products'
+  | 'stockMovements'
+  | 'attendance'
+  | 'classes'
+  | 'announcements'
+  | 'registrationApplications'
+  | 'rentalBookings'
+  | 'coaches'
+  | 'staff'
+  | 'clubSeasons'
+  | 'deletedScheduleIds'
+  | 'deletedTrainingIds'
+  | 'deletedMatchIds'
+  | 'deletedProductIds'
+  | 'deletedStockMovementIds'
+  | 'deletedAttendanceIds'
+  | 'deletedClassIds'
+  | 'deletedAnnouncementIds'
+  | 'deletedRegistrationApplicationIds'
+  | 'deletedRentalBookingIds'
+  | 'deletedCoachIds'
+  | 'deletedStaffIds'
+  | 'deletedSeasonIds'
 >;
 
 export function clubOpsSliceFromData(data: AppData): ClubOpsSlice {
@@ -17,6 +42,27 @@ export function clubOpsSliceFromData(data: AppData): ClubOpsSlice {
     matches: data.matches ?? [],
     products: data.products ?? [],
     stockMovements: data.stockMovements ?? [],
+    attendance: data.attendance ?? [],
+    classes: data.classes ?? [],
+    announcements: data.announcements ?? [],
+    registrationApplications: data.registrationApplications ?? [],
+    rentalBookings: data.rentalBookings ?? [],
+    coaches: data.coaches ?? [],
+    staff: data.staff ?? [],
+    clubSeasons: data.clubSeasons ?? [],
+    deletedScheduleIds: data.deletedScheduleIds ?? [],
+    deletedTrainingIds: data.deletedTrainingIds ?? [],
+    deletedMatchIds: data.deletedMatchIds ?? [],
+    deletedProductIds: data.deletedProductIds ?? [],
+    deletedStockMovementIds: data.deletedStockMovementIds ?? [],
+    deletedAttendanceIds: data.deletedAttendanceIds ?? [],
+    deletedClassIds: data.deletedClassIds ?? [],
+    deletedAnnouncementIds: data.deletedAnnouncementIds ?? [],
+    deletedRegistrationApplicationIds: data.deletedRegistrationApplicationIds ?? [],
+    deletedRentalBookingIds: data.deletedRentalBookingIds ?? [],
+    deletedCoachIds: data.deletedCoachIds ?? [],
+    deletedStaffIds: data.deletedStaffIds ?? [],
+    deletedSeasonIds: data.deletedSeasonIds ?? [],
   };
 }
 

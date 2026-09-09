@@ -1,5 +1,6 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { scheduleSlotSchema, type ScheduleSlotInput } from '../../schemas';
 import { weeklySlotConflictsWithRentals } from '../../shared/facilityRentalAvailability';
 import type { ScheduleSlot } from '../../types';
@@ -34,6 +35,7 @@ export async function createScheduleSlot(input: ScheduleSlotInput) {
     const slot: ScheduleSlot = {
       ...parsed,
       id: createId('sch'),
+      updatedAt: Date.now(),
     };
     mutateData((data) => {
       data.schedule.push(slot);
@@ -52,7 +54,7 @@ export async function updateScheduleSlot(id: string, input: ScheduleSlotInput) {
     mutateData((data) => {
       const index = data.schedule.findIndex((s) => s.id === id);
       if (index === -1) throw new Error('Η ώρα δεν βρέθηκε');
-      updated = { ...parsed, id };
+      updated = { ...parsed, id, updatedAt: Date.now() };
       data.schedule[index] = updated;
     });
     void publishClubOpsSlice();
@@ -64,6 +66,7 @@ export async function deleteScheduleSlot(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.schedule = data.schedule.filter((s) => s.id !== id);
+      data.deletedScheduleIds = rememberDeletedId(data.deletedScheduleIds, id);
     });
     void publishClubOpsSlice();
     return { id };

@@ -1,5 +1,6 @@
 import { apiClient } from '../apiClient';
 import { createId, mutateData } from '../../data/repository';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { associationSchema, type AssociationInput } from '../../schemas';
 import type { Association } from '../../types';
 
@@ -35,6 +36,7 @@ export async function deleteAssociation(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.associations = data.associations.filter((a) => a.id !== id);
+      data.deletedAssociationIds = rememberDeletedId(data.deletedAssociationIds, id);
     });
     return { id };
   });

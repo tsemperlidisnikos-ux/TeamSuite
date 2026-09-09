@@ -1,12 +1,12 @@
 import { apiClient } from '../apiClient';
-import { createId, mutateData } from '../../data/repository';
+import { createId, getData, mutateData } from '../../data/repository';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { resolveActiveClubId } from '../../data/store';
 import { galleryPhotoSchema, type GalleryPhotoInput } from '../../schemas';
 import type { GalleryPhoto } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import { assertGalleryConsentForAthletes } from './gdprSubjectService';
 import { uploadClubPhotoBlob } from './sessionService';
-import { getData } from '../../data/repository';
 
 function isMinorBirthDate(birthDate: string | undefined): boolean {
   const raw = (birthDate || '').slice(0, 10);
@@ -76,6 +76,7 @@ export async function deletePhoto(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.photos = (data.photos ?? []).filter((item) => item.id !== id);
+      data.deletedPhotoIds = rememberDeletedId(data.deletedPhotoIds, id);
     });
     return { id };
   });

@@ -18,6 +18,7 @@ import type { Gender, RegistrationApplication, RegistrationApplicationKind, Stud
 import { formatJoinExtrasText } from '../shared/publicJoinExtras';
 import { formatAmkaForViewer } from '../utils/amkaAccess';
 import { guardianDisplayName } from '../utils/greekSurname';
+import { localDateIso } from '../utils/dates';
 import {
   classIdsOf,
   visibleClassesForSession,
@@ -234,6 +235,10 @@ export function StudentsPage() {
             classSports.some((classSport) => clubSportsMatch(classSport, sportFilter));
           if (!inSport) return false;
         }
+        if (searchParams.get('health') === 'expired') {
+          const exp = s.healthCardExpires?.trim();
+          if (!(exp && exp < localDateIso())) return false;
+        }
         if (!q) return true;
         const hay = isDoctor
           ? `${s.firstName} ${s.lastName} ${s.amka ?? ''} ${s.adt ?? ''} ${guardianDisplayName(s)}`.toLowerCase()
@@ -243,7 +248,12 @@ export function StudentsPage() {
       .sort((a, b) =>
         `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
       );
-  }, [data.students, data.classes, query, classFilter, sportFilter, statusFilter, isDoctor, allowedClassIds, session]);
+  }, [data.students, data.classes, query, classFilter, sportFilter, statusFilter, isDoctor, allowedClassIds, session, searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get('apps') !== '1') return;
+    document.getElementById('pending-applications')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [searchParams, pendingApplications.length]);
 
   function setSportFilter(value: string) {
     const next = new URLSearchParams(searchParams);
@@ -571,7 +581,7 @@ export function StudentsPage() {
       ) : null}
 
       {!isDoctor && pendingApplications.length > 0 ? (
-        <section className="panel registration-apps-panel">
+        <section className="panel registration-apps-panel" id="pending-applications">
           <div className="registration-apps-head">
             <h3>{t('Εκκρεμείς αιτήσεις εγγραφής')}</h3>
             <span className="badge badge-pending">{pendingApplications.length}</span>

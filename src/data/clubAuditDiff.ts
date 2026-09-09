@@ -55,6 +55,7 @@ const TRACKED: Array<{ key: keyof AppData; label: string }> = [
   { key: 'transactions', label: 'συναλλαγές' },
   { key: 'revenues', label: 'έσοδα' },
   { key: 'expenses', label: 'έξοδα' },
+  { key: 'cashAccounts', label: 'ταμεία' },
   { key: 'attendance', label: 'παρουσίες' },
   { key: 'trainings', label: 'προπονήσεις' },
   { key: 'schedule', label: 'πρόγραμμα' },

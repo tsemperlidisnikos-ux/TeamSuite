@@ -1,17 +1,11 @@
-export type VivaPendingPayment = {
-  id: string;
-  clubId: string;
-  orderCode: string;
-  athleteId: string;
-  amountEuro: number;
-  athleteName: string;
-  createdAt: string;
-  provider?: 'viva' | 'stripe' | 'eurobank';
-};
+import type { OnlineCheckoutPending } from '../types';
+import { getData, mutateData } from '../data/repository';
+
+export type VivaPendingPayment = OnlineCheckoutPending;
 
 const KEY = 'academyhub-viva-pending-v1';
 
-export function listVivaPending(): VivaPendingPayment[] {
+function readLocal(): VivaPendingPayment[] {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return [];
@@ -21,8 +15,44 @@ export function listVivaPending(): VivaPendingPayment[] {
   }
 }
 
-function saveAll(items: VivaPendingPayment[]): void {
-  localStorage.setItem(KEY, JSON.stringify(items.slice(0, 100)));
+function writeLocal(items: VivaPendingPayment[]): void {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(items.slice(0, 100)));
+  } catch {
+    /* quota */
+  }
+}
+
+function mergeByOrderCode(rows: VivaPendingPayment[]): VivaPendingPayment[] {
+  const map = new Map<string, VivaPendingPayment>();
+  for (const row of rows) {
+    const code = String(row.orderCode ?? '').trim();
+    if (!code) continue;
+    const prev = map.get(code);
+    if (!prev || String(row.createdAt) > String(prev.createdAt)) map.set(code, row);
+  }
+  return [...map.values()].slice(0, 100);
+}
+
+export function listVivaPending(): VivaPendingPayment[] {
+  let fromStore: VivaPendingPayment[] = [];
+  try {
+    fromStore = getData().onlineCheckouts ?? [];
+  } catch {
+    fromStore = [];
+  }
+  return mergeByOrderCode([...fromStore, ...readLocal()]);
+}
+
+function persist(items: VivaPendingPayment[]): void {
+  writeLocal(items);
+  try {
+    mutateData((data) => {
+      data.onlineCheckouts = items;
+    });
+  } catch {
+    /* store not ready */
+  }
 }
 
 export function addVivaPending(entry: Omit<VivaPendingPayment, 'id'>): VivaPendingPayment {
@@ -30,8 +60,7 @@ export function addVivaPending(entry: Omit<VivaPendingPayment, 'id'>): VivaPendi
     ...entry,
     id: `vp_${crypto.randomUUID().slice(0, 8)}`,
   };
-  const next = [item, ...listVivaPending().filter((p) => p.orderCode !== item.orderCode)];
-  saveAll(next);
+  persist(mergeByOrderCode([item, ...listVivaPending()]));
   return item;
 }
 
@@ -39,7 +68,7 @@ export function takeVivaPending(orderCode: string): VivaPendingPayment | null {
   const all = listVivaPending();
   const found = all.find((p) => p.orderCode === String(orderCode));
   if (!found) return null;
-  saveAll(all.filter((p) => p.id !== found.id));
+  persist(all.filter((p) => p.id !== found.id && p.orderCode !== found.orderCode));
   return found;
 }
 

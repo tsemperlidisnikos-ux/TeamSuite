@@ -11,6 +11,7 @@ import { localDateIso } from '../../utils/dates';
 import type { RegistrationApplicationKind } from '../../types';
 import { remainingAthleteLicenseSeats } from '../../utils/athleteLicenseCap';
 import type { PublicJoinExtras } from '../../shared/publicJoinExtras';
+import { publicJoinConfirmationCopy } from '../../shared/publicJoinMessages';
 import * as emailService from './emailService';
 import { notifyClubNewRegistration } from './registrationApplicationsService';
 import {
@@ -101,6 +102,13 @@ export async function submitPublicJoin(input: PublicJoinInput) {
     if (remaining === 0 && !settings.allowWaitlist) {
       throw new Error('Το πακέτο αδειών είναι γεμάτο και η λίστα αναμονής δεν είναι ενεργή.');
     }
+    const licenseFull = remaining === 0;
+    const copy = publicJoinConfirmationCopy({
+      clubName: club.name,
+      firstName: input.firstName.trim(),
+      lastName: input.lastName.trim(),
+      licenseFull,
+    });
     const amkaHits = await findStudentsByAmkaDeep(clubData.students, amka, input.clubId);
     if (amkaHits.length) {
       throw new Error(athleteIdentityConflictMessage('amka', amkaHits));
@@ -161,7 +169,7 @@ export async function submitPublicJoin(input: PublicJoinInput) {
             `Αγαπητέ/ή ${input.guardianName.trim()},`,
             '',
             `Λάβαμε την αίτηση εγγραφής για τον/την ${firstName} ${lastName} στον σύλλογο ${clubName}.`,
-            'Η αίτηση μπήκε σε αναμονή. Ο σύλλογος θα ενεργοποιήσει τον αθλητή μετά τον έλεγχο.',
+            copy.emailLine,
             '',
             'Ευχαριστούμε.',
             clubName,
@@ -179,8 +187,7 @@ export async function submitPublicJoin(input: PublicJoinInput) {
       athleteId: null,
       emailSent,
       guardianEmailSent,
-      message:
-        'Η αίτηση μπήκε σε αναμονή. Ο σύλλογος θα ενεργοποιήσει τον αθλητή από Αθλητές → εκκρεμείς αιτήσεις.',
+      message: copy.message,
     };
   });
 }

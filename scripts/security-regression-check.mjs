@@ -32,6 +32,8 @@ assert.match(publicJoin, /Πολλά αιτήματα εγγραφής/, 'public
 assert.match(email, /Πολλά αιτήματα email/, 'email sending must be rate limited');
 assert.match(durableKv, /kvSetIfAbsent/, 'settlement claims must use an atomic Redis set-if-absent');
 assert.match(serverStore, /Settlement requires orderCode/, 'settlement validation must reject incomplete identifiers');
+assert.match(serverStore, /deletedExpenseIds/, 'mirror merge must preserve expense tombstones');
+assert.match(serverStore, /financeMonthLockRev/, 'mirror merge must preserve finance month locks');
 assert.match(backupArchive, /MAX_BACKUP_FILE_BYTES/, 'backup restore must cap input size');
 assert.match(backupArchive, /isAppDataShape/, 'backup restore must validate app data shape');
 

@@ -1,20 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import {
-  Building2,
-  CalendarRange,
-  Database,
-  Eye,
-  EyeOff,
-  FileText,
-  KeyRound,
-  Percent,
+  Mail,
   Plus,
-  Receipt,
-  Ruler,
-  ShieldCheck,
-  Shirt,
-  Trophy,
+  Smartphone,
   UserPlus,
+  Wallet,
 } from 'lucide-react';
 import { getSession } from '../auth/auth';
 import { useT } from '../i18n/LocaleContext';
@@ -24,33 +14,26 @@ import {
   getClubSmtp,
   getClubViva,
   clubAllowsOnlineProvider,
-  isMaskedOrBlankSecret,
   smtpHasStoredSecret,
   updateClubLogo,
   updateClubProfile,
-  updateClubSmtp,
-  updateClubViva,
-  type ClubSmtpSettings,
-  type ClubVivaSettings,
 } from '../auth/clubs';
 import {
   periodLabel,
   resolveClubLicensePackage,
 } from '../auth/licensePackages';
-import * as emailService from '../api/services/emailService';
-import * as publicClubCloudService from '../api/services/publicClubCloudService';
 import { getSessionToken, updateCloudClubLogo } from '../api/services/sessionService';
 import { saveClubLogoFromFile } from '../utils/clubLogoFile';
 import { BackupPanel } from '../components/BackupPanel';
 import { ChangePasswordPanel } from '../components/ChangePasswordPanel';
 import { ClubEmailPanel } from '../components/ClubEmailPanel';
 import { ClubSmsPanel } from '../components/ClubSmsPanel';
-import { SmtpSetupGuideButton, SmtpSetupGuideModal } from '../components/SmtpSetupGuideModal';
 import { ClubPublicRegistrationPanel } from '../components/ClubPublicRegistrationPanel';
 import { ClubUsersPanel } from '../components/ClubUsersPanel';
 import { ClubVivaPanel } from '../components/ClubVivaPanel';
 import { ClubStripePanel } from '../components/ClubStripePanel';
 import { ClubEurobankPanel } from '../components/ClubEurobankPanel';
+import { ClubSetupWizard } from '../components/ClubSetupWizard';
 import { Button } from '../components/ui/Button';
 import { SizeChartPanel } from '../components/SizeChartPanel';
 import { ClothingPackagesPanel } from '../components/ClothingPackagesPanel';
@@ -101,34 +84,54 @@ type ClubForm = {
   customChargeLabel: string;
 };
 
-const PRIMARY_TABS: Array<{ id: SettingsTab; label: string }> = [
-  { id: 'club', label: 'Σύλλογος' },
-  { id: 'facilities', label: 'Γήπεδο' },
-  { id: 'users', label: 'Χρήστες' },
-  { id: 'email', label: 'Email' },
-  { id: 'sms', label: 'SMS' },
-  { id: 'viva', label: 'Viva' },
-  { id: 'eurobank', label: 'Eurobank' },
-  { id: 'stripe', label: 'Stripe' },
-  { id: 'publicRegistration', label: 'Εγγραφή' },
-];
-
-const MORE_TABS: Array<{ id: SettingsTab; label: string; icon: typeof KeyRound }> = [
-  { id: 'password', label: 'Κωδικός', icon: KeyRound },
-  { id: 'associations', label: 'Σωματείο', icon: Building2 },
-  { id: 'sports', label: 'Άθλημα', icon: Trophy },
-  { id: 'seasons', label: 'Σεζόν', icon: CalendarRange },
-  { id: 'sizes', label: 'Μεγεθολόγιο', icon: Ruler },
-  { id: 'clothing', label: 'Πακέτο ρουχισμού', icon: Shirt },
-  { id: 'discounts', label: 'Λόγοι έκπτωσης', icon: Percent },
-  { id: 'receipts', label: 'Αποδείξεις', icon: Receipt },
-  { id: 'terms', label: 'Όροι', icon: FileText },
-  { id: 'amka', label: 'GDPR', icon: ShieldCheck },
-  { id: 'backup', label: 'Backup', icon: Database },
+const SETTINGS_NAV: Array<{
+  title: string;
+  items: Array<{ id: SettingsTab; label: string }>;
+}> = [
+  {
+    title: 'Σύλλογος',
+    items: [
+      { id: 'club', label: 'Προφίλ' },
+      { id: 'facilities', label: 'Γήπεδα' },
+      { id: 'sports', label: 'Αθλήματα' },
+      { id: 'seasons', label: 'Σεζόν' },
+      { id: 'users', label: 'Χρήστες' },
+      { id: 'publicRegistration', label: 'Εγγραφή' },
+    ],
+  },
+  {
+    title: 'Επικοινωνία',
+    items: [
+      { id: 'email', label: 'Email' },
+      { id: 'sms', label: 'SMS' },
+    ],
+  },
+  {
+    title: 'Οικονομικά',
+    items: [
+      { id: 'viva', label: 'Viva' },
+      { id: 'eurobank', label: 'Eurobank' },
+      { id: 'stripe', label: 'Stripe' },
+      { id: 'receipts', label: 'Αποδείξεις' },
+      { id: 'discounts', label: 'Εκπτώσεις' },
+    ],
+  },
+  {
+    title: 'Συμμόρφωση',
+    items: [
+      { id: 'password', label: 'Κωδικός' },
+      { id: 'associations', label: 'Σωματείο' },
+      { id: 'sizes', label: 'Μεγεθολόγιο' },
+      { id: 'clothing', label: 'Ρουχισμός' },
+      { id: 'terms', label: 'Όροι' },
+      { id: 'amka', label: 'GDPR' },
+      { id: 'backup', label: 'Backup' },
+    ],
+  },
 ];
 
 function isSettingsTab(value: string): value is SettingsTab {
-  return [...PRIMARY_TABS, ...MORE_TABS].some((item) => item.id === value);
+  return SETTINGS_NAV.some((group) => group.items.some((item) => item.id === value));
 }
 
 export function SettingsPage() {
@@ -146,10 +149,6 @@ export function SettingsPage() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [showSmtpPass, setShowSmtpPass] = useState(false);
-  const [showVivaSecret, setShowVivaSecret] = useState(false);
-  const [testingSmtp, setTestingSmtp] = useState(false);
-  const [showSmtpGuide, setShowSmtpGuide] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const canManageUsers = session?.role === 'admin' || session?.role === 'platform_admin';
 
@@ -175,8 +174,6 @@ export function SettingsPage() {
     email: '',
     customChargeLabel: '',
   });
-  const [smtpForm, setSmtpForm] = useState<ClubSmtpSettings>(() => getClubSmtp(clubId));
-  const [vivaForm, setVivaForm] = useState<ClubVivaSettings>(() => getClubViva(clubId));
 
   const refreshClub = useCallback(() => {
     const next = ensureSessionClub(getSession()) ?? getClubById(clubId);
@@ -194,8 +191,6 @@ export function SettingsPage() {
         customChargeLabel: next.customChargeLabel ?? '',
       });
     }
-    setSmtpForm(getClubSmtp(clubId));
-    setVivaForm(getClubViva(clubId));
   }, [clubId]);
 
   useEffect(() => {
@@ -244,37 +239,6 @@ export function SettingsPage() {
     if (file) void readLogoFile(file);
   }
 
-  function buildSmtpPayload(enabled: boolean): ClubSmtpSettings {
-    return {
-      ...getClubSmtp(clubId),
-      ...smtpForm,
-      enabled,
-      fromEmail: smtpForm.fromEmail || '',
-      security: smtpForm.security || 'starttls',
-      requireAuth: smtpForm.requireAuth ?? true,
-      port:
-        smtpForm.security === 'ssl'
-          ? '465'
-          : smtpForm.security === 'none'
-            ? smtpForm.port || '25'
-            : smtpForm.port || '587',
-    };
-  }
-
-  async function publishSmtpToCloud(): Promise<{ ok: boolean; error?: string }> {
-    if (!clubId) return { ok: false, error: 'Δεν βρέθηκε σύλλογος.' };
-    const published = await publicClubCloudService.publishPublicClubCloud(clubId);
-    if (!published.success) {
-      return {
-        ok: false,
-        error:
-          published.error ??
-          'Το SMTP δεν ανέβηκε στο cloud. Χρησιμοποιήστε το production URL (teamsuite-seven.vercel.app) με ενεργή σύνδεση.',
-      };
-    }
-    return { ok: true };
-  }
-
   async function handleSaveAll() {
     if (!clubId) return;
     setSaving(true);
@@ -291,115 +255,27 @@ export function SettingsPage() {
       return;
     }
 
-    const storedSmtp = getClubById(clubId)?.smtp;
-    const hasSecret =
-      !isMaskedOrBlankSecret(smtpForm.password) || smtpHasStoredSecret(storedSmtp);
-    const smtpPayload = buildSmtpPayload(
-      Boolean(smtpForm.host?.trim() && smtpForm.username?.trim() && hasSecret),
-    );
-    const smtp = updateClubSmtp(clubId, smtpPayload);
-    if (!smtp.success) {
-      setSaving(false);
-      setError(smtp.error ?? 'Σφάλμα αποθήκευσης SMTP');
-      return;
-    }
-
-    if (smtpPayload.enabled) {
-      const published = await publishSmtpToCloud();
-      if (!published.ok) {
-        setSaving(false);
-        setError(
-          `${published.error} Τα SMTP αποθηκεύτηκαν τοπικά — δοκιμάστε Ρυθμίσεις → Email → Αποθήκευση.`,
-        );
-        return;
-      }
-    }
-
-    const viva = updateClubViva(clubId, vivaForm);
-    if (!viva.success) {
-      setSaving(false);
-      setError(viva.error ?? 'Σφάλμα αποθήκευσης Viva');
-      return;
-    }
-
     setSaving(false);
-    setMessage(
-      smtpPayload.enabled
-        ? 'Οι ρυθμίσεις αποθηκεύτηκαν και το SMTP συγχρονίστηκε στο cloud.'
-        : 'Οι ρυθμίσεις αποθηκεύτηκαν.',
-    );
+    setMessage('Τα στοιχεία συλλόγου αποθηκεύτηκαν.');
     refreshClub();
   }
 
-  async function handleSmtpTest() {
-    if (!clubId) return;
-    setTestingSmtp(true);
-    setError('');
-    setMessage('');
-
-    const password = smtpForm.password?.trim() ?? '';
-    const storedSmtp = getClubById(clubId)?.smtp;
-    if (isMaskedOrBlankSecret(password) && !smtpHasStoredSecret(storedSmtp)) {
-      setTestingSmtp(false);
-      setError('Συμπληρώστε το App Password στο πεδίο «Κωδικός».');
-      return;
-    }
-    if (!smtpForm.host?.trim() || !smtpForm.username?.trim()) {
-      setTestingSmtp(false);
-      setError('Συμπληρώστε SMTP host και όνομα χρήστη.');
-      return;
-    }
-
-    const saved = updateClubSmtp(clubId, buildSmtpPayload(true));
-    if (!saved.success) {
-      setTestingSmtp(false);
-      setError(saved.error ?? 'Αποτυχία αποθήκευσης SMTP');
-      return;
-    }
-
-    const published = await publishSmtpToCloud();
-    if (!published.ok) {
-      setTestingSmtp(false);
-      setError(published.error ?? 'Αποτυχία cloud sync SMTP');
-      return;
-    }
-
-    const to = (smtpForm.fromEmail || smtpForm.username || session?.email || '').trim();
-    if (!to) {
-      setTestingSmtp(false);
-      setError('Συμπληρώστε email χρήστη SMTP για έλεγχο σύνδεσης.');
-      return;
-    }
-    const result = await emailService.sendClubEmail({
-      clubId,
-      to,
-      subject: `Έλεγχος SMTP — ${clubForm.name || 'TeamSuite'}`,
-      text: 'Δοκιμαστικό μήνυμα ελέγχου σύνδεσης SMTP από τις Ρυθμίσεις.',
-    });
-    setTestingSmtp(false);
-    if (!result.success) {
-      setError(result.error ?? 'Αποτυχία ελέγχου SMTP');
-      return;
-    }
-    setMessage(`Επιτυχής έλεγχος SMTP · στάλθηκε στο ${to}.`);
-  }
-
-  function handleVivaTest() {
-    if (!vivaForm.clientId.trim() || !vivaForm.clientSecret.trim()) {
-      setError('Συμπληρώστε Client ID και Client Secret για έλεγχο.');
-      return;
-    }
-    setMessage('Τα διαπιστευτήρια Viva φαίνονται συμπληρωμένα. Αποθηκεύστε για εφαρμογή.');
-    setError('');
-  }
-
-  const tabs = PRIMARY_TABS.filter((t) => {
-    if (t.id === 'users') return canManageUsers;
-    if (t.id === 'viva') return clubAllowsOnlineProvider(clubId, 'viva');
-    if (t.id === 'eurobank') return clubAllowsOnlineProvider(clubId, 'eurobank');
-    if (t.id === 'stripe') return clubAllowsOnlineProvider(clubId, 'stripe');
-    return true;
-  });
+  const navGroups = SETTINGS_NAV.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => {
+      if (item.id === 'users') return canManageUsers;
+      if (item.id === 'viva') return clubAllowsOnlineProvider(clubId, 'viva');
+      if (item.id === 'eurobank') return clubAllowsOnlineProvider(clubId, 'eurobank');
+      if (item.id === 'stripe') return clubAllowsOnlineProvider(clubId, 'stripe');
+      return true;
+    }),
+  })).filter((group) => group.items.length > 0);
+  const smtp = getClubSmtp(clubId);
+  const viva = getClubViva(clubId);
+  const smtpReady = Boolean(
+    smtp.enabled || (smtp.host?.trim() && smtp.username?.trim() && smtpHasStoredSecret(smtp)),
+  );
+  const vivaReady = Boolean(viva.clientId?.trim() && (viva.clientSecret?.trim() || viva.merchantId?.trim()));
 
   return (
     <div className="set-page">
@@ -407,38 +283,40 @@ export function SettingsPage() {
         <h1>{t('Ρυθμίσεις')}</h1>
       </header>
 
-      <nav className="set-tabs" aria-label={t('Κατηγορίες ρυθμίσεων')}>
-        {tabs.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={tab === item.id ? 'is-active' : ''}
-            onClick={() => setTab(item.id)}
-          >
-            {t(item.label)}
-          </button>
-        ))}
-        <div className="set-tabs-more">
-          {MORE_TABS.map((item) => {
-            const Icon = item.icon;
-            return (
+      <div className="set-body">
+      <nav className="set-nav" aria-label={t('Κατηγορίες ρυθμίσεων')}>
+        {navGroups.map((group) => (
+          <div key={group.title} className="set-nav-group">
+            <p className="set-nav-group-title">{t(group.title)}</p>
+            {group.items.map((item) => (
               <button
                 key={item.id}
                 type="button"
+                role="tab"
+                aria-selected={tab === item.id}
                 className={tab === item.id ? 'is-active' : ''}
                 onClick={() => setTab(item.id)}
-                title={t(item.label)}
               >
-                <Icon size={14} />
-                <span>{t(item.label)}</span>
+                {t(item.label)}
               </button>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ))}
       </nav>
 
+      <div className="set-main">
       {error ? <p className="form-error">{error}</p> : null}
       {message ? <p className="settings-success">{message}</p> : null}
+
+      {tab === 'club' && clubId ? (
+        <ClubSetupWizard
+          clubId={clubId}
+          onOpenTab={(next) => {
+            if (isSettingsTab(next)) setTab(next);
+          }}
+          onClubChanged={refreshClub}
+        />
+      ) : null}
 
       {tab === 'club' ? (
         !clubId || !club ? (
@@ -446,55 +324,37 @@ export function SettingsPage() {
         ) : (
           <div className="set-club-layout">
             <section className="set-card panel set-license-card">
-              <h2>Συνδρομή &amp; άδειες αθλητών</h2>
-              <p className="set-card-lede">
-                Όριο αδειών σύμφωνα με το πακέτο συνδρομής του συλλόγου.
-              </p>
-              <div className="set-license-grid">
-                <div className="set-license-stat">
-                  <span>Πακέτο</span>
+              <div className="set-license-strip">
+                <div className="set-license-copy">
+                  <span>Συνδρομή</span>
                   <strong>{licensePackage?.name ?? 'Χωρίς πακέτο'}</strong>
-                  {licensePackage ? (
-                    <em>
-                      {periodLabel(licensePackage.periodMonths)} ·{' '}
-                      {licensePackage.athleteLicenses} άδειες · €
-                      {licensePackage.price.toLocaleString('el-GR', {
-                        minimumFractionDigits: 2,
-                      })}{' '}
-                      +ΦΠΑ
-                    </em>
-                  ) : (
-                    <em>Το όριο ορίζεται από τον διαχειριστή πλατφόρμας.</em>
-                  )}
                   <em>
+                    {licensePackage
+                      ? `${periodLabel(licensePackage.periodMonths)} · ${licensePackage.athleteLicenses} άδειες`
+                      : 'Το όριο ορίζεται από τον διαχειριστή πλατφόρμας'}
                     {club.usageEndsOn
-                      ? `Λογαριασμός ενεργός έως ${new Date(`${club.usageEndsOn}T00:00:00`).toLocaleDateString('el-GR')}`
-                      : 'Λογαριασμός χωρίς ημερομηνία λήξης'}
+                      ? ` · έως ${new Date(`${club.usageEndsOn}T00:00:00`).toLocaleDateString('el-GR')}`
+                      : ''}
                   </em>
                 </div>
-                <div className="set-license-stat">
-                  <span>Χρήση αδειών</span>
+                <div className="set-license-usage">
                   <strong>
-                    {activeAthleteLicenses} / {licenseLimit || '—'}
+                    {activeAthleteLicenses}/{licenseLimit || '—'}
                   </strong>
-                  <em>
-                    {licenseLimit > 0
-                      ? `${licensePct}% πληρότητα · ενεργοί αθλητές`
-                      : 'Δεν έχει οριστεί όριο αδειών'}
-                  </em>
+                  <em>ενεργές άδειες</em>
                 </div>
+                {licenseLimit > 0 ? (
+                  <div
+                    className="set-license-bar"
+                    role="progressbar"
+                    aria-valuenow={activeAthleteLicenses}
+                    aria-valuemin={0}
+                    aria-valuemax={licenseLimit}
+                  >
+                    <i style={{ width: `${licensePct}%` }} />
+                  </div>
+                ) : null}
               </div>
-              {licenseLimit > 0 ? (
-                <div
-                  className="set-license-bar"
-                  role="progressbar"
-                  aria-valuenow={activeAthleteLicenses}
-                  aria-valuemin={0}
-                  aria-valuemax={licenseLimit}
-                >
-                  <i style={{ width: `${licensePct}%` }} />
-                </div>
-              ) : null}
               {licenseOver ? (
                 <p className="set-license-notice set-license-notice--over" role="status">
                   Οι ενεργοί αθλητές ({activeAthleteLicenses}) ξεπερνούν το πακέτο ({licenseLimit}).
@@ -511,11 +371,12 @@ export function SettingsPage() {
               ) : null}
             </section>
 
-            <section className="set-card panel">
-              <h2>Λογότυπο Συλλόγου</h2>
-              <p className="set-card-lede">
-                Ανεβάστε το λογότυπο του συλλόγου. Προτεινόμενη διάσταση: 512×512px.
-              </p>
+            <section className="set-card panel set-identity-card">
+              <div className="set-identity">
+                <div className="set-identity-logo">
+                  <h2>Λογότυπο</h2>
+                  <p className="set-card-lede">PNG, JPG ή SVG · 512×512px</p>
+
               <input
                 ref={fileRef}
                 type="file"
@@ -577,137 +438,18 @@ export function SettingsPage() {
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
                 >
-                  <Plus size={28} />
-                  <strong>Κάντε κλικ για επιλογή αρχείου ή σύρετε το αρχείο εδώ</strong>
-                  <span>PNG, JPG ή SVG (μέγ. 2MB)</span>
+                      <Plus size={22} />
+                      <strong>Προσθήκη λογοτύπου</strong>
+                      <span>Κλικ ή σύρετε αρχείο</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </section>
 
-            <section className="set-card panel">
-              <div className="set-card-head-row">
-                <div>
-                  <h2>Ρυθμίσεις SMTP (Email)</h2>
-                  <p className="set-card-lede">
-                    Συμπλήρωσε Gmail/SMTP εδώ, μετά αποθήκευση και cloud sync από tab «Email».
-                  </p>
-                </div>
-                <SmtpSetupGuideButton onClick={() => setShowSmtpGuide(true)} />
-              </div>
-              <div className="set-grid-2">
-                <label className="set-field">
-                  <span>SMTP Host</span>
-                  <input
-                    value={smtpForm.host}
-                    onChange={(e) => setSmtpForm({ ...smtpForm, host: e.target.value })}
-                    placeholder="smtp.gmail.com"
-                  />
-                </label>
-                <label className="set-field">
-                  <span>SMTP Port</span>
-                  <input
-                    value={smtpForm.port}
-                    onChange={(e) => setSmtpForm({ ...smtpForm, port: e.target.value })}
-                    placeholder="587"
-                  />
-                </label>
-                <label className="set-field">
-                  <span>Όνομα Χρήστη</span>
-                  <input
-                    value={smtpForm.username}
-                    onChange={(e) => setSmtpForm({ ...smtpForm, username: e.target.value })}
-                    autoComplete="off"
-                  />
-                </label>
-                <label className="set-field">
-                  <span>Κωδικός</span>
-                  <div className="set-pass-wrap">
-                    <input
-                      type={showSmtpPass ? 'text' : 'password'}
-                      value={smtpForm.password}
-                      onChange={(e) => setSmtpForm({ ...smtpForm, password: e.target.value })}
-                      autoComplete="new-password"
-                      placeholder={
-                        smtpForm.passwordSet
-                          ? 'Αποθηκευμένος — συμπληρώστε μόνο για αλλαγή'
-                          : 'App Password Gmail'
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="set-eye"
-                      onClick={() => setShowSmtpPass((v) => !v)}
-                      aria-label={showSmtpPass ? 'Απόκρυψη' : 'Εμφάνιση'}
-                    >
-                      {showSmtpPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                  {smtpForm.passwordSet && !smtpForm.password ? (
-                    <span className="settings-hint">
-                      Ο κωδικός είναι αποθηκευμένος στο cloud. Αφήστε το πεδίο κενό για να
-                      διατηρηθεί.
-                    </span>
-                  ) : null}
-                </label>
-                <label className="set-field">
-                  <span>Ασφάλεια</span>
-                  <select
-                    value={smtpForm.security}
-                    onChange={(e) =>
-                      setSmtpForm({
-                        ...smtpForm,
-                        security: e.target.value as ClubSmtpSettings['security'],
-                      })
-                    }
-                  >
-                    <option value="starttls">STARTTLS</option>
-                    <option value="ssl">SSL</option>
-                    <option value="none">Καμία</option>
-                  </select>
-                </label>
-                <label className="set-field">
-                  <span>Απαιτείται Έλεγχος ταυτότητας</span>
-                  <select
-                    value={smtpForm.requireAuth ? 'yes' : 'no'}
-                    onChange={(e) =>
-                      setSmtpForm({ ...smtpForm, requireAuth: e.target.value === 'yes' })
-                    }
-                  >
-                    <option value="yes">Ναι</option>
-                    <option value="no">Όχι</option>
-                  </select>
-                </label>
-                <label className="set-field">
-                  <span>Από Email</span>
-                  <input
-                    type="email"
-                    value={smtpForm.fromEmail}
-                    onChange={(e) => setSmtpForm({ ...smtpForm, fromEmail: e.target.value })}
-                  />
-                </label>
-                <label className="set-field">
-                  <span>Από Όνομα</span>
-                  <input
-                    value={smtpForm.fromName}
-                    onChange={(e) => setSmtpForm({ ...smtpForm, fromName: e.target.value })}
-                  />
-                </label>
-              </div>
-              <button
-                type="button"
-                className="set-test-btn"
-                disabled={testingSmtp}
-                onClick={() => void handleSmtpTest()}
-              >
-                {testingSmtp ? 'Έλεγχος…' : 'Έλεγχος Σύνδεσης'}
-              </button>
-            </section>
-
-            <section className="set-card panel">
-              <h2>Στοιχεία Συλλόγου</h2>
+                <div className="set-identity-form">
+                  <h2>Στοιχεία συλλόγου</h2>
               <div className="set-grid-2">
                 <label className="set-field set-field--full">
-                  <span>Όνομα Συλλόγου</span>
+                  <span>Όνομα</span>
                   <input
                     value={clubForm.name}
                     onChange={(e) => setClubForm({ ...clubForm, name: e.target.value })}
@@ -774,61 +516,47 @@ export function SettingsPage() {
                     placeholder="π.χ. Στολή"
                   />
                   <span className="settings-hint">
-                    Εμφανίζεται στο προφίλ αθλητή (Ναι/Όχι) μετά την «Χρέωση μήνα» και στη
-                    δημιουργία χρεώσεων.
+                    Εμφανίζεται στο προφίλ αθλητή μετά την «Χρέωση μήνα».
                   </span>
                 </label>
               </div>
-            </section>
-
-            <section className="set-card panel">
-              <h2>Διαπιστευτήρια Viva</h2>
-              <div className="set-grid-1">
-                <label className="set-field">
-                  <span>Merchant ID</span>
-                  <input
-                    value={vivaForm.merchantId}
-                    onChange={(e) => setVivaForm({ ...vivaForm, merchantId: e.target.value })}
-                    autoComplete="off"
-                  />
-                </label>
-                <label className="set-field">
-                  <span>Client ID</span>
-                  <input
-                    value={vivaForm.clientId}
-                    onChange={(e) => setVivaForm({ ...vivaForm, clientId: e.target.value })}
-                    autoComplete="off"
-                  />
-                </label>
-                <label className="set-field">
-                  <span>Client Secret</span>
-                  <div className="set-pass-wrap">
-                    <input
-                      type={showVivaSecret ? 'text' : 'password'}
-                      value={vivaForm.clientSecret}
-                      onChange={(e) => setVivaForm({ ...vivaForm, clientSecret: e.target.value })}
-                      autoComplete="new-password"
-                    />
-                    <button
-                      type="button"
-                      className="set-eye"
-                      onClick={() => setShowVivaSecret((v) => !v)}
-                      aria-label={showVivaSecret ? 'Απόκρυψη' : 'Εμφάνιση'}
-                    >
-                      {showVivaSecret ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+                  <div className="set-identity-actions">
+                    <Button type="button" disabled={saving} onClick={() => void handleSaveAll()}>
+                      {saving ? 'Αποθήκευση…' : 'Αποθήκευση στοιχείων'}
+                    </Button>
                   </div>
-                </label>
+                </div>
               </div>
-              <button type="button" className="set-test-btn" onClick={handleVivaTest}>
-                Έλεγχος Σύνδεσης
-              </button>
             </section>
 
-            <div className="set-save-bar">
-              <Button type="button" disabled={saving} onClick={() => void handleSaveAll()}>
-                {saving ? 'Αποθήκευση…' : 'Αποθήκευση'}
-              </Button>
+            <div className="set-connect-grid">
+              <button type="button" className="set-connect-card" onClick={() => setTab('email')}>
+                <Mail size={18} />
+                <span>
+                  <strong>Email / SMTP</strong>
+                  <em className={smtpReady ? 'is-on' : ''}>
+                    {smtpReady ? 'Συνδεδεμένο' : 'Δεν έχει ρυθμιστεί'}
+                  </em>
+                </span>
+              </button>
+              <button type="button" className="set-connect-card" onClick={() => setTab('sms')}>
+                <Smartphone size={18} />
+                <span>
+                  <strong>SMS</strong>
+                  <em>Ρύθμιση στο tab SMS</em>
+                </span>
+              </button>
+              {clubAllowsOnlineProvider(clubId, 'viva') ? (
+                <button type="button" className="set-connect-card" onClick={() => setTab('viva')}>
+                  <Wallet size={18} />
+                  <span>
+                    <strong>Viva Wallet</strong>
+                    <em className={vivaReady ? 'is-on' : ''}>
+                      {vivaReady ? 'Συνδεδεμένο' : 'Δεν έχει ρυθμιστεί'}
+                    </em>
+                  </span>
+                </button>
+              ) : null}
             </div>
           </div>
         )
@@ -861,8 +589,8 @@ export function SettingsPage() {
       {tab === 'terms' ? <TermsOfUsePanel /> : null}
       {tab === 'amka' ? <AmkaCompliancePanel /> : null}
       {tab === 'backup' ? <BackupPanel /> : null}
-
-      <SmtpSetupGuideModal open={showSmtpGuide} onClose={() => setShowSmtpGuide(false)} />
+      </div>
+      </div>
     </div>
   );
 }

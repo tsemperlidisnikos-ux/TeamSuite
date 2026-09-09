@@ -415,9 +415,148 @@ function idListFromPayload(value: unknown): string[] {
   return value.map((item) => String(item).trim()).filter(Boolean);
 }
 
+function mergeIdRowsPreservingCloudOnly(
+  existingValue: unknown,
+  incomingValue: unknown,
+  existingDeleted: unknown,
+  incomingDeleted: unknown,
+): { rows: Array<Record<string, unknown> & { id: string }>; deleted: string[] } {
+  const existing = studentRowsFromPayload(existingValue);
+  const incoming = studentRowsFromPayload(incomingValue);
+  const deleted = new Set([
+    ...idListFromPayload(existingDeleted),
+    ...idListFromPayload(incomingDeleted),
+  ]);
+  if (incoming.length === 0 && existing.length > 0 && deleted.size === 0) {
+    return { rows: existing, deleted: [] };
+  }
+  const byId = new Map<string, Record<string, unknown> & { id: string }>();
+  for (const row of existing) {
+    if (!deleted.has(row.id)) byId.set(row.id, row);
+  }
+  for (const row of incoming) {
+    if (deleted.has(row.id)) continue;
+    const prevRow = byId.get(row.id);
+    if (!prevRow) {
+      byId.set(row.id, row);
+      continue;
+    }
+    const prevAt = Number(prevRow.updatedAt) || 0;
+    const nextAt = Number(row.updatedAt) || 0;
+    byId.set(row.id, nextAt >= prevAt ? row : prevRow);
+  }
+  return { rows: [...byId.values()], deleted: [...deleted].slice(-5000) };
+}
+
+const OPS_ID_COLLECTION_PAIRS: Array<[string, string]> = [
+  ['schedule', 'deletedScheduleIds'],
+  ['trainings', 'deletedTrainingIds'],
+  ['matches', 'deletedMatchIds'],
+  ['products', 'deletedProductIds'],
+  ['stockMovements', 'deletedStockMovementIds'],
+  ['attendance', 'deletedAttendanceIds'],
+  ['classes', 'deletedClassIds'],
+  ['announcements', 'deletedAnnouncementIds'],
+  ['registrationApplications', 'deletedRegistrationApplicationIds'],
+  ['rentalBookings', 'deletedRentalBookingIds'],
+  ['coaches', 'deletedCoachIds'],
+  ['staff', 'deletedStaffIds'],
+  ['clubSeasons', 'deletedSeasonIds'],
+];
+
+const CONTENT_ID_COLLECTION_PAIRS: Array<[string, string]> = [
+  ...OPS_ID_COLLECTION_PAIRS,
+  ['associations', 'deletedAssociationIds'],
+  ['facilities', 'deletedFacilityIds'],
+  ['sports', 'deletedSportIds'],
+  ['partnerBusinesses', 'deletedPartnerBusinessIds'],
+  ['partnerOffers', 'deletedPartnerOfferIds'],
+  ['photos', 'deletedPhotoIds'],
+  ['parentLinks', 'deletedParentLinkIds'],
+  ['progressReports', 'deletedProgressReportIds'],
+  ['documentProtocolEntries', 'deletedProtocolIds'],
+];
+
+function mergeNamedIdCollections(
+  prev: Record<string, unknown>,
+  next: Record<string, unknown>,
+  pairs: Array<[string, string]>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [rowKey, delKey] of pairs) {
+    const merged = mergeIdRowsPreservingCloudOnly(
+      prev[rowKey],
+      next[rowKey],
+      prev[delKey],
+      next[delKey],
+    );
+    out[rowKey] = merged.rows;
+    out[delKey] = merged.deleted;
+  }
+  return out;
+}
+
+function pickNonEmptyHtml(incoming: unknown, existing: unknown): unknown {
+  const next = typeof incoming === 'string' ? incoming.trim() : '';
+  if (next) return incoming;
+  const prev = typeof existing === 'string' ? existing.trim() : '';
+  if (prev) return existing;
+  return incoming ?? existing;
+}
+
+export function mergeOpsSliceIntoPayload(
+  prev: Record<string, unknown>,
+  slice: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...prev,
+    ...mergeNamedIdCollections(prev, slice, OPS_ID_COLLECTION_PAIRS),
+  };
+}
+
+function mergeClosedFinanceMonthsPayload(
+  prev: Record<string, unknown>,
+  next: Record<string, unknown>,
+): { closed: string[]; lockRev: Record<string, number> } {
+  const localClosed = new Set(idListFromPayload(prev.closedFinanceMonths));
+  const cloudClosed = new Set(idListFromPayload(next.closedFinanceMonths));
+  const localRev =
+    prev.financeMonthLockRev && typeof prev.financeMonthLockRev === 'object'
+      ? (prev.financeMonthLockRev as Record<string, unknown>)
+      : {};
+  const cloudRev =
+    next.financeMonthLockRev && typeof next.financeMonthLockRev === 'object'
+      ? (next.financeMonthLockRev as Record<string, unknown>)
+      : {};
+  const months = new Set<string>([
+    ...localClosed,
+    ...cloudClosed,
+    ...Object.keys(localRev),
+    ...Object.keys(cloudRev),
+  ]);
+  const closed: string[] = [];
+  const lockRev: Record<string, number> = {};
+  for (const month of months) {
+    if (!/^\d{4}-\d{2}$/.test(month)) continue;
+    const lAt = Number(localRev[month]) || 0;
+    const cAt = Number(cloudRev[month]) || 0;
+    if (lAt === 0 && cAt === 0) {
+      if (localClosed.has(month) || cloudClosed.has(month)) closed.push(month);
+      continue;
+    }
+    const useIncoming = cAt >= lAt;
+    const isClosed = useIncoming ? cloudClosed.has(month) : localClosed.has(month);
+    lockRev[month] = Math.max(lAt, cAt);
+    if (isClosed) closed.push(month);
+  }
+  closed.sort();
+  return { closed, lockRev };
+}
+
 /**
  * A stale browser (45 αθλητές) must not erase a newer athlete already in cloud (46).
  * Incoming rows win on the same id; cloud-only students are kept unless deleted.
+ * Finance collections follow the same rule so a partial push cannot wipe the ledger.
  */
 export function mergeMirrorPayloadPreservingRoster(existing: unknown, incoming: unknown): unknown {
   const prev = asPlainObject(existing);
@@ -427,29 +566,114 @@ export function mergeMirrorPayloadPreservingRoster(existing: unknown, incoming: 
 
   const incomingStudents = studentRowsFromPayload(next.students);
   const existingStudents = studentRowsFromPayload(prev.students);
-  if (incomingStudents.length === 0 && existingStudents.length > 0) {
-    return {
-      ...next,
-      students: prev.students,
-      deletedStudentIds: prev.deletedStudentIds,
-    };
-  }
+  const incomingRoster =
+    incomingStudents.length === 0 && existingStudents.length > 0
+      ? existingStudents
+      : incomingStudents;
+  const incomingDeletedStudents =
+    incomingStudents.length === 0 && existingStudents.length > 0
+      ? prev.deletedStudentIds
+      : next.deletedStudentIds;
 
   const deleted = new Set([
     ...idListFromPayload(prev.deletedStudentIds),
-    ...idListFromPayload(next.deletedStudentIds),
+    ...idListFromPayload(incomingDeletedStudents),
   ]);
   const byId = new Map<string, Record<string, unknown>>();
   for (const row of existingStudents) {
     if (!deleted.has(row.id)) byId.set(row.id, row);
   }
-  for (const row of incomingStudents) {
+  for (const row of incomingRoster) {
     if (!deleted.has(row.id)) byId.set(row.id, row);
   }
+
+  const tx = mergeIdRowsPreservingCloudOnly(
+    prev.transactions,
+    next.transactions,
+    prev.deletedTransactionIds,
+    next.deletedTransactionIds,
+  );
+  const revenues = mergeIdRowsPreservingCloudOnly(
+    prev.revenues,
+    next.revenues,
+    prev.deletedRevenueIds,
+    next.deletedRevenueIds,
+  );
+  const expenses = mergeIdRowsPreservingCloudOnly(
+    prev.expenses,
+    next.expenses,
+    prev.deletedExpenseIds,
+    next.deletedExpenseIds,
+  );
+  const cash = mergeIdRowsPreservingCloudOnly(
+    prev.cashAccounts,
+    next.cashAccounts,
+    prev.deletedCashAccountIds,
+    next.deletedCashAccountIds,
+  );
+  const budgets = mergeIdRowsPreservingCloudOnly(
+    prev.budgets,
+    next.budgets,
+    prev.deletedBudgetIds,
+    next.deletedBudgetIds,
+  );
+  const months = mergeClosedFinanceMonthsPayload(prev, next);
+  const suppressed = [
+    ...new Set([
+      ...idListFromPayload(prev.suppressedFeeChargeKeys),
+      ...idListFromPayload(next.suppressedFeeChargeKeys),
+    ]),
+  ].slice(-5000);
+  const deletedTxLinked = new Set(tx.deleted);
+  const mergedRevenues = revenues.rows.filter((row) => {
+    const linked = String(row.linkedTransactionId ?? '').trim();
+    return !linked || !deletedTxLinked.has(linked);
+  });
+
+  const collections = mergeNamedIdCollections(prev, next, CONTENT_ID_COLLECTION_PAIRS);
+  const feeTemplates = mergeIdRowsPreservingCloudOnly(
+    prev.feeChargeTemplates,
+    next.feeChargeTemplates,
+    undefined,
+    undefined,
+  );
+  const changeLogs = mergeIdRowsPreservingCloudOnly(
+    prev.athleteChangeLogs,
+    next.athleteChangeLogs,
+    undefined,
+    undefined,
+  );
+  const emailUnsubs = [
+    ...new Set([
+      ...idListFromPayload(prev.emailUnsubscribes),
+      ...idListFromPayload(next.emailUnsubscribes),
+    ]),
+  ];
+
   return {
     ...next,
+    ...collections,
     students: [...byId.values()],
     deletedStudentIds: [...deleted].slice(-5000),
+    transactions: tx.rows,
+    deletedTransactionIds: tx.deleted,
+    suppressedFeeChargeKeys: suppressed,
+    revenues: mergedRevenues,
+    deletedRevenueIds: revenues.deleted,
+    expenses: expenses.rows,
+    deletedExpenseIds: expenses.deleted,
+    cashAccounts: cash.rows,
+    deletedCashAccountIds: cash.deleted,
+    budgets: budgets.rows,
+    deletedBudgetIds: budgets.deleted,
+    closedFinanceMonths: months.closed,
+    financeMonthLockRev: months.lockRev,
+    feeChargeTemplates: feeTemplates.rows,
+    athleteChangeLogs: changeLogs.rows,
+    emailUnsubscribes: emailUnsubs,
+    termsOfUseHtml: pickNonEmptyHtml(next.termsOfUseHtml, prev.termsOfUseHtml),
+    dpaHtml: pickNonEmptyHtml(next.dpaHtml, prev.dpaHtml),
+    retentionPolicyHtml: pickNonEmptyHtml(next.retentionPolicyHtml, prev.retentionPolicyHtml),
   };
 }
 

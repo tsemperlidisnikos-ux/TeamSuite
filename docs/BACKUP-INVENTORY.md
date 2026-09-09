@@ -1,6 +1,6 @@
 # Κατάλογος Backup — TeamSuite
 
-Τελευταία ενημέρωση περιεχομένου: **2026-09-08** (ZIP `C:\TeamSuite_backup` + deploy `teamsuite`).
+Τελευταία ενημέρωση περιεχομένου: **2026-09-10** (ZIP `C:\TeamSuite_backup` + deploy `teamsuite`).
 
 Αυτό το αρχείο ενημερώνεται κάθε φορά που αλλάζει τι περιλαμβάνει κάποιο backup, ή μετά από **BACKUP + DEPLOY** (νέα γραμμή στο ιστορικό ZIP κώδικα).
 
@@ -15,7 +15,7 @@
 | **Platform full JSON** | Platform Admin → Backup → Λήψη full backup | Όλους τους συλλόγους (`appDataByClub`), ενεργό `appData`, `users` (χωρίς hashes), `clubs` (χωρίς SMTP/SMS/Viva secrets), πλήρες `platformConfig` (modules, δικαιώματα, λογότυπα, **PDF κάρτας υγείας ανά άθλημα**). `scope: platform`. **Restore:** μόνο «Επαναφορά όλης της εφαρμογής» (.json, όχι club-only αρχεία) | SMTP passwords, SMS API keys, Viva secrets, password hashes (redacted στο download) |
 | **Scheduled full (browser)** | Platform Admin → Πρόγραμμα backup → fullApp | Ίδιο με Platform full JSON αν mode=download· αν mode=cloud: push mirror **όλων** των συλλόγων | Secrets στα JSON (redacted)· δεν τρέχει αν δεν είναι ανοιχτή η εφαρμογή ως Platform Admin |
 | **Scheduled per-club (browser)** | Πρόγραμμα backup → perClub | Ανά επιλεγμένο σύλλογο: ίδιο με **Club JSON** (ή cloud mirror push) | Άλλους συλλόγους· secrets στα JSON |
-| **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) · `POST /api/sync/mirror-students` | Live `AppData` στο Blob/Redis. Πλήρες Push ενώνει αθλητές με το υπάρχον cloud (δεν σβήνει όσους λείπουν από παλιό browser). **Συγχρονισμός ανά αθλητή:** κάθε συσκευή στέλνει όσους έχει μόνο αυτή και τραβά όσους λείπουν. Auto sync ενεργό από προεπιλογή (opt-out) | Users/clubs/config, SMTP/Viva στο mirror |
+| **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) · `POST /api/sync/mirror-students` · `PUT /api/sync/club-ops` | Live `AppData` στο Blob/Redis. Κάθε Pull ενώνει **όλες** τις συλλογές (αθλητές, οικονομικά, πρόγραμμα, ανακοινώσεις, αιτήσεις, γήπεδα, φωτογραφίες, κρατήσεις κ.λπ.) με `updatedAt` και tombstones διαγραφών. Μερικό Push δεν σβήνει cloud-only γραμμές. Auto sync ενεργό από προεπιλογή (opt-out) | Users/clubs/config, SMTP/Viva στο mirror |
 | **Cloud account bundle** | Platform Admin: Push/Pull λογαριασμοί | `users`, `clubs`, `platformConfig` στο cloud. Pull/push **διατηρεί** υπάρχοντα SMTP/SMS/Viva secrets αν το εισερχόμενο έχει κενό/`********` | AppData αθλητών (αυτό είναι στο mirror) |
 | **Ημερολόγιο συλλόγου (PA)** | Platform Admin → Λειτουργία → Ημερολόγιο συλλόγου | Cloud log ανά σύλλογο: είσοδος/έξοδος και σύνοψη καταχωρήσεων (ποιος, πότε, τι). Λήψη TXT ημέρας. Διαγραφή γραμμής ή όλου του ημερολογίου συλλόγου. Μόνο PA. | Πλήρες αντίγραφο AppData· AMKA· κινήσεις πριν το deploy αυτού του feature |
 | **Server cron snapshot** | Vercel cron `0 2 * * *` → `/api/gdpr?op=backup` | Ημερήσιο αντίγραφο **υπαρχόντων** club mirrors (`ss360:backup-snap:ΗΜΕΡΟΜΗΝΙΑ:clubId`). Αν είναι συνδεδεμένο Google Drive, ανεβάζει και JSON σε `TeamSuite-Backups/{σύλλογος}/ΗΜΕΡΟΜΗΝΙΑ.json` | Account bundle· συλλόγους χωρίς προηγούμενο mirror push· δεν υπάρχει UI restore στην εφαρμογή |
@@ -43,6 +43,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `TeamSuite_2026-09-10_02-03-10.zip` | 2026-09-10 | Sync συσκευών: ένωση όλων των AppData συλλογών στο Pull, tombstones διαγραφών, server union ώστε μερικό push να μην σβήνει cloud, γρήγορο club-ops |
 | `TeamSuite_2026-09-08_03-07-56.zip` | 2026-09-08 | Ημερολόγιο μήνα: μεγαλύτερα κελιά και εμφάνιση όλων των προπονήσεων χωρίς «+ ακόμη» |
 | `TeamSuite_2026-09-08_02-55-01.zip` | 2026-09-08 | Πρόγραμμα: λωρίδες ανά γήπεδο ώστε παράλληλες προπονήσεις να φαίνονται · ημερολόγιο χωρίς χαμένα γήπεδα |
 | `TeamSuite_2026-09-08_01-23-31.zip` | 2026-09-08 | Πρόγραμμα→προπονήσεις σεζόν · Viva checkout από iframe σε νέα καρτέλα · ημερολόγιο→παρουσίες · SMS/Viber υπενθυμίσεις και ακυρώσεις |

@@ -2,6 +2,8 @@ import { apiClient } from '../apiClient';
 import { getSession, getUserById, isPlatformAdmin } from '../../auth/auth';
 import { getClubById, getClubPublicRegistration, getClubSmtp } from '../../auth/clubs';
 import { createId, getData, mutateData } from '../../data/repository';
+import { rememberDeletedId, rememberDeletedIds } from '../../data/financeSyncMerge';
+import { publishClubOpsSlice } from './clubOpsSyncService';
 import { buildStudentFromRegistrationApplication } from '../../shared/publicJoinPayload';
 import { stripJoinFormSnapshotForApplication } from '../../utils/publicJoinFormSnapshots';
 import type {
@@ -106,6 +108,7 @@ export async function updateRegistrationApplication(
       }
       data.registrationApplications = apps.map((a, i) => (i === index ? application! : a));
     });
+    void publishClubOpsSlice();
     return application!;
   });
 }
@@ -185,6 +188,7 @@ export async function approveRegistrationApplication(
       data.registrationApplications = apps.map((a, i) => (i === index ? application! : a));
     });
 
+    void publishClubOpsSlice();
     return {
       application: application!,
       athleteId,
@@ -207,6 +211,7 @@ export async function rejectRegistrationApplication(id: string) {
       application = { ...app, status: 'rejected' };
       data.registrationApplications = apps.map((a, i) => (i === index ? application! : a));
     });
+    void publishClubOpsSlice();
     return application!;
   });
 }
@@ -222,7 +227,12 @@ export async function deleteRegistrationApplication(id: string) {
         throw new Error('Η αίτηση δεν βρέθηκε.');
       }
       data.registrationApplications = apps.filter((a) => a.id !== id);
+      data.deletedRegistrationApplicationIds = rememberDeletedId(
+        data.deletedRegistrationApplicationIds,
+        id,
+      );
     });
+    void publishClubOpsSlice();
     return { id };
   });
 }
@@ -257,7 +267,12 @@ export async function deleteRegistrationApplications(ids: string[]) {
         deleted += 1;
         return false;
       });
+      data.deletedRegistrationApplicationIds = rememberDeletedIds(
+        data.deletedRegistrationApplicationIds,
+        unique,
+      );
     });
+    void publishClubOpsSlice();
     return { deleted };
   });
 }

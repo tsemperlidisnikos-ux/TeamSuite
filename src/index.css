@@ -5036,8 +5036,9 @@ html[data-appearance] .settings-backup-schedule-status {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.club-sync-status:hover {
-  color: #fff;
+.club-sync-status.is-warn {
+  color: #fecaca;
+  background: rgba(185, 28, 28, 0.35);
 }
 
 .ap-euro-field {
