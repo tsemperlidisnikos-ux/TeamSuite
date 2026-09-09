@@ -34,7 +34,7 @@ const emptyRecurring = {
   endDate: '',
   startTime: '',
   endTime: '',
-  weekdayTimes: {} as Record<number, { startTime: string; endTime: string }>,
+  weekdayTimes: {} as Record<number, { startTime: string; endTime: string; location: string }>,
   location: '',
   notes: '',
   classId: null as string | null,
@@ -671,6 +671,7 @@ export function TrainingsPage() {
                               weekdayTimes[d.value] = {
                                 startTime: prev.startTime,
                                 endTime: prev.endTime,
+                                location: prev.location,
                               };
                             }
                             return { ...prev, weekdays: next, weekdayTimes };
@@ -725,6 +726,7 @@ export function TrainingsPage() {
                       const row = recForm.weekdayTimes[d.value] ?? {
                         startTime: recForm.startTime,
                         endTime: recForm.endTime,
+                        location: recForm.location,
                       };
                       return (
                         <div key={d.value} className="training-weekday-time-row">
@@ -757,6 +759,29 @@ export function TrainingsPage() {
                               }))
                             }
                           />
+                          <select
+                            aria-label={`${d.label} γήπεδο`}
+                            value={row.location}
+                            onChange={(e) =>
+                              setRecForm((prev) => ({
+                                ...prev,
+                                weekdayTimes: {
+                                  ...prev.weekdayTimes,
+                                  [d.value]: { ...row, location: e.target.value },
+                                },
+                              }))
+                            }
+                          >
+                            <option value="">—</option>
+                            {row.location && !facilityLocations.includes(row.location) ? (
+                              <option value={row.location}>{row.location}</option>
+                            ) : null}
+                            {facilityLocations.map((name) => (
+                              <option key={name} value={name}>
+                                {name}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       );
                     })}

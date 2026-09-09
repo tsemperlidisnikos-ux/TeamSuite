@@ -52,7 +52,7 @@ export async function createRecurringTrainings(input: {
   endDate: string;
   startTime: string;
   endTime: string;
-  weekdayTimes?: Record<number, { startTime?: string; endTime?: string }>;
+  weekdayTimes?: Record<number, { startTime?: string; endTime?: string; location?: string }>;
   location: string;
   notes: string;
   classId: string | null;
@@ -79,6 +79,7 @@ export async function createRecurringTrainings(input: {
       return {
         startTime: (override?.startTime || input.startTime || '').trim(),
         endTime: (override?.endTime || input.endTime || '').trim(),
+        location: (override?.location || input.location || '').trim(),
       };
     };
     for (const day of weekdays) {
@@ -106,7 +107,7 @@ export async function createRecurringTrainings(input: {
         const times = timesFor(day);
         const check = slotConflictsWithClubOccupancy(
           working,
-          input.location,
+          times.location,
           date,
           times.startTime,
           times.endTime,
@@ -119,7 +120,7 @@ export async function createRecurringTrainings(input: {
             date,
             startTime: times.startTime,
             endTime: times.endTime,
-            location: input.location,
+            location: times.location,
             notes: input.notes,
             classId: input.classId,
           };
