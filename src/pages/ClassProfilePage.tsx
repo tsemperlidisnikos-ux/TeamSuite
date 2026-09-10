@@ -392,6 +392,7 @@ export function ClassProfilePage() {
   }
 
   function exportRosterExcel() {
+    if (!cls) return;
     if (roster.length === 0) {
       window.alert('Δεν υπάρχουν αθλητές για εξαγωγή.');
       return;

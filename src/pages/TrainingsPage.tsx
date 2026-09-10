@@ -242,7 +242,7 @@ export function TrainingsPage() {
     refresh();
   }
 
-  async function handleClassAttendanceRequired(classId: string | null, required: boolean) {
+  async function handleClassAttendanceRequired(classId: string | null | undefined, required: boolean) {
     if (!classId) return;
     const cls = data.classes.find((item) => item.id === classId);
     if (!cls) return;
