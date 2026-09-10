@@ -21,8 +21,7 @@ import { listActiveClubSportNames } from '../utils/clubSports';
 import { listActiveFacilities } from '../utils/facilityHours';
 import { normalizeSportKey } from '../utils/sport';
 import { classToFormInput } from '../utils/classHelpers';
-import { classRequiresAttendance, listMissingAttendanceTrainings, trainingHasEnded } from '../utils/missingTrainingAttendance';
-import { localDateIso } from '../utils/dates';
+import { classRequiresAttendance, listMissingAttendanceTrainings } from '../utils/missingTrainingAttendance';
 
 const emptyForm: TrainingInput = {
   date: '',
@@ -150,18 +149,6 @@ export function TrainingsPage() {
       }),
     [data.trainings, data.classes, data.attendance, data.clubSeasons, isCoach, allowedClassIds],
   );
-
-  const todayUpcoming = useMemo(() => {
-    const today = localDateIso();
-    const classById = new Map(data.classes.map((cls) => [cls.id, cls]));
-    return trainings
-      .filter((t) => t.date === today && !trainingHasEnded(t))
-      .sort((a, b) => a.startTime.localeCompare(b.startTime))
-      .map((t) => ({
-        ...t,
-        className: (t.classId && classById.get(t.classId)?.name) || 'Τμήμα',
-      }));
-  }, [trainings, data.classes]);
 
   const allSelected =
     trainings.length > 0 && trainings.every((t) => selectedIds.has(t.id));
@@ -457,35 +444,14 @@ export function TrainingsPage() {
               ? '1 ληγμένη προπόνηση χωρίς παρουσίες'
               : `${missingAttendance.length} ληγμένες προπονήσεις χωρίς παρουσίες`}
           </p>
-          <ul>
-            {missingAttendance.slice(0, 8).map((row) => (
+          <ul className="trainings-notice-list">
+            {missingAttendance.map((row) => (
               <li key={row.id}>
                 <Link
                   to={`/attendance?classId=${encodeURIComponent(row.classId ?? '')}&date=${encodeURIComponent(row.date)}`}
                 >
                   {formatDate(row.date)} · {row.startTime}–{row.endTime} · {row.className}
                 </Link>
-              </li>
-            ))}
-          </ul>
-          {missingAttendance.length > 8 ? (
-            <p className="trainings-notice-more">+{missingAttendance.length - 8} ακόμη</p>
-          ) : null}
-        </section>
-      ) : null}
-
-      {todayUpcoming.length > 0 ? (
-        <section className="trainings-notice" aria-label="Προπονήσεις σήμερα">
-          <p>
-            {todayUpcoming.length === 1
-              ? '1 προπόνηση σήμερα που δεν έχει λήξει ακόμα'
-              : `${todayUpcoming.length} προπονήσεις σήμερα που δεν έχουν λήξει ακόμα`}
-          </p>
-          <ul>
-            {todayUpcoming.slice(0, 8).map((row) => (
-              <li key={row.id}>
-                {row.startTime}–{row.endTime} · {row.className}
-                {row.location ? ` · ${row.location}` : ''}
               </li>
             ))}
           </ul>

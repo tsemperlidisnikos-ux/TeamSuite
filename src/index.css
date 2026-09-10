@@ -3928,12 +3928,19 @@ html[data-appearance] .settings-backup-schedule-status {
   font-weight: 650;
 }
 
-.trainings-notice ul {
+.trainings-notice-list {
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
   gap: 0.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  max-height: calc((1.45em * 6) + (0.25rem * 5));
+}
+
+.trainings-notice-list li {
+  line-height: 1.45;
 }
 
 .trainings-notice a {
@@ -3944,13 +3951,6 @@ html[data-appearance] .settings-backup-schedule-status {
 .trainings-notice-warn {
   border-color: color-mix(in srgb, var(--danger, #b42318) 28%, var(--line));
   background: color-mix(in srgb, var(--danger, #b42318) 8%, #fff);
-}
-
-.trainings-notice-more {
-  margin: 0.35rem 0 0;
-  font-weight: 500;
-  color: var(--muted);
-  font-size: 0.85rem;
 }
 
 .training-modal-backdrop {
@@ -4120,7 +4120,7 @@ html[data-appearance] .settings-backup-schedule-status {
 }
 
 .training-modal--wide {
-  width: min(560px, 100%);
+  width: min(840px, 100%);
 }
 
 .facility-modal {
