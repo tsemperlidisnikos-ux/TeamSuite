@@ -190,6 +190,12 @@ function setLastSyncAt(clubId: string, at: string): void {
   emitClubSyncStatus();
 }
 
+/** Το club-ops ανέβασε νεότερη revision — το επόμενο full push χρησιμοποιεί αυτό ως βάση. */
+export function noteClubMirrorRevision(clubId: string, updatedAt: string): void {
+  if (!clubId || !updatedAt) return;
+  setLastSyncAt(clubId, updatedAt);
+}
+
 export function clearLastSyncAt(clubId: string): void {
   const map = readMap<LastSyncMap>(LAST_SYNC_KEY);
   delete map[clubId];
@@ -323,11 +329,13 @@ async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
         };
       }
       const merged = mergeLocalPreferredForPush(local, cloud);
+      const { syncRentalRevenuesInData } = await import('../api/services/rentalRevenueBridge');
+      syncRentalRevenuesInData(merged);
       replaceClubData(id, merged, { skipCloudPush: true });
       result = await backendSyncService.pushClubMirror(id, {
         baseUpdatedAt: isConflict ? pull.data.updatedAt ?? null : baseUpdatedAt,
       });
-      if (!result.success && hasLocalOnlyRows(merged.students, cloud.students)) {
+      if (!result.success) {
         result = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: null });
       }
     } else if (isConflict) {

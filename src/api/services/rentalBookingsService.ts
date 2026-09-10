@@ -225,25 +225,38 @@ export async function collectRentalBooking(
       if (index === -1) throw new Error('Η κράτηση δεν βρέθηκε.');
       const current = list[index];
       if (current.status === 'cancelled') throw new Error('Η κράτηση έχει ακυρωθεί.');
-      if (isRentalBookingCollected(current)) {
-        throw new Error('Η κράτηση έχει ήδη εισπραχθεί.');
-      }
       if (!(Number(current.amount) > 0)) throw new Error('Δεν υπάρχει ποσό προς είσπραξη.');
-      updated = {
-        ...current,
-        status: 'confirmed',
-        paymentCollected: true,
-        paymentProvider: 'venue',
-        paymentMethod: input.paymentMethod,
-        paidOn,
-        paidAt: localDateTimeIso(),
-        updatedAt: Date.now(),
-      };
+      if (isRentalBookingCollected(current)) {
+        updated = {
+          ...current,
+          paymentCollected: true,
+          paidOn: current.paidOn || paidOn,
+          paidAt: current.paidAt || localDateTimeIso(),
+          paymentMethod: current.paymentMethod || input.paymentMethod,
+          updatedAt: Date.now(),
+        };
+      } else {
+        updated = {
+          ...current,
+          status: 'confirmed',
+          paymentCollected: true,
+          paymentProvider: 'venue',
+          paymentMethod: input.paymentMethod,
+          paidOn,
+          paidAt: localDateTimeIso(),
+          updatedAt: Date.now(),
+        };
+      }
       list[index] = updated;
       data.rentalBookings = list;
       upsertRentalBookingRevenueInData(data, updated);
     });
-    void publishClubOpsSlice();
+    await publishClubOpsSlice();
+    const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
+    if (clubId) {
+      const { flushClubMirrorPush } = await import('../../data/clubSync');
+      await flushClubMirrorPush(clubId, { force: true });
+    }
     return updated!;
   });
 }

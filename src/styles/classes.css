@@ -434,10 +434,36 @@
   min-width: 12rem;
 }
 
-.class-form-modal {
-  max-width: 32rem;
-  max-height: min(92vh, 52rem);
-  overflow: auto;
+.training-modal.class-form-modal {
+  width: min(40rem, calc(100vw - 1.5rem));
+  max-width: 40rem;
+  max-height: none;
+  overflow: visible;
+}
+
+.class-form-modal .training-modal-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 0.75rem;
+}
+
+.class-form-modal .training-modal-fields > label:first-of-type,
+.class-form-modal .training-modal-fields > .class-form-row-2,
+.class-form-modal .training-modal-fields > .form-error {
+  grid-column: 1 / -1;
+}
+
+.class-form-modal .training-modal-fields input,
+.class-form-modal .training-modal-fields select {
+  padding: 0.42rem 0.6rem;
+}
+
+.class-form-modal h2 {
+  margin-bottom: 0.7rem;
+}
+
+.class-form-modal .training-modal-actions {
+  margin-top: 0.75rem;
 }
 
 .class-form-row-2 {

@@ -33,6 +33,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? (mirror.payload as Record<string, unknown>)
       : {};
   const next = mergeOpsSliceIntoPayload(prev, slice);
-  await saveMirror(clubId, next);
-  return res.status(200).json({ ok: true, durable: isDurableStoreEnabled() });
+  const saved = await saveMirror(clubId, next);
+  if (saved.ok === false) {
+    return res.status(409).json({ ok: false, conflict: true, error: 'Mirror conflict' });
+  }
+  return res.status(200).json({ ok: true, durable: isDurableStoreEnabled(), updatedAt: saved.updatedAt });
 }

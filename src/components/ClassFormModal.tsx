@@ -211,23 +211,25 @@ export function ClassFormModal({
               />
             </label>
           </div>
-          <label>
-            <span>Ημερομηνία έναρξης</span>
-            <input
-              type="date"
-              value={form.startDate ?? ''}
-              onChange={(e) => onChange({ ...form, startDate: e.target.value })}
-            />
-          </label>
-          <label>
-            <span>Ημερομηνία λήξης</span>
-            <input
-              type="date"
-              value={form.endDate ?? ''}
-              min={form.startDate || undefined}
-              onChange={(e) => onChange({ ...form, endDate: e.target.value })}
-            />
-          </label>
+          <div className="class-form-row-2">
+            <label>
+              <span>Ημερομηνία έναρξης</span>
+              <input
+                type="date"
+                value={form.startDate ?? ''}
+                onChange={(e) => onChange({ ...form, startDate: e.target.value })}
+              />
+            </label>
+            <label>
+              <span>Ημερομηνία λήξης</span>
+              <input
+                type="date"
+                value={form.endDate ?? ''}
+                min={form.startDate || undefined}
+                onChange={(e) => onChange({ ...form, endDate: e.target.value })}
+              />
+            </label>
+          </div>
 
           {error ? <p className="form-error">{error}</p> : null}
         </div>

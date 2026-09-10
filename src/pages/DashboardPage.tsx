@@ -22,6 +22,10 @@ import { studentSports } from '../utils/studentSports';
 import { clubSportsMatch, listActiveClubSportNames } from '../utils/clubSports';
 import { listLowStockProducts } from '../utils/warehouseStock';
 import {
+  isRentalBookingCollected,
+  rentalRevenueDate,
+} from '../api/services/rentalRevenueBridge';
+import {
   filterOwnFinanceEntries,
   sessionSeesOnlyOwnFinance,
 } from '../utils/financeOwnEntries';
@@ -269,11 +273,18 @@ export function DashboardPage() {
       .filter((r) => {
         if (r.linkedTransactionId) return false;
         if (r.date !== today || r.paymentStatus !== 'paid') return false;
-        if (!r.studentId && !r.surname && !r.firstName) return false;
         if (!sportKey) return true;
         if (r.sport && matchesSport(r.sport, sportKey)) return true;
         if (r.studentId && studentIds.has(r.studentId)) return true;
-        return false;
+        if (r.linkedRentalBookingId || r.subcategory === 'ΕΝΟΙΚΙΑΣΗ ΓΗΠΕΔΟΥ') {
+          if (!sportKey) return true;
+          return Boolean(r.sport && matchesSport(r.sport, sportKey));
+        }
+        if (r.studentId || r.surname || r.firstName) {
+          if (r.sport && matchesSport(r.sport, sportKey)) return true;
+          return false;
+        }
+        return !sportKey;
       })
       .reduce((sum, r) => sum + r.amount, 0);
 
@@ -304,23 +315,62 @@ export function DashboardPage() {
         ];
 
   const moneyStrip = useMemo(() => {
+    const ownRevenues = filterOwnFinanceEntries(data.revenues).filter(
+      (r) => r.paymentStatus === 'paid',
+    );
+    const todayRevenues = ownRevenues
+      .filter((r) => r.date === today)
+      .reduce((sum, r) => sum + r.amount, 0);
     const ownOnly = sessionSeesOnlyOwnFinance();
     if (ownOnly) {
       const monthPrefix = today.slice(0, 7);
-      const monthCollections = filterOwnFinanceEntries(data.revenues)
-        .filter((r) => r.paymentStatus === 'paid' && r.date.slice(0, 7) === monthPrefix)
+      const monthCollections = ownRevenues
+        .filter((r) => r.date.slice(0, 7) === monthPrefix)
         .reduce((sum, r) => sum + r.amount, 0);
-      return { monthCollections, outstanding: 0, cashBalance: 0 };
+      return {
+        monthCollections,
+        dailyIncome: todayRevenues,
+        outstanding: 0,
+        cashBalance: 0,
+      };
     }
     const monthPrefix = today.slice(0, 7);
     const payments = (data.transactions ?? []).filter((t) => t.type === 'payment');
-    const monthCollections = payments
+    const monthFromAthletes = payments
       .filter((t) => String(t.createdAt || '').slice(0, 7) === monthPrefix)
       .reduce((sum, t) => sum + t.amount, 0);
+    const monthFromRevenues = ownRevenues
+      .filter((r) => r.date.slice(0, 7) === monthPrefix && !r.linkedTransactionId)
+      .reduce((sum, r) => sum + r.amount, 0);
     const outstanding = clubOutstandingOwed(data.students ?? [], data.transactions ?? []);
     const cashBalance = getAccountBalances().reduce((sum, account) => sum + account.balance, 0);
-    return { monthCollections, outstanding, cashBalance };
-  }, [data.transactions, data.revenues, data.expenses, data.cashAccounts, today]);
+    const todayAthleteTx = payments
+      .filter((t) => createdOnLocalDay(t.createdAt, today))
+      .reduce((sum, t) => sum + t.amount, 0);
+    const todayFromRevenues = ownRevenues
+      .filter((r) => r.date === today && !r.linkedTransactionId)
+      .reduce((sum, r) => sum + r.amount, 0);
+    const countedRentalIds = new Set(
+      ownRevenues
+        .filter((r) => r.linkedRentalBookingId)
+        .map((r) => r.linkedRentalBookingId as string),
+    );
+    const todayFromCollectedRentals = (data.rentalBookings ?? [])
+      .filter(
+        (b) =>
+          isRentalBookingCollected(b) &&
+          rentalRevenueDate(b) === today &&
+          Number(b.amount) > 0 &&
+          !countedRentalIds.has(b.id),
+      )
+      .reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+    return {
+      monthCollections: monthFromAthletes + monthFromRevenues,
+      dailyIncome: todayAthleteTx + todayFromRevenues + todayFromCollectedRentals,
+      outstanding,
+      cashBalance,
+    };
+  }, [data.transactions, data.revenues, data.expenses, data.cashAccounts, data.rentalBookings, today]);
 
   const adminKpis = useMemo(() => {
     const activeAthletes = data.students.filter((s) => s.status === 'active').length;
@@ -432,6 +482,10 @@ export function DashboardPage() {
           <strong>{formatCurrency(moneyStrip.outstanding)}</strong>
         </Link>
         <div className="money-strip-item is-accent">
+          <span>Έσοδα σήμερα</span>
+          <strong>{formatCurrency(moneyStrip.dailyIncome)}</strong>
+        </div>
+        <div className="money-strip-item is-accent">
           <span>Εισπράξεις μήνα</span>
           <strong>{formatCurrency(moneyStrip.monthCollections)}</strong>
         </div>
@@ -477,7 +531,7 @@ export function DashboardPage() {
               <StatCard
                 label="Ημερίσια Έσοδα"
                 value={formatCurrency(stats.dailyAthletePayments)}
-                hint="Πληρωμές αθλητών σήμερα"
+                hint="Πληρωμές αθλητών και ενοικιάσεις σήμερα"
                 icon={Banknote}
                 tone="positive"
               />

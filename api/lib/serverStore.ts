@@ -459,6 +459,7 @@ const OPS_ID_COLLECTION_PAIRS: Array<[string, string]> = [
   ['announcements', 'deletedAnnouncementIds'],
   ['registrationApplications', 'deletedRegistrationApplicationIds'],
   ['rentalBookings', 'deletedRentalBookingIds'],
+  ['revenues', 'deletedRevenueIds'],
   ['coaches', 'deletedCoachIds'],
   ['staff', 'deletedStaffIds'],
   ['clubSeasons', 'deletedSeasonIds'],

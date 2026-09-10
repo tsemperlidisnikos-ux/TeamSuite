@@ -17,6 +17,7 @@ export type ClubOpsSlice = Pick<
   | 'announcements'
   | 'registrationApplications'
   | 'rentalBookings'
+  | 'revenues'
   | 'coaches'
   | 'staff'
   | 'clubSeasons'
@@ -30,6 +31,7 @@ export type ClubOpsSlice = Pick<
   | 'deletedAnnouncementIds'
   | 'deletedRegistrationApplicationIds'
   | 'deletedRentalBookingIds'
+  | 'deletedRevenueIds'
   | 'deletedCoachIds'
   | 'deletedStaffIds'
   | 'deletedSeasonIds'
@@ -47,6 +49,7 @@ export function clubOpsSliceFromData(data: AppData): ClubOpsSlice {
     announcements: data.announcements ?? [],
     registrationApplications: data.registrationApplications ?? [],
     rentalBookings: data.rentalBookings ?? [],
+    revenues: data.revenues ?? [],
     coaches: data.coaches ?? [],
     staff: data.staff ?? [],
     clubSeasons: data.clubSeasons ?? [],
@@ -60,6 +63,7 @@ export function clubOpsSliceFromData(data: AppData): ClubOpsSlice {
     deletedAnnouncementIds: data.deletedAnnouncementIds ?? [],
     deletedRegistrationApplicationIds: data.deletedRegistrationApplicationIds ?? [],
     deletedRentalBookingIds: data.deletedRentalBookingIds ?? [],
+    deletedRevenueIds: data.deletedRevenueIds ?? [],
     deletedCoachIds: data.deletedCoachIds ?? [],
     deletedStaffIds: data.deletedStaffIds ?? [],
     deletedSeasonIds: data.deletedSeasonIds ?? [],
@@ -77,6 +81,11 @@ export async function publishClubOpsSlice(clubId?: string | null) {
       body: JSON.stringify({ clubId: id, slice: clubOpsSliceFromData(data) }),
     });
     if (response.status === 503) return;
+    const json = (await response.json().catch(() => null)) as { updatedAt?: string } | null;
+    if (json?.updatedAt) {
+      const { noteClubMirrorRevision } = await import('../../data/clubSync');
+      noteClubMirrorRevision(id, json.updatedAt);
+    }
   } catch {
     /* το πλήρες mirror push καλύπτει το slice στο επόμενο sync */
   }

@@ -6,9 +6,17 @@ import {
 } from '../shared/financeCategories';
 import { loadPlatformConfig } from './platformConfig';
 
+const RENTAL_INCOME = 'ΕΝΟΙΚΙΑΣΗ ΓΗΠΕΔΟΥ';
+
 export function getConfiguredIncomeCategories(): string[] {
   const categories = loadPlatformConfig().incomeCategories;
-  return categories.length > 0 ? categories : [...INCOME_SUBCATEGORIES];
+  const base = categories.length > 0 ? [...categories] : [...INCOME_SUBCATEGORIES];
+  if (!base.includes(RENTAL_INCOME)) {
+    const after = base.indexOf('ΠΑΡΟΧΕΣ');
+    if (after >= 0) base.splice(after + 1, 0, RENTAL_INCOME);
+    else base.push(RENTAL_INCOME);
+  }
+  return base;
 }
 
 export function getConfiguredExpenseCategories(): string[] {

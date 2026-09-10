@@ -517,7 +517,11 @@ export function AppLayout() {
             <RosterSyncHealthBanner clubId={clubId} />
             {lastSyncError && !writeConflict ? (
               <div className="ops-alert-banner is-warn" role="status">
-                <p>Αποτυχία αποστολής στο cloud: {lastSyncError}</p>
+                <p>
+                  {lastSyncError.toLowerCase().includes('conflict')
+                    ? 'Το cloud είχε νεότερη έκδοση. Πατήστε Επανάληψη Push για να ενωθούν οι αλλαγές.'
+                    : `Αποτυχία αποστολής στο cloud: ${lastSyncError}`}
+                </p>
                 <div className="ops-alert-actions">
                   <button
                     type="button"
