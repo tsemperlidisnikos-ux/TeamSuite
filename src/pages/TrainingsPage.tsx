@@ -1,4 +1,6 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import * as trainingsService from '../api/services/trainingsService';
 import * as classesService from '../api/services/classesService';
 import * as notificationService from '../api/services/notificationService';
