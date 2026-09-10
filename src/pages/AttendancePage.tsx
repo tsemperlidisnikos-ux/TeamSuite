@@ -101,8 +101,17 @@ export function AttendancePage() {
     const next = new URLSearchParams(searchParams);
     if (nextSport.trim()) next.set('sport', nextSport.trim());
     else next.delete('sport');
+    next.delete('classId');
     setSearchParams(next, { replace: true });
     setClassId('');
+  }
+
+  function handleClassChange(nextClassId: string) {
+    setClassId(nextClassId);
+    const next = new URLSearchParams(searchParams);
+    if (nextClassId) next.set('classId', nextClassId);
+    else next.delete('classId');
+    setSearchParams(next, { replace: true });
   }
 
   const students = useMemo(
@@ -235,7 +244,7 @@ export function AttendancePage() {
             <Users size={18} className="att-select-icon" aria-hidden />
             <select
               value={activeClassId}
-              onChange={(e) => setClassId(e.target.value)}
+              onChange={(e) => handleClassChange(e.target.value)}
               aria-label="Ομάδα / Τμήμα"
             >
               {classesForSport.length === 0 ? <option value="">—</option> : null}

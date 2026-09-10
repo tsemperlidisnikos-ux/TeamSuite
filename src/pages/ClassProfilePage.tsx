@@ -806,7 +806,23 @@ export function ClassProfilePage() {
             role="tab"
             aria-selected={tab === key}
             className={tab === key ? 'is-active' : ''}
-            onClick={() => setTab(key)}
+            onClick={() => {
+              if (key === 'schedule') {
+                const q = new URLSearchParams();
+                q.set('classId', cls.id);
+                if (cls.sport?.trim()) q.set('sport', cls.sport.trim());
+                navigate(`/schedule?${q.toString()}`);
+                return;
+              }
+              if (key === 'attendance') {
+                const q = new URLSearchParams();
+                q.set('classId', cls.id);
+                if (cls.sport?.trim()) q.set('sport', cls.sport.trim());
+                navigate(`/attendance?${q.toString()}`);
+                return;
+              }
+              setTab(key);
+            }}
           >
             {tabLabels[key]}
           </button>
@@ -911,20 +927,6 @@ export function ClassProfilePage() {
         </>
       ) : tab === 'athletes' ? (
         rosterPanel
-      ) : tab === 'schedule' ? (
-        <section className="panel class-profile-card">
-          <p className="muted">
-            Δείτε το εβδομαδιαίο πρόγραμμα στο{' '}
-            <Link to={`/schedule?sport=${encodeURIComponent(cls.sport)}`}>Πρόγραμμα</Link>.
-          </p>
-        </section>
-      ) : tab === 'attendance' ? (
-        <section className="panel class-profile-card">
-          <p className="muted">
-            Καταχωρήστε παρουσίες στο{' '}
-            <Link to="/attendance">Παρουσίες</Link>.
-          </p>
-        </section>
       ) : (
         <section className="panel class-profile-card">
           <p className="muted">Δεν υπάρχουν αρχεία ή βίντεο για αυτό το τμήμα.</p>

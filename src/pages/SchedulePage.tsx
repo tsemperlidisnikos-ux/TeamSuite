@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CalendarPlus, ChevronLeft, ChevronRight, Info, Pencil, Plus } from 'lucide-react';
 import * as scheduleService from '../api/services/scheduleService';
@@ -231,7 +231,11 @@ export function SchedulePage() {
 
   const [sportFilter, setSportFilter] = useState(() => {
     if (coach?.sport) return coach.sport;
-    return (searchParams.get('sport') ?? '').trim();
+    const sport = (searchParams.get('sport') ?? '').trim();
+    if (sport) return sport;
+    const qClass = (searchParams.get('classId') ?? '').trim();
+    const cls = data.classes.find((c) => c.id === qClass);
+    return (cls?.sport ?? '').trim();
   });
 
   const classesForSport = useMemo(() => {
@@ -239,7 +243,7 @@ export function SchedulePage() {
     return visibleClasses.filter((c) => sportsMatch(c.sport, sportFilter));
   }, [visibleClasses, sportFilter]);
 
-  const [classId, setClassId] = useState('');
+  const [classId, setClassId] = useState(() => (searchParams.get('classId') ?? '').trim());
   const [weekStart, setWeekStart] = useState(() => startOfWeekMonday(new Date()));
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -258,19 +262,40 @@ export function SchedulePage() {
         ? classesForSport[0]?.id ?? ''
         : '';
 
-  function handleSportChange(nextSport: string) {
-    setSportFilter(nextSport);
+  useEffect(() => {
+    const qClass = (searchParams.get('classId') ?? '').trim();
+    const qSport = (searchParams.get('sport') ?? '').trim();
+    if (qClass) setClassId(qClass);
+    const cls = data.classes.find((c) => c.id === qClass);
+    if (qSport) setSportFilter(qSport);
+    else if (cls?.sport && !coach?.sport) setSportFilter(cls.sport);
+  }, [searchParams, data.classes, coach?.sport]);
+
+  function writeScheduleQuery(nextSport: string, nextClassId: string) {
     const next = new URLSearchParams(searchParams);
     if (nextSport.trim()) next.set('sport', nextSport.trim());
     else next.delete('sport');
+    if (nextClassId) next.set('classId', nextClassId);
+    else next.delete('classId');
     setSearchParams(next, { replace: true });
+  }
+
+  function handleSportChange(nextSport: string) {
+    setSportFilter(nextSport);
     const nextClasses = nextSport.trim()
       ? visibleClasses.filter((c) => sportsMatch(c.sport, nextSport))
       : visibleClasses;
-    setClassId((prev) => {
-      if (prev && nextClasses.some((c) => c.id === prev)) return prev;
+    const nextClassId = (() => {
+      if (classId && nextClasses.some((c) => c.id === classId)) return classId;
       return isCoach ? nextClasses[0]?.id ?? '' : '';
-    });
+    })();
+    setClassId(nextClassId);
+    writeScheduleQuery(nextSport, nextClassId);
+  }
+
+  function handleClassChange(nextClassId: string) {
+    setClassId(nextClassId);
+    writeScheduleQuery(sportFilter, nextClassId);
   }
 
   const weekDays = useMemo(
@@ -522,7 +547,7 @@ export function SchedulePage() {
 
         <label className="prog-field">
           <span>Επιλογή Τμήματος</span>
-          <select value={activeClassId} onChange={(e) => setClassId(e.target.value)}>
+          <select value={activeClassId} onChange={(e) => handleClassChange(e.target.value)}>
             {isCoach ? null : <option value="">Όλα τα τμήματα</option>}
             {classesForSport.map((cls) => (
               <option key={cls.id} value={cls.id}>
