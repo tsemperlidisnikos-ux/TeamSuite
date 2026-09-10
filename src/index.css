@@ -3915,6 +3915,44 @@ html[data-appearance] .settings-backup-schedule-status {
   margin: 0 0 0.6rem;
 }
 
+.trainings-notice {
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius, 12px);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.trainings-notice > p {
+  margin: 0 0 0.4rem;
+  font-weight: 650;
+}
+
+.trainings-notice ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.trainings-notice a {
+  color: inherit;
+  font-weight: 600;
+}
+
+.trainings-notice-warn {
+  border-color: color-mix(in srgb, var(--danger, #b42318) 28%, var(--line));
+  background: color-mix(in srgb, var(--danger, #b42318) 8%, #fff);
+}
+
+.trainings-notice-more {
+  margin: 0.35rem 0 0;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .training-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -6668,18 +6706,23 @@ html[data-appearance] .settings-backup-schedule-status {
   }
 }
 
-.money-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
+.money-strip,
+.money-strip-4 {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.65rem;
   margin: 0 0 1rem;
+  width: 100%;
 }
 
 .money-strip-item {
+  flex: 1 1 0;
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 0.85rem;
   display: grid;
   gap: 0.2rem;
 }
@@ -6691,10 +6734,13 @@ a.money-strip-item {
 
 .money-strip-item span {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .money-strip-item strong {
@@ -6767,15 +6813,21 @@ a.money-strip-item {
 }
 
 @media (max-width: 640px) {
-  .money-strip {
-    gap: 0.5rem;
+  .money-strip,
+  .money-strip-4 {
+    gap: 0.4rem;
   }
 
   .money-strip-item {
-    padding: 0.7rem 0.75rem;
+    padding: 0.6rem 0.5rem;
   }
 
   .money-strip-item strong {
-    font-size: 1.1rem;
+    font-size: 1rem;
+  }
+
+  .money-strip-item span {
+    font-size: 0.62rem;
+    letter-spacing: 0.02em;
   }
 }

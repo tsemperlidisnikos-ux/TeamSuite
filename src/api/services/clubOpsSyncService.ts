@@ -81,6 +81,7 @@ export async function publishClubOpsSlice(clubId?: string | null) {
       body: JSON.stringify({ clubId: id, slice: clubOpsSliceFromData(data) }),
     });
     if (response.status === 503) return;
+    if (!response.ok) return;
     const json = (await response.json().catch(() => null)) as { updatedAt?: string } | null;
     if (json?.updatedAt) {
       const { noteClubMirrorRevision } = await import('../../data/clubSync');

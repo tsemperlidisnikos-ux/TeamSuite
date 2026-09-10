@@ -11,7 +11,9 @@ import {
   loadMirror,
   loadPublicClubBySlug,
   loadClubNotifyConfig,
+  mergeOpsSliceIntoPayload,
   requestAddress,
+  saveMirrorWithRetry,
   saveMirror,
   assertClubTenantAccess,
   consumeSettlement,
@@ -257,6 +259,50 @@ async function emailRentalBooking(clubId: string, clubName: string, booking: Ren
   }
 }
 
+type RentPayload = RentalOccupancySource & Record<string, unknown>;
+
+class RentApplyError extends Error {
+  constructor(
+    message: string,
+    readonly status = 409,
+  ) {
+    super(message);
+  }
+}
+
+async function commitRentPayload(
+  clubId: string,
+  apply: (payload: RentPayload) => void,
+): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
+  for (let i = 0; i < 5; i++) {
+    const mirror = await loadMirror(clubId);
+    const payload = {
+      ...(asSource(mirror?.payload) as Record<string, unknown>),
+    } as RentPayload;
+    payload.rentalBookings = [...(payload.rentalBookings ?? [])];
+    if (Array.isArray(payload.revenues)) {
+      payload.revenues = [...(payload.revenues as unknown[])];
+    }
+    try {
+      apply(payload);
+    } catch (err) {
+      if (err instanceof RentApplyError) {
+        return { ok: false, error: err.message, status: err.status };
+      }
+      throw err;
+    }
+    const saved = await saveMirror(clubId, payload, {
+      baseUpdatedAt: mirror?.updatedAt ?? null,
+    });
+    if (saved.ok !== false) return { ok: true };
+  }
+  return {
+    ok: false,
+    status: 409,
+    error: 'Κάποιος άλλος ενημέρωσε τις κρατήσεις. Ξαναδοκιμάστε.',
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store');
 
@@ -270,19 +316,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!(await assertClubTenantAccess(req, res, clubId))) return;
     const occupancy = body.occupancy && typeof body.occupancy === 'object' ? body.occupancy : null;
     if (!occupancy) return res.status(400).json({ ok: false, error: 'occupancy required' });
-    const mirror = await loadMirror(clubId);
-    const prev = asSource(mirror?.payload) as RentalOccupancySource & Record<string, unknown>;
-    const next = {
-      ...prev,
-      facilities: occupancy.facilities ?? prev.facilities,
-      schedule: occupancy.schedule ?? prev.schedule,
-      trainings: occupancy.trainings ?? prev.trainings,
-      matches: occupancy.matches ?? prev.matches,
-      rentalSettings: occupancy.rentalSettings ?? prev.rentalSettings,
-      rentalBookings: occupancy.rentalBookings ?? prev.rentalBookings,
-    };
-    await saveMirror(clubId, next);
-    return res.status(200).json({ ok: true, durable: isDurableStoreEnabled() });
+    const saved = await saveMirrorWithRetry(clubId, (prev) => {
+      const merged = mergeOpsSliceIntoPayload(prev, occupancy as Record<string, unknown>);
+      return {
+        ...merged,
+        facilities: occupancy.facilities ?? prev.facilities,
+        rentalSettings: occupancy.rentalSettings ?? prev.rentalSettings,
+      };
+    });
+    if (saved.ok === false) {
+      return res.status(409).json({
+        ok: false,
+        conflict: true,
+        error: 'Κάποιος άλλος ενημέρωσε τις κρατήσεις. Ξαναδοκιμάστε.',
+      });
+    }
+    return res.status(200).json({ ok: true, durable: isDurableStoreEnabled(), updatedAt: saved.updatedAt });
   }
 
   if (req.method === 'GET') {
@@ -397,63 +446,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const club = await resolveBySlug(slug);
     if (!club) return res.status(404).json({ ok: false, error: 'Ο σύνδεσμος δεν βρέθηκε.' });
-    const mirror = await loadMirror(club.clubId);
-    const payload = asSource(mirror?.payload) as RentalOccupancySource & Record<string, unknown>;
-    const list = Array.isArray(payload.rentalBookings) ? payload.rentalBookings : [];
-    const index = list.findIndex((item) => item.id === bookingId);
-    if (index < 0) return res.status(404).json({ ok: false, error: 'Η κράτηση δεν βρέθηκε.' });
-    const current = list[index]!;
-    if (current.status === 'cancelled') {
-      return res.status(409).json({ ok: false, error: 'Η κράτηση έχει ακυρωθεί.' });
+    let confirmed: RentalBooking | null = null;
+    const saved = await commitRentPayload(club.clubId, (payload) => {
+      const list = payload.rentalBookings ?? [];
+      const index = list.findIndex((item) => item.id === bookingId);
+      if (index < 0) throw new RentApplyError('Η κράτηση δεν βρέθηκε.', 404);
+      const current = list[index]!;
+      if (current.status === 'cancelled') {
+        throw new RentApplyError('Η κράτηση έχει ακυρωθεί.');
+      }
+      if (current.status === 'confirmed' && current.paymentCollected !== false) {
+        confirmed = current;
+        return;
+      }
+      if (current.status !== 'pending_payment') {
+        throw new RentApplyError('Η κράτηση δεν εκκρεμεί για online πληρωμή.');
+      }
+      confirmed = {
+        ...current,
+        status: 'confirmed',
+        paymentProvider: current.paymentProvider ?? 'viva',
+        paymentCollected: true,
+        paymentMethod: 'viva',
+        paidOn: todayAthensIso(),
+        paidAt: new Date().toISOString(),
+      };
+      list[index] = confirmed;
+      payload.rentalBookings = list;
+      if (!Array.isArray(payload.revenues)) payload.revenues = [];
+      const rentRevId = `rev_rent_${confirmed.id}`;
+      const rentRev = {
+        id: rentRevId,
+        date: confirmed.paidOn,
+        amount: Number(confirmed.amount) || 0,
+        category: 'events',
+        description: `Ενοικίαση ${confirmed.facilityName} (${confirmed.startTime}–${confirmed.endTime})`,
+        paymentStatus: 'paid',
+        subcategory: 'ΕΝΟΙΚΙΑΣΗ ΓΗΠΕΔΟΥ',
+        notes: `${confirmed.customerName} · ${confirmed.customerPhone}`.trim(),
+        paymentMethod: 'viva',
+        linkedRentalBookingId: confirmed.id,
+      };
+      const revList = payload.revenues as Array<Record<string, unknown>>;
+      const revIdx = revList.findIndex(
+        (row) => row.id === rentRevId || row.linkedRentalBookingId === confirmed!.id,
+      );
+      if (revIdx >= 0) revList[revIdx] = { ...revList[revIdx], ...rentRev };
+      else revList.push(rentRev);
+      payload.revenues = revList;
+    });
+    if (saved.ok === false) {
+      return res.status(saved.status).json({ ok: false, error: saved.error });
     }
-    if (current.status === 'confirmed' && current.paymentCollected !== false) {
-      return res.status(200).json({ ok: true, bookingId: current.id, paid: true });
-    }
-    if (current.status !== 'pending_payment') {
-      return res.status(409).json({ ok: false, error: 'Η κράτηση δεν εκκρεμεί για online πληρωμή.' });
-    }
-    if (current.paymentRef) {
+    if (confirmed?.paymentRef) {
       try {
-        await consumeSettlement(current.paymentRef);
+        await consumeSettlement(confirmed.paymentRef);
       } catch {
         /* webhook μπορεί να μην έχει φτάσει ακόμα */
       }
     }
-    const confirmed: RentalBooking = {
-      ...current,
-      status: 'confirmed',
-      paymentProvider: current.paymentProvider ?? 'viva',
-      paymentCollected: true,
-      paymentMethod: 'viva',
-      paidOn: todayAthensIso(),
-      paidAt: new Date().toISOString(),
-    };
-    list[index] = confirmed;
-    payload.rentalBookings = list;
-    if (!Array.isArray(payload.revenues)) payload.revenues = [];
-    const rentRevId = `rev_rent_${confirmed.id}`;
-    const rentRev = {
-      id: rentRevId,
-      date: confirmed.paidOn,
-      amount: Number(confirmed.amount) || 0,
-      category: 'events',
-      description: `Ενοικίαση ${confirmed.facilityName} (${confirmed.startTime}–${confirmed.endTime})`,
-      paymentStatus: 'paid',
-      subcategory: 'ΕΝΟΙΚΙΑΣΗ ΓΗΠΕΔΟΥ',
-      notes: `${confirmed.customerName} · ${confirmed.customerPhone}`.trim(),
-      paymentMethod: 'viva',
-      linkedRentalBookingId: confirmed.id,
-    };
-    const revList = payload.revenues as Array<Record<string, unknown>>;
-    const revIdx = revList.findIndex(
-      (row) => row.id === rentRevId || row.linkedRentalBookingId === confirmed.id,
-    );
-    if (revIdx >= 0) revList[revIdx] = { ...revList[revIdx], ...rentRev };
-    else revList.push(rentRev);
-    payload.revenues = revList;
-    await saveMirror(club.clubId, payload);
-    await emailRentalBooking(club.clubId, club.name, confirmed, confirmed.customerEmail);
-    return res.status(200).json({ ok: true, bookingId: confirmed.id, paid: true });
+    if (confirmed && confirmed.status === 'confirmed') {
+      await emailRentalBooking(club.clubId, club.name, confirmed, confirmed.customerEmail);
+    }
+    return res.status(200).json({ ok: true, bookingId: confirmed?.id ?? bookingId, paid: true });
   }
 
   const facilityId = String(body.facilityId ?? '').trim();
@@ -554,9 +609,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         failureUrl: `${origin}/rent/${encodeURIComponent(slug)}?${failQs.toString()}`,
       });
       booking.paymentRef = checkout.orderCode;
-      const list = Array.isArray(payload.rentalBookings) ? payload.rentalBookings : [];
-      payload.rentalBookings = [booking, ...list];
-      await saveMirror(club.clubId, payload);
+      const saved = await commitRentPayload(club.clubId, (fresh) => {
+        const facilityNow = (fresh.facilities ?? []).find((f) => f.id === facilityId);
+        if (!facilityNow) throw new RentApplyError('Το γήπεδο δεν βρέθηκε.', 400);
+        const checkNow = slotIsFree(fresh, facilityNow, date, startTime, endTime, courtShare);
+        if (checkNow.ok === false) throw new RentApplyError(checkNow.reason);
+        fresh.rentalBookings = [booking, ...(fresh.rentalBookings ?? [])];
+      });
+      if (saved.ok === false) {
+        return res.status(saved.status).json({ ok: false, error: saved.error });
+      }
       return res.status(200).json({
         ok: true,
         bookingId: booking.id,
@@ -571,9 +633,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  const list = Array.isArray(payload.rentalBookings) ? payload.rentalBookings : [];
-  payload.rentalBookings = [booking, ...list];
-  await saveMirror(club.clubId, payload);
+  const saved = await commitRentPayload(club.clubId, (fresh) => {
+    const facilityNow = (fresh.facilities ?? []).find((f) => f.id === facilityId);
+    if (!facilityNow) throw new RentApplyError('Το γήπεδο δεν βρέθηκε.', 400);
+    const checkNow = slotIsFree(fresh, facilityNow, date, startTime, endTime, courtShare);
+    if (checkNow.ok === false) throw new RentApplyError(checkNow.reason);
+    fresh.rentalBookings = [booking, ...(fresh.rentalBookings ?? [])];
+  });
+  if (saved.ok === false) {
+    return res.status(saved.status).json({ ok: false, error: saved.error });
+  }
   await emailRentalBooking(club.clubId, club.name, booking, customerEmail);
   return res.status(200).json({ ok: true, bookingId: booking.id });
 }

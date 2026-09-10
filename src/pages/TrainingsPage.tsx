@@ -1,5 +1,4 @@
-import { useMemo, useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import * as trainingsService from '../api/services/trainingsService';
 import * as classesService from '../api/services/classesService';
 import * as notificationService from '../api/services/notificationService';
@@ -20,7 +19,8 @@ import { listActiveClubSportNames } from '../utils/clubSports';
 import { listActiveFacilities } from '../utils/facilityHours';
 import { normalizeSportKey } from '../utils/sport';
 import { classToFormInput } from '../utils/classHelpers';
-import { classRequiresAttendance } from '../utils/missingTrainingAttendance';
+import { classRequiresAttendance, listMissingAttendanceTrainings, trainingHasEnded } from '../utils/missingTrainingAttendance';
+import { localDateIso } from '../utils/dates';
 
 const emptyForm: TrainingInput = {
   date: '',
@@ -136,6 +136,30 @@ export function TrainingsPage() {
         }),
     [data.trainings, allowedClassIds, isCoach],
   );
+
+  const missingAttendance = useMemo(
+    () =>
+      listMissingAttendanceTrainings({
+        trainings: data.trainings,
+        classes: data.classes,
+        attendance: data.attendance,
+        seasons: data.clubSeasons,
+        classIds: isCoach ? allowedClassIds : undefined,
+      }),
+    [data.trainings, data.classes, data.attendance, data.clubSeasons, isCoach, allowedClassIds],
+  );
+
+  const todayUpcoming = useMemo(() => {
+    const today = localDateIso();
+    const classById = new Map(data.classes.map((cls) => [cls.id, cls]));
+    return trainings
+      .filter((t) => t.date === today && !trainingHasEnded(t))
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))
+      .map((t) => ({
+        ...t,
+        className: (t.classId && classById.get(t.classId)?.name) || 'Τμήμα',
+      }));
+  }, [trainings, data.classes]);
 
   const allSelected =
     trainings.length > 0 && trainings.every((t) => selectedIds.has(t.id));
@@ -423,6 +447,48 @@ export function TrainingsPage() {
         </div>
       </header>
       {error ? <p className="form-error">{error}</p> : null}
+
+      {missingAttendance.length > 0 ? (
+        <section className="trainings-notice trainings-notice-warn" aria-label="Προπονήσεις χωρίς παρουσίες">
+          <p>
+            {missingAttendance.length === 1
+              ? '1 ληγμένη προπόνηση χωρίς παρουσίες'
+              : `${missingAttendance.length} ληγμένες προπονήσεις χωρίς παρουσίες`}
+          </p>
+          <ul>
+            {missingAttendance.slice(0, 8).map((row) => (
+              <li key={row.id}>
+                <Link
+                  to={`/attendance?classId=${encodeURIComponent(row.classId ?? '')}&date=${encodeURIComponent(row.date)}`}
+                >
+                  {formatDate(row.date)} · {row.startTime}–{row.endTime} · {row.className}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {missingAttendance.length > 8 ? (
+            <p className="trainings-notice-more">+{missingAttendance.length - 8} ακόμη</p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {todayUpcoming.length > 0 ? (
+        <section className="trainings-notice" aria-label="Προπονήσεις σήμερα">
+          <p>
+            {todayUpcoming.length === 1
+              ? '1 προπόνηση σήμερα που δεν έχει λήξει ακόμα'
+              : `${todayUpcoming.length} προπονήσεις σήμερα που δεν έχουν λήξει ακόμα`}
+          </p>
+          <ul>
+            {todayUpcoming.slice(0, 8).map((row) => (
+              <li key={row.id}>
+                {row.startTime}–{row.endTime} · {row.className}
+                {row.location ? ` · ${row.location}` : ''}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="panel table-wrap">
         {trainings.length === 0 ? (

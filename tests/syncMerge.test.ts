@@ -56,6 +56,42 @@ describe('finance tombstones', () => {
     });
     expect(target.revenues.some((row) => row.id === 'rev_1')).toBe(false);
   });
+
+  it('keeps the newer revenue when two devices edit the same id', () => {
+    const local = club({
+      revenues: [
+        {
+          id: 'rev_2',
+          date: '2026-01-01',
+          amount: 10,
+          category: 'other',
+          description: 'old',
+          paymentStatus: 'paid',
+          updatedAt: 1,
+        },
+      ],
+    });
+    const cloud = club({
+      revenues: [
+        {
+          id: 'rev_2',
+          date: '2026-01-01',
+          amount: 25,
+          category: 'other',
+          description: 'new',
+          paymentStatus: 'paid',
+          updatedAt: 9,
+        },
+      ],
+    });
+    const target = structuredClone(local);
+    applyFinanceCollections(target, local, cloud, {
+      preferLocal: true,
+      treatCloudOnlyTxAsDeleted: false,
+    });
+    expect(target.revenues[0]?.amount).toBe(25);
+    expect(target.revenues[0]?.description).toBe('new');
+  });
 });
 
 describe('ops attendance slot merge', () => {

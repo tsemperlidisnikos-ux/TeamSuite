@@ -472,7 +472,7 @@ export function DashboardPage() {
         />
       </div>
 
-      <div className="money-strip" aria-label="Οικονομική σύνοψη">
+      <div className="money-strip money-strip-4" aria-label="Οικονομική σύνοψη">
         <div className="money-strip-item">
           <span>Ταμείο</span>
           <strong>{formatCurrency(moneyStrip.cashBalance)}</strong>

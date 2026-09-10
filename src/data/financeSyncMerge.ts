@@ -149,18 +149,31 @@ export function applyFinanceCollections(
   target.deletedCashAccountIds = [...deletedCash].slice(-FINANCE_TOMBSTONE_CAP);
   target.deletedBudgetIds = [...deletedBudgets].slice(-FINANCE_TOMBSTONE_CAP);
 
-  target.expenses = mergeById(local.expenses, cloud.expenses, deletedExpenses, opts.preferLocal);
-  target.revenues = mergeById(local.revenues, cloud.revenues, deletedRevenues, opts.preferLocal).filter(
-    (row) => !row.linkedTransactionId || !deletedTx.has(row.linkedTransactionId),
+  target.expenses = mergeByIdPreferringUpdatedAt(
+    local.expenses,
+    cloud.expenses,
+    deletedExpenses,
+    opts.preferLocal,
   );
-  target.cashAccounts = mergeById(
+  target.revenues = mergeByIdPreferringUpdatedAt(
+    local.revenues,
+    cloud.revenues,
+    deletedRevenues,
+    opts.preferLocal,
+  ).filter((row) => !row.linkedTransactionId || !deletedTx.has(row.linkedTransactionId));
+  target.cashAccounts = mergeByIdPreferringUpdatedAt(
     local.cashAccounts,
     cloud.cashAccounts,
     deletedCash,
     opts.preferLocal,
   );
-  target.budgets = mergeById(local.budgets, cloud.budgets, deletedBudgets, opts.preferLocal);
-  target.feeChargeTemplates = mergeById(
+  target.budgets = mergeByIdPreferringUpdatedAt(
+    local.budgets,
+    cloud.budgets,
+    deletedBudgets,
+    opts.preferLocal,
+  );
+  target.feeChargeTemplates = mergeByIdPreferringUpdatedAt(
     local.feeChargeTemplates,
     cloud.feeChargeTemplates,
     new Set(),

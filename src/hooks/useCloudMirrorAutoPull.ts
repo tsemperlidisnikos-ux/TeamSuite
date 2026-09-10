@@ -26,16 +26,24 @@ export function useCloudMirrorAutoPull(clubId: string | null | undefined) {
       if (document.visibilityState === 'visible') {
         void runPull();
       } else if (clubId) {
-        void import('../data/clubSync').then((m) => m.flushClubMirrorPush(clubId));
-        void import('../api/services/accountSyncService').then((m) => m.flushAccountBundlePush());
+        void import('../data/clubSync').then((m) =>
+          m.flushClubMirrorPush(clubId, { keepalive: true }),
+        );
+        void import('../api/services/accountSyncService').then((m) =>
+          m.flushAccountBundlePush({ keepalive: true }),
+        );
       }
     }
 
     function onPageHide() {
       if (clubId) {
-        void import('../data/clubSync').then((m) => m.flushClubMirrorPush(clubId));
+        void import('../data/clubSync').then((m) =>
+          m.flushClubMirrorPush(clubId, { keepalive: true }),
+        );
       }
-      void import('../api/services/accountSyncService').then((m) => m.flushAccountBundlePush());
+      void import('../api/services/accountSyncService').then((m) =>
+        m.flushAccountBundlePush({ keepalive: true }),
+      );
     }
 
     function onPlatformUpdated() {

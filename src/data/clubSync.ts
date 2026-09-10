@@ -245,13 +245,13 @@ export function scheduleClubMirrorPush(clubId?: string | null): void {
   }, 400);
 }
 
-async function maybePushAccountBundle() {
+async function maybePushAccountBundle(keepalive?: boolean) {
   const { getSession, isPlatformAdmin } = await import('../auth/auth');
   const { getSessionToken } = await import('../api/services/sessionService');
   if (!isPlatformAdmin() || !getSessionToken() || getSession()?.role !== 'platform_admin') {
     return { success: true as const, skipped: true, error: null };
   }
-  const result = await accountSyncService.pushAccountBundle();
+  const result = await accountSyncService.pushAccountBundle({ keepalive });
   if (!result.success) {
     const err = result.error ?? '';
     if (err.includes('Μόνο Platform Admin')) {
@@ -264,7 +264,7 @@ async function maybePushAccountBundle() {
 
 export async function flushClubMirrorPush(
   clubId?: string | null,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; keepalive?: boolean },
 ) {
   const id = clubId ?? resolveActiveClubId();
   if (!id || id === '_default') {
@@ -281,7 +281,7 @@ export async function flushClubMirrorPush(
 
   const run = async () => {
     await whenClubMapPersisted();
-    return await pushClubAndAccounts(id, getLastSyncAt(id));
+    return await pushClubAndAccounts(id, getLastSyncAt(id), { keepalive: opts?.keepalive });
   };
 
   const queued = pushQueue.then(run, run);
@@ -308,42 +308,42 @@ function mergeLocalPreferredForPush(local: AppData, cloud: AppData): AppData {
   });
 }
 
-async function pushClubAndAccounts(id: string, baseUpdatedAt: string | null) {
-  let result = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: baseUpdatedAt });
+async function pushClubAndAccounts(
+  id: string,
+  baseUpdatedAt: string | null,
+  opts?: { keepalive?: boolean },
+) {
+  let result = await backendSyncService.pushClubMirror(id, {
+    baseUpdatedAt: baseUpdatedAt,
+    keepalive: opts?.keepalive,
+  });
 
-  if (!result.success) {
-    const err = result.error ?? '';
-    const isConflict = err.toLowerCase().includes('conflict');
+  for (let attempt = 0; attempt < 3 && !result.success; attempt++) {
     const pull = await backendSyncService.pullClubMirror(id);
-    if (pull.success && pull.data?.payload && pull.data.durable !== false) {
-      const { getClubData, replaceClubData } = await import('./repository');
-      const local = getClubData(id);
-      const cloud = pull.data.payload;
-      if (shouldHoldWriteConflict(id, local, cloud)) {
-        rememberWriteConflict(id, local, cloud);
-        return {
-          success: false as const,
-          data: null,
-          error:
-            'Άλλος χρήστης αποθήκευσε στο cloud. Επιλέξτε αν θα κρατήσετε τις αλλαγές σας ή του άλλου.',
-        };
-      }
-      const merged = mergeLocalPreferredForPush(local, cloud);
-      const { syncRentalRevenuesInData } = await import('../api/services/rentalRevenueBridge');
-      syncRentalRevenuesInData(merged);
-      replaceClubData(id, merged, { skipCloudPush: true });
-      result = await backendSyncService.pushClubMirror(id, {
-        baseUpdatedAt: isConflict ? pull.data.updatedAt ?? null : baseUpdatedAt,
-      });
-      if (!result.success) {
-        result = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: null });
-      }
-    } else if (isConflict) {
-      result = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: null });
+    if (!pull.success || !pull.data?.payload || pull.data.durable === false) break;
+    const { getClubData, replaceClubData } = await import('./repository');
+    const local = getClubData(id);
+    const cloud = pull.data.payload;
+    if (shouldHoldWriteConflict(id, local, cloud)) {
+      rememberWriteConflict(id, local, cloud);
+      return {
+        success: false as const,
+        data: null,
+        error:
+          'Άλλος χρήστης αποθήκευσε στο cloud. Επιλέξτε αν θα κρατήσετε τις αλλαγές σας ή του άλλου.',
+      };
     }
+    const merged = mergeLocalPreferredForPush(local, cloud);
+    const { syncRentalRevenuesInData } = await import('../api/services/rentalRevenueBridge');
+    syncRentalRevenuesInData(merged);
+    replaceClubData(id, merged, { skipCloudPush: true });
+    result = await backendSyncService.pushClubMirror(id, {
+      baseUpdatedAt: pull.data.updatedAt ?? null,
+      keepalive: opts?.keepalive,
+    });
   }
 
-  await maybePushAccountBundle();
+  await maybePushAccountBundle(opts?.keepalive);
   if (result.success) {
     setLastSyncAt(id, result.data?.updatedAt ?? new Date().toISOString());
     clearClubMirrorDirty(id);
@@ -868,7 +868,7 @@ export async function hydrateAllClubMirrorsFromCloud(): Promise<void> {
           preferLocal
             ? mergeClubSnapshots(local, stripHeavyMedia(result.data.payload), {
                 preferLocal,
-                treatCloudOnlyTxAsDeleted: preferLocal,
+                treatCloudOnlyTxAsDeleted: false,
               })
             : applyCloudClubData(local, result.data.payload),
           { skipCloudPush: true },
@@ -971,12 +971,13 @@ export async function resolveClubWriteConflict(
 export async function persistLocalStateToCloud(opts?: {
   clubIds?: string[];
   overwriteCloud?: boolean;
+  keepalive?: boolean;
 }) {
   await whenClubMapPersisted();
   const ids = opts?.clubIds?.length ? opts.clubIds : await clubIdsForSync();
   const unique = [...new Set(ids.filter((id) => id && id !== '_default'))];
 
-  const account = await maybePushAccountBundle();
+  const account = await maybePushAccountBundle(opts?.keepalive);
   const errors: string[] = [];
   if (!account.success && account.error) {
     errors.push(account.error);
@@ -984,7 +985,7 @@ export async function persistLocalStateToCloud(opts?: {
 
   for (const id of unique) {
     if (opts?.overwriteCloud) clearLastSyncAt(id);
-    const result = await flushClubMirrorPush(id);
+    const result = await flushClubMirrorPush(id, { keepalive: opts?.keepalive });
     if (!result.success && result.error) errors.push(`${id}: ${result.error}`);
   }
 
@@ -995,10 +996,10 @@ export async function persistLocalStateToCloud(opts?: {
 }
 
 /** Best-effort cloud flush so logout is never blocked by a hung push. */
-export async function persistLocalStateToCloudBeforeLogout(timeoutMs = 2000) {
+export async function persistLocalStateToCloudBeforeLogout(timeoutMs = 12_000) {
   try {
     await Promise.race([
-      persistLocalStateToCloud(),
+      persistLocalStateToCloud({ keepalive: true }),
       new Promise<void>((resolve) => {
         window.setTimeout(resolve, timeoutMs);
       }),

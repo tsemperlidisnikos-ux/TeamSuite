@@ -2,9 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
   assertClubTenantAccess,
   isDurableStoreEnabled,
-  loadMirror,
   mergeOpsSliceIntoPayload,
-  saveMirror,
+  saveMirrorWithRetry,
 } from '../lib/serverStore.js';
 
 /**
@@ -27,15 +26,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const slice = body.slice && typeof body.slice === 'object' ? body.slice : null;
   if (!slice) return res.status(400).json({ ok: false, error: 'slice required' });
 
-  const mirror = await loadMirror(clubId);
-  const prev =
-    mirror?.payload && typeof mirror.payload === 'object'
-      ? (mirror.payload as Record<string, unknown>)
-      : {};
-  const next = mergeOpsSliceIntoPayload(prev, slice);
-  const saved = await saveMirror(clubId, next);
+  const saved = await saveMirrorWithRetry(clubId, (prev) => mergeOpsSliceIntoPayload(prev, slice));
   if (saved.ok === false) {
-    return res.status(409).json({ ok: false, conflict: true, error: 'Mirror conflict' });
+    return res.status(409).json({
+      ok: false,
+      conflict: true,
+      error: 'Mirror conflict',
+      updatedAt: saved.updatedAt,
+    });
   }
   return res.status(200).json({ ok: true, durable: isDurableStoreEnabled(), updatedAt: saved.updatedAt });
 }

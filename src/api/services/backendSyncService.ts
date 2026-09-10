@@ -19,7 +19,7 @@ function isAppDataPayload(value: unknown): value is AppData {
 
 export async function pushClubMirror(
   clubId: string,
-  opts?: { baseUpdatedAt?: string | null },
+  opts?: { baseUpdatedAt?: string | null; keepalive?: boolean },
 ) {
   return apiClient(async () => {
     const local = getClubData(clubId);
@@ -27,6 +27,7 @@ export async function pushClubMirror(
     const response = await fetch('/api/sync/mirror', {
       method: 'POST',
       headers: syncAuthHeaders(),
+      keepalive: Boolean(opts?.keepalive),
       body: JSON.stringify({
         clubId,
         payload,

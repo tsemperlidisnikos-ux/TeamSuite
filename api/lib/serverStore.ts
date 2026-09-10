@@ -722,6 +722,32 @@ export async function saveMirror(
   return { ok: true, updatedAt: record.updatedAt };
 }
 
+/** Load → patch → OCC save, retrying when another writer moved the revision. */
+export async function saveMirrorWithRetry(
+  clubId: string,
+  patch: (prev: Record<string, unknown>) => Record<string, unknown>,
+  attempts = 5,
+): Promise<
+  | { ok: true; updatedAt: string }
+  | { ok: false; conflict: true; updatedAt: string }
+> {
+  let lastUpdatedAt = '';
+  for (let i = 0; i < attempts; i++) {
+    const mirror = await loadMirror(clubId);
+    const prev =
+      mirror?.payload && typeof mirror.payload === 'object' && !Array.isArray(mirror.payload)
+        ? { ...(mirror.payload as Record<string, unknown>) }
+        : {};
+    const next = patch(prev);
+    const saved = await saveMirror(clubId, next, {
+      baseUpdatedAt: mirror?.updatedAt ?? null,
+    });
+    if (saved.ok !== false) return { ok: true, updatedAt: saved.updatedAt };
+    lastUpdatedAt = saved.updatedAt;
+  }
+  return { ok: false, conflict: true, updatedAt: lastUpdatedAt };
+}
+
 export async function loadMirror(clubId: string): Promise<MirrorRecord | null> {
   if (!isDurableKvEnabled()) return memory().mirrors[clubId] ?? null;
   return (await kvGet<MirrorRecord>(`${MIRROR_PREFIX}${clubId}`)) ?? null;

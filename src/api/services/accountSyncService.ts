@@ -70,11 +70,12 @@ function payloadForAccountPush() {
   };
 }
 
-export async function pushAccountBundle() {
+export async function pushAccountBundle(opts?: { keepalive?: boolean }) {
   return apiClient(async () => {
     const response = await fetch('/api/sync/account', {
       method: 'POST',
       headers: syncAuthHeaders(),
+      keepalive: Boolean(opts?.keepalive),
       body: JSON.stringify(payloadForAccountPush()),
     });
     const json = await parseSyncJson<{ ok?: boolean; error?: string; updatedAt?: string }>(response);
@@ -271,7 +272,7 @@ export function scheduleAccountBundlePush() {
   }, 400);
 }
 
-export async function flushAccountBundlePush() {
+export async function flushAccountBundlePush(opts?: { keepalive?: boolean }) {
   if (accountPushTimer) {
     clearTimeout(accountPushTimer);
     accountPushTimer = null;
@@ -280,7 +281,7 @@ export async function flushAccountBundlePush() {
   if (session?.role !== 'platform_admin') {
     return { success: true as const, skipped: true as const, error: null };
   }
-  const result = await pushAccountBundle();
+  const result = await pushAccountBundle({ keepalive: opts?.keepalive });
   if (result.success && result.data?.updatedAt) {
     writeAccountUpdatedAt(result.data.updatedAt);
   }
