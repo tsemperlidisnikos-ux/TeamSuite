@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ClipboardList, HeartPulse, Layers, Banknote, Percent, UserCog, AlertTriangle } from 'lucide-react';
 import { getSession } from '../auth/auth';
 import { getClubById, getClubSmtp, smtpHasStoredSecret } from '../auth/clubs';
@@ -27,7 +27,6 @@ import {
   sessionSeesOnlyOwnFinance,
 } from '../utils/financeOwnEntries';
 import { remainingAthleteLicenseSeats } from '../utils/athleteLicenseCap';
-import { ClubSetupWizard } from '../components/ClubSetupWizard';
 import { getPreviewClubId } from '../platform/platformConfig';
 
 type SportBucket = { key: string; label: string };
@@ -196,7 +195,6 @@ function DoctorDashboard() {
 
 export function DashboardPage() {
   const { data } = useAppData();
-  const navigate = useNavigate();
   const session = getSession();
   const isDoctor = session?.role === 'doctor';
   const today = localDateIso();
@@ -407,14 +405,6 @@ export function DashboardPage() {
             : 'Διαχείριση ακαδημίας σε μία οθόνη.'
         }
       />
-
-      {clubId ? (
-        <ClubSetupWizard
-          clubId={clubId}
-          onOpenTab={(next) => navigate(`/settings?tab=${encodeURIComponent(next)}`)}
-          onClubChanged={() => undefined}
-        />
-      ) : null}
 
       {todayOps ? (
         <div className="stack-md">

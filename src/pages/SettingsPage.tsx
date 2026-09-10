@@ -33,7 +33,6 @@ import { ClubUsersPanel } from '../components/ClubUsersPanel';
 import { ClubVivaPanel } from '../components/ClubVivaPanel';
 import { ClubStripePanel } from '../components/ClubStripePanel';
 import { ClubEurobankPanel } from '../components/ClubEurobankPanel';
-import { ClubSetupWizard } from '../components/ClubSetupWizard';
 import { Button } from '../components/ui/Button';
 import { SizeChartPanel } from '../components/SizeChartPanel';
 import { ClothingPackagesPanel } from '../components/ClothingPackagesPanel';
@@ -327,16 +326,6 @@ export function SettingsPage() {
       <div className="set-main">
       {error ? <p className="form-error">{error}</p> : null}
       {message ? <p className="settings-success">{message}</p> : null}
-
-      {tab === 'club' && clubId ? (
-        <ClubSetupWizard
-          clubId={clubId}
-          onOpenTab={(next) => {
-            if (isSettingsTab(next)) setTab(next);
-          }}
-          onClubChanged={refreshClub}
-        />
-      ) : null}
 
       {tab === 'club' ? (
         !clubId || !club ? (
