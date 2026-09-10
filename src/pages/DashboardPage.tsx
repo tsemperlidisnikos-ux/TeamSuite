@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, HeartPulse, Layers, Banknote, Percent, UserCog, AlertTriangle } from 'lucide-react';
 import { getSession } from '../auth/auth';
-import { getClubById, getClubSmtp, smtpHasStoredSecret } from '../auth/clubs';
 import { AthletesIcon } from '../components/icons/AthletesIcon';
 import { Button } from '../components/ui/Button';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -26,8 +25,6 @@ import {
   filterOwnFinanceEntries,
   sessionSeesOnlyOwnFinance,
 } from '../utils/financeOwnEntries';
-import { remainingAthleteLicenseSeats } from '../utils/athleteLicenseCap';
-import { getPreviewClubId } from '../platform/platformConfig';
 
 type SportBucket = { key: string; label: string };
 
@@ -198,7 +195,6 @@ export function DashboardPage() {
   const session = getSession();
   const isDoctor = session?.role === 'doctor';
   const today = localDateIso();
-  const clubId = getPreviewClubId() ?? session?.clubId ?? null;
 
   const classSportById = useMemo(() => {
     const map = new Map<string, string>();
@@ -354,43 +350,6 @@ export function DashboardPage() {
       session?.role === 'secretariat' ||
       session?.role === 'platform_admin');
 
-  const todayOps = useMemo(() => {
-    if (sessionSeesOnlyOwnFinance() && session?.role !== 'admin' && session?.role !== 'secretariat') {
-      return null;
-    }
-    const smtp = getClubSmtp(clubId);
-    const smtpReady = Boolean(
-      smtp.enabled || (smtp.host?.trim() && smtp.username?.trim() && smtpHasStoredSecret(smtp)),
-    );
-    const licenseLimit = getClubById(clubId)?.athleteLicenseLimit ?? 0;
-    const remaining = clubId ? remainingAthleteLicenseSeats(data.students, clubId) : null;
-    const attended = new Set(
-      (data.attendance ?? [])
-        .filter((row) => row.date === today)
-        .map((row) => row.classId),
-    );
-    const missingAttendance = (data.trainings ?? []).filter(
-      (row) => row.date === today && row.classId && !attended.has(row.classId),
-    ).length;
-    const outstanding = clubOutstandingOwed(data.students ?? [], data.transactions ?? []);
-    const pendingRegs = (data.registrationApplications ?? []).filter(
-      (a) => a.status === 'pending',
-    ).length;
-    const expiredHealth = (data.students ?? []).filter((s) => {
-      if (s.status === 'inactive') return false;
-      const exp = s.healthCardExpires?.trim();
-      return Boolean(exp && exp < today);
-    }).length;
-    return {
-      outstanding,
-      missingAttendance,
-      licenseFull: remaining === 0 && licenseLimit > 0,
-      smtpReady,
-      pendingRegs,
-      expiredHealth,
-    };
-  }, [clubId, data.attendance, data.registrationApplications, data.students, data.trainings, data.transactions, today]);
-
   if (isDoctor) {
     return <DoctorDashboard />;
   }
@@ -405,41 +364,6 @@ export function DashboardPage() {
             : 'Διαχείριση ακαδημίας σε μία οθόνη.'
         }
       />
-
-      {todayOps ? (
-        <div className="stack-md">
-          {todayOps.outstanding > 0 ? (
-            <Link className="ops-alert-banner is-warn" to="/fees?owed=1">
-              Εκκρεμείς οφειλές: {formatCurrency(todayOps.outstanding)}
-            </Link>
-          ) : null}
-          {todayOps.pendingRegs > 0 ? (
-            <Link className="ops-alert-banner is-warn" to="/athletes?apps=1">
-              {todayOps.pendingRegs} εκκρεμείς δημόσιες εγγραφές
-            </Link>
-          ) : null}
-          {todayOps.expiredHealth > 0 ? (
-            <Link className="ops-alert-banner is-warn" to="/athletes?health=expired">
-              {todayOps.expiredHealth} κάρτες υγείας ληγμένες
-            </Link>
-          ) : null}
-          {todayOps.missingAttendance > 0 ? (
-            <Link className="ops-alert-banner" to={`/attendance?date=${encodeURIComponent(today)}`}>
-              {todayOps.missingAttendance} προπονήσεις σήμερα χωρίς παρουσίες
-            </Link>
-          ) : null}
-          {todayOps.licenseFull ? (
-            <Link className="ops-alert-banner is-warn" to="/settings?tab=club">
-              Το πακέτο αδειών αθλητών είναι γεμάτο
-            </Link>
-          ) : null}
-          {!todayOps.smtpReady ? (
-            <Link className="ops-alert-banner" to="/settings?tab=email">
-              Το Email/SMTP δεν έχει ρυθμιστεί — οι αποδείξεις και οι υπενθυμίσεις δεν στέλνονται
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
 
       {showLowStock ? (
         <Link className="ops-alert-banner is-warn" to="/warehouse?status=low">

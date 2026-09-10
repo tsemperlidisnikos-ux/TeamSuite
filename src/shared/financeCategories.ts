@@ -177,7 +177,9 @@ export function mapIncomeSubcategoryToCategory(
 ): 'tuition' | 'registration' | 'merchandise' | 'events' | 'other' {
   if (description === 'ΕΓΓΡΑΦΗ') return 'registration';
   if (subcategory.startsWith('ΣΥΝΔΡΟΜΕΣ')) return 'tuition';
-  if (subcategory.startsWith('ΕΙΣΙΤΗΡΙΑ') || subcategory === 'ΕΚΔΗΛΩΣΕΙΣ') return 'events';
+  if (subcategory === 'ΕΝΟΙΚΙΑΣΗ ΓΗΠΕΔΟΥ' || subcategory.startsWith('ΕΙΣΙΤΗΡΙΑ') || subcategory === 'ΕΚΔΗΛΩΣΕΙΣ') {
+    return 'events';
+  }
   if (subcategory === 'ΠΩΛΗΣΕΙΣ ΕΙΔΩΝ' || subcategory === 'ΚΑΝΤΙΝΑ / ΚΥΛΙΚΕΙΟ') {
     return 'merchandise';
   }

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import * as trainingsService from '../api/services/trainingsService';
+import * as classesService from '../api/services/classesService';
 import * as notificationService from '../api/services/notificationService';
 import { getSession } from '../auth/auth';
 import { TrainingsIcon } from '../components/icons/TrainingsIcon';
@@ -18,6 +19,8 @@ import { formatDate } from '../utils/labels';
 import { listActiveClubSportNames } from '../utils/clubSports';
 import { listActiveFacilities } from '../utils/facilityHours';
 import { normalizeSportKey } from '../utils/sport';
+import { classToFormInput } from '../utils/classHelpers';
+import { classRequiresAttendance } from '../utils/missingTrainingAttendance';
 
 const emptyForm: TrainingInput = {
   date: '',
@@ -236,6 +239,21 @@ export function TrainingsPage() {
       return;
     }
     closeModals();
+    refresh();
+  }
+
+  async function handleClassAttendanceRequired(classId: string | null, required: boolean) {
+    if (!classId) return;
+    const cls = data.classes.find((item) => item.id === classId);
+    if (!cls) return;
+    const result = await classesService.updateClass(classId, {
+      ...classToFormInput(cls),
+      attendanceRequired: required,
+    });
+    if (!result.success) {
+      setError(result.error ?? 'Αποτυχία ενημέρωσης παρουσιολογίου');
+      return;
+    }
     refresh();
   }
 
@@ -573,6 +591,24 @@ export function TrainingsPage() {
                 </select>
               </label>
               <label>
+                <span>Παρουσιολόγιο</span>
+                <select
+                  disabled={!form.classId}
+                  value={
+                    form.classId &&
+                    !classRequiresAttendance(visibleClasses.find((c) => c.id === form.classId) ?? data.classes.find((c) => c.id === form.classId))
+                      ? 'no'
+                      : 'yes'
+                  }
+                  onChange={(e) =>
+                    void handleClassAttendanceRequired(form.classId, e.target.value !== 'no')
+                  }
+                >
+                  <option value="yes">Απαιτείται</option>
+                  <option value="no">Δεν απαιτείται (π.χ. ανδρική ομάδα)</option>
+                </select>
+              </label>
+              <label>
                 <span>Σημειώσεις</span>
                 <textarea
                   rows={4}
@@ -642,6 +678,27 @@ export function TrainingsPage() {
                       {cls.name}
                     </option>
                   ))}
+                </select>
+              </label>
+              <label>
+                <span>Παρουσιολόγιο</span>
+                <select
+                  disabled={!recForm.classId}
+                  value={
+                    recForm.classId &&
+                    !classRequiresAttendance(
+                      visibleClasses.find((c) => c.id === recForm.classId) ??
+                        data.classes.find((c) => c.id === recForm.classId),
+                    )
+                      ? 'no'
+                      : 'yes'
+                  }
+                  onChange={(e) =>
+                    void handleClassAttendanceRequired(recForm.classId, e.target.value !== 'no')
+                  }
+                >
+                  <option value="yes">Απαιτείται</option>
+                  <option value="no">Δεν απαιτείται (π.χ. ανδρική ομάδα)</option>
                 </select>
               </label>
               <div className="training-weekdays">

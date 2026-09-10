@@ -81,6 +81,18 @@ export function ClassFormModal({
             />
           </label>
           <label>
+            <span>Παρουσιολόγιο</span>
+            <select
+              value={form.attendanceRequired === false ? 'no' : 'yes'}
+              onChange={(e) =>
+                onChange({ ...form, attendanceRequired: e.target.value !== 'no' })
+              }
+            >
+              <option value="yes">Απαιτείται</option>
+              <option value="no">Δεν απαιτείται (π.χ. ανδρική ομάδα)</option>
+            </select>
+          </label>
+          <label>
             <span>Φύλο</span>
             <select
               value={form.gender ?? ''}

@@ -167,5 +167,6 @@ export function classToFormInput(cls: AcademyClass) {
     birthYearFrom: cls.birthYearFrom ?? null,
     birthYearTo: cls.birthYearTo ?? null,
     manualInactive: cls.manualInactive ?? false,
+    attendanceRequired: cls.attendanceRequired !== false,
   };
 }

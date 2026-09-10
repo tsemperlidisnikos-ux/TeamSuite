@@ -1,20 +1,26 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import {
-  Mail,
+  Building2,
+  CalendarRange,
+  Database,
+  FileText,
+  KeyRound,
+  MessageSquare,
+  Percent,
   Plus,
-  Smartphone,
+  Receipt,
+  Ruler,
+  ShieldCheck,
+  Shirt,
+  Trophy,
   UserPlus,
-  Wallet,
 } from 'lucide-react';
 import { getSession } from '../auth/auth';
 import { useT } from '../i18n/LocaleContext';
 import {
   ensureSessionClub,
   getClubById,
-  getClubSmtp,
-  getClubViva,
   clubAllowsOnlineProvider,
-  smtpHasStoredSecret,
   updateClubLogo,
   updateClubProfile,
 } from '../auth/clubs';
@@ -54,6 +60,7 @@ type SettingsTab =
   | 'users'
   | 'email'
   | 'sms'
+  | 'payments'
   | 'viva'
   | 'stripe'
   | 'eurobank'
@@ -83,61 +90,42 @@ type ClubForm = {
   customChargeLabel: string;
 };
 
-const SETTINGS_NAV: Array<{
-  title: string;
-  tab?: SettingsTab;
-  items: Array<{ id: SettingsTab; label: string }>;
-}> = [
-  {
-    title: 'Προφίλ',
-    tab: 'club',
-    items: [
-      { id: 'facilities', label: 'Γήπεδα' },
-      { id: 'sports', label: 'Αθλήματα' },
-      { id: 'seasons', label: 'Σεζόν' },
-      { id: 'users', label: 'Χρήστες' },
-      { id: 'publicRegistration', label: 'Εγγραφές' },
-    ],
-  },
-  {
-    title: 'Επικοινωνία',
-    items: [
-      { id: 'email', label: 'Email' },
-      { id: 'sms', label: 'SMS' },
-    ],
-  },
-  {
-    title: 'Πληρωμές',
-    items: [
-      { id: 'viva', label: 'Viva' },
-      { id: 'eurobank', label: 'Eurobank' },
-      { id: 'stripe', label: 'Stripe' },
-      { id: 'receipts', label: 'Αποδείξεις' },
-    ],
-  },
-  {
-    title: 'Εκτυπώσεις',
-    tab: 'clothing',
-    items: [],
-  },
-  {
-    title: 'Εγκατάσταση',
-    items: [
-      { id: 'password', label: 'Κωδικός' },
-      { id: 'associations', label: 'Σωματείο' },
-      { id: 'sizes', label: 'Μεγεθολόγιο' },
-      { id: 'discounts', label: 'Εκπτώσεις' },
-      { id: 'terms', label: 'Όροι' },
-      { id: 'amka', label: 'GDPR' },
-      { id: 'backup', label: 'Backup' },
-    ],
-  },
+const PRIMARY_TABS: Array<{ id: SettingsTab; label: string }> = [
+  { id: 'club', label: 'Σύλλογος' },
+  { id: 'users', label: 'Χρήστες' },
+  { id: 'publicRegistration', label: 'Δημόσια εγγραφή' },
+  { id: 'payments', label: 'Πληρωμές' },
 ];
 
+const MORE_TABS: Array<{ id: SettingsTab; label: string; icon: typeof KeyRound }> = [
+  { id: 'facilities', label: 'Γήπεδο', icon: Building2 },
+  { id: 'email', label: 'Email', icon: FileText },
+  { id: 'sms', label: 'SMS', icon: MessageSquare },
+  { id: 'password', label: 'Κωδικός', icon: KeyRound },
+  { id: 'associations', label: 'Σωματείο', icon: Building2 },
+  { id: 'sports', label: 'Άθλημα', icon: Trophy },
+  { id: 'seasons', label: 'Σεζόν', icon: CalendarRange },
+  { id: 'sizes', label: 'Μεγεθολόγιο', icon: Ruler },
+  { id: 'clothing', label: 'Πακέτο ρουχισμού', icon: Shirt },
+  { id: 'discounts', label: 'Λόγοι έκπτωσης', icon: Percent },
+  { id: 'receipts', label: 'Αποδείξεις', icon: Receipt },
+  { id: 'terms', label: 'Όροι', icon: FileText },
+  { id: 'amka', label: 'GDPR', icon: ShieldCheck },
+  { id: 'backup', label: 'Backup', icon: Database },
+];
+
+const PAYMENT_TABS: SettingsTab[] = ['payments', 'viva', 'stripe', 'eurobank'];
+
 function isSettingsTab(value: string): value is SettingsTab {
-  return SETTINGS_NAV.some(
-    (group) => group.tab === value || group.items.some((item) => item.id === value),
+  return (
+    PRIMARY_TABS.some((item) => item.id === value) ||
+    MORE_TABS.some((item) => item.id === value) ||
+    (PAYMENT_TABS as string[]).includes(value)
   );
+}
+
+function navTabFor(tab: SettingsTab): SettingsTab {
+  return PAYMENT_TABS.includes(tab) ? 'payments' : tab;
 }
 
 export function SettingsPage() {
@@ -155,6 +143,9 @@ export function SettingsPage() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [advancedUserOpen, setAdvancedUserOpen] = useState(() =>
+    MORE_TABS.some((item) => item.id === (searchParams.get('tab') ?? '')),
+  );
   const fileRef = useRef<HTMLInputElement>(null);
   const canManageUsers = session?.role === 'admin' || session?.role === 'platform_admin';
 
@@ -262,68 +253,64 @@ export function SettingsPage() {
     }
 
     setSaving(false);
-    setMessage('Τα στοιχεία συλλόγου αποθηκεύτηκαν.');
+    setMessage('Οι ρυθμίσεις συλλόγου αποθηκεύτηκαν.');
     refreshClub();
   }
 
-  const navGroups = SETTINGS_NAV.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => {
-      if (item.id === 'users') return canManageUsers;
-      if (item.id === 'viva') return clubAllowsOnlineProvider(clubId, 'viva');
-      if (item.id === 'eurobank') return clubAllowsOnlineProvider(clubId, 'eurobank');
-      if (item.id === 'stripe') return clubAllowsOnlineProvider(clubId, 'stripe');
-      return true;
-    }),
-  })).filter((group) => Boolean(group.tab) || group.items.length > 0);
-  const smtp = getClubSmtp(clubId);
-  const viva = getClubViva(clubId);
-  const smtpReady = Boolean(
-    smtp.enabled || (smtp.host?.trim() && smtp.username?.trim() && smtpHasStoredSecret(smtp)),
-  );
-  const vivaReady = Boolean(viva.clientId?.trim() && (viva.clientSecret?.trim() || viva.merchantId?.trim()));
+  const tabs = PRIMARY_TABS.filter((item) => (item.id === 'users' ? canManageUsers : true));
+  const navTab = navTabFor(tab);
+
+  useEffect(() => {
+    if (MORE_TABS.some((item) => item.id === tab)) setAdvancedUserOpen(true);
+  }, [tab]);
 
   return (
     <div className="set-page">
       <header className="set-page-head">
         <h1>{t('Ρυθμίσεις')}</h1>
+        <p className="set-page-lede">
+          Τα βασικά για να λειτουργήσει ο σύλλογος είναι εδώ. Email, SMS, GDPR και backup βρίσκονται
+          στα προχωρημένα.
+        </p>
       </header>
 
-      <div className="set-body">
-      <nav className="set-nav" aria-label={t('Κατηγορίες ρυθμίσεων')}>
-        <p className="set-nav-kicker">{t('Ρυθμίσεις')}</p>
-        {navGroups.map((group) => (
-          <div key={group.title} className="set-nav-group">
-            {group.tab ? (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === group.tab}
-                className={`set-nav-group-title${tab === group.tab ? ' is-active' : ''}`}
-                onClick={() => setTab(group.tab!)}
-              >
-                {t(group.title)}
-              </button>
-            ) : (
-              <p className="set-nav-group-title">{t(group.title)}</p>
-            )}
-            {group.items.map((item) => (
+      <nav className="set-tabs" aria-label={t('Κατηγορίες ρυθμίσεων')}>
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={navTab === item.id ? 'is-active' : ''}
+            onClick={() => setTab(item.id)}
+          >
+            {t(item.label)}
+          </button>
+        ))}
+      </nav>
+      <details
+        className="set-tabs-advanced"
+        open={advancedUserOpen}
+        onToggle={(event) => setAdvancedUserOpen(event.currentTarget.open)}
+      >
+        <summary>{t('Για προχωρημένους')}</summary>
+        <div className="set-tabs-more">
+          {MORE_TABS.map((item) => {
+            const Icon = item.icon;
+            return (
               <button
                 key={item.id}
                 type="button"
-                role="tab"
-                aria-selected={tab === item.id}
                 className={tab === item.id ? 'is-active' : ''}
                 onClick={() => setTab(item.id)}
+                title={t(item.label)}
               >
-                {t(item.label)}
+                <Icon size={14} />
+                <span>{t(item.label)}</span>
               </button>
-            ))}
-          </div>
-        ))}
-      </nav>
+            );
+          })}
+        </div>
+      </details>
 
-      <div className="set-main">
       {error ? <p className="form-error">{error}</p> : null}
       {message ? <p className="settings-success">{message}</p> : null}
 
@@ -332,40 +319,56 @@ export function SettingsPage() {
           <p className="form-error">Δεν βρέθηκε σύλλογος για τον λογαριασμό.</p>
         ) : (
           <div className="set-club-layout">
-            <section className="set-license-hero">
-              <div className="set-license-strip">
-                <div className="set-license-copy">
-                  <span>Άδειες αθλητών</span>
+            <section className="set-card panel set-license-card">
+              <h2>Συνδρομή &amp; άδειες αθλητών</h2>
+              <p className="set-card-lede">
+                Όριο αδειών σύμφωνα με το πακέτο συνδρομής του συλλόγου.
+              </p>
+              <div className="set-license-grid">
+                <div className="set-license-stat">
+                  <span>Πακέτο</span>
                   <strong>{licensePackage?.name ?? 'Χωρίς πακέτο'}</strong>
+                  {licensePackage ? (
+                    <em>
+                      {periodLabel(licensePackage.periodMonths)} ·{' '}
+                      {licensePackage.athleteLicenses} άδειες · €
+                      {licensePackage.price.toLocaleString('el-GR', {
+                        minimumFractionDigits: 2,
+                      })}{' '}
+                      +ΦΠΑ
+                    </em>
+                  ) : (
+                    <em>Το όριο ορίζεται από τον διαχειριστή πλατφόρμας.</em>
+                  )}
                   <em>
-                    {licensePackage
-                      ? `${periodLabel(licensePackage.periodMonths)} · ${licensePackage.athleteLicenses} άδειες`
-                      : 'Το όριο ορίζεται από τον διαχειριστή πλατφόρμας'}
                     {club.usageEndsOn
-                      ? ` · έως ${new Date(`${club.usageEndsOn}T00:00:00`).toLocaleDateString('el-GR')}`
-                      : ''}
+                      ? `Λογαριασμός ενεργός έως ${new Date(`${club.usageEndsOn}T00:00:00`).toLocaleDateString('el-GR')}`
+                      : 'Λογαριασμός χωρίς ημερομηνία λήξης'}
                   </em>
                 </div>
-                <div className="set-license-meter">
-                  <div className="set-license-usage">
-                    <strong>
-                      {activeAthleteLicenses}/{licenseLimit || '—'}
-                    </strong>
-                    <em>ενεργές άδειες</em>
-                  </div>
-                  {licenseLimit > 0 ? (
-                    <div
-                      className="set-license-bar"
-                      role="progressbar"
-                      aria-valuenow={activeAthleteLicenses}
-                      aria-valuemin={0}
-                      aria-valuemax={licenseLimit}
-                    >
-                      <i style={{ width: `${licensePct}%` }} />
-                    </div>
-                  ) : null}
+                <div className="set-license-stat">
+                  <span>Χρήση αδειών</span>
+                  <strong>
+                    {activeAthleteLicenses} / {licenseLimit || '—'}
+                  </strong>
+                  <em>
+                    {licenseLimit > 0
+                      ? `${licensePct}% πληρότητα · ενεργοί αθλητές`
+                      : 'Δεν έχει οριστεί όριο αδειών'}
+                  </em>
                 </div>
               </div>
+              {licenseLimit > 0 ? (
+                <div
+                  className="set-license-bar"
+                  role="progressbar"
+                  aria-valuenow={activeAthleteLicenses}
+                  aria-valuemin={0}
+                  aria-valuemax={licenseLimit}
+                >
+                  <i style={{ width: `${licensePct}%` }} />
+                </div>
+              ) : null}
               {licenseOver ? (
                 <p className="set-license-notice set-license-notice--over" role="status">
                   Οι ενεργοί αθλητές ({activeAthleteLicenses}) ξεπερνούν το πακέτο ({licenseLimit}).
@@ -382,12 +385,11 @@ export function SettingsPage() {
               ) : null}
             </section>
 
-            <section className="set-card panel set-identity-card">
-              <div className="set-identity">
-                <div className="set-identity-logo">
-                  <h2>Λογότυπο</h2>
-                  <p className="set-card-lede">PNG, JPG ή SVG · 512×512px</p>
-
+            <section className="set-card panel">
+              <h2>Λογότυπο Συλλόγου</h2>
+              <p className="set-card-lede">
+                Ανεβάστε το λογότυπο του συλλόγου. Προτεινόμενη διάσταση: 512×512px.
+              </p>
               <input
                 ref={fileRef}
                 type="file"
@@ -449,18 +451,18 @@ export function SettingsPage() {
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
                 >
-                      <Plus size={22} />
-                      <strong>Προσθήκη λογοτύπου</strong>
-                      <span>Κλικ ή σύρετε αρχείο</span>
-                    </div>
-                  )}
+                  <Plus size={28} />
+                  <strong>Κάντε κλικ για επιλογή αρχείου ή σύρετε το αρχείο εδώ</strong>
+                  <span>PNG, JPG ή SVG (μέγ. 2MB)</span>
                 </div>
+              )}
+            </section>
 
-                <div className="set-identity-form">
-                  <h2>Στοιχεία συλλόγου</h2>
+            <section className="set-card panel">
+              <h2>Στοιχεία Συλλόγου</h2>
               <div className="set-grid-2">
                 <label className="set-field set-field--full">
-                  <span>Όνομα</span>
+                  <span>Όνομα Συλλόγου</span>
                   <input
                     value={clubForm.name}
                     onChange={(e) => setClubForm({ ...clubForm, name: e.target.value })}
@@ -527,50 +529,17 @@ export function SettingsPage() {
                     placeholder="π.χ. Στολή"
                   />
                   <span className="settings-hint">
-                    Εμφανίζεται στο προφίλ αθλητή μετά την «Χρέωση μήνα».
+                    Εμφανίζεται στο προφίλ αθλητή (Ναι/Όχι) μετά την «Χρέωση μήνα» και στη
+                    δημιουργία χρεώσεων.
                   </span>
                 </label>
               </div>
-                  <div className="set-identity-actions">
-                    <Button type="button" disabled={saving} onClick={() => void handleSaveAll()}>
-                      {saving ? 'Αποθήκευση…' : 'Αποθήκευση στοιχείων'}
-                    </Button>
-                  </div>
-                </div>
-              </div>
             </section>
 
-            <div className="set-connect-grid">
-              <button type="button" className="set-connect-card" onClick={() => setTab('email')}>
-                <Mail size={18} />
-                <span>
-                  <strong>Email / SMTP</strong>
-                  <em className={smtpReady ? 'is-on' : ''}>
-                    {smtpReady ? 'Συνδεδεμένο' : 'Δεν έχει ρυθμιστεί'}
-                  </em>
-                </span>
-                <b>Άνοιγμα ρυθμίσεων</b>
-              </button>
-              <button type="button" className="set-connect-card" onClick={() => setTab('sms')}>
-                <Smartphone size={18} />
-                <span>
-                  <strong>SMS</strong>
-                  <em>Ρύθμιση στο tab SMS</em>
-                </span>
-                <b>Άνοιγμα ρυθμίσεων</b>
-              </button>
-              {clubAllowsOnlineProvider(clubId, 'viva') ? (
-                <button type="button" className="set-connect-card" onClick={() => setTab('viva')}>
-                  <Wallet size={18} />
-                  <span>
-                    <strong>Viva Wallet</strong>
-                    <em className={vivaReady ? 'is-on' : ''}>
-                      {vivaReady ? 'Συνδεδεμένο' : 'Δεν έχει ρυθμιστεί'}
-                    </em>
-                  </span>
-                  <b>Άνοιγμα ρυθμίσεων</b>
-                </button>
-              ) : null}
+            <div className="set-save-bar">
+              <Button type="button" disabled={saving} onClick={() => void handleSaveAll()}>
+                {saving ? 'Αποθήκευση…' : 'Αποθήκευση'}
+              </Button>
             </div>
           </div>
         )
@@ -579,9 +548,27 @@ export function SettingsPage() {
       {tab === 'users' && clubId ? <ClubUsersPanel clubId={clubId} mode="users" /> : null}
       {tab === 'email' && clubId ? <ClubEmailPanel clubId={clubId} /> : null}
       {tab === 'sms' && clubId ? <ClubSmsPanel clubId={clubId} /> : null}
-      {tab === 'viva' && clubId ? <ClubVivaPanel clubId={clubId} /> : null}
-      {tab === 'eurobank' && clubId ? <ClubEurobankPanel clubId={clubId} /> : null}
-      {tab === 'stripe' && clubId ? <ClubStripePanel clubId={clubId} /> : null}
+      {PAYMENT_TABS.includes(tab) && clubId ? (
+        <div className="set-embed stack-lg">
+          <div className="set-embed-head">
+            <h2>Online πληρωμές</h2>
+          </div>
+          <p className="lede">
+            Οι γονείς βλέπουν μόνο τους παρόχους που έχει επιτρέψει ο διαχειριστής πλατφόρμας.
+            Email και SMS ρυθμίζονται στα προχωρημένα.
+          </p>
+          {(tab === 'payments' || tab === 'viva') && clubAllowsOnlineProvider(clubId, 'viva') ? (
+            <ClubVivaPanel clubId={clubId} />
+          ) : null}
+          {(tab === 'payments' || tab === 'eurobank') &&
+          clubAllowsOnlineProvider(clubId, 'eurobank') ? (
+            <ClubEurobankPanel clubId={clubId} />
+          ) : null}
+          {(tab === 'payments' || tab === 'stripe') && clubAllowsOnlineProvider(clubId, 'stripe') ? (
+            <ClubStripePanel clubId={clubId} />
+          ) : null}
+        </div>
+      ) : null}
       {tab === 'publicRegistration' && clubId ? (
         <div className="set-embed">
           <div className="set-embed-head">
@@ -603,8 +590,6 @@ export function SettingsPage() {
       {tab === 'terms' ? <TermsOfUsePanel /> : null}
       {tab === 'amka' ? <AmkaCompliancePanel /> : null}
       {tab === 'backup' ? <BackupPanel /> : null}
-      </div>
-      </div>
     </div>
   );
 }

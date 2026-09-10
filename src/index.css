@@ -1347,6 +1347,12 @@ td.row-actions {
   font-size: 0.85rem;
 }
 
+.form-ok {
+  color: #0f766e;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -58,6 +58,7 @@ import {
   MEDICAL_ACCESS_HINT,
 } from '../shared/termsDefaults';
 import { canAccessAmka, canAccessMedical, formatAmkaForViewer } from '../utils/amkaAccess';
+import { isAmkaEncrypted } from '../utils/amkaCrypto';
 import { collapseDuplicateSurname, composeGivenAndSurname } from '../utils/greekSurname';
 import { toUpperEl } from '../utils/upperText';
 import { announcementVisibleToAthlete } from '../utils/announcementAudience';
@@ -180,6 +181,12 @@ function statusText(status: Student['status']) {
   return 'Ανενεργός';
 }
 
+function amkaForForm(value: string | undefined | null): string {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed || isAmkaEncrypted(trimmed)) return '';
+  return trimmed;
+}
+
 function toForm(
   student: Student,
   catalog: DiscountReasonDef[] = [],
@@ -196,7 +203,7 @@ function toForm(
     classIds: studentClassIds(student),
     status: student.status,
     monthlyFee: student.monthlyFee,
-    amka: student.amka ?? '',
+    amka: amkaForForm(student.amka),
     adt: student.adt ?? '',
     gender: student.gender ?? '',
     fatherFirstName: toUpperEl(student.fatherFirstName ?? ''),
@@ -425,6 +432,7 @@ export function AthleteProfilePage() {
   const [form, setForm] = useState<StudentInput | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [savedOk, setSavedOk] = useState('');
   const [seasonStart, setSeasonStart] = useState(2026);
   const [progressTitle, setProgressTitle] = useState('');
   const [progressNotes, setProgressNotes] = useState('');
@@ -441,6 +449,7 @@ export function AthleteProfilePage() {
   const actionsAnchorRef = useRef<HTMLDivElement>(null);
   const healthCardPreviewUrlRef = useRef<string | null>(null);
   const amkaViewLoggedRef = useRef<string | null>(null);
+  const formAthleteIdRef = useRef<string | null>(null);
 
   const clothingPackages = useMemo(
     () => data.clothingPackages ?? defaultClothingPackages(),
@@ -478,8 +487,26 @@ export function AthleteProfilePage() {
       : null;
 
   useEffect(() => {
-    if (student) setForm(toForm(student, discountCatalog));
-  }, [student, discountCatalog]);
+    if (!student) {
+      formAthleteIdRef.current = null;
+      setForm(null);
+      return;
+    }
+    const studentId = student.id;
+    setForm((prev) => {
+      const switchedAthlete = formAthleteIdRef.current !== studentId;
+      if (!prev || switchedAthlete || !editing) {
+        return toForm(student, discountCatalog);
+      }
+      const storedAmka = amkaForForm(student.amka);
+      const prevAmka = prev.amka ?? '';
+      if (storedAmka && (!prevAmka || isAmkaEncrypted(prevAmka))) {
+        return { ...prev, amka: storedAmka };
+      }
+      return prev;
+    });
+    formAthleteIdRef.current = studentId;
+  }, [student, discountCatalog, editing]);
 
   useEffect(() => {
     if (!amkaAllowed || !student || !session) return;
@@ -766,6 +793,7 @@ export function AthleteProfilePage() {
   }
 
   function setField<K extends keyof StudentInput>(key: K, value: StudentInput[K]) {
+    setSavedOk('');
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
 
@@ -831,6 +859,10 @@ export function AthleteProfilePage() {
       setError(result.error ?? 'Σφάλμα αποθήκευσης');
       return;
     }
+    if (result.data) {
+      setForm(toForm(result.data, discountCatalog));
+    }
+    setSavedOk('Αποθηκεύτηκε');
     if (amkaAllowed && session) {
       const athleteName = `${payload.lastName} ${payload.firstName}`.trim();
       if (amkaValue !== previousAmka) {
@@ -851,7 +883,6 @@ export function AthleteProfilePage() {
         });
       }
     }
-    setEditing(false);
     refresh();
   }
 
@@ -860,6 +891,7 @@ export function AthleteProfilePage() {
     setForm(toForm(student, discountCatalog));
     setEditing(false);
     setError('');
+    setSavedOk('');
   }
 
   function handlePhoto(file: File | undefined) {
@@ -1453,6 +1485,7 @@ export function AthleteProfilePage() {
       </header>
 
       {error ? <p className="form-error">{error}</p> : null}
+      {savedOk ? <p className="form-ok">{savedOk}</p> : null}
 
       <div className="ap-tabs" role="tablist" aria-label="Υποκατηγορίες προφίλ">
         {PROFILE_TABS.filter((tab) => tab.id !== 'fees' || feesTabAllowed).map(
@@ -2360,7 +2393,7 @@ export function AthleteProfilePage() {
           editing ? (
             <>
               <Button type="button" variant="secondary" onClick={handleCancel}>
-                Ακύρωση
+                {savedOk ? 'Τέλος' : 'Ακύρωση'}
               </Button>
               <Button type="button" disabled={saving} onClick={() => void handleSave()}>
                 {saving ? t('Αποθήκευση…') : t('Αποθήκευση Αλλαγών')}

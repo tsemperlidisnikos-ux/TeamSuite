@@ -135,6 +135,7 @@ export const classSchema = z.object({
   birthYearFrom: z.coerce.number().int().min(1900).max(2100).nullable().optional().default(null),
   birthYearTo: z.coerce.number().int().min(1900).max(2100).nullable().optional().default(null),
   manualInactive: z.coerce.boolean().optional().default(false),
+  attendanceRequired: z.coerce.boolean().optional().default(true),
 });
 
 export const clubSeasonSchema = z
@@ -311,6 +312,8 @@ export const rentalBookingInputSchema = z.object({
   notes: z.string().optional().default(''),
   amount: z.coerce.number().min(0).optional().default(0),
   specialDiscount: z.coerce.number().min(0).optional().default(0),
+  paidNow: z.boolean().optional().default(false),
+  paymentMethod: z.enum(['cash', 'card']).optional(),
 });
 
 export type RentalBookingInput = z.infer<typeof rentalBookingInputSchema>;

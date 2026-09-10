@@ -6,6 +6,9 @@ import { createHmac } from 'node:crypto';
  */
 export function fieldCryptoSecret(): string {
   return (
+    process.env.TEAMSUITE_AMKA_SECRET ||
+    process.env.TEAMSUITE_SESSION_SECRET ||
+    process.env.TEAMSUITE_SYNC_SECRET ||
     process.env.SS360_AMKA_SECRET ||
     process.env.SS360_SESSION_SECRET ||
     process.env.SS360_SYNC_SECRET ||

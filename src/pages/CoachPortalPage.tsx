@@ -21,6 +21,7 @@ import {
 import { localDateIso } from '../utils/dates';
 import { dayNames, formatDate } from '../utils/labels';
 import { studentInAnyClass, studentInClass } from '../utils/studentClasses';
+import { listMissingAttendanceTrainings } from '../utils/missingTrainingAttendance';
 
 function initials(name: string): string {
   return name
@@ -70,20 +71,17 @@ export function CoachPortalPage() {
 
   const nextTraining = upcoming[0] ?? null;
 
-  const missingAttendanceToday = useMemo(() => {
-    const ids = new Set<string>();
-    for (const t of data.trainings ?? []) {
-      if (t.date !== today || !t.classId || !classIds.has(t.classId)) continue;
-      ids.add(t.classId);
-    }
-    return [...ids]
-      .filter(
-        (cid) =>
-          !(data.attendance ?? []).some((a) => a.classId === cid && a.date === today),
-      )
-      .map((cid) => myClasses.find((c) => c.id === cid))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
-  }, [data.trainings, data.attendance, classIds, today, myClasses]);
+  const missingAttendance = useMemo(
+    () =>
+      listMissingAttendanceTrainings({
+        trainings: data.trainings,
+        classes: data.classes,
+        attendance: data.attendance,
+        seasons: data.clubSeasons,
+        classIds,
+      }),
+    [data.trainings, data.classes, data.attendance, data.clubSeasons, classIds],
+  );
 
   const roster = useMemo(
     () =>
@@ -220,19 +218,18 @@ export function CoachPortalPage() {
 
       {!linkMissing && !linkBroken ? (
         <>
-          {missingAttendanceToday.length > 0 ? (
+          {missingAttendance.length > 0 ? (
             <section className="panel cport-card cport-remind">
               <p>
-                Υπάρχει προπόνηση σήμερα χωρίς καταγραφή παρουσίας:{' '}
-                <strong>{missingAttendanceToday.map((c) => c.name).join(', ')}</strong>
+                {missingAttendance.length} προπονήσεις χωρίς παρουσίες
               </p>
               <button
                 type="button"
                 className="cport-remind-btn"
                 onClick={() => {
-                  const first = missingAttendanceToday[0];
-                  if (first) setClassId(first.id);
-                  setDate(today);
+                  const first = missingAttendance[0];
+                  if (first?.classId) setClassId(first.classId);
+                  if (first?.date) setDate(first.date);
                   document.getElementById('attendance')?.scrollIntoView({ behavior: 'smooth' });
                 }}
               >

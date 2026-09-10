@@ -1208,13 +1208,43 @@ export type SyncAuthContext = {
   claims: SessionClaims | null;
 };
 
+function opsSyncSecret(): string {
+  return (
+    process.env.TEAMSUITE_SYNC_SECRET ||
+    process.env.SS360_SYNC_SECRET ||
+    ''
+  ).trim();
+}
+
+function configuredSessionSecrets(): string[] {
+  const keys = [
+    process.env.TEAMSUITE_SESSION_SECRET,
+    process.env.TEAMSUITE_SYNC_SECRET,
+    process.env.SS360_SESSION_SECRET,
+    process.env.SS360_SYNC_SECRET,
+    process.env.TEAMSUITE_ADMIN_PASSWORD,
+    process.env.VITE_BOOTSTRAP_PLATFORM_ADMIN_PASSWORD,
+  ];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of keys) {
+    const value = (raw ?? '').trim();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    out.push(value);
+  }
+  return out;
+}
+
 export function getSyncAuthContext(req: {
   headers: Record<string, unknown>;
   query?: Record<string, unknown>;
 }): SyncAuthContext {
-  const expected = (process.env.SS360_SYNC_SECRET ?? '').trim();
+  const expected = opsSyncSecret();
   const authHeader = String(req.headers['authorization'] ?? '').trim();
-  const syncKeyHeader = String(req.headers['x-ss360-sync-key'] ?? '').trim();
+  const syncKeyHeader = String(
+    req.headers['x-ss360-sync-key'] ?? req.headers['x-teamsuite-sync-key'] ?? '',
+  ).trim();
 
   // Prefer Bearer JWT over sync key so browser sessions cannot be escalated
   // by a leaked/legacy client key in the same request.
@@ -1291,18 +1321,30 @@ export async function assertSyncAuthorized(
   req: { headers: Record<string, unknown>; query?: Record<string, unknown> },
   res: { status: (code: number) => { json: (body: unknown) => unknown } },
 ): Promise<boolean> {
-  const expected = (process.env.SS360_SYNC_SECRET ?? '').trim();
+  const expected = opsSyncSecret();
   const ctx = getSyncAuthContext(req);
 
   if (ctx.claims || ctx.viaSecret) {
     return assertActiveJwtSid(req, res);
   }
 
-  if (!expected) {
+  const authHeader = String(req.headers['authorization'] ?? '').trim();
+  const bearer = authHeader.toLowerCase().startsWith('bearer ')
+    ? authHeader.slice(7).trim()
+    : '';
+  if (bearer.includes('.')) {
+    res.status(401).json({
+      ok: false,
+      error: 'Η συνεδρία δεν ισχύει. Κάντε είσοδο ξανά.',
+    });
+    return false;
+  }
+
+  if (!expected && configuredSessionSecrets().length === 0) {
     if (process.env.SS360_ALLOW_INSECURE_SYNC !== '1') {
       res.status(503).json({
         ok: false,
-        error: 'Sync locked: configure SS360_SYNC_SECRET',
+        error: 'Sync locked: configure TEAMSUITE_SESSION_SECRET',
       });
       return false;
     }
@@ -1380,13 +1422,7 @@ type ResetRecord = {
 };
 
 function sessionSecret(): string {
-  return (
-    process.env.SS360_SESSION_SECRET ||
-    process.env.SS360_SYNC_SECRET ||
-    process.env.TEAMSUITE_ADMIN_PASSWORD ||
-    process.env.VITE_BOOTSTRAP_PLATFORM_ADMIN_PASSWORD ||
-    ''
-  ).trim();
+  return configuredSessionSecrets()[0] ?? '';
 }
 
 function toHex(buffer: ArrayBuffer): string {
@@ -1508,22 +1544,25 @@ export async function activeSessionStatus(
 }
 
 export function verifySessionToken(token: string): SessionClaims | null {
-  const secret = sessionSecret();
-  if (!secret || !token.includes('.')) return null;
+  const secrets = configuredSessionSecrets();
+  if (!secrets.length || !token.includes('.')) return null;
   const [payload, sig] = token.split('.');
   if (!payload || !sig) return null;
-  const expected = createHmac('sha256', secret).update(payload).digest('base64url');
-  const a = Buffer.from(sig);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-  try {
-    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as SessionClaims;
-    if (!claims?.sub || !claims.email || !claims.exp) return null;
-    if (claims.exp < Math.floor(Date.now() / 1000)) return null;
-    return claims;
-  } catch {
-    return null;
+  const sigBuf = Buffer.from(sig);
+  for (const secret of secrets) {
+    const expected = createHmac('sha256', secret).update(payload).digest('base64url');
+    const expectedBuf = Buffer.from(expected);
+    if (sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)) continue;
+    try {
+      const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as SessionClaims;
+      if (!claims?.sub || !claims.email || !claims.exp) return null;
+      if (claims.exp < Math.floor(Date.now() / 1000)) return null;
+      return claims;
+    } catch {
+      return null;
+    }
   }
+  return null;
 }
 
 export async function createPasswordResetToken(

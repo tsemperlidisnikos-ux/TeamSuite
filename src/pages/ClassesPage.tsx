@@ -9,7 +9,7 @@ import { Button } from '../components/ui/Button';
 import { useAppData } from '../hooks/useAppData';
 import type { ClassInput } from '../schemas';
 import type { AcademyClass } from '../types';
-import { resolveCoachRecord, visibleClassesForSession } from '../utils/coachScope';
+import { classIdsOf, resolveCoachRecord, visibleClassesForSession } from '../utils/coachScope';
 import {
   classGenderLabels,
   classToFormInput,
@@ -17,6 +17,7 @@ import {
   isClassListedActive,
   seasonShortLabel,
 } from '../utils/classHelpers';
+import { listMissingAttendanceTrainings } from '../utils/missingTrainingAttendance';
 import { getActiveSeason } from '../utils/clubSeasons';
 import { activeClubSportSelectOptions, clubSportsMatch } from '../utils/clubSports';
 import { studentInClass } from '../utils/studentClasses';
@@ -105,6 +106,7 @@ export function ClassesPage() {
     birthYearFrom: null,
     birthYearTo: null,
     manualInactive: false,
+    attendanceRequired: true,
   }));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -199,6 +201,22 @@ export function ClassesPage() {
   const safePage = Math.min(page, pageCount);
   const pageRows = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
 
+  const missingAttendance = useMemo(() => {
+    const scopedIds = isCoach ? classIdsOf(visibleClasses) : undefined;
+    return listMissingAttendanceTrainings({
+      trainings: data.trainings,
+      classes: data.classes,
+      attendance: data.attendance,
+      seasons: data.clubSeasons,
+      classIds: scopedIds,
+    });
+  }, [data.trainings, data.classes, data.attendance, data.clubSeasons, isCoach, visibleClasses]);
+
+  const firstMissing = missingAttendance[0];
+  const missingAttendanceHref = firstMissing
+    ? `/attendance?classId=${encodeURIComponent(firstMissing.classId ?? '')}&date=${encodeURIComponent(firstMissing.date)}`
+    : '/attendance';
+
   function toggleSort(key: SortKey) {
     setPage(1);
     if (sortKey === key) {
@@ -227,6 +245,7 @@ export function ClassesPage() {
       birthYearFrom: null,
       birthYearTo: null,
       manualInactive: false,
+      attendanceRequired: true,
     });
     setError('');
     setModalOpen(true);
@@ -234,22 +253,7 @@ export function ClassesPage() {
 
   function openEdit(cls: AcademyClass) {
     setEditing(cls);
-    setForm({
-      name: cls.name,
-      sport: cls.sport,
-      ageGroup: cls.ageGroup,
-      coachId: cls.coachId,
-      maxStudents: cls.maxStudents,
-      scheduleSummary: cls.scheduleSummary,
-      monthlyFee: cls.monthlyFee,
-      startDate: cls.startDate ?? '',
-      endDate: cls.endDate ?? '',
-      seasonId: cls.seasonId ?? null,
-      gender: cls.gender ?? '',
-      birthYearFrom: cls.birthYearFrom ?? null,
-      birthYearTo: cls.birthYearTo ?? null,
-      manualInactive: cls.manualInactive ?? false,
-    });
+    setForm(classToFormInput(cls));
     setError('');
     setMenuId(null);
     setModalOpen(true);
@@ -342,6 +346,12 @@ export function ClassesPage() {
           </button>
         </div>
       </header>
+
+      {missingAttendance.length > 0 ? (
+        <Link className="classes-missing-attendance-banner" to={missingAttendanceHref}>
+          {missingAttendance.length} προπονήσεις χωρίς παρουσίες
+        </Link>
+      ) : null}
 
       <section className="panel classes-panel">
         <div className="classes-toolbar">

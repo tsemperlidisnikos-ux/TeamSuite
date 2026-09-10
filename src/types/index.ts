@@ -202,6 +202,8 @@ export interface AcademyClass {
   birthYearTo?: number | null;
   /** Χειροκίνητη απενεργοποίηση (Μη ενεργά). */
   manualInactive?: boolean;
+  /** Αν false, το τμήμα δεν απαιτεί παρουσιολόγιο (π.χ. ανδρική ομάδα). Προεπιλογή: true. */
+  attendanceRequired?: boolean;
   updatedAt?: number;
 }
 
@@ -425,6 +427,16 @@ export interface RentalBooking {
   createdByName: string;
   paymentRef?: string;
   paymentProvider?: 'viva' | 'stripe' | 'venue';
+  /**
+   * false = νέα κράτηση χωρίς είσπραξη (δεν μετράει στα έσοδα).
+   * true = εισπράχθηκε (μετρητά/POS/online).
+   * undefined = παλιά εγγραφή· θεωρείται ήδη εισπραγμένη αν είναι confirmed.
+   */
+  paymentCollected?: boolean;
+  /** Ημερομηνία είσπραξης (YYYY-MM-DD) — ημερομηνία εσόδου στα Οικονομικά. */
+  paidOn?: string;
+  paidAt?: string;
+  paymentMethod?: PaymentMethod;
   updatedAt?: number;
 }
 

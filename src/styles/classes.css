@@ -436,12 +436,54 @@
 
 .class-form-modal {
   max-width: 32rem;
+  max-height: min(92vh, 52rem);
+  overflow: auto;
 }
 
 .class-form-row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.65rem;
+}
+
+.class-form-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  cursor: pointer;
+}
+
+.class-form-check input {
+  margin-top: 0.2rem;
+}
+
+.class-form-check span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-weight: 650;
+}
+
+.class-form-check small {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.classes-missing-attendance-banner {
+  display: block;
+  margin: 0 0 0.9rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent, #2a9bb5) 28%, var(--line, #d7e6ea));
+  background: color-mix(in srgb, var(--accent, #2a9bb5) 10%, #fff);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.classes-missing-attendance-banner:hover {
+  filter: brightness(0.98);
 }
 
 @media (max-width: 960px) {
@@ -456,5 +498,64 @@
   .classes-search input {
     flex: 1;
     min-width: 0;
+  }
+}
+
+.class-roster-filters-anchor {
+  display: inline-flex;
+}
+
+.class-roster-filters {
+  width: min(22rem, calc(100vw - 1.5rem));
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.65rem;
+  overflow: auto;
+}
+
+.class-roster-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.class-roster-print-sheet {
+  display: none;
+}
+
+@media print {
+  .sidebar,
+  .topbar,
+  .app-header,
+  .class-profile-page .no-print,
+  .class-profile-page .class-profile-head button {
+    display: none !important;
+  }
+
+  .class-roster-print-sheet {
+    display: block !important;
+  }
+
+  .class-roster-print-sheet h1 {
+    margin: 0 0 0.25rem;
+    font-size: 16pt;
+  }
+
+  .class-roster-print-sheet p {
+    margin: 0 0 0.75rem;
+    font-size: 10pt;
+  }
+
+  .class-roster-print-sheet table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+
+  .class-roster-print-sheet th,
+  .class-roster-print-sheet td {
+    border: 1px solid #ccc;
+    padding: 0.2rem 0.35rem;
+    text-align: left;
   }
 }

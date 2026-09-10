@@ -1311,7 +1311,7 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
         if (!token) {
           return res.status(503).json({
             ok: false,
-            error: 'Session signing unavailable (configure SS360_SESSION_SECRET)',
+            error: 'Session signing unavailable (configure TEAMSUITE_SESSION_SECRET)',
           });
         }
         return res.status(200).json({
@@ -1356,7 +1356,7 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
     if (!token) {
       return res.status(503).json({
         ok: false,
-        error: 'Session signing unavailable (configure SS360_SYNC_SECRET)',
+        error: 'Session signing unavailable (configure TEAMSUITE_SESSION_SECRET)',
       });
     }
     try {

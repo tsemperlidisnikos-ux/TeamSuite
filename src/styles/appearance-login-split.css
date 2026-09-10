@@ -395,3 +395,29 @@ html[data-appearance='ivory-club'] .login-submit:not(.login-submit-secondary) {
     min-height: auto;
   }
 }
+
+/* Settings nav group titles — last stylesheet so themes cannot shrink them */
+html .set-page nav.set-nav .set-nav-group-title,
+html .set-page nav.set-nav button.set-nav-group-title {
+  font-size: 1.08rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: #0f766e;
+}
+
+html[data-appearance='graphite-ember'] .set-page nav.set-nav .set-nav-group-title,
+html[data-appearance='graphite-ember'] .set-page nav.set-nav button.set-nav-group-title {
+  color: #5eead4;
+}
+
+html .set-page nav.set-nav button.set-nav-group-title.is-active {
+  background: rgba(15, 118, 110, 0.16);
+  color: #134e4a;
+}
+
+html[data-appearance='graphite-ember'] .set-page nav.set-nav button.set-nav-group-title.is-active {
+  background: rgba(94, 234, 212, 0.16);
+  color: #99f6e4;
+}

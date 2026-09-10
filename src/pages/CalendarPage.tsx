@@ -277,7 +277,7 @@ export function CalendarPage() {
         id: booking.id,
         title: `Ενοικίαση · ${booking.facilityName || 'Γήπεδο'} (${share}${
           booking.useLockerRoom ? ' · αποδυτήρια' : ''
-        })`,
+        }${booking.status === 'pending_payment' || booking.paymentCollected === false ? ' · εκκρεμεί πληρωμή' : ''})`,
         time: booking.startTime || '',
         endTime: booking.endTime || '',
         kind: 'rental',

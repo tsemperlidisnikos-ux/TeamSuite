@@ -828,3 +828,10 @@
   text-align: center;
   padding: 0.35rem 0.25rem;
 }
+
+.rental-booking-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}

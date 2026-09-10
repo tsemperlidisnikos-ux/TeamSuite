@@ -50,6 +50,10 @@ function asSource(payload: unknown): RentalOccupancySource {
   return payload as RentalOccupancySource;
 }
 
+function todayAthensIso(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Athens' });
+}
+
 function slugOfClub(raw: Record<string, unknown>): string {
   const registration =
     raw.publicRegistration && typeof raw.publicRegistration === 'object'
@@ -402,8 +406,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (current.status === 'cancelled') {
       return res.status(409).json({ ok: false, error: 'Η κράτηση έχει ακυρωθεί.' });
     }
-    if (current.status === 'confirmed') {
+    if (current.status === 'confirmed' && current.paymentCollected !== false) {
       return res.status(200).json({ ok: true, bookingId: current.id, paid: true });
+    }
+    if (current.status !== 'pending_payment') {
+      return res.status(409).json({ ok: false, error: 'Η κράτηση δεν εκκρεμεί για online πληρωμή.' });
     }
     if (current.paymentRef) {
       try {
@@ -416,6 +423,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ...current,
       status: 'confirmed',
       paymentProvider: current.paymentProvider ?? 'viva',
+      paymentCollected: true,
+      paymentMethod: 'viva',
+      paidOn: todayAthensIso(),
+      paidAt: new Date().toISOString(),
     };
     list[index] = confirmed;
     payload.rentalBookings = list;
@@ -423,7 +434,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const rentRevId = `rev_rent_${confirmed.id}`;
     const rentRev = {
       id: rentRevId,
-      date: confirmed.date,
+      date: confirmed.paidOn,
       amount: Number(confirmed.amount) || 0,
       category: 'events',
       description: `Ενοικίαση ${confirmed.facilityName} (${confirmed.startTime}–${confirmed.endTime})`,
@@ -504,6 +515,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     createdAt: new Date().toISOString(),
     createdByName: 'Δημόσιο link',
     paymentProvider: 'venue',
+    paymentCollected: false,
   };
 
   if (payOnline && amount < 0.3) {

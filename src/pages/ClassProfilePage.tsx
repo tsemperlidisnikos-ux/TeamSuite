@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Check,
@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { ClassFormModal, saveClassForm } from '../components/ClassFormModal';
+import { AppPopupLayer } from '../components/ui/AppPopupLayer';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { useAppData } from '../hooks/useAppData';
@@ -37,8 +38,10 @@ import {
   studentMatchesBirthYearFilter,
   studentMatchesGenderFilter,
 } from '../utils/classHelpers';
+import { athleteSheetHeaders, studentToSheetRow } from '../utils/athleteSpreadsheet';
 import { formatCurrency } from '../utils/labels';
 import { localDateIso } from '../utils/dates';
+import { downloadXlsx } from '../utils/xlsxDownload';
 import { studentClassIds, normalizeStudentClasses } from '../utils/studentClasses';
 import { mutateData } from '../data/repository';
 import { apiClient } from '../api/apiClient';
@@ -52,6 +55,17 @@ type ProfileTab =
   | 'video';
 
 const PAGE_SIZES = [10, 25, 50, 100] as const;
+
+type YesNoFilter = '' | 'yes' | 'no';
+
+function classFileSlug(name: string): string {
+  const slug = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9α-ωΑ-Ω]+/gi, '-')
+    .replace(/^-|-$/g, '');
+  return slug || 'tmima';
+}
 
 const tabLabels: Record<ProfileTab, string> = {
   overview: 'Επισκόπηση',
@@ -98,6 +112,13 @@ export function ClassProfilePage() {
   const [search, setSearch] = useState('');
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(25);
   const [page, setPage] = useState(1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'' | StudentStatus>('');
+  const [birthYearFilter, setBirthYearFilter] = useState('');
+  const [healthFilter, setHealthFilter] = useState<YesNoFilter>('');
+  const [financeFilter, setFinanceFilter] = useState<YesNoFilter>('');
+  const [jerseyFilter, setJerseyFilter] = useState<YesNoFilter>('');
+  const filtersAnchorRef = useRef<HTMLDivElement>(null);
 
   const [addOpen, setAddOpen] = useState(false);
   const [addGender, setAddGender] = useState<'' | 'boy' | 'girl'>('');
@@ -121,20 +142,69 @@ export function ClassProfilePage() {
     [data.classes, classId],
   );
 
-  const roster = useMemo(() => {
+  const members = useMemo(() => {
     if (!cls) return [];
-    const q = search.trim().toLowerCase();
     return data.students
       .filter((s) => studentClassIds(s).includes(cls.id))
-      .filter((s) => {
-        if (!q) return true;
-        const hay = `${s.lastName} ${s.firstName} ${s.registrationNumber ?? ''}`.toLowerCase();
-        return hay.includes(q);
-      })
       .sort((a, b) =>
         `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
       );
-  }, [cls, data.students, search]);
+  }, [cls, data.students]);
+
+  const seasonStart =
+    new Date().getMonth() >= 7 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+
+  const roster = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return members.filter((s) => {
+      if (statusFilter && s.status !== statusFilter) return false;
+      if (birthYearFilter && String(athleteBirthYear(s.birthDate)) !== birthYearFilter) return false;
+      if (healthFilter) {
+        const ok = athleteHealthCardValid(s);
+        if (healthFilter === 'yes' && !ok) return false;
+        if (healthFilter === 'no' && ok) return false;
+      }
+      if (financeFilter) {
+        const ok = athleteFinancialClear(s.id, data.transactions, seasonStart);
+        if (financeFilter === 'yes' && !ok) return false;
+        if (financeFilter === 'no' && ok) return false;
+      }
+      if (jerseyFilter) {
+        const has = Boolean(String(s.jerseyNumber ?? '').trim());
+        if (jerseyFilter === 'yes' && !has) return false;
+        if (jerseyFilter === 'no' && has) return false;
+      }
+      if (!q) return true;
+      const hay = `${s.lastName} ${s.firstName} ${s.registrationNumber ?? ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [
+    members,
+    search,
+    statusFilter,
+    birthYearFilter,
+    healthFilter,
+    financeFilter,
+    jerseyFilter,
+    data.transactions,
+    seasonStart,
+  ]);
+
+  const rosterBirthYears = useMemo(() => {
+    const years = new Set<number>();
+    for (const s of members) {
+      const y = studentBirthYear(s);
+      if (y !== null) years.add(y);
+    }
+    return [...years].sort((a, b) => b - a);
+  }, [members]);
+
+  const activeFilterCount =
+    Number(Boolean(statusFilter)) +
+    Number(Boolean(birthYearFilter)) +
+    Number(Boolean(healthFilter)) +
+    Number(Boolean(financeFilter)) +
+    Number(Boolean(jerseyFilter));
 
   const availableAthletes = useMemo(() => {
     if (!cls) return [];
@@ -173,7 +243,7 @@ export function ClassProfilePage() {
     if (!cls) {
       return { attendancePct: null as number | null, owed: 0, seats: '—', clubSeats: null as number | null };
     }
-    const active = roster.filter((s) => s.status !== 'inactive');
+    const active = members.filter((s) => s.status !== 'inactive');
     let present = 0;
     let total = 0;
     let owed = 0;
@@ -190,7 +260,7 @@ export function ClassProfilePage() {
       seats: cap > 0 ? `${active.length} / ${cap}` : String(active.length),
       clubSeats: remainingAthleteLicenseSeats(data.students),
     };
-  }, [cls, roster, data.attendance, data.transactions, data.students]);
+  }, [cls, members, data.attendance, data.transactions, data.students]);
 
   const bulkSportOptions = useMemo(
     () =>
@@ -255,8 +325,6 @@ export function ClassProfilePage() {
   }
 
   const active = isClassListedActive(cls, data.clubSeasons);
-  const seasonStart =
-    new Date().getMonth() >= 7 ? new Date().getFullYear() : new Date().getFullYear() - 1;
 
   function openEdit() {
     if (!cls) return;
@@ -314,6 +382,36 @@ export function ClassProfilePage() {
     setBulkOpen(true);
   }
 
+  function clearRosterFilters() {
+    setStatusFilter('');
+    setBirthYearFilter('');
+    setHealthFilter('');
+    setFinanceFilter('');
+    setJerseyFilter('');
+    setPage(1);
+  }
+
+  function exportRosterExcel() {
+    if (roster.length === 0) {
+      window.alert('Δεν υπάρχουν αθλητές για εξαγωγή.');
+      return;
+    }
+    downloadXlsx(
+      cls.name,
+      athleteSheetHeaders(),
+      roster.map((s) => studentToSheetRow(s, data.classes)),
+      `athlites-${classFileSlug(cls.name)}-${localDateIso()}.xlsx`,
+    );
+  }
+
+  function printRoster() {
+    if (roster.length === 0) {
+      window.alert('Δεν υπάρχουν αθλητές για εκτύπωση.');
+      return;
+    }
+    window.print();
+  }
+
   async function handleBulkEdit() {
     if (selected.length === 0) return;
     const patch: studentsService.StudentBulkPatch = { ids: selected };
@@ -350,7 +448,7 @@ export function ClassProfilePage() {
 
   function renderRosterTable(rows: Student[], rosterClass: NonNullable<typeof cls>) {
     return (
-      <div className="table-wrap classes-table-wrap class-roster-table-wrap">
+      <div className="table-wrap classes-table-wrap class-roster-table-wrap no-print">
         <table className="data-table classes-table class-roster-table">
           <thead>
             <tr>
@@ -383,6 +481,7 @@ export function ClassProfilePage() {
               <tr>
                 <td colSpan={15} className="classes-empty muted">
                   Δεν υπάρχουν αθλητές στο τμήμα
+                    {search || activeFilterCount > 0 ? ' με τα επιλεγμένα φίλτρα' : ''}
                 </td>
               </tr>
             ) : (
@@ -481,20 +580,7 @@ export function ClassProfilePage() {
       {tab === 'athletes' ? (
         <div className="class-athletes-tab-head">
           <h2>{roster.length} αθλητές στο τμήμα</h2>
-          <div className="class-athletes-tab-actions">
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={roster.length === 0}
-              onClick={openBulkEdit}
-            >
-              <SquarePen size={16} /> Μαζική αλλαγή
-              {selected.length > 0
-                ? ` (${selected.length})`
-                : roster.length > 0
-                  ? ` (${roster.length})`
-                  : ''}
-            </Button>
+          <div className="class-athletes-tab-actions no-print">
             <Button type="button" onClick={() => setAddOpen((o) => !o)}>
               <Plus size={16} /> Προσθήκη αθλητών
             </Button>
@@ -503,7 +589,7 @@ export function ClassProfilePage() {
       ) : null}
 
       {tab === 'athletes' && addOpen ? (
-        <div className="class-add-athletes">
+        <div className="class-add-athletes no-print">
           <h3>Προσθήκη αθλητών στο τμήμα</h3>
           <div className="class-add-filters">
             <label className="field">
@@ -583,8 +669,8 @@ export function ClassProfilePage() {
         </div>
       ) : null}
 
-      {tab === 'overview' ? (
-        <div className="class-roster-toolbar">
+      {tab === 'overview' || tab === 'athletes' ? (
+        <div className="class-roster-toolbar no-print">
           <div className="class-roster-toolbar-left">
             <Button
               type="button"
@@ -594,20 +680,29 @@ export function ClassProfilePage() {
             >
               <SquarePen size={16} /> Μαζική αλλαγή
             </Button>
-            <Button type="button" variant="secondary" disabled>
-              <Filter size={16} /> Φίλτρα
-            </Button>
-            <Button type="button" variant="secondary" disabled>
+            <div className="class-roster-filters-anchor" ref={filtersAnchorRef}>
+              <Button
+                type="button"
+                variant="secondary"
+                aria-expanded={filtersOpen}
+                aria-haspopup="dialog"
+                onClick={() => setFiltersOpen((o) => !o)}
+              >
+                <Filter size={16} /> Φίλτρα
+                {activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+              </Button>
+            </div>
+            <Button type="button" variant="secondary" onClick={exportRosterExcel}>
               <Download size={16} /> Excel
             </Button>
-            <Button type="button" variant="secondary" disabled>
+            <Button type="button" variant="secondary" onClick={printRoster}>
               <Printer size={16} /> Print
             </Button>
           </div>
         </div>
       ) : null}
 
-      <div className="classes-table-controls">
+      <div className="classes-table-controls no-print">
         <label className="classes-page-size">
           Δείξε{' '}
           <select
@@ -638,6 +733,53 @@ export function ClassProfilePage() {
       </div>
 
       {renderRosterTable(pageRows, cls)}
+
+      <div className="class-roster-print-sheet" aria-hidden>
+        <h1>{cls.name}</h1>
+        <p>
+          Αθλητές τμήματος · {roster.length} εγγραφές · {localDateIso()}
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Αρ. Μητρώου</th>
+              <th>Επώνυμο</th>
+              <th>Όνομα</th>
+              <th>Κατάσταση</th>
+              <th>Ηλικία</th>
+              <th>Έτος γέννησης</th>
+              <th>Τηλέφωνο</th>
+              <th>Κάρτα υγείας</th>
+              <th>Δελτίο</th>
+              <th>Οικ. ενημερότητα</th>
+              <th>Μέγεθος</th>
+              <th>Εμφάνιση</th>
+            </tr>
+          </thead>
+          <tbody>
+            {roster.map((student) => {
+              const finOk = athleteFinancialClear(student.id, data.transactions, seasonStart);
+              const healthOk = athleteHealthCardValid(student);
+              return (
+                <tr key={student.id}>
+                  <td>{student.registrationNumber || '—'}</td>
+                  <td>{student.lastName}</td>
+                  <td>{student.firstName}</td>
+                  <td>{athleteClassStatusLabel(student, cls, data.clubSeasons)}</td>
+                  <td>{athleteAge(student.birthDate) ?? '—'}</td>
+                  <td>{athleteBirthYear(student.birthDate)}</td>
+                  <td>{student.phone || student.guardianPhone || '—'}</td>
+                  <td>{healthOk ? 'Ναι' : 'Όχι'}</td>
+                  <td>{student.registrationNumber ? 'Ναι' : 'Όχι'}</td>
+                  <td>{finOk ? 'Ναι' : 'Όχι'}</td>
+                  <td>{student.uniformSize || '—'}</td>
+                  <td>{student.jerseyNumber || '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 
@@ -650,12 +792,12 @@ export function ClassProfilePage() {
             {active ? 'Ενεργό' : 'Ανενεργό'}
           </span>
         </div>
-        <Button type="button" variant="secondary" onClick={openEdit}>
+        <Button type="button" variant="secondary" className="no-print" onClick={openEdit}>
           <Pencil size={16} /> Επεξεργασία
         </Button>
       </header>
 
-      <nav className="class-profile-tabs" role="tablist">
+      <nav className="class-profile-tabs no-print" role="tablist">
         {(Object.keys(tabLabels) as ProfileTab[]).map((key) => (
           <button
             key={key}
@@ -672,7 +814,7 @@ export function ClassProfilePage() {
 
       {tab === 'overview' ? (
         <>
-          <div className="class-profile-cards">
+          <div className="class-profile-cards no-print">
             <section className="panel class-profile-card">
               <h2>Προφίλ</h2>
               <dl className="class-profile-dl">
@@ -691,6 +833,10 @@ export function ClassProfilePage() {
                 <div>
                   <dt>Α&apos; Προπονητής</dt>
                   <dd>{coachDisplayName(cls.coachId, data.coaches)}</dd>
+                </div>
+                <div>
+                  <dt>Παρουσιολόγιο</dt>
+                  <dd>{cls.attendanceRequired === false ? 'Δεν απαιτείται' : 'Απαιτείται'}</dd>
                 </div>
               </dl>
             </section>
@@ -783,6 +929,110 @@ export function ClassProfilePage() {
           <p className="muted">Δεν υπάρχουν αρχεία ή βίντεο για αυτό το τμήμα.</p>
         </section>
       )}
+
+      <AppPopupLayer
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        anchorRef={filtersAnchorRef}
+        panelClassName="class-roster-filters no-print"
+        backdropClassName="app-popup-backdrop--dim"
+        align="left"
+      >
+        <aside role="dialog" aria-label="Φίλτρα αθλητών τμήματος">
+          <label className="field">
+            <span className="field-label">Κατάσταση</span>
+            <select
+              className="field-input"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as '' | StudentStatus);
+                setPage(1);
+              }}
+            >
+              <option value="">Όλες</option>
+              <option value="active">Ενεργός</option>
+              <option value="trial">Δοκιμαστικός</option>
+              <option value="inactive">Ανενεργός</option>
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Έτος γέννησης</span>
+            <select
+              className="field-input"
+              value={birthYearFilter}
+              onChange={(e) => {
+                setBirthYearFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Όλα</option>
+              {rosterBirthYears.map((y) => (
+                <option key={y} value={String(y)}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Κάρτα υγείας</span>
+            <select
+              className="field-input"
+              value={healthFilter}
+              onChange={(e) => {
+                setHealthFilter(e.target.value as YesNoFilter);
+                setPage(1);
+              }}
+            >
+              <option value="">Όλα</option>
+              <option value="yes">Έγκυρη</option>
+              <option value="no">Όχι / ληγμένη</option>
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Οικ. ενημερότητα</span>
+            <select
+              className="field-input"
+              value={financeFilter}
+              onChange={(e) => {
+                setFinanceFilter(e.target.value as YesNoFilter);
+                setPage(1);
+              }}
+            >
+              <option value="">Όλα</option>
+              <option value="yes">Ενήμερος</option>
+              <option value="no">Με οφειλή</option>
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Αρ. εμφάνισης</span>
+            <select
+              className="field-input"
+              value={jerseyFilter}
+              onChange={(e) => {
+                setJerseyFilter(e.target.value as YesNoFilter);
+                setPage(1);
+              }}
+            >
+              <option value="">Όλα</option>
+              <option value="yes">Με αριθμό</option>
+              <option value="no">Χωρίς</option>
+            </select>
+          </label>
+          <div className="class-roster-filter-actions">
+            <Button type="button" onClick={() => setFiltersOpen(false)}>
+              Προβολή
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={activeFilterCount === 0}
+              onClick={clearRosterFilters}
+            >
+              Καθαρισμός
+            </Button>
+          </div>
+        </aside>
+      </AppPopupLayer>
 
       {form ? (
         <ClassFormModal

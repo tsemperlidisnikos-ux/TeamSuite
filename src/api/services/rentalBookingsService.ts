@@ -13,14 +13,18 @@ import { getSession } from '../../auth/auth';
 import { getPreviewClubId } from '../../platform/platformConfig';
 import { rentalBookingInputSchema, rentalSettingsSchema, type RentalBookingInput } from '../../schemas';
 import type { RentalBooking, RentalSettings } from '../../types';
-import { localDateTimeIso } from '../../utils/dates';
+import { localDateIso, localDateTimeIso } from '../../utils/dates';
 import { syncAuthHeaders } from '../syncAuth';
 import { persistClubImageDataUrl } from './sessionService';
 import * as emailService from './emailService';
 import { buildRentalBookingEmail } from '../../utils/rentalBookingEmail';
 import { getClubById } from '../../auth/clubs';
-import { upsertRentalBookingRevenueInData } from './rentalRevenueBridge';
+import {
+  isRentalBookingCollected,
+  upsertRentalBookingRevenueInData,
+} from './rentalRevenueBridge';
 import { publishClubOpsSlice } from './clubOpsSyncService';
+import { assertFinanceMonthOpen } from './financePeriodService';
 
 export async function publishRentalOccupancy(clubId: string) {
   const data = resolveActiveClubId() === clubId ? getData() : getClubData(clubId);
@@ -109,6 +113,10 @@ export async function createRentalBooking(
           ? parsed.amount
           : baseAmount;
     const session = getSession();
+    const paidNow = Boolean(parsed.paidNow);
+    const paidOn = paidNow ? localDateIso() : undefined;
+    if (paidNow) assertFinanceMonthOpen(paidOn!);
+    const collectMethod = parsed.paymentMethod === 'card' ? 'card' : 'cash';
     const booking: RentalBooking = {
       id: createId('rent'),
       facilityId: facility.id,
@@ -128,6 +136,12 @@ export async function createRentalBooking(
       status: 'confirmed',
       createdAt: localDateTimeIso(),
       createdByName: session?.fullName || session?.email || 'Γραμματεία',
+      paymentCollected: paidNow,
+      paymentProvider: paidNow ? 'venue' : undefined,
+      paymentMethod: paidNow ? collectMethod : undefined,
+      paidOn,
+      paidAt: paidNow ? localDateTimeIso() : undefined,
+      updatedAt: Date.now(),
     };
     mutateData((store) => {
       if (!store.rentalBookings) store.rentalBookings = [];
@@ -173,7 +187,12 @@ export async function cancelRentalBooking(id: string) {
       const list = data.rentalBookings ?? [];
       const index = list.findIndex((item) => item.id === id);
       if (index === -1) throw new Error('Η κράτηση δεν βρέθηκε.');
-      updated = { ...list[index], status: 'cancelled' };
+      updated = {
+        ...list[index],
+        status: 'cancelled',
+        paymentCollected: false,
+        updatedAt: Date.now(),
+      };
       list[index] = updated;
       data.rentalBookings = list;
       upsertRentalBookingRevenueInData(data, updated);
@@ -187,6 +206,44 @@ export async function cancelRentalBooking(id: string) {
         /* ignore */
       }
     }
+    return updated!;
+  });
+}
+
+export async function collectRentalBooking(
+  id: string,
+  input: { paymentMethod: 'cash' | 'card'; paidOn?: string },
+) {
+  return apiClient(async () => {
+    const paidOn = (input.paidOn || localDateIso()).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(paidOn)) throw new Error('Μη έγκυρη ημερομηνία είσπραξης.');
+    assertFinanceMonthOpen(paidOn);
+    let updated: RentalBooking | undefined;
+    mutateData((data) => {
+      const list = data.rentalBookings ?? [];
+      const index = list.findIndex((item) => item.id === id);
+      if (index === -1) throw new Error('Η κράτηση δεν βρέθηκε.');
+      const current = list[index];
+      if (current.status === 'cancelled') throw new Error('Η κράτηση έχει ακυρωθεί.');
+      if (isRentalBookingCollected(current)) {
+        throw new Error('Η κράτηση έχει ήδη εισπραχθεί.');
+      }
+      if (!(Number(current.amount) > 0)) throw new Error('Δεν υπάρχει ποσό προς είσπραξη.');
+      updated = {
+        ...current,
+        status: 'confirmed',
+        paymentCollected: true,
+        paymentProvider: 'venue',
+        paymentMethod: input.paymentMethod,
+        paidOn,
+        paidAt: localDateTimeIso(),
+        updatedAt: Date.now(),
+      };
+      list[index] = updated;
+      data.rentalBookings = list;
+      upsertRentalBookingRevenueInData(data, updated);
+    });
+    void publishClubOpsSlice();
     return updated!;
   });
 }

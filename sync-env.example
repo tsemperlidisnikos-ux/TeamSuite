@@ -1,13 +1,16 @@
 # Sync / session secrets — SERVER ONLY (never VITE_* in the browser bundle)
 # TeamSuite only: do not copy Blob/KV/sync secrets from SportSuite360.
 # Vercel Production (project teamsuite):
-#   SS360_SYNC_SECRET=<secret>          # cron / ops sync key (x-ss360-sync-key)
-#   SS360_SESSION_SECRET=<secret>       # JWT signing (falls back to SS360_SYNC_SECRET)
+#   TEAMSUITE_SESSION_SECRET=<secret>   # JWT signing
+#   TEAMSUITE_SYNC_SECRET=<secret>      # cron / ops key
 #   CRON_SECRET=<secret>                # for /api/backup/scheduled
+# SS360_* names remain aliases for older deploys.
 #
 # Browser clients authenticate with Bearer JWT from login — do NOT set
 # VITE_SS360_SYNC_SECRET (removed; embedding it exposed full platform access).
 
+TEAMSUITE_SESSION_SECRET=
+TEAMSUITE_SYNC_SECRET=
 SS360_SYNC_SECRET=
 SS360_SESSION_SECRET=
 CRON_SECRET=

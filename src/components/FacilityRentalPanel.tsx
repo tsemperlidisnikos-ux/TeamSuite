@@ -6,11 +6,14 @@ import { getSession, isPlatformAdmin } from '../auth/auth';
 import { getClubById, getClubPublicRegistration, getClubs, slugifyClubName } from '../auth/clubs';
 import { listPublicSlugCollisions } from '../utils/publicClubSlug';
 import { Button } from './ui/Button';
+import { Modal } from './ui/Modal';
 import { useAppData } from '../hooks/useAppData';
 import { useT } from '../i18n/LocaleContext';
 import { getPreviewClubId } from '../platform/platformConfig';
+import { isRentalBookingCollected } from '../api/services/rentalRevenueBridge';
+import { paymentMethodLabel } from '../shared/paymentMethods';
 import type { FacilityInput, RentalBookingInput } from '../schemas';
-import type { Facility, FacilityRentalRule, RentalCourtShare, RentalSettings } from '../types';
+import type { Facility, FacilityRentalRule, RentalBooking, RentalCourtShare, RentalSettings } from '../types';
 import { localDateIso } from '../utils/dates';
 import { formatCurrency } from '../utils/labels';
 import { listActiveFacilities } from '../utils/facilityHours';
@@ -156,6 +159,11 @@ export function FacilityRentalPanel() {
   const [customerEmail, setCustomerEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [specialDiscount, setSpecialDiscount] = useState('');
+  const [paidNow, setPaidNow] = useState(false);
+  const [paidNowMethod, setPaidNowMethod] = useState<'cash' | 'card'>('cash');
+  const [collectBooking, setCollectBooking] = useState<RentalBooking | null>(null);
+  const [collectMethod, setCollectMethod] = useState<'cash' | 'card'>('cash');
+  const [collecting, setCollecting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [booking, setBooking] = useState(false);
   const [message, setMessage] = useState('');
@@ -212,13 +220,13 @@ export function FacilityRentalPanel() {
       : 0;
   const discountValue = Math.max(0, Number(specialDiscount.replace(',', '.')) || 0);
   const payableAmount = Math.max(0, Math.round((baseAmount - discountValue) * 100) / 100);
-  const upcoming = useMemo(
-    () =>
-      [...(data.rentalBookings ?? [])]
-        .filter((item) => item.status !== 'cancelled' && item.date >= localDateIso())
-        .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`)),
-    [data.rentalBookings],
-  );
+  const upcoming = useMemo(() => {
+    const today = localDateIso();
+    return [...(data.rentalBookings ?? [])]
+      .filter((item) => item.status !== 'cancelled')
+      .filter((item) => item.date >= today || !isRentalBookingCollected(item))
+      .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
+  }, [data.rentalBookings]);
 
   function ruleOf(facility: Facility): FacilityRentalRule {
     return ruleForFacility(draft, facility.id, facility);
@@ -402,6 +410,8 @@ export function FacilityRentalPanel() {
       notes,
       amount: payableAmount,
       specialDiscount: discountValue,
+      paidNow,
+      paymentMethod: paidNow ? paidNowMethod : undefined,
     };
     const result = await rentalBookingsService.createRentalBooking(payload, 'secretariat');
     setBooking(false);
@@ -409,13 +419,19 @@ export function FacilityRentalPanel() {
       setError(result.error ?? 'Αποτυχία καταχώρησης.');
       return;
     }
-    setMessage('Η κράτηση καταχωρήθηκε.');
+    setMessage(
+      paidNow
+        ? 'Η κράτηση καταχωρήθηκε και εισπράχθηκε. Το ποσό εμφανίζεται στα ημερήσια έσοδα.'
+        : 'Η κράτηση καταχωρήθηκε. Το γήπεδο δεσμεύτηκε· τα έσοδα θα μπουν με την είσπραξη.',
+    );
     setCustomerLastName('');
     setCustomerFirstName('');
     setCustomerPhone('');
     setCustomerEmail('');
     setNotes('');
     setSpecialDiscount('');
+    setPaidNow(false);
+    setPaidNowMethod('cash');
     setSelectedSlot(null);
     setUseLockerRoom(false);
     refresh();
@@ -429,6 +445,36 @@ export function FacilityRentalPanel() {
       return;
     }
     refresh();
+  }
+
+  async function confirmCollect() {
+    if (!collectBooking) return;
+    setCollecting(true);
+    setError('');
+    const result = await rentalBookingsService.collectRentalBooking(collectBooking.id, {
+      paymentMethod: collectMethod,
+    });
+    setCollecting(false);
+    if (!result.success) {
+      setError(result.error ?? 'Αποτυχία είσπραξης.');
+      return;
+    }
+    setMessage(
+      `Εισπράχθηκαν ${formatCurrency(collectBooking.amount)} (${
+        collectMethod === 'card' ? 'POS' : 'μετρητά'
+      }). Το ποσό μπήκε στα ημερήσια έσοδα.`,
+    );
+    setCollectBooking(null);
+    refresh();
+  }
+
+  function bookingStatusLabel(row: RentalBooking): string {
+    if (row.status === 'pending_payment') return t('Εκκρεμεί online πληρωμή');
+    if (isRentalBookingCollected(row)) {
+      const method = paymentMethodLabel(row.paymentMethod);
+      return method && method !== '—' ? `${t('Εισπράχθηκε')} · ${method}` : t('Εισπράχθηκε');
+    }
+    return t('Εκκρεμεί είσπραξη');
   }
 
   if (facilities.length === 0) {
@@ -446,7 +492,8 @@ export function FacilityRentalPanel() {
             <p className="prints-registry-desc">
         Δήλωσε ποια γήπεδα ενοικιάζονται και σε ποιες ώρες. Οι ώρες προπόνησης τμημάτων, έκτακτες
         προπονήσεις και αγώνες αφαιρούνται αυτόματα. Η γραμματεία καταχωρεί κράτηση εδώ· το δημόσιο
-        link δείχνει τις ίδιες διαθέσιμες ώρες.
+        link δείχνει τις ίδιες διαθέσιμες ώρες. Τα έσοδα μπαίνουν στα Οικονομικά μόνο με είσπραξη
+        (μετρητά / POS) ή όταν ολοκληρωθεί online πληρωμή.
       </p>
 
       {error ? <p className="form-error">{error}</p> : null}
@@ -970,6 +1017,27 @@ export function FacilityRentalPanel() {
         <span className="field-label">{t('Σημείωση κράτησης')}</span>
         <input className="field-input" value={notes} onChange={(e) => setNotes(e.target.value)} />
       </label>
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          checked={paidNow}
+          onChange={(e) => setPaidNow(e.target.checked)}
+        />
+        {t('Πληρώθηκε τώρα (μετρητά / POS) — εμφάνιση στα ημερήσια έσοδα')}
+      </label>
+      {paidNow ? (
+        <label className="field">
+          <span className="field-label">{t('Τρόπος πληρωμής')}</span>
+          <select
+            className="field-input"
+            value={paidNowMethod}
+            onChange={(e) => setPaidNowMethod(e.target.value === 'card' ? 'card' : 'cash')}
+          >
+            <option value="cash">{t('Μετρητά')}</option>
+            <option value="card">{t('POS')}</option>
+          </select>
+        </label>
+      ) : null}
       <div className="prints-filter-actions">
         <Button type="button" onClick={() => void submitBooking()} disabled={booking}>
           {booking ? t('Καταχώρηση…') : t('Καταχώρηση κράτησης')}
@@ -991,13 +1059,14 @@ export function FacilityRentalPanel() {
               <th>{t('Πηγή')}</th>
               <th>{t('Κατάσταση')}</th>
               <th>{t('Τελικό κόστος')}</th>
+              <th>{t('Πληρωμή')}</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {upcoming.length === 0 ? (
               <tr>
-                <td colSpan={11}>Δεν υπάρχουν κρατήσεις.</td>
+                <td colSpan={12}>Δεν υπάρχουν κρατήσεις.</td>
               </tr>
             ) : (
               upcoming.map((row) => (
@@ -1012,16 +1081,31 @@ export function FacilityRentalPanel() {
                   <td>{row.customerName}</td>
                   <td>{row.customerPhone}</td>
                   <td>{row.source === 'public' ? t('Δημόσιο link') : t('Γραμματεία')}</td>
-                  <td>
-                    {row.status === 'pending_payment'
-                      ? t('Εκκρεμεί πληρωμή')
-                      : t('Επιβεβαιωμένη')}
-                  </td>
+                  <td>{bookingStatusLabel(row)}</td>
                   <td>{formatCurrency(row.amount)}</td>
                   <td>
-                    <Button type="button" variant="ghost" onClick={() => void cancelBooking(row.id)}>
-                      {t('Ακύρωση')}
-                    </Button>
+                    {isRentalBookingCollected(row)
+                      ? paymentMethodLabel(row.paymentMethod) || '—'
+                      : '—'}
+                  </td>
+                  <td>
+                    <div className="rental-booking-actions">
+                      {!isRentalBookingCollected(row) && Number(row.amount) > 0 ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => {
+                            setCollectMethod('cash');
+                            setCollectBooking(row);
+                          }}
+                        >
+                          {t('Είσπραξη')}
+                        </Button>
+                      ) : null}
+                      <Button type="button" variant="ghost" onClick={() => void cancelBooking(row.id)}>
+                        {t('Ακύρωση')}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -1031,6 +1115,55 @@ export function FacilityRentalPanel() {
       </div>
       </>
       ) : null}
+
+      <Modal
+        open={Boolean(collectBooking)}
+        title="Είσπραξη ενοικίασης"
+        onClose={() => !collecting && setCollectBooking(null)}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={collecting}
+              onClick={() => setCollectBooking(null)}
+            >
+              Άκυρο
+            </Button>
+            <Button type="button" disabled={collecting} onClick={() => void confirmCollect()}>
+              {collecting ? 'Καταχώρηση…' : 'Καταχώρηση είσπραξης'}
+            </Button>
+          </>
+        }
+      >
+        {collectBooking ? (
+          <div className="stack-sm">
+            <p>
+              {collectBooking.facilityName} · {collectBooking.date} · {collectBooking.startTime}–
+              {collectBooking.endTime}
+            </p>
+            <p>
+              {collectBooking.customerName} ·{' '}
+              <strong>{formatCurrency(collectBooking.amount)}</strong>
+            </p>
+            <label className="field">
+              <span className="field-label">Τρόπος πληρωμής</span>
+              <select
+                className="field-input"
+                value={collectMethod}
+                onChange={(e) => setCollectMethod(e.target.value === 'card' ? 'card' : 'cash')}
+              >
+                <option value="cash">Μετρητά</option>
+                <option value="card">POS</option>
+              </select>
+            </label>
+            <p className="muted">
+              Το ποσό θα εμφανιστεί στα ημερήσια έσοδα (κατηγορία Ενοικίαση γηπέδου) με σημερινή
+              ημερομηνία.
+            </p>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }
