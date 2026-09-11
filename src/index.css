@@ -5074,7 +5074,6 @@ html[data-appearance] .settings-backup-schedule-status {
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: 999px;
   background: transparent;
   cursor: pointer;
   color: #fff;
@@ -5086,26 +5085,18 @@ html[data-appearance] .settings-backup-schedule-status {
 
 .club-sync-meter {
   --p: 100;
-  width: 2.55rem;
-  height: 2.55rem;
-  border-radius: 50%;
-  background: conic-gradient(#5eead4 calc(var(--p) * 1%), rgba(255, 255, 255, 0.14) 0);
-  position: relative;
+  width: 3.75rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  border: 2px solid #5eead4;
+  background:
+    linear-gradient(#5eead4 0 0) left / calc(var(--p) * 1%) 100% no-repeat,
+    #111;
   display: grid;
   place-items: center;
 }
 
-.club-sync-meter::before {
-  content: '';
-  position: absolute;
-  inset: 0.32rem;
-  border-radius: 50%;
-  background: #111;
-}
-
 .club-sync-pct {
-  position: relative;
-  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5113,11 +5104,12 @@ html[data-appearance] .settings-backup-schedule-status {
   height: 100%;
   margin: 0;
   color: #fff;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 750;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   line-height: 1;
   text-align: center;
+  text-shadow: 0 0 3px #000, 0 1px 1px #000;
 }
 
 .club-sync-status.is-warn {
@@ -5125,11 +5117,17 @@ html[data-appearance] .settings-backup-schedule-status {
 }
 
 .club-sync-status.is-warn .club-sync-meter {
-  background: conic-gradient(#f87171 calc(var(--p) * 1%), rgba(185, 28, 28, 0.35) 0);
+  border-color: #f87171;
+  background:
+    linear-gradient(#f87171 0 0) left / calc(var(--p) * 1%) 100% no-repeat,
+    #111;
 }
 
 .club-sync-status.is-busy .club-sync-meter {
-  background: conic-gradient(#5eead4 calc(var(--p) * 1%), rgba(255, 255, 255, 0.14) 0);
+  border-color: #5eead4;
+  background:
+    linear-gradient(#5eead4 0 0) left / calc(var(--p) * 1%) 100% no-repeat,
+    #111;
 }
 
 .ap-euro-field {
