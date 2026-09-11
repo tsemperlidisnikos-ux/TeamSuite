@@ -282,7 +282,7 @@
   padding: 0.65rem 0.8rem;
   margin-bottom: 0.55rem;
   display: grid;
-  grid-template-columns: minmax(7.5rem, 9rem) 1fr;
+  grid-template-columns: minmax(14rem, 17.5rem) 1fr;
   gap: 0.45rem 0.75rem;
   align-items: start;
 }
@@ -539,7 +539,7 @@
 }
 
 .rental-facility-photo-preview {
-  width: min(100%, 140px);
+  width: min(100%, 280px);
 }
 
 .rental-hero-preview {

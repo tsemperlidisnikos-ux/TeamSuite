@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   CLUB_SYNC_STATUS_EVENT,
   CLUB_WRITE_CONFLICT_EVENT,
+  flushClubMirrorPush,
+  getClubSyncProgress,
   getClubWriteConflict,
   getLastSyncAt,
   getLastSyncError,
@@ -24,7 +26,10 @@ function formatSyncAgo(iso: string | null): string {
 }
 
 export function ClubSyncStatus({ clubId }: { clubId: string }) {
+  const navigate = useNavigate();
   const [tick, setTick] = useState(0);
+  const [retrying, setRetrying] = useState(false);
+
   useEffect(() => {
     const bump = () => setTick((n) => n + 1);
     const unsub = subscribeAppData(bump);
@@ -45,27 +50,50 @@ export function ClubSyncStatus({ clubId }: { clubId: string }) {
   const last = getLastSyncAt(clubId);
   const conflict = getClubWriteConflict(clubId);
   const syncError = getLastSyncError(clubId);
-  const stale =
-    Boolean(last) && Date.now() - (Date.parse(last ?? '') || 0) >= 24 * 60 * 60 * 1000;
-  const line = conflict
+  const progress = getClubSyncProgress(clubId);
+  const inFlight = progress.inFlight || retrying;
+  const percent = inFlight ? progress.percent : syncError || dirty || conflict ? 0 : 100;
+
+  useEffect(() => {
+    if (!inFlight) return;
+    const id = window.setInterval(() => setTick((n) => n + 1), 250);
+    return () => window.clearInterval(id);
+  }, [inFlight, clubId]);
+
+  const title = conflict
     ? `Σύγκρουση: ${conflict.cloudByName}`
-    : syncError
-      ? `Cloud: αποτυχία — ${syncError}`
-      : !auto
-        ? 'Auto sync ανενεργό'
-        : dirty
-          ? 'Εκκρεμεί αποστολή στο cloud'
-          : stale
-            ? `Cloud: παλιό Push (${formatSyncAgo(last)})`
+    : inFlight
+      ? `Συγχρονισμός ${percent}%`
+      : syncError
+        ? `Αποτυχία αποστολής — κλικ για επανάληψη`
+        : !auto
+          ? 'Auto sync ανενεργό'
+          : dirty
+            ? 'Εκκρεμεί αποστολή στο cloud'
             : formatSyncAgo(last);
 
+  const warn = Boolean(conflict || syncError) && !inFlight;
+
   return (
-    <Link
-      className={`club-sync-status${conflict || syncError || stale ? ' is-warn' : ''}`}
-      to="/settings?tab=backup"
-      title={line}
+    <button
+      type="button"
+      className={`club-sync-status${warn ? ' is-warn' : ''}${inFlight ? ' is-busy' : ''}`}
+      title={title}
+      aria-label={title}
+      disabled={inFlight}
+      onClick={() => {
+        if (inFlight) return;
+        if (syncError || dirty) {
+          setRetrying(true);
+          void flushClubMirrorPush(clubId, { force: true }).finally(() => setRetrying(false));
+          return;
+        }
+        navigate('/settings?tab=backup');
+      }}
     >
-      {line}
-    </Link>
+      <span className="club-sync-meter" style={{ ['--p' as string]: percent }}>
+        <span className="club-sync-pct">{percent}%</span>
+      </span>
+    </button>
   );
 }

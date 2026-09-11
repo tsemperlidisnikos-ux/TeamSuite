@@ -119,6 +119,48 @@ let pulling = false;
 let lastPullAttemptAt = 0;
 let pushQueue: Promise<unknown> = Promise.resolve();
 
+type ClubSyncProgress = { percent: number; inFlight: boolean };
+
+const syncProgressByClub: Record<string, ClubSyncProgress> = {};
+const syncProgressTimers: Record<string, ReturnType<typeof setInterval>> = {};
+
+export function getClubSyncProgress(clubId?: string | null): ClubSyncProgress {
+  const id = clubId ?? resolveActiveClubId();
+  if (!id) return { percent: 100, inFlight: false };
+  return syncProgressByClub[id] ?? { percent: getLastSyncError(id) ? 0 : 100, inFlight: false };
+}
+
+function setClubSyncProgress(clubId: string, percent: number, inFlight: boolean): void {
+  syncProgressByClub[clubId] = {
+    percent: Math.max(0, Math.min(100, Math.round(percent))),
+    inFlight,
+  };
+  emitClubSyncStatus();
+}
+
+function stopClubSyncProgressTimer(clubId: string): void {
+  const timer = syncProgressTimers[clubId];
+  if (!timer) return;
+  clearInterval(timer);
+  delete syncProgressTimers[clubId];
+}
+
+function beginClubSyncProgress(clubId: string): void {
+  stopClubSyncProgressTimer(clubId);
+  setClubSyncProgress(clubId, 6, true);
+  syncProgressTimers[clubId] = setInterval(() => {
+    const current = syncProgressByClub[clubId]?.percent ?? 6;
+    if (current >= 90) return;
+    const step = current < 30 ? 8 : current < 60 ? 4 : 2;
+    setClubSyncProgress(clubId, Math.min(90, current + step), true);
+  }, 300);
+}
+
+function endClubSyncProgress(clubId: string, ok: boolean): void {
+  stopClubSyncProgressTimer(clubId);
+  setClubSyncProgress(clubId, ok ? 100 : 0, false);
+}
+
 const MIN_PULL_GAP_MS = 1_500;
 
 function readMap<T extends Record<string, unknown>>(key: string): T {
@@ -280,8 +322,16 @@ export async function flushClubMirrorPush(
   }
 
   const run = async () => {
-    await whenClubMapPersisted();
-    return await pushClubAndAccounts(id, getLastSyncAt(id), { keepalive: opts?.keepalive });
+    beginClubSyncProgress(id);
+    try {
+      await whenClubMapPersisted();
+      const result = await pushClubAndAccounts(id, getLastSyncAt(id), { keepalive: opts?.keepalive });
+      endClubSyncProgress(id, Boolean(result.success));
+      return result;
+    } catch (error) {
+      endClubSyncProgress(id, false);
+      throw error;
+    }
   };
 
   const queued = pushQueue.then(run, run);
