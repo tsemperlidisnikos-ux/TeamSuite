@@ -17,6 +17,12 @@ export function isRentalBookingCollected(booking: RentalBooking): boolean {
   return booking.status === 'confirmed';
 }
 
+export function listUncollectedRentalBookings(bookings: RentalBooking[] | undefined): RentalBooking[] {
+  return (bookings ?? [])
+    .filter((item) => item.status !== 'cancelled' && Number(item.amount) > 0 && !isRentalBookingCollected(item))
+    .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
+}
+
 export function rentalRevenueDate(booking: RentalBooking): string {
   const paidOn = String(booking.paidOn ?? '').slice(0, 10);
   if (/^\d{4}-\d{2}-\d{2}$/.test(paidOn)) return paidOn;

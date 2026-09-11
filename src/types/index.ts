@@ -601,6 +601,8 @@ export interface ReceiptNumberRange {
   to: number;
 }
 
+export type ReceiptIssueKind = 'subscription' | 'rental' | 'other';
+
 /** Εκδοθείσα ή ακυρωμένη απόδειξη — ο αριθμός δεν επαναχρησιμοποιείται. */
 export interface ReceiptIssueRecord {
   id: string;
@@ -612,6 +614,11 @@ export interface ReceiptIssueRecord {
   emailedAt?: string | null;
   voidedAt?: string | null;
   voidReason?: string | null;
+  /** Στιγμιότυπο από την έκδοση — για μητρώο ακόμη κι αν διαγραφεί η συναλλαγή. */
+  amount?: number | null;
+  receivedFrom?: string | null;
+  reason?: string | null;
+  kind?: ReceiptIssueKind | null;
 }
 
 /** Πρότυπο χρεώσεων συνδρομών (Συνδρομές / Πληρωμές). */

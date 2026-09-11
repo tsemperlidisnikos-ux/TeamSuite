@@ -17,8 +17,9 @@ import { localDateIso, localDateTimeIso } from '../../utils/dates';
 import { syncAuthHeaders } from '../syncAuth';
 import { persistClubImageDataUrl } from './sessionService';
 import * as emailService from './emailService';
-import { buildRentalBookingEmail } from '../../utils/rentalBookingEmail';
+import { buildRentalBookingEmail, buildRentalReceiptEmail } from '../../utils/rentalBookingEmail';
 import { getClubById } from '../../auth/clubs';
+import { paymentMethodLabel } from '../../shared/paymentMethods';
 import {
   isRentalBookingCollected,
   upsertRentalBookingRevenueInData,
@@ -38,6 +39,32 @@ export async function publishRentalOccupancy(clubId: string) {
   const json = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };
   if (!response.ok || json.ok === false) {
     throw new Error(json.error || 'Αποτυχία ενημέρωσης δημόσιας διαθεσιμότητας.');
+  }
+}
+
+async function emailRentalCustomer(clubId: string, booking: RentalBooking, kind: 'confirm' | 'receipt') {
+  const to = (booking.customerEmail || '').trim();
+  if (!to.includes('@')) return;
+  const clubName = getClubById(clubId)?.name ?? '';
+  const mail =
+    kind === 'receipt'
+      ? buildRentalReceiptEmail({
+          clubName,
+          booking,
+          paymentLabel: paymentMethodLabel(booking.paymentMethod),
+        })
+      : buildRentalBookingEmail({ clubName, booking });
+  try {
+    await emailService.sendClubEmail({
+      clubId,
+      to,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+      transactional: true,
+    });
+  } catch {
+    /* κράτηση έγκυρη και χωρίς email */
   }
 }
 
@@ -156,25 +183,7 @@ export async function createRentalBooking(
       } catch {
         /* τοπική κράτηση μένει · το δημόσιο ενημερώνεται στο επόμενο save */
       }
-      const to = booking.customerEmail;
-      if (to.includes('@')) {
-        const mail = buildRentalBookingEmail({
-          clubName: getClubById(clubId)?.name ?? '',
-          booking,
-        });
-        try {
-          await emailService.sendClubEmail({
-            clubId,
-            to,
-            subject: mail.subject,
-            text: mail.text,
-            html: mail.html,
-            transactional: true,
-          });
-        } catch {
-          /* κράτηση έγκυρη και χωρίς email */
-        }
-      }
+      if (!paidNow) await emailRentalCustomer(clubId, booking, 'confirm');
     }
     return booking;
   });

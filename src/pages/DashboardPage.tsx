@@ -23,6 +23,7 @@ import { clubSportsMatch, listActiveClubSportNames } from '../utils/clubSports';
 import { listLowStockProducts } from '../utils/warehouseStock';
 import {
   isRentalBookingCollected,
+  listUncollectedRentalBookings,
   rentalRevenueDate,
 } from '../api/services/rentalRevenueBridge';
 import {
@@ -399,6 +400,19 @@ export function DashboardPage() {
     (session?.role === 'admin' ||
       session?.role === 'secretariat' ||
       session?.role === 'platform_admin');
+  const uncollectedRentals = useMemo(
+    () => listUncollectedRentalBookings(data.rentalBookings),
+    [data.rentalBookings],
+  );
+  const showRentalDue =
+    uncollectedRentals.length > 0 &&
+    (session?.role === 'admin' ||
+      session?.role === 'secretariat' ||
+      session?.role === 'platform_admin');
+  const uncollectedRentalsTotal = uncollectedRentals.reduce(
+    (sum, row) => sum + (Number(row.amount) || 0),
+    0,
+  );
 
   if (isDoctor) {
     return <DoctorDashboard />;
@@ -414,6 +428,19 @@ export function DashboardPage() {
             : 'Διαχείριση ακαδημίας σε μία οθόνη.'
         }
       />
+
+      {showRentalDue ? (
+        <Link className="ops-alert-banner is-warn" to="/rental?tab=bookings">
+          <span>
+            <Banknote size={16} aria-hidden />{' '}
+            {uncollectedRentals.length === 1
+              ? '1 ενοικίαση χωρίς είσπραξη'
+              : `${uncollectedRentals.length} ενοικιάσεις χωρίς είσπραξη`}
+            {' · '}
+            {formatCurrency(uncollectedRentalsTotal)} — άνοιγμα καρτέλας Κρατήσεις
+          </span>
+        </Link>
+      ) : null}
 
       {showLowStock ? (
         <Link className="ops-alert-banner is-warn" to="/warehouse?status=low">

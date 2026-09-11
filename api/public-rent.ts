@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { randomBytes } from 'crypto';
 import nodemailer from 'nodemailer';
-import { buildRentalBookingEmail } from '../src/utils/rentalBookingEmail.js';
+import { buildRentalBookingEmail, buildRentalReceiptEmail } from '../src/utils/rentalBookingEmail.js';
 import {
   allowRateLimit,
   assertSyncAuthorized,
@@ -231,12 +231,25 @@ async function createVivaCheckoutUrl(input: {
   return { orderCode, checkoutUrl: `${hosts.checkout}?ref=${encodeURIComponent(orderCode)}` };
 }
 
-async function emailRentalBooking(clubId: string, clubName: string, booking: RentalBooking, extraTo?: string) {
+async function emailRentalBooking(
+  clubId: string,
+  clubName: string,
+  booking: RentalBooking,
+  extraTo?: string,
+  kind: 'confirm' | 'receipt' = 'confirm',
+) {
   const notify = await loadClubNotifyConfig(clubId);
   if (!notify?.smtp?.enabled || !notify.smtp.host || !notify.smtp.username || !notify.smtp.password) {
     return;
   }
-  const mail = buildRentalBookingEmail({ clubName, booking });
+  const mail =
+    kind === 'receipt'
+      ? buildRentalReceiptEmail({
+          clubName,
+          booking,
+          paymentLabel: 'Online πληρωμή',
+        })
+      : buildRentalBookingEmail({ clubName, booking });
   const transporter = nodemailer.createTransport({
     host: notify.smtp.host,
     port: Number(notify.smtp.port) || 587,
@@ -506,7 +519,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
     if (confirmed && confirmed.status === 'confirmed') {
-      await emailRentalBooking(club.clubId, club.name, confirmed, confirmed.customerEmail);
+      await emailRentalBooking(club.clubId, club.name, confirmed, confirmed.customerEmail, 'receipt');
     }
     return res.status(200).json({ ok: true, bookingId: confirmed?.id ?? bookingId, paid: true });
   }

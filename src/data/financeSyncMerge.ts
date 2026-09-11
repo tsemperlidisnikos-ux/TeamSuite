@@ -72,6 +72,10 @@ function mergeReceiptIssues(
       voidReason: row.voidReason || prev.voidReason,
       emailedAt: row.emailedAt || prev.emailedAt,
       issuedAt: prev.issuedAt <= row.issuedAt ? prev.issuedAt : row.issuedAt,
+      amount: row.amount || prev.amount,
+      receivedFrom: row.receivedFrom || prev.receivedFrom,
+      reason: row.reason || prev.reason,
+      kind: row.kind || prev.kind,
     });
   }
   return [...map.values()];

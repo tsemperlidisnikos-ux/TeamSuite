@@ -20,9 +20,11 @@ export type PaymentReceiptDraft = {
 export function parentReceiptEmails(input: {
   fatherEmail?: string | null;
   motherEmail?: string | null;
+  extraEmails?: string[] | null;
 }): string[] {
   const unique = new Set<string>();
-  for (const raw of [input.fatherEmail, input.motherEmail]) {
+  const extras = Array.isArray(input.extraEmails) ? input.extraEmails : [];
+  for (const raw of [input.fatherEmail, input.motherEmail, ...extras]) {
     const email = String(raw ?? '').trim().toLowerCase();
     if (email.includes('@')) unique.add(email);
   }

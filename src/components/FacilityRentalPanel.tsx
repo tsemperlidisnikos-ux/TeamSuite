@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ClipboardCopy, Code2, Download, ExternalLink, ImagePlus, Trash2 } from 'lucide-react';
 import * as rentalBookingsService from '../api/services/rentalBookingsService';
 import * as facilitiesService from '../api/services/facilitiesService';
@@ -7,15 +8,17 @@ import { getClubById, getClubPublicRegistration, getClubs, slugifyClubName } fro
 import { listPublicSlugCollisions } from '../utils/publicClubSlug';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { PaymentReceiptModal, type PaymentReceiptDraft } from './PaymentReceiptModal';
 import { useAppData } from '../hooks/useAppData';
 import { useT } from '../i18n/LocaleContext';
-import { getPreviewClubId } from '../platform/platformConfig';
-import { isRentalBookingCollected } from '../api/services/rentalRevenueBridge';
+import { getAppLogoUrl, getPreviewClubId } from '../platform/platformConfig';
+import { isRentalBookingCollected, listUncollectedRentalBookings } from '../api/services/rentalRevenueBridge';
 import { paymentMethodLabel } from '../shared/paymentMethods';
 import type { FacilityInput, RentalBookingInput } from '../schemas';
 import type { Facility, FacilityRentalRule, RentalBooking, RentalCourtShare, RentalSettings } from '../types';
 import { localDateIso } from '../utils/dates';
-import { formatCurrency } from '../utils/labels';
+import { formatCurrency, formatDate } from '../utils/labels';
+import { amountToGreekWords } from '../utils/amountToGreekWords';
 import { listActiveFacilities } from '../utils/facilityHours';
 import { optimizeCoverImageDataUrl } from '../utils/clubLogoFile';
 import {
@@ -30,6 +33,30 @@ import {
   occupancyForDate,
   ruleForFacility,
 } from '../shared/facilityRentalAvailability';
+
+function toReceiptDate(isoOrEmpty: string): string {
+  const raw = (isoOrEmpty || localDateIso()).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!m) return raw;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+function formatReceiptAmount(value: number): string {
+  return (Number(value) || 0).toFixed(2).replace('.', ',');
+}
+
+function emptyRentalReceiptDraft(): PaymentReceiptDraft {
+  return {
+    date: '',
+    series: '',
+    number: '',
+    amount: '',
+    receivedFrom: '',
+    address: '',
+    amountWords: '',
+    reason: '',
+  };
+}
 
 function nextDays(count: number): string[] {
   const today = new Date();
@@ -169,6 +196,24 @@ export function FacilityRentalPanel() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [panelTab, setPanelTab] = useState<'public' | 'availability' | 'bookings'>('availability');
+  const [searchParams] = useSearchParams();
+  const [receiptBooking, setReceiptBooking] = useState<RentalBooking | null>(null);
+  const clubLogoUrl = club?.logoUrl?.trim() || getAppLogoUrl() || null;
+  const clubName = club?.name?.trim() || 'Σύλλογος';
+  const rentalReceiptDraft = useMemo((): PaymentReceiptDraft => {
+    if (!receiptBooking) return emptyRentalReceiptDraft();
+    const share = t(courtShareLabel(receiptBooking.courtShare));
+    return {
+      date: toReceiptDate(receiptBooking.paidOn || localDateIso()),
+      series: '',
+      number: '',
+      amount: formatReceiptAmount(receiptBooking.amount),
+      receivedFrom: receiptBooking.customerName,
+      address: '',
+      amountWords: amountToGreekWords(receiptBooking.amount),
+      reason: `Ενοικίαση γηπέδου · ${receiptBooking.facilityName} · ${formatDate(receiptBooking.date)} ${receiptBooking.startTime}–${receiptBooking.endTime} · ${share}`,
+    };
+  }, [receiptBooking, t]);
   const heroFileRef = useRef<HTMLInputElement>(null);
   const facilityPhotoRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -227,6 +272,15 @@ export function FacilityRentalPanel() {
       .filter((item) => item.date >= today || !isRentalBookingCollected(item))
       .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
   }, [data.rentalBookings]);
+  const uncollected = useMemo(
+    () => listUncollectedRentalBookings(data.rentalBookings),
+    [data.rentalBookings],
+  );
+  const uncollectedTotal = uncollected.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'bookings') setPanelTab('bookings');
+  }, [searchParams]);
 
   function ruleOf(facility: Facility): FacilityRentalRule {
     return ruleForFacility(draft, facility.id, facility);
@@ -424,6 +478,7 @@ export function FacilityRentalPanel() {
         ? 'Η κράτηση καταχωρήθηκε και εισπράχθηκε. Το ποσό εμφανίζεται στα ημερήσια έσοδα.'
         : 'Η κράτηση καταχωρήθηκε. Το γήπεδο δεσμεύτηκε· τα έσοδα θα μπουν με την είσπραξη.',
     );
+    if (paidNow && result.data) setReceiptBooking(result.data);
     setCustomerLastName('');
     setCustomerFirstName('');
     setCustomerPhone('');
@@ -464,6 +519,7 @@ export function FacilityRentalPanel() {
         collectMethod === 'card' ? 'POS' : 'μετρητά'
       }). Το ποσό μπήκε στα ημερήσια έσοδα.`,
     );
+    if (result.data) setReceiptBooking(result.data);
     setCollectBooking(null);
     refresh();
   }
@@ -520,6 +576,7 @@ export function FacilityRentalPanel() {
           onClick={() => setPanelTab('bookings')}
         >
           {t('Κρατήσεις')}
+          {uncollected.length > 0 ? ` (${uncollected.length})` : ''}
         </button>
       </div>
 
@@ -832,6 +889,39 @@ export function FacilityRentalPanel() {
 
       {panelTab === 'bookings' ? (
       <>
+      {uncollected.length > 0 ? (
+        <section className="rental-collect-due" aria-label="Εκκρεμείς εισπράξεις ενοικίασης">
+          <p>
+            <strong>
+              {uncollected.length === 1
+                ? '1 εκκρεμής είσπραξη'
+                : `${uncollected.length} εκκρεμείς εισπράξεις`}
+            </strong>
+            {' · '}
+            {formatCurrency(uncollectedTotal)} χωρίς να έχουν μπει στα έσοδα
+          </p>
+          <ul>
+            {uncollected.slice(0, 8).map((row) => (
+              <li key={row.id}>
+                <span>
+                  {row.date} · {row.startTime}–{row.endTime} · {row.facilityName} · {row.customerName} ·{' '}
+                  {formatCurrency(row.amount)}
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setCollectMethod('cash');
+                    setCollectBooking(row);
+                  }}
+                >
+                  {t('Είσπραξη')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <h3 className="rental-subhead">{t('Καταχώρηση κράτησης')}</h3>
       <div className="rental-date-strip">
         {nextDays(14).map((iso) => (
@@ -1102,6 +1192,15 @@ export function FacilityRentalPanel() {
                           {t('Είσπραξη')}
                         </Button>
                       ) : null}
+                      {isRentalBookingCollected(row) && Number(row.amount) > 0 ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => setReceiptBooking(row)}
+                        >
+                          {t('Απόδειξη')}
+                        </Button>
+                      ) : null}
                       <Button type="button" variant="ghost" onClick={() => void cancelBooking(row.id)}>
                         {t('Ακύρωση')}
                       </Button>
@@ -1164,6 +1263,17 @@ export function FacilityRentalPanel() {
           </div>
         ) : null}
       </Modal>
+
+      <PaymentReceiptModal
+        open={Boolean(receiptBooking)}
+        logoUrl={clubLogoUrl}
+        clubName={clubName}
+        clubId={clubId}
+        transactionId={receiptBooking ? `rent_${receiptBooking.id}` : null}
+        extraEmails={receiptBooking?.customerEmail ? [receiptBooking.customerEmail] : []}
+        initial={rentalReceiptDraft}
+        onClose={() => setReceiptBooking(null)}
+      />
     </div>
   );
 }

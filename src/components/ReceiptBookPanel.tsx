@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as receiptBookService from '../api/services/receiptBookService';
 import { createId } from '../data/repository';
 import { Button } from './ui/Button';
+import { ReceiptIssuesRegistry } from './ReceiptIssuesRegistry';
 import { useAppData } from '../hooks/useAppData';
 import type { ReceiptNumberRange } from '../types';
 import {
@@ -13,6 +14,7 @@ import {
 
 export function ReceiptBookPanel() {
   const { data, refresh } = useAppData();
+  const [view, setView] = useState<'registry' | 'book'>('registry');
   const [draft, setDraft] = useState<ReceiptNumberRange[]>(() =>
     normalizeReceiptRanges(data.receiptNumberRanges),
   );
@@ -129,13 +131,38 @@ export function ReceiptBookPanel() {
         <div>
           <h3>Αποδείξεις είσπραξης</h3>
           <p className="lede">
-            Ορίστε σειρά και εύρος αριθμών (π.χ. σειρά Α, 1–50). Στην απόδειξη που στέλνεται
-            με email η αρίθμηση αυξάνεται αυτόματα. Όταν εξαντληθεί το εύρος, προσθέστε νέο
-            (π.χ. Α 51–100). Διαγραφή συναλλαγής δεν επαναχρησιμοποιεί τον αριθμό.
+            Δείτε τι έχει κοπεί (συγκεντρωτικά και αναλυτικά) και ορίστε τη σειρά αριθμών του
+            βιβλίου.
           </p>
         </div>
       </div>
 
+      <div className="tabs receipt-book-tabs">
+        <button
+          type="button"
+          className={view === 'registry' ? 'tab active' : 'tab'}
+          onClick={() => setView('registry')}
+        >
+          Μητρώο
+        </button>
+        <button
+          type="button"
+          className={view === 'book' ? 'tab active' : 'tab'}
+          onClick={() => setView('book')}
+        >
+          Αρίθμηση
+        </button>
+      </div>
+
+      {view === 'registry' ? <ReceiptIssuesRegistry /> : null}
+
+      {view === 'book' ? (
+        <>
+      <p className="lede">
+        Ορίστε σειρά και εύρος αριθμών (π.χ. σειρά Α, 1–50). Στην απόδειξη η αρίθμηση αυξάνεται
+        αυτόματα. Όταν εξαντληθεί το εύρος, προσθέστε νέο. Διαγραφή συναλλαγής δεν επαναχρησιμοποιεί
+        τον αριθμό.
+      </p>
       <div className="settings-form">
         <div className="clothing-pkg-add receipt-book-add">
           <input
@@ -219,6 +246,8 @@ export function ReceiptBookPanel() {
           {saving ? 'Αποθήκευση…' : 'Αποθήκευση'}
         </Button>
       </div>
+        </>
+      ) : null}
     </section>
   );
 }

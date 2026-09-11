@@ -52,7 +52,7 @@ export function ClubSyncStatus({ clubId }: { clubId: string }) {
   const syncError = getLastSyncError(clubId);
   const progress = getClubSyncProgress(clubId);
   const inFlight = progress.inFlight || retrying;
-  const percent = inFlight ? progress.percent : syncError || dirty || conflict ? 0 : 100;
+  const percent = inFlight ? progress.percent : syncError || conflict ? 0 : 100;
 
   useEffect(() => {
     if (!inFlight) return;

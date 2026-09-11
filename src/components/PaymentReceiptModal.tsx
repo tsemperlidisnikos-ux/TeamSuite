@@ -15,6 +15,7 @@ import {
 import {
   formatReceiptLabel,
   issueForTransaction,
+  normalizeReceiptIssues,
   previewNextReceipt,
   seriesOptions,
 } from '../utils/receiptBook';
@@ -30,6 +31,7 @@ type PaymentReceiptModalProps = {
   transactionId?: string | null;
   fatherEmail?: string | null;
   motherEmail?: string | null;
+  extraEmails?: string[];
   initial: PaymentReceiptDraft;
   onClose: () => void;
 };
@@ -54,6 +56,7 @@ export function PaymentReceiptModal({
   transactionId,
   fatherEmail,
   motherEmail,
+  extraEmails,
   initial,
   onClose,
 }: PaymentReceiptModalProps) {
@@ -67,10 +70,12 @@ export function PaymentReceiptModal({
     () => seriesOptions(data.receiptNumberRanges, data.receiptIssues),
     [data.receiptNumberRanges, data.receiptIssues],
   );
-  const existing = useMemo(
-    () => issueForTransaction(data.receiptIssues, transactionId),
-    [data.receiptIssues, transactionId],
-  );
+  const existing = useMemo(() => {
+    const byTx = issueForTransaction(data.receiptIssues, transactionId);
+    if (byTx) return byTx;
+    if (!transactionId) return null;
+    return normalizeReceiptIssues(data.receiptIssues).find((row) => row.id === transactionId) ?? null;
+  }, [data.receiptIssues, transactionId]);
 
   useEffect(() => {
     if (!open) return;
@@ -137,6 +142,14 @@ export function PaymentReceiptModal({
       transactionId,
       athleteId,
       emailed,
+      amount: Number(String(draft.amount).replace(/\s/g, '').replace(',', '.')) || 0,
+      receivedFrom: draft.receivedFrom,
+      reason: draft.reason,
+      kind: String(transactionId ?? '').startsWith('rent_')
+        ? 'rental'
+        : athleteId
+          ? 'subscription'
+          : 'other',
     });
     if (!result.success || !result.data) {
       return { ok: false as const, error: result.error ?? 'Δεν εκδόθηκε αριθμός απόδειξης.' };
@@ -173,10 +186,12 @@ export function PaymentReceiptModal({
       setSendError('Ενεργοποιήστε το SMTP στις Ρυθμίσεις → Email για αποστολή απόδειξης.');
       return;
     }
-    const recipients = parentReceiptEmails({ fatherEmail, motherEmail });
+    const recipients = parentReceiptEmails({ fatherEmail, motherEmail, extraEmails });
     if (recipients.length === 0) {
       setSendError(
-        'Δεν υπάρχουν email πατέρα ή μητέρας στο προφίλ αθλητή. Συμπληρώστε τα και δοκιμάστε ξανά.',
+        extraEmails?.length
+          ? 'Δεν υπάρχει έγκυρο email παραλήπτη.'
+          : 'Δεν υπάρχουν email πατέρα ή μητέρας στο προφίλ αθλητή. Συμπληρώστε τα και δοκιμάστε ξανά.',
       );
       return;
     }
@@ -224,7 +239,7 @@ export function PaymentReceiptModal({
     setSendOk(
       sent.length === 1
         ? `Η απόδειξη ${formatReceiptLabel(issued.issue.series, issued.issue.number)} στάλθηκε στο ${sent[0]}.`
-        : `Η απόδειξη ${formatReceiptLabel(issued.issue.series, issued.issue.number)} στάλθηκε σε πατέρα και μητέρα (${sent.join(', ')}).`,
+        : `Η απόδειξη ${formatReceiptLabel(issued.issue.series, issued.issue.number)} στάλθηκε σε ${sent.length} παραλήπτες (${sent.join(', ')}).`,
     );
   }
 

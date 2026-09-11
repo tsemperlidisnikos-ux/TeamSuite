@@ -761,6 +761,34 @@
   font-size: 1.05rem;
 }
 
+.rental-collect-due {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger, #b42318) 28%, var(--line));
+  background: color-mix(in srgb, var(--danger, #b42318) 8%, #fff);
+}
+
+.rental-collect-due > p {
+  margin: 0 0 0.45rem;
+}
+
+.rental-collect-due ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.rental-collect-due li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .rental-slots-discount-row {
   display: flex;
   flex-wrap: nowrap;

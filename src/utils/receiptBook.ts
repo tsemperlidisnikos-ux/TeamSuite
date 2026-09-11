@@ -45,6 +45,11 @@ export function normalizeReceiptIssues(
     const key = `${series}:${number}`;
     if (seen.has(key)) continue;
     seen.add(key);
+    const amountRaw = Number(row?.amount);
+    const kind =
+      row?.kind === 'subscription' || row?.kind === 'rental' || row?.kind === 'other'
+        ? row.kind
+        : null;
     next.push({
       id: String(row?.id ?? '').trim() || key,
       series,
@@ -55,6 +60,10 @@ export function normalizeReceiptIssues(
       emailedAt: row?.emailedAt ?? null,
       voidedAt: row?.voidedAt ?? null,
       voidReason: row?.voidReason ?? null,
+      amount: Number.isFinite(amountRaw) && amountRaw > 0 ? amountRaw : null,
+      receivedFrom: String(row?.receivedFrom ?? '').trim() || null,
+      reason: String(row?.reason ?? '').trim() || null,
+      kind,
     });
   }
   return next.sort((a, b) => {

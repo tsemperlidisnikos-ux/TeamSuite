@@ -1,6 +1,6 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
-import type { ReceiptIssueRecord, ReceiptNumberRange } from '../../types';
+import type { ReceiptIssueKind, ReceiptIssueRecord, ReceiptNumberRange } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import {
   formatReceiptLabel,
@@ -25,23 +25,65 @@ export async function saveReceiptRanges(ranges: ReceiptNumberRange[]) {
   });
 }
 
+function inferReceiptKind(input: {
+  kind?: ReceiptIssueKind | null;
+  transactionId?: string | null;
+  athleteId?: string | null;
+}): ReceiptIssueKind {
+  if (input.kind === 'subscription' || input.kind === 'rental' || input.kind === 'other') {
+    return input.kind;
+  }
+  if (String(input.transactionId ?? '').startsWith('rent_')) return 'rental';
+  if (input.athleteId) return 'subscription';
+  return 'other';
+}
+
+function snapshotFields(input: {
+  amount?: number | null;
+  receivedFrom?: string | null;
+  reason?: string | null;
+  kind?: ReceiptIssueKind | null;
+  transactionId?: string | null;
+  athleteId?: string | null;
+}): Pick<ReceiptIssueRecord, 'amount' | 'receivedFrom' | 'reason' | 'kind'> {
+  const amount = Number(input.amount);
+  return {
+    amount: Number.isFinite(amount) && amount > 0 ? amount : null,
+    receivedFrom: String(input.receivedFrom ?? '').trim() || null,
+    reason: String(input.reason ?? '').trim() || null,
+    kind: inferReceiptKind(input),
+  };
+}
+
 export async function allocateReceiptIssue(input: {
   series: string;
   transactionId?: string | null;
   athleteId?: string | null;
   emailed?: boolean;
+  amount?: number | null;
+  receivedFrom?: string | null;
+  reason?: string | null;
+  kind?: ReceiptIssueKind | null;
 }) {
   return apiClient(async () => {
     const holder: { value: ReceiptIssueRecord | null } = { value: null };
     mutateData((data) => {
       const ranges = normalizeReceiptRanges(data.receiptNumberRanges);
       const issues = normalizeReceiptIssues(data.receiptIssues);
-      const existing = issueForTransaction(issues, input.transactionId);
+      const existing =
+        issueForTransaction(issues, input.transactionId) ??
+        issues.find((row) => row.id === input.transactionId) ??
+        null;
       const now = localDateTimeIso();
+      const snap = snapshotFields(input);
       if (existing) {
         holder.value = {
           ...existing,
           emailedAt: input.emailed ? existing.emailedAt || now : existing.emailedAt,
+          amount: snap.amount || existing.amount,
+          receivedFrom: snap.receivedFrom || existing.receivedFrom,
+          reason: snap.reason || existing.reason,
+          kind: snap.kind || existing.kind,
         };
         data.receiptIssues = issues.map((row) =>
           row.id === existing.id ? holder.value! : row,
@@ -74,6 +116,7 @@ export async function allocateReceiptIssue(input: {
           emailedAt: input.emailed ? now : null,
           voidedAt: null,
           voidReason: null,
+          ...snap,
         };
         data.receiptIssues = [...issues, holder.value];
         data.receiptNextBySeries = {

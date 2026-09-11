@@ -133,6 +133,10 @@ async function emailOnlineFeeReceipt(input: {
         transactionId: input.transactionId,
         athleteId: input.athleteId,
         emailed: true,
+        amount: input.amountEuro,
+        receivedFrom: input.athleteName,
+        reason: `Online πληρωμή συνδρομής (${input.providerLabel})`,
+        kind: 'subscription',
       });
       if (issued.success && issued.data) {
         series = issued.data.series;
