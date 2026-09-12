@@ -7,6 +7,7 @@ import { CashAccountsPanel } from '../components/CashAccountsPanel';
 import { FinanceBalancePanel } from '../components/FinanceBalancePanel';
 import { FinanceReportsPanel } from '../components/FinanceReportsPanel';
 import { IncomeEntryPanel } from '../components/IncomeEntryPanel';
+import { DailyTillPanel } from '../components/DailyTillPanel';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { useAppData } from '../hooks/useAppData';
@@ -161,6 +162,7 @@ export function FinancePage() {
 
       {tab === 'analysis' ? (
         <>
+          <DailyTillPanel />
           <section className="stats-grid cols-3">
             <StatCard
               label="Συνολικά έσοδα"

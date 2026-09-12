@@ -188,6 +188,9 @@ export function FacilityRentalPanel() {
   const [specialDiscount, setSpecialDiscount] = useState('');
   const [paidNow, setPaidNow] = useState(false);
   const [paidNowMethod, setPaidNowMethod] = useState<'cash' | 'card'>('cash');
+  const [recurring, setRecurring] = useState(false);
+  const [untilDate, setUntilDate] = useState('');
+  const [recWeekdays, setRecWeekdays] = useState<number[]>([]);
   const [collectBooking, setCollectBooking] = useState<RentalBooking | null>(null);
   const [collectMethod, setCollectMethod] = useState<'cash' | 'card'>('cash');
   const [collecting, setCollecting] = useState(false);
@@ -467,18 +470,50 @@ export function FacilityRentalPanel() {
       paidNow,
       paymentMethod: paidNow ? paidNowMethod : undefined,
     };
-    const result = await rentalBookingsService.createRentalBooking(payload, 'secretariat');
-    setBooking(false);
-    if (!result.success) {
-      setError(result.error ?? 'Αποτυχία καταχώρησης.');
-      return;
+    if (recurring) {
+      if (!untilDate) {
+        setBooking(false);
+        setError('Ορίστε ημερομηνία λήξης της επαναλαμβανόμενης κράτησης.');
+        return;
+      }
+      if (recWeekdays.length === 0) {
+        setBooking(false);
+        setError('Επιλέξτε τουλάχιστον μία ημέρα της εβδομάδας.');
+        return;
+      }
+      const result = await rentalBookingsService.createRecurringRentalBookings(
+        { ...payload, untilDate, weekdays: recWeekdays },
+        'secretariat',
+      );
+      setBooking(false);
+      if (!result.success || !result.data) {
+        setError(result.error ?? 'Αποτυχία καταχώρησης σειράς.');
+        return;
+      }
+      const { created, skipped } = result.data;
+      const skipNote = skipped.length
+        ? ` Παραλείφθηκαν ${skipped.length} ημερομηνίες (κατειλημμένες).`
+        : '';
+      setMessage(
+        paidNow
+          ? `Καταχωρήθηκαν ${created.length} κρατήσεις και εισπράχθηκαν.${skipNote}`
+          : `Καταχωρήθηκαν ${created.length} κρατήσεις. Το γήπεδο δεσμεύτηκε· τα έσοδα μπαίνουν με την είσπραξη.${skipNote}`,
+      );
+      if (paidNow && created[0]) setReceiptBooking(created[0]);
+    } else {
+      const result = await rentalBookingsService.createRentalBooking(payload, 'secretariat');
+      setBooking(false);
+      if (!result.success) {
+        setError(result.error ?? 'Αποτυχία καταχώρησης.');
+        return;
+      }
+      setMessage(
+        paidNow
+          ? 'Η κράτηση καταχωρήθηκε και εισπράχθηκε. Το ποσό εμφανίζεται στα ημερήσια έσοδα.'
+          : 'Η κράτηση καταχωρήθηκε. Το γήπεδο δεσμεύτηκε· τα έσοδα θα μπουν με την είσπραξη.',
+      );
+      if (paidNow && result.data) setReceiptBooking(result.data);
     }
-    setMessage(
-      paidNow
-        ? 'Η κράτηση καταχωρήθηκε και εισπράχθηκε. Το ποσό εμφανίζεται στα ημερήσια έσοδα.'
-        : 'Η κράτηση καταχωρήθηκε. Το γήπεδο δεσμεύτηκε· τα έσοδα θα μπουν με την είσπραξη.',
-    );
-    if (paidNow && result.data) setReceiptBooking(result.data);
     setCustomerLastName('');
     setCustomerFirstName('');
     setCustomerPhone('');
@@ -487,6 +522,9 @@ export function FacilityRentalPanel() {
     setSpecialDiscount('');
     setPaidNow(false);
     setPaidNowMethod('cash');
+    setRecurring(false);
+    setUntilDate('');
+    setRecWeekdays([]);
     setSelectedSlot(null);
     setUseLockerRoom(false);
     refresh();
@@ -1128,9 +1166,66 @@ export function FacilityRentalPanel() {
           </select>
         </label>
       ) : null}
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          checked={recurring}
+          onChange={(e) => {
+            const on = e.target.checked;
+            setRecurring(on);
+            if (on) {
+              const start = new Date(`${date}T12:00:00`);
+              const end = new Date(start);
+              end.setDate(end.getDate() + 56);
+              setUntilDate(localDateIso(end));
+              setRecWeekdays([start.getDay()]);
+            }
+          }}
+        />
+        {t('Επαναλαμβανόμενη κράτηση (ίδια ώρα κάθε εβδομάδα)')}
+      </label>
+      {recurring ? (
+        <div className="rental-recurring-box">
+          <label className="field">
+            <span className="field-label">{t('Μέχρι')}</span>
+            <input
+              className="field-input"
+              type="date"
+              min={date}
+              value={untilDate}
+              onChange={(e) => setUntilDate(e.target.value)}
+            />
+          </label>
+          <div>
+            <span className="field-label">{t('Ημέρες')}</span>
+            <div className="rental-day-row">
+              {RENTAL_WEEKDAYS.map((day) => (
+                <button
+                  key={day.value}
+                  type="button"
+                  className={recWeekdays.includes(day.value) ? 'rental-day is-on' : 'rental-day'}
+                  onClick={() =>
+                    setRecWeekdays((prev) =>
+                      prev.includes(day.value)
+                        ? prev.filter((item) => item !== day.value)
+                        : [...prev, day.value].sort((a, b) => a - b),
+                    )
+                  }
+                >
+                  {t(day.label)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="prints-filter-actions">
         <Button type="button" onClick={() => void submitBooking()} disabled={booking}>
-          {booking ? t('Καταχώρηση…') : t('Καταχώρηση κράτησης')}
+          {booking
+            ? t('Καταχώρηση…')
+            : recurring
+              ? t('Καταχώρηση σειράς')
+              : t('Καταχώρηση κράτησης')}
         </Button>
       </div>
 

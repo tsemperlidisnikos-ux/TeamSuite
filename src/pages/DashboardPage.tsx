@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, HeartPulse, Layers, Banknote, Percent, UserCog, AlertTriangle } from 'lucide-react';
+import { ClipboardList, HeartPulse, Layers, Banknote, Percent, UserCog, AlertTriangle, Receipt } from 'lucide-react';
 import { getSession } from '../auth/auth';
 import { AthletesIcon } from '../components/icons/AthletesIcon';
 import { Button } from '../components/ui/Button';
@@ -21,6 +21,7 @@ import { studentClassIds, studentInClass } from '../utils/studentClasses';
 import { studentSports } from '../utils/studentSports';
 import { clubSportsMatch, listActiveClubSportNames } from '../utils/clubSports';
 import { listLowStockProducts } from '../utils/warehouseStock';
+import { buildDailyTill } from '../utils/dailyTill';
 import {
   isRentalBookingCollected,
   listUncollectedRentalBookings,
@@ -383,16 +384,29 @@ export function DashboardPage() {
             (monthAttendance.filter((a) => a.present).length / monthAttendance.length) * 100,
           )
         : null;
-    const expiredHealth = data.students.filter((s) => {
-      if (s.status === 'inactive') return false;
-      const exp = s.healthCardExpires?.trim();
-      return Boolean(exp && exp < today);
-    }).length;
     const pendingRegs = (data.registrationApplications ?? []).filter(
       (a) => a.status === 'pending',
     ).length;
-    return { activeAthletes, attendancePct, expiredHealth, pendingRegs };
-  }, [data.students, data.attendance, data.registrationApplications, today]);
+    const till = buildDailyTill(data, today);
+    const receiptGap = Math.round((till.collectionsTotal - till.receiptsTotal) * 100) / 100;
+    return {
+      activeAthletes,
+      attendancePct,
+      pendingRegs,
+      tillCollections: till.collectionsTotal,
+      tillReceiptGap: receiptGap,
+      tillMissingReceipts: till.missingReceipts.length,
+    };
+  }, [
+    data.students,
+    data.attendance,
+    data.registrationApplications,
+    data.transactions,
+    data.revenues,
+    data.rentalBookings,
+    data.receiptIssues,
+    today,
+  ]);
 
   const lowStock = useMemo(() => listLowStockProducts(data.products), [data.products]);
   const showLowStock =
@@ -484,11 +498,18 @@ export function DashboardPage() {
           to="/fees"
         />
         <StatCard
-          label="Ληγμένες ιατρικές"
-          value={String(adminKpis.expiredHealth)}
-          hint="Ημερομηνία λήξης περασμένη"
-          icon={HeartPulse}
-          tone={adminKpis.expiredHealth > 0 ? 'negative' : 'positive'}
+          label="Ταμείο vs αποδείξεις"
+          value={formatCurrency(Math.max(0, adminKpis.tillReceiptGap))}
+          hint={
+            adminKpis.tillReceiptGap > 0.05
+              ? `${adminKpis.tillMissingReceipts} εισπράξεις χωρίς απόδειξη σήμερα`
+              : adminKpis.tillCollections > 0
+                ? 'Σε συμφωνία σήμερα'
+                : 'Χωρίς εισπράξεις σήμερα'
+          }
+          icon={Receipt}
+          tone={adminKpis.tillReceiptGap > 0.05 ? 'warn' : 'positive'}
+          to="/finance"
         />
         <StatCard
           label="Αιτήσεις εγγραφής"
@@ -508,10 +529,10 @@ export function DashboardPage() {
           <span>Οφειλές</span>
           <strong>{formatCurrency(moneyStrip.outstanding)}</strong>
         </Link>
-        <div className="money-strip-item is-accent">
+        <Link to="/finance" className="money-strip-item is-accent">
           <span>Έσοδα σήμερα</span>
           <strong>{formatCurrency(moneyStrip.dailyIncome)}</strong>
-        </div>
+        </Link>
         <div className="money-strip-item is-accent">
           <span>Εισπράξεις μήνα</span>
           <strong>{formatCurrency(moneyStrip.monthCollections)}</strong>

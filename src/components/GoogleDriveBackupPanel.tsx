@@ -118,7 +118,7 @@ export function GoogleDriveBackupPanel({ onSaved }: { onSaved: (text: string) =>
       <p className="admin-entry-note">
         Ένας φάκελος στο Google Drive (προεπιλογή <strong>TeamSuite-Backups</strong>) με υποφάκελο ανά
         σύλλογο. Κάθε αρχείο ονομάζεται όπως{' '}
-        <code>TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-04-17-25.json</code>. Το νυχτερινό cron (02:00 UTC)
+        <code>TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-04-17-25 (142).json</code>. Το νυχτερινό cron (02:00 UTC)
         ανεβάζει όσα club mirrors υπάρχουν ήδη στο cloud. Απαιτούνται στο Vercel:{' '}
         <code>GOOGLE_DRIVE_CLIENT_ID</code>, <code>GOOGLE_DRIVE_CLIENT_SECRET</code> και Redirect URI{' '}
         <code>{status?.redirectUri || 'https://teamsuite-seven.vercel.app/api/google-drive?op=callback'}</code>

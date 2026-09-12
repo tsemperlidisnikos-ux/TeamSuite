@@ -722,6 +722,49 @@
   gap: 0.5rem;
 }
 
+.daily-till {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.daily-till-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.daily-till-head h2 {
+  margin: 0 0 0.35rem;
+}
+
+.daily-till-head .lede {
+  margin: 0;
+  max-width: 40rem;
+}
+
+.daily-till-date {
+  min-width: 11rem;
+}
+
+.daily-till-gaps h3 {
+  margin: 0.4rem 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+.daily-till-gaps ul {
+  margin: 0 0 0.45rem;
+  padding-left: 1.1rem;
+}
+
+@media (max-width: 720px) {
+  .rental-recurring-box {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media print {
   .no-print,
   .tabs,
@@ -734,5 +777,11 @@
   .report-sheet {
     border: 0;
     padding: 0;
+  }
+
+  body:has(.daily-till) .finance-page > .stats-grid,
+  body:has(.daily-till) .chart-box,
+  body:has(.daily-till) .daily-till-print {
+    display: none !important;
   }
 }

@@ -7,6 +7,7 @@ import {
   Download,
   FileHeart,
   LayoutGrid,
+  Receipt,
   Users,
 } from 'lucide-react';
 import * as onlineCheckoutService from '../api/services/onlineCheckoutService';
@@ -17,8 +18,12 @@ import { getClubById } from '../auth/clubs';
 import { Button } from '../components/ui/Button';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
+import {
+  PaymentReceiptModal,
+  type PaymentReceiptDraft,
+} from '../components/PaymentReceiptModal';
 import { useAppData } from '../hooks/useAppData';
-import { getPreviewClubId } from '../platform/platformConfig';
+import { getAppLogoUrl, getPreviewClubId } from '../platform/platformConfig';
 import { settleVivaReturn } from '../utils/vivaSettle';
 import { formatCurrency, formatDate } from '../utils/labels';
 import { localDateIso } from '../utils/dates';
@@ -26,6 +31,9 @@ import { announcementVisibleToParent } from '../utils/announcementAudience';
 import { studentClassIds } from '../utils/studentClasses';
 import { athleteHealthCardValid } from '../utils/classHelpers';
 import { downloadIcsFile } from '../utils/icsCalendar';
+import { amountToGreekWords } from '../utils/amountToGreekWords';
+import { normalizeReceiptIssues } from '../utils/receiptBook';
+import { describeReceiptIssue, type ReceiptIssueView } from '../utils/receiptIssueView';
 import type { AbsenceReason } from '../types';
 
 type ParentTab = 'overview' | 'schedule' | 'payments' | 'documents';
@@ -92,6 +100,7 @@ export function ParentPortalPage() {
   const [absenceNotes, setAbsenceNotes] = useState('');
   const [absenceBusy, setAbsenceBusy] = useState(false);
   const [absenceMsg, setAbsenceMsg] = useState('');
+  const [openReceipt, setOpenReceipt] = useState<ReceiptIssueView | null>(null);
 
   useEffect(() => {
     const txnId = searchParams.get('t');
@@ -175,6 +184,15 @@ export function ParentPortalPage() {
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
       .slice(0, 24);
   }, [data.transactions, athleteIds]);
+
+  const parentReceipts = useMemo(
+    () =>
+      normalizeReceiptIssues(data.receiptIssues)
+        .map((row) => describeReceiptIssue(row, data))
+        .filter((row) => !row.voidedAt && row.athleteId && athleteIds.has(row.athleteId))
+        .sort((a, b) => b.issuedAt.localeCompare(a.issuedAt)),
+    [data, athleteIds],
+  );
 
   const today = localDateIso();
   const upcomingTrainings = useMemo(() => {
@@ -738,6 +756,46 @@ export function ParentPortalPage() {
 
           <section className="panel parent-portal-section">
             <h2>
+              <Receipt size={18} /> Αποδείξεις είσπραξης
+            </h2>
+            {parentReceipts.length === 0 ? (
+              <p className="muted">Δεν έχουν κοπεί αποδείξεις για τους αθλητές σας.</p>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Ημ/νία</th>
+                      <th>Απόδειξη</th>
+                      <th>Αθλητής</th>
+                      <th>Αιτιολογία</th>
+                      <th>Ποσό</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parentReceipts.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.issuedDate ? formatDate(row.issuedDate) : '—'}</td>
+                        <td>{row.label}</td>
+                        <td>{row.receivedFrom || athleteNameById.get(row.athleteId ?? '') || '—'}</td>
+                        <td className="muted">{row.reason || '—'}</td>
+                        <td>{row.amount > 0 ? formatCurrency(row.amount) : '—'}</td>
+                        <td>
+                          <Button type="button" variant="secondary" onClick={() => setOpenReceipt(row)}>
+                            Προβολή
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section className="panel parent-portal-section">
+            <h2>
               <CreditCard size={18} /> Ιστορικό πληρωμών
             </h2>
             {paymentHistory.length === 0 ? (
@@ -839,6 +897,48 @@ export function ParentPortalPage() {
           </div>
         </section>
       ) : null}
+
+      <PaymentReceiptModal
+        open={Boolean(openReceipt)}
+        logoUrl={club?.logoUrl?.trim() || getAppLogoUrl() || null}
+        clubName={club?.name?.trim() || 'Σύλλογος'}
+        clubId={clubId}
+        athleteId={openReceipt?.athleteId}
+        transactionId={openReceipt?.transactionId || openReceipt?.id || null}
+        fatherEmail={
+          linkedAthletes.find((a) => a.id === openReceipt?.athleteId)?.fatherEmail ?? session?.email
+        }
+        motherEmail={linkedAthletes.find((a) => a.id === openReceipt?.athleteId)?.motherEmail}
+        extraEmails={session?.email ? [session.email] : []}
+        initial={
+          openReceipt
+            ? ({
+                date: (() => {
+                  const raw = openReceipt.issuedDate || localDateIso();
+                  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+                  return m ? `${m[3]}/${m[2]}/${m[1]}` : raw;
+                })(),
+                series: openReceipt.series,
+                number: String(openReceipt.number),
+                amount: (Number(openReceipt.amount) || 0).toFixed(2).replace('.', ','),
+                receivedFrom: openReceipt.receivedFrom,
+                address: '',
+                amountWords: amountToGreekWords(openReceipt.amount),
+                reason: openReceipt.reason,
+              } satisfies PaymentReceiptDraft)
+            : {
+                date: '',
+                series: '',
+                number: '',
+                amount: '',
+                receivedFrom: '',
+                address: '',
+                amountWords: '',
+                reason: '',
+              }
+        }
+        onClose={() => setOpenReceipt(null)}
+      />
     </div>
   );
 }

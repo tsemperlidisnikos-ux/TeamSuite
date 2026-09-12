@@ -12,7 +12,7 @@ import { resolveActiveClubId } from '../../data/store';
 import { getSession } from '../../auth/auth';
 import { getPreviewClubId } from '../../platform/platformConfig';
 import { rentalBookingInputSchema, rentalSettingsSchema, type RentalBookingInput } from '../../schemas';
-import type { RentalBooking, RentalSettings } from '../../types';
+import type { AppData, Facility, RentalBooking, RentalSettings } from '../../types';
 import { localDateIso, localDateTimeIso } from '../../utils/dates';
 import { syncAuthHeaders } from '../syncAuth';
 import { persistClubImageDataUrl } from './sessionService';
@@ -108,72 +108,101 @@ export async function saveRentalSettings(input: RentalSettings) {
   });
 }
 
+function datesOnWeekdays(fromIso: string, toIso: string, weekdays: number[]): string[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromIso) || !/^\d{4}-\d{2}-\d{2}$/.test(toIso)) {
+    throw new Error('Μη έγκυρο διάστημα ημερομηνιών.');
+  }
+  if (toIso < fromIso) throw new Error('Η λήξη πρέπει να είναι μετά την έναρξη.');
+  const wanted = new Set(weekdays.filter((day) => day >= 0 && day <= 6));
+  if (wanted.size === 0) throw new Error('Επιλέξτε τουλάχιστον μία ημέρα της εβδομάδας.');
+  const out: string[] = [];
+  const cur = new Date(`${fromIso}T12:00:00`);
+  const end = new Date(`${toIso}T12:00:00`);
+  while (cur.getTime() <= end.getTime()) {
+    if (wanted.has(cur.getDay())) out.push(localDateIso(cur));
+    if (out.length > 40) throw new Error('Το πολύ 40 κρατήσεις ανά σειρά. Μικρύνετε το διάστημα.');
+    cur.setDate(cur.getDate() + 1);
+  }
+  if (out.length === 0) throw new Error('Δεν υπάρχουν ημερομηνίες για τις επιλεγμένες ημέρες.');
+  return out;
+}
+
+function addBookingToStore(
+  store: AppData,
+  parsed: RentalBookingInput,
+  facility: Facility,
+  source: RentalBooking['source'],
+): RentalBooking {
+  const courtShare = parsed.courtShare === 'half' ? 'half' : 'full';
+  const check = slotIsFree(
+    store,
+    facility,
+    parsed.date,
+    parsed.startTime,
+    parsed.endTime,
+    courtShare,
+  );
+  if (!check.ok) throw new Error(check.reason);
+  const rule = ruleForFacility(store.rentalSettings, facility.id, facility);
+  const useLockerRoom = Boolean(parsed.useLockerRoom);
+  const baseAmount =
+    bookingAmount(rule, parsed.startTime, parsed.endTime, courtShare) +
+    lockerRoomFeeAmount(rule, useLockerRoom);
+  const discount = Math.max(0, parsed.specialDiscount ?? 0);
+  const amount =
+    discount > 0
+      ? Math.max(0, Math.round((baseAmount - discount) * 100) / 100)
+      : parsed.amount > 0
+        ? parsed.amount
+        : baseAmount;
+  const session = getSession();
+  const paidNow = Boolean(parsed.paidNow);
+  const paidOn = paidNow ? localDateIso() : undefined;
+  if (paidNow) assertFinanceMonthOpen(paidOn!);
+  const collectMethod = parsed.paymentMethod === 'card' ? 'card' : 'cash';
+  const booking: RentalBooking = {
+    id: createId('rent'),
+    facilityId: facility.id,
+    facilityName: facility.name,
+    date: parsed.date,
+    startTime: parsed.startTime,
+    endTime: parsed.endTime,
+    courtShare,
+    useLockerRoom,
+    customerName: parsed.customerName.trim(),
+    customerPhone: parsed.customerPhone.trim(),
+    customerEmail: (parsed.customerEmail ?? '').trim(),
+    notes: parsed.notes ?? '',
+    amount,
+    specialDiscount: discount,
+    source,
+    status: 'confirmed',
+    createdAt: localDateTimeIso(),
+    createdByName: session?.fullName || session?.email || 'Γραμματεία',
+    paymentCollected: paidNow,
+    paymentProvider: paidNow ? 'venue' : undefined,
+    paymentMethod: paidNow ? collectMethod : undefined,
+    paidOn,
+    paidAt: paidNow ? localDateTimeIso() : undefined,
+    updatedAt: Date.now(),
+  };
+  if (!store.rentalBookings) store.rentalBookings = [];
+  store.rentalBookings.unshift(booking);
+  upsertRentalBookingRevenueInData(store, booking);
+  return booking;
+}
+
 export async function createRentalBooking(
   input: RentalBookingInput,
   source: RentalBooking['source'] = 'secretariat',
 ) {
   return apiClient(async () => {
     const parsed = rentalBookingInputSchema.parse(input);
-    const data = getData();
-    const facility = (data.facilities ?? []).find((f) => f.id === parsed.facilityId);
+    const facility = (getData().facilities ?? []).find((f) => f.id === parsed.facilityId);
     if (!facility || !facility.active) throw new Error('Το γήπεδο δεν βρέθηκε.');
-    const courtShare = parsed.courtShare === 'half' ? 'half' : 'full';
-    const check = slotIsFree(
-      data,
-      facility,
-      parsed.date,
-      parsed.startTime,
-      parsed.endTime,
-      courtShare,
-    );
-    if (!check.ok) throw new Error(check.reason);
-    const rule = ruleForFacility(data.rentalSettings, facility.id, facility);
-    const useLockerRoom = Boolean(parsed.useLockerRoom);
-    const baseAmount =
-      bookingAmount(rule, parsed.startTime, parsed.endTime, courtShare) +
-      lockerRoomFeeAmount(rule, useLockerRoom);
-    const discount = Math.max(0, parsed.specialDiscount ?? 0);
-    const amount =
-      discount > 0
-        ? Math.max(0, Math.round((baseAmount - discount) * 100) / 100)
-        : parsed.amount > 0
-          ? parsed.amount
-          : baseAmount;
-    const session = getSession();
-    const paidNow = Boolean(parsed.paidNow);
-    const paidOn = paidNow ? localDateIso() : undefined;
-    if (paidNow) assertFinanceMonthOpen(paidOn!);
-    const collectMethod = parsed.paymentMethod === 'card' ? 'card' : 'cash';
-    const booking: RentalBooking = {
-      id: createId('rent'),
-      facilityId: facility.id,
-      facilityName: facility.name,
-      date: parsed.date,
-      startTime: parsed.startTime,
-      endTime: parsed.endTime,
-      courtShare,
-      useLockerRoom,
-      customerName: parsed.customerName.trim(),
-      customerPhone: parsed.customerPhone.trim(),
-      customerEmail: (parsed.customerEmail ?? '').trim(),
-      notes: parsed.notes ?? '',
-      amount,
-      specialDiscount: discount,
-      source,
-      status: 'confirmed',
-      createdAt: localDateTimeIso(),
-      createdByName: session?.fullName || session?.email || 'Γραμματεία',
-      paymentCollected: paidNow,
-      paymentProvider: paidNow ? 'venue' : undefined,
-      paymentMethod: paidNow ? collectMethod : undefined,
-      paidOn,
-      paidAt: paidNow ? localDateTimeIso() : undefined,
-      updatedAt: Date.now(),
-    };
+    let booking: RentalBooking | undefined;
     mutateData((store) => {
-      if (!store.rentalBookings) store.rentalBookings = [];
-      store.rentalBookings.unshift(booking);
-      upsertRentalBookingRevenueInData(store, booking);
+      booking = addBookingToStore(store, parsed, facility, source);
     });
     void publishClubOpsSlice();
     const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
@@ -183,9 +212,72 @@ export async function createRentalBooking(
       } catch {
         /* τοπική κράτηση μένει · το δημόσιο ενημερώνεται στο επόμενο save */
       }
-      if (!paidNow) await emailRentalCustomer(clubId, booking, 'confirm');
+      if (booking && !parsed.paidNow) await emailRentalCustomer(clubId, booking, 'confirm');
     }
+    if (!booking) throw new Error('Αποτυχία καταχώρησης.');
     return booking;
+  });
+}
+
+export async function createRecurringRentalBookings(
+  input: RentalBookingInput & { untilDate: string; weekdays: number[] },
+  source: RentalBooking['source'] = 'secretariat',
+) {
+  return apiClient(async () => {
+    const parsed = rentalBookingInputSchema.parse(input);
+    const dates = datesOnWeekdays(parsed.date, input.untilDate.slice(0, 10), input.weekdays ?? []);
+    const facility = (getData().facilities ?? []).find((f) => f.id === parsed.facilityId);
+    if (!facility || !facility.active) throw new Error('Το γήπεδο δεν βρέθηκε.');
+    const created: RentalBooking[] = [];
+    const skipped: { date: string; reason: string }[] = [];
+    mutateData((store) => {
+      for (const day of dates) {
+        try {
+          created.push(addBookingToStore(store, { ...parsed, date: day }, facility, source));
+        } catch (err) {
+          skipped.push({
+            date: day,
+            reason: err instanceof Error ? err.message : 'Μη διαθέσιμο',
+          });
+        }
+      }
+    });
+    if (created.length === 0) {
+      throw new Error(
+        skipped[0]?.reason
+          ? `Καμία ημερομηνία δεν ήταν ελεύθερη. ${skipped[0].date}: ${skipped[0].reason}`
+          : 'Καμία ημερομηνία δεν ήταν ελεύθερη.',
+      );
+    }
+    void publishClubOpsSlice();
+    const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
+    if (clubId) {
+      try {
+        await publishRentalOccupancy(clubId);
+      } catch {
+        /* ignore */
+      }
+      const sample = created[0];
+      if (sample && !parsed.paidNow) {
+        await emailRentalCustomer(
+          clubId,
+          {
+            ...sample,
+            notes: [
+              sample.notes,
+              `Σειρά ${created.length} κρατήσεων: ${created.map((row) => row.date).join(', ')}`,
+              skipped.length
+                ? `Παραλείφθηκαν: ${skipped.map((row) => `${row.date} (${row.reason})`).join(', ')}`
+                : '',
+            ]
+              .filter(Boolean)
+              .join('\n'),
+          },
+          'confirm',
+        );
+      }
+    }
+    return { created, skipped };
   });
 }
 

@@ -31,12 +31,41 @@ export function backupDateTimeStamp(now = new Date(), timeZone = ATHENS_TZ): str
   return `${get('year')}-${get('month')}-${get('day')}-${get('hour')}-${get('minute')}`;
 }
 
-/** π.χ. TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-04-17-25.json */
+export function countActiveAthletesForBackup(
+  students: Array<{ status?: string }> | undefined | null,
+): number {
+  if (!Array.isArray(students)) return 0;
+  return students.filter((row) => row?.status === 'active').length;
+}
+
+/** π.χ. ` (142)` μετά την ώρα στο όνομα αρχείου. */
+export function backupActiveAthletesSuffix(count: number | null | undefined): string {
+  if (count == null || !Number.isFinite(Number(count))) return '';
+  return ` (${Math.max(0, Math.floor(Number(count)))})`;
+}
+
+/** π.χ. TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-04-17-25 (142).json */
 export function clubBackupJsonFileName(
   clubName: string,
   fallbackId: string,
   now = new Date(),
+  activeAthletes?: number,
 ): string {
   const slug = slugifyClubNameForBackup(clubName, fallbackId);
-  return `TeamSuite-${slug}-${backupDateTimeStamp(now)}.json`;
+  return `TeamSuite-${slug}-${backupDateTimeStamp(now)}${backupActiveAthletesSuffix(activeAthletes)}.json`;
+}
+
+/** Ίδιο όνομα με το JSON backup, με επέκταση .xlsx */
+export function clubAthletesXlsxFileName(
+  clubName: string,
+  fallbackId: string,
+  students: Array<{ status?: string }> | undefined | null,
+  now = new Date(),
+): string {
+  return clubBackupJsonFileName(
+    clubName,
+    fallbackId,
+    now,
+    countActiveAthletesForBackup(students),
+  ).replace(/\.json$/i, '.xlsx');
 }

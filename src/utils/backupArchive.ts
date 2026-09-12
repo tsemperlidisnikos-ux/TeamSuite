@@ -7,7 +7,9 @@ import { loadPlatformConfig } from '../platform/platformConfig';
 import type { AppData } from '../types';
 import { localDateTimeIso } from './dates';
 import {
+  backupActiveAthletesSuffix,
   backupDateTimeStamp,
+  countActiveAthletesForBackup,
   slugifyClubNameForBackup,
 } from '../shared/clubBackupFilename';
 import {
@@ -204,7 +206,12 @@ export function downloadBackupJson(
 ): string {
   const safe = redactBackupPayload(payload);
   const json = JSON.stringify(safe, null, 2);
-  const filename = `${filenamePrefix}-${backupDateTimeStamp()}.json`;
+  const stamp = backupDateTimeStamp();
+  const activeSuffix =
+    safe.scope === 'club'
+      ? backupActiveAthletesSuffix(countActiveAthletesForBackup(safe.appData?.students))
+      : '';
+  const filename = `${filenamePrefix}-${stamp}${activeSuffix}.json`;
   const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

@@ -5,6 +5,7 @@ import * as publicClubCloudService from '../api/services/publicClubCloudService'
 import * as registrationApplicationsService from '../api/services/registrationApplicationsService';
 import * as studentsService from '../api/services/studentsService';
 import { getSession, isPlatformAdmin } from '../auth/auth';
+import { getClubById } from '../auth/clubs';
 import { AthletesIcon } from '../components/icons/AthletesIcon';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
@@ -35,6 +36,7 @@ import {
 import { studentClassIds } from '../utils/studentClasses';
 import { studentHasSport, studentSports } from '../utils/studentSports';
 import { downloadXlsx } from '../utils/xlsxDownload';
+import { clubAthletesXlsxFileName } from '../shared/clubBackupFilename';
 import { parseSpreadsheetGrid } from '../utils/xlsxParse';
 import { remainingAthleteLicenseSeats } from '../utils/athleteLicenseCap';
 
@@ -116,12 +118,18 @@ function toEditDraft(app: RegistrationApplication): EditDraft {
   };
 }
 
-function exportAthletesXlsx(rows: Student[], classes: { id: string; name: string }[]) {
+function exportAthletesXlsx(
+  rows: Student[],
+  classes: { id: string; name: string }[],
+  clubName: string,
+  clubId: string,
+  allStudents: Student[],
+) {
   downloadXlsx(
     'Αθλητές',
     athleteSheetHeaders(),
     rows.map((s) => studentToSheetRow(s, classes)),
-    `athlites-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    clubAthletesXlsxFileName(clubName, clubId, allStudents),
   );
 }
 
@@ -872,7 +880,17 @@ export function StudentsPage() {
         <Button
           type="button"
           variant="secondary"
-          onClick={() => exportAthletesXlsx(filtered, data.classes)}
+          onClick={() => {
+            const clubId = getPreviewClubId() ?? session?.clubId ?? 'club';
+            const club = getClubById(clubId);
+            exportAthletesXlsx(
+              filtered,
+              data.classes,
+              club?.name ?? clubId,
+              clubId,
+              data.students,
+            );
+          }}
         >
           <Download size={16} /> {t('Εξαγωγή')}
         </Button>

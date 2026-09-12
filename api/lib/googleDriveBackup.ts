@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:
 import { kvGet, kvSet } from './durableKv.js';
 import { fieldCryptoSecret } from './fieldCrypto.js';
 import { listMirrorKeys, loadAccountBundle, loadMirror } from './serverStore.js';
-import { clubBackupJsonFileName, backupDateTimeStamp } from '../../src/shared/clubBackupFilename.js';
+import { clubBackupJsonFileName, backupDateTimeStamp, countActiveAthletesForBackup } from '../../src/shared/clubBackupFilename.js';
 
 const SETTINGS_KEY = 'ss360:google-drive-backup';
 const OAUTH_STATE_KEY = 'ss360:google-drive-oauth-state';
@@ -469,7 +469,13 @@ export async function uploadClubMirrorsToGoogleDrive(opts?: {
       const clubName = names.get(clubId) || clubId;
       const folderName = sanitizeDriveFolderName(clubName, clubId);
       const clubFolderId = await ensureFolder(access, folderName, rootId);
-      const fileName = clubBackupJsonFileName(clubName, clubId, uploadedAt);
+      const payload = (mirror.payload ?? {}) as { students?: Array<{ status?: string }> };
+      const fileName = clubBackupJsonFileName(
+        clubName,
+        clubId,
+        uploadedAt,
+        countActiveAthletesForBackup(payload.students),
+      );
       const body = JSON.stringify(
         {
           exportedAt: uploadedAt.toISOString(),
