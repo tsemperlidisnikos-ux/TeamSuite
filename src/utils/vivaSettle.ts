@@ -124,7 +124,11 @@ async function emailOnlineFeeReceipt(input: {
     const club = getClubById(input.clubId);
     let series = '';
     let number = input.fallbackNumber;
-    const options = seriesOptions(data.receiptNumberRanges, data.receiptIssues).filter(
+    const options = seriesOptions(
+      data.receiptNumberRanges,
+      data.receiptIssues,
+      data.receiptNextBySeries,
+    ).filter(
       (row) => !row.blocked && row.next != null,
     );
     if (options[0] && input.transactionId) {

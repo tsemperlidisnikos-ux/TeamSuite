@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { ensureLegacyPaymentsMatched } from '../api/services/paymentMatchingService';
+import * as receiptBookService from '../api/services/receiptBookService';
 import * as transactionsService from '../api/services/transactionsService';
 import { getSession } from '../auth/auth';
 import { ensureSessionClub, getClubById } from '../auth/clubs';
@@ -26,7 +27,15 @@ import { PAYMENT_METHODS, normalizePaymentMethod } from '../shared/paymentMethod
 import { localDateIso } from '../utils/dates';
 import { formatCurrency, formatDate } from '../utils/labels';
 import { amountToGreekWords } from '../utils/amountToGreekWords';
-import { seriesOptions } from '../utils/receiptBook';
+import {
+  formatReceiptLabel,
+  issueForTransaction,
+  parseReceiptNumberInput,
+  parseReceiptSeriesInput,
+  previewNextReceipt,
+  seriesOptions,
+  validateReceiptNumberForIssue,
+} from '../utils/receiptBook';
 import { canAccessAmka, formatAmkaForViewer } from '../utils/amkaAccess';
 import { sportsMatch } from '../utils/coachScope';
 import { studentClassIds } from '../utils/studentClasses';
@@ -154,6 +163,7 @@ export function TransactionsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [seasonStart, setSeasonStart] = useState(2026);
   const [form, setForm] = useState<TransactionInput>(emptyForm());
+  const [receiptSeries, setReceiptSeries] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -186,6 +196,39 @@ export function TransactionsPage() {
   }, [refresh]);
 
   const selected = data.students.find((s) => s.id === selectedId) ?? null;
+  const receiptBooks = useMemo(
+    () =>
+      seriesOptions(data.receiptNumberRanges, data.receiptIssues, data.receiptNextBySeries),
+    [data.receiptNumberRanges, data.receiptIssues, data.receiptNextBySeries],
+  );
+
+  useEffect(() => {
+    if (form.type !== 'payment' || editingId || receiptBooks.length === 0) return;
+    if (form.receiptNumber.trim() && receiptSeries) return;
+    const suggested = applySuggestedReceipt(receiptSeries);
+    if (!suggested.number) return;
+    setForm((prev) =>
+      prev.receiptNumber.trim() ? prev : { ...prev, receiptNumber: suggested.number },
+    );
+  }, [form.type, editingId, receiptBooks]);
+
+  function applySuggestedReceipt(preferredSeries = '') {
+    const chosen =
+      receiptBooks.find((row) => row.series === preferredSeries) ??
+      receiptBooks.find((row) => !row.blocked) ??
+      receiptBooks[0];
+    if (!chosen) {
+      setReceiptSeries('');
+      return { series: '', number: '', blocked: false, error: '' };
+    }
+    setReceiptSeries(chosen.series);
+    return {
+      series: chosen.series,
+      number: chosen.next != null ? String(chosen.next) : '',
+      blocked: chosen.blocked,
+      error: chosen.error ?? '',
+    };
+  }
 
   useEffect(() => {
     const fromUrl = searchParams.get('athleteId')?.trim();
@@ -323,22 +366,34 @@ export function TransactionsPage() {
     setSelectedId(athlete.id);
     setEditingId(null);
     setForm(emptyForm(athlete.id, seasonStart));
+    setReceiptSeries('');
     setError('');
   }
 
   function startEdit(tx: AthleteTransaction) {
     setSelectedId(tx.athleteId);
     setEditingId(tx.id);
+    const series =
+      tx.receiptSeries || parseReceiptSeriesInput(tx.receiptNumber) || receiptSeries;
+    const parsedNumber = tx.receiptSeq ?? parseReceiptNumberInput(tx.receiptNumber);
+    setReceiptSeries(series);
     setForm({
       athleteId: tx.athleteId,
       amount: tx.amount,
-      receiptNumber: tx.receiptNumber,
+      receiptNumber:
+        tx.type === 'payment' && parsedNumber
+          ? String(parsedNumber)
+          : tx.receiptNumber,
       type: tx.type,
       month: tx.month,
       year: tx.year,
       paymentMethod: normalizePaymentMethod(tx.paymentMethod),
       comments: tx.comments || '',
     });
+    if (tx.type === 'payment' && !parsedNumber && receiptBooks.length) {
+      const suggested = applySuggestedReceipt(series);
+      setForm((prev) => ({ ...prev, receiptNumber: suggested.number }));
+    }
     setSeasonStart(seasonStartFromPeriod(tx.month, tx.year));
     setError('');
   }
@@ -346,6 +401,7 @@ export function TransactionsPage() {
   function cancelEdit() {
     setEditingId(null);
     setForm(emptyForm(selectedId ?? '', seasonStart));
+    setReceiptSeries('');
     setError('');
   }
 
@@ -365,35 +421,114 @@ export function TransactionsPage() {
       setError('Επιλέξτε αθλητή από τη λίστα');
       return;
     }
-    setSaving(true);
-    setError('');
     const payload = {
       ...form,
       athleteId: form.athleteId || selectedId || '',
       paymentMethod: (normalizePaymentMethod(form.paymentMethod) || 'cash') as TransactionInput['paymentMethod'],
     };
+    const rangesConfigured = (data.receiptNumberRanges ?? []).length > 0;
+    let receiptSeriesToIssue = receiptSeries;
+    let receiptNumberToIssue: number | null = parseReceiptNumberInput(form.receiptNumber);
+    if (payload.type === 'payment' && rangesConfigured) {
+      if (!receiptSeriesToIssue) {
+        receiptSeriesToIssue = receiptBooks.find((row) => !row.blocked)?.series || receiptBooks[0]?.series || '';
+      }
+      if (receiptNumberToIssue == null) {
+        const preview = previewNextReceipt(
+          receiptSeriesToIssue,
+          data.receiptNumberRanges,
+          data.receiptIssues,
+          data.receiptNextBySeries,
+        );
+        if (!preview.ok) {
+          setError(preview.error);
+          return;
+        }
+        receiptNumberToIssue = preview.number;
+      }
+      const existingIssue = issueForTransaction(data.receiptIssues, editingId);
+      const checked = validateReceiptNumberForIssue(
+        receiptSeriesToIssue,
+        receiptNumberToIssue,
+        data.receiptNumberRanges,
+        data.receiptIssues,
+        { transactionId: editingId, nextBySeries: data.receiptNextBySeries },
+      );
+      if (!checked.ok) {
+        setError(checked.error);
+        return;
+      }
+      if (existingIssue && existingIssue.number !== checked.number) {
+        setError('Ο αριθμός απόδειξης αυτής της κίνησης έχει ήδη εκδοθεί και δεν αλλάζει από εδώ.');
+        return;
+      }
+      payload.receiptNumber = formatReceiptLabel(checked.series, checked.number);
+      receiptSeriesToIssue = checked.series;
+      receiptNumberToIssue = checked.number;
+    }
+
+    setSaving(true);
+    setError('');
     const result = editingId
       ? await transactionsService.updateTransaction(editingId, payload)
       : await transactionsService.createTransaction(payload);
-    setSaving(false);
-    if (!result.success) {
+    if (!result.success || !result.data) {
+      setSaving(false);
       setError(result.error ?? 'Σφάλμα αποθήκευσης');
       return;
     }
 
-    if (payload.type === 'payment' && result.data) {
+    let saved = result.data;
+    const existingIssue = issueForTransaction(data.receiptIssues, saved.id);
+    if (
+      payload.type === 'payment' &&
+      rangesConfigured &&
+      receiptSeriesToIssue &&
+      receiptNumberToIssue &&
+      !existingIssue
+    ) {
+        const athlete =
+          data.students.find((s) => s.id === payload.athleteId) ?? selected ?? null;
+        const monthLabel = t(MONTHS.find((m) => m.value === payload.month)?.label ?? '');
+        const issued = await receiptBookService.allocateReceiptIssue({
+          series: receiptSeriesToIssue,
+          number: receiptNumberToIssue,
+          transactionId: result.data.id,
+          athleteId: payload.athleteId,
+          amount: payload.amount,
+          receivedFrom: athlete
+            ? `${athlete.lastName} ${athlete.firstName}`.trim()
+            : '',
+          reason:
+            payload.comments?.trim() ||
+            (monthLabel ? `Συνδρομή ${monthLabel} ${payload.year}` : ''),
+          kind: 'subscription',
+        });
+        if (!issued.success || !issued.data) {
+          setSaving(false);
+          setError(issued.error ?? 'Η πληρωμή αποθηκεύτηκε, αλλά ο αριθμός απόδειξης δεν εκδόθηκε.');
+          return;
+        }
+        saved = {
+          ...saved,
+          receiptSeries: issued.data.series,
+          receiptSeq: issued.data.number,
+          receiptNumber: formatReceiptLabel(issued.data.series, issued.data.number),
+        };
+    }
+    setSaving(false);
+
+    if (payload.type === 'payment' && saved) {
       const athlete =
         data.students.find((s) => s.id === payload.athleteId) ?? selected ?? null;
       const monthLabel = t(MONTHS.find((m) => m.value === payload.month)?.label ?? '');
-      const books = seriesOptions(data.receiptNumberRanges, data.receiptIssues);
-      const openSeries = books.find((row) => !row.blocked) ?? books[0];
       setReceiptDraft({
         date: toReceiptDate(localDateIso()),
-        series: result.data.receiptSeries || openSeries?.series || '',
-        number: result.data.receiptSeq
-          ? String(result.data.receiptSeq)
-          : openSeries?.next
-            ? String(openSeries.next)
+        series: saved.receiptSeries || receiptSeriesToIssue || '',
+        number: saved.receiptSeq
+          ? String(saved.receiptSeq)
+          : receiptNumberToIssue
+            ? String(receiptNumberToIssue)
             : '',
         amount: formatReceiptAmount(payload.amount),
         receivedFrom: athlete
@@ -406,7 +541,7 @@ export function TransactionsPage() {
           (monthLabel ? `Συνδρομή ${monthLabel} ${payload.year}` : ''),
       });
       setReceiptAthlete(athlete);
-      setReceiptTransactionId(result.data.id);
+      setReceiptTransactionId(saved.id);
       setReceiptOpen(true);
     }
 
@@ -415,6 +550,7 @@ export function TransactionsPage() {
     setSeasonStart(txSeason);
     setEditingId(null);
     setForm(emptyForm(payload.athleteId, txSeason));
+    setReceiptSeries('');
     refresh();
   }
 
@@ -536,9 +672,25 @@ export function TransactionsPage() {
                   <span>{t('Τύπος κίνησης')}</span>
                   <select
                     value={form.type}
-                    onChange={(e) =>
-                      setForm({ ...form, type: e.target.value as TransactionInput['type'] })
-                    }
+                    onChange={(e) => {
+                      const type = e.target.value as TransactionInput['type'];
+                      if (type !== 'payment') {
+                        setReceiptSeries('');
+                        setForm({
+                          ...form,
+                          type,
+                          receiptNumber: editingId ? form.receiptNumber : '',
+                        });
+                        return;
+                      }
+                      const suggested = applySuggestedReceipt(receiptSeries);
+                      setForm({
+                        ...form,
+                        type,
+                        receiptNumber: suggested.number || form.receiptNumber,
+                      });
+                      if (suggested.blocked && suggested.error) setError(suggested.error);
+                    }}
                   >
                     <option value="charge">{t('Χρέωση')}</option>
                     <option value="payment">{t('Πληρωμή')}</option>
@@ -594,14 +746,59 @@ export function TransactionsPage() {
                   </div>
                 </div>
 
-                <label className="tx-field">
-                  <span>{t('Αρ. Απόδειξης')}</span>
-                  <input
-                    type="text"
-                    value={form.receiptNumber}
-                    onChange={(e) => setForm({ ...form, receiptNumber: e.target.value })}
-                  />
-                </label>
+                {form.type === 'payment' && receiptBooks.length > 0 ? (
+                  <div className="tx-field">
+                    <div className="tx-field-row">
+                      <label className="tx-field-col">
+                        <span>{t('Σειρά')}</span>
+                        {receiptBooks.length > 1 ? (
+                          <select
+                            value={receiptSeries}
+                            onChange={(e) => {
+                              const series = e.target.value;
+                              const suggested = applySuggestedReceipt(series);
+                              setForm({ ...form, receiptNumber: suggested.number });
+                              if (suggested.blocked && suggested.error) setError(suggested.error);
+                              else setError('');
+                            }}
+                          >
+                            {receiptBooks.map((row) => (
+                              <option key={row.series} value={row.series}>
+                                {row.series}
+                                {row.blocked ? ' · εξαντλήθηκε' : row.next ? ` · επόμ. ${row.next}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input value={receiptSeries || receiptBooks[0]?.series || ''} readOnly />
+                        )}
+                      </label>
+                      <label className="tx-field-col">
+                        <span>{t('Αρ. Απόδειξης')}</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={form.receiptNumber}
+                          onChange={(e) => setForm({ ...form, receiptNumber: e.target.value })}
+                        />
+                      </label>
+                    </div>
+                    {receiptBooks.find((row) => row.series === receiptSeries)?.blocked ? (
+                      <p className="form-error">
+                        {receiptBooks.find((row) => row.series === receiptSeries)?.error}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <label className="tx-field">
+                    <span>{t('Αρ. Απόδειξης')}</span>
+                    <input
+                      type="text"
+                      value={form.receiptNumber}
+                      onChange={(e) => setForm({ ...form, receiptNumber: e.target.value })}
+                    />
+                  </label>
+                )}
 
                 <label className="tx-field">
                   <span>{t('Τρόπος πληρωμής')}</span>

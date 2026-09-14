@@ -8,6 +8,7 @@ import {
   normalizeReceiptIssues,
   normalizeReceiptRanges,
   previewNextReceipt,
+  validateReceiptNumberForIssue,
   validateReceiptRanges,
 } from '../../utils/receiptBook';
 
@@ -57,6 +58,7 @@ function snapshotFields(input: {
 
 export async function allocateReceiptIssue(input: {
   series: string;
+  number?: number | null;
   transactionId?: string | null;
   athleteId?: string | null;
   emailed?: boolean;
@@ -89,23 +91,28 @@ export async function allocateReceiptIssue(input: {
           row.id === existing.id ? holder.value! : row,
         );
       } else {
-        const next = previewNextReceipt(input.series, ranges, issues);
+        const requested = Math.floor(Number(input.number) || 0);
+        const next =
+          requested >= 1
+            ? validateReceiptNumberForIssue(
+                input.series,
+                requested,
+                ranges,
+                issues,
+                { transactionId: input.transactionId, nextBySeries: data.receiptNextBySeries },
+              )
+            : previewNextReceipt(input.series, ranges, issues, data.receiptNextBySeries);
         if (!next.ok) throw new Error(next.error);
         const key = next.series;
-        const cursor = Math.floor(Number(data.receiptNextBySeries?.[key]) || 0);
-        let number = Math.max(next.number, cursor);
-        const spanMax = Math.max(
-          ...ranges.filter((row) => row.series === key).map((row) => row.to),
-          0,
-        );
-        if (spanMax > 0 && number > spanMax) {
-          throw new Error(
-            `Η σειρά ${key} έφτασε στο όριο. Προσθέστε νέο εύρος στις Ρυθμίσεις → Αποδείξεις.`,
-          );
-        }
-        if (issues.some((row) => row.series === key && row.number === number)) {
+        let number = next.number;
+        while (issues.some((row) => row.series === key && row.number === number)) {
           number += 1;
         }
+        const inRange = validateReceiptNumberForIssue(key, number, ranges, issues, {
+          transactionId: input.transactionId,
+          nextBySeries: data.receiptNextBySeries,
+        });
+        if (!inRange.ok) throw new Error(inRange.error);
         holder.value = {
           id: createId('ris'),
           series: key,

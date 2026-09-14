@@ -67,8 +67,8 @@ export function PaymentReceiptModal({
   const [sendOk, setSendOk] = useState('');
 
   const options = useMemo(
-    () => seriesOptions(data.receiptNumberRanges, data.receiptIssues),
-    [data.receiptNumberRanges, data.receiptIssues],
+    () => seriesOptions(data.receiptNumberRanges, data.receiptIssues, data.receiptNextBySeries),
+    [data.receiptNumberRanges, data.receiptIssues, data.receiptNextBySeries],
   );
   const existing = useMemo(() => {
     const byTx = issueForTransaction(data.receiptIssues, transactionId);
@@ -90,11 +90,12 @@ export function PaymentReceiptModal({
       next.series = options[0].series;
     }
     if (next.series && !existing) {
-      const preview = previewNextReceipt(
-        next.series,
-        data.receiptNumberRanges,
-        data.receiptIssues,
-      );
+        const preview = previewNextReceipt(
+          next.series,
+          data.receiptNumberRanges,
+          data.receiptIssues,
+          data.receiptNextBySeries,
+        );
       next.number = preview.ok ? String(preview.number) : '';
     }
     setDraft(next);
@@ -118,6 +119,7 @@ export function PaymentReceiptModal({
           series,
           data.receiptNumberRanges,
           data.receiptIssues,
+          data.receiptNextBySeries,
         );
         return {
           ...prev,
@@ -139,6 +141,7 @@ export function PaymentReceiptModal({
     }
     const result = await receiptBookService.allocateReceiptIssue({
       series: draft.series,
+      number: Number(draft.number) || undefined,
       transactionId,
       athleteId,
       emailed,
@@ -247,9 +250,10 @@ export function PaymentReceiptModal({
   const bookHint = existing && !existing.voidedAt
     ? formatReceiptLabel(existing.series, existing.number)
     : selectedOption?.blocked
-      ? selectedOption.series
-        ? `Η σειρά ${selectedOption.series} έφτασε στο όριο. Προσθέστε νέο εύρος στις Ρυθμίσεις → Αποδείξεις.`
-        : ''
+      ? selectedOption.error ||
+        (selectedOption.series
+          ? `Η σειρά ${selectedOption.series} έφτασε στο όριο. Προσθέστε νέο εύρος στις Ρυθμίσεις → Αποδείξεις.`
+          : '')
       : selectedOption?.next
         ? `Επόμενος αριθμός: ${selectedOption.next} · απομένουν ${selectedOption.remaining}`
         : options.length === 0

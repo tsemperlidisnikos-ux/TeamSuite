@@ -121,9 +121,57 @@ function numbersCovered(series: string, ranges: ReceiptNumberRange[]): { min: nu
   };
 }
 
-function isNumberInRanges(series: string, number: number, ranges: ReceiptNumberRange[]): boolean {
+export function isReceiptNumberInDeclaredRanges(
+  series: string,
+  number: number,
+  ranges: ReceiptNumberRange[] | undefined | null,
+): boolean {
   const key = normalizeReceiptSeries(series);
-  return ranges.some((row) => row.series === key && number >= row.from && number <= row.to);
+  const n = Math.floor(Number(number));
+  if (!key || !Number.isFinite(n) || n < 1) return false;
+  return normalizeReceiptRanges(ranges).some(
+    (row) => row.series === key && n >= row.from && n <= row.to,
+  );
+}
+
+function isNumberInRanges(series: string, number: number, ranges: ReceiptNumberRange[]): boolean {
+  return isReceiptNumberInDeclaredRanges(series, number, ranges);
+}
+
+export function parseReceiptSeriesInput(raw: string | undefined | null): string {
+  const text = String(raw ?? '').trim();
+  if (!text) return '';
+  const labeled = /σειρ[άα]\s+([^\s·,]+)/i.exec(text);
+  if (labeled) return normalizeReceiptSeries(labeled[1]);
+  const compact = /^([A-Za-zΑ-Ωα-ω])\s*[-·]/.exec(text);
+  if (compact) return normalizeReceiptSeries(compact[1]);
+  return '';
+}
+
+export function parseReceiptNumberInput(raw: string | number | undefined | null): number | null {
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    const n = Math.floor(raw);
+    return n >= 1 ? n : null;
+  }
+  const text = String(raw ?? '').trim();
+  if (!text) return null;
+  const labeled = /(?:αρ\.?|no\.?|nο\.?)\s*(\d+)/i.exec(text);
+  if (labeled) {
+    const n = Math.floor(Number(labeled[1]));
+    return Number.isFinite(n) && n >= 1 ? n : null;
+  }
+  const digits = text.match(/(\d+)\s*$/);
+  if (!digits) return null;
+  const n = Math.floor(Number(digits[1]));
+  return Number.isFinite(n) && n >= 1 ? n : null;
+}
+
+function cursorForSeries(
+  series: string,
+  nextBySeries: Record<string, number> | undefined | null,
+): number {
+  const key = normalizeReceiptSeries(series);
+  return Math.floor(Number(nextBySeries?.[key]) || 0);
 }
 
 export function maxIssuedNumber(
@@ -138,11 +186,17 @@ export function maxIssuedNumber(
   return max;
 }
 
+export function receiptRangeExhaustedMessage(series: string, nextNumber: number): string {
+  const key = normalizeReceiptSeries(series) || series;
+  return `Ο αριθμός ${nextNumber} δεν ανήκει στα δηλωμένα εύρη της σειράς ${key}. Προσθέστε νέο εύρος στις Ρυθμίσεις → Αποδείξεις και δοκιμάστε ξανά.`;
+}
+
 export function previewNextReceipt(
   series: string,
   ranges: ReceiptNumberRange[] | undefined | null,
   issues: ReceiptIssueRecord[] | undefined | null,
-): { ok: true; series: string; number: number } | { ok: false; error: string } {
+  nextBySeries?: Record<string, number> | null,
+): { ok: true; series: string; number: number } | { ok: false; error: string; series?: string; number?: number } {
   const key = normalizeReceiptSeries(series);
   const normalizedRanges = normalizeReceiptRanges(ranges);
   const normalizedIssues = normalizeReceiptIssues(issues);
@@ -154,22 +208,68 @@ export function previewNextReceipt(
       error: 'Δεν υπάρχει εύρος αριθμών για αυτή τη σειρά. Ορίστε το στις Ρυθμίσεις → Αποδείξεις.',
     };
   }
-  const next = Math.max(maxIssuedNumber(key, normalizedIssues) + 1, span.min);
+  const next = Math.max(
+    maxIssuedNumber(key, normalizedIssues) + 1,
+    span.min,
+    cursorForSeries(key, nextBySeries),
+  );
   if (!isNumberInRanges(key, next, normalizedRanges)) {
     return {
       ok: false,
-      error: `Η σειρά ${key} έφτασε στο όριο. Προσθέστε νέο εύρος (π.χ. ${key} ${next}–${next + 49}) στις Ρυθμίσεις → Αποδείξεις.`,
+      error: receiptRangeExhaustedMessage(key, next),
+      series: key,
+      number: next,
     };
   }
   return { ok: true, series: key, number: next };
+}
+
+export function validateReceiptNumberForIssue(
+  series: string,
+  number: number,
+  ranges: ReceiptNumberRange[] | undefined | null,
+  issues: ReceiptIssueRecord[] | undefined | null,
+  opts?: { transactionId?: string | null; nextBySeries?: Record<string, number> | null },
+): { ok: true; series: string; number: number } | { ok: false; error: string } {
+  const key = normalizeReceiptSeries(series);
+  const n = Math.floor(Number(number));
+  if (!key) return { ok: false, error: 'Επιλέξτε σειρά αποδείξεων.' };
+  if (!Number.isFinite(n) || n < 1) {
+    return { ok: false, error: 'Ο αριθμός απόδειξης δεν είναι έγκυρος.' };
+  }
+  const normalizedRanges = normalizeReceiptRanges(ranges);
+  if (!normalizedRanges.length) {
+    return { ok: false, error: 'Ορίστε σειρά και εύρος αριθμών στις Ρυθμίσεις → Αποδείξεις.' };
+  }
+  const span = numbersCovered(key, normalizedRanges);
+  if (!span) {
+    return {
+      ok: false,
+      error: 'Δεν υπάρχει εύρος αριθμών για αυτή τη σειρά. Ορίστε το στις Ρυθμίσεις → Αποδείξεις.',
+    };
+  }
+  if (!isNumberInRanges(key, n, normalizedRanges)) {
+    return { ok: false, error: receiptRangeExhaustedMessage(key, n) };
+  }
+  const taken = normalizeReceiptIssues(issues).find(
+    (row) => row.series === key && row.number === n,
+  );
+  if (taken && taken.transactionId !== (opts?.transactionId || null)) {
+    return {
+      ok: false,
+      error: `Ο αριθμός ${n} της σειράς ${key} έχει ήδη εκδοθεί.`,
+    };
+  }
+  return { ok: true, series: key, number: n };
 }
 
 export function remainingInRange(
   range: ReceiptNumberRange,
   ranges: ReceiptNumberRange[] | undefined | null,
   issues: ReceiptIssueRecord[] | undefined | null,
+  nextBySeries?: Record<string, number> | null,
 ): number {
-  const preview = previewNextReceipt(range.series, ranges, issues);
+  const preview = previewNextReceipt(range.series, ranges, issues, nextBySeries);
   if (!preview.ok) {
     const maxIssued = maxIssuedNumber(range.series, normalizeReceiptIssues(issues));
     if (maxIssued >= range.to) return 0;
@@ -184,16 +284,18 @@ export function remainingCount(
   series: string,
   ranges: ReceiptNumberRange[] | undefined | null,
   issues: ReceiptIssueRecord[] | undefined | null,
+  nextBySeries?: Record<string, number> | null,
 ): number {
   return normalizeReceiptRanges(ranges)
     .filter((row) => row.series === normalizeReceiptSeries(series))
-    .reduce((sum, row) => sum + remainingInRange(row, ranges, issues), 0);
+    .reduce((sum, row) => sum + remainingInRange(row, ranges, issues, nextBySeries), 0);
 }
 
 export function seriesOptions(
   ranges: ReceiptNumberRange[] | undefined | null,
   issues: ReceiptIssueRecord[] | undefined | null,
-): Array<{ series: string; remaining: number; next: number | null; blocked: boolean }> {
+  nextBySeries?: Record<string, number> | null,
+): Array<{ series: string; remaining: number; next: number | null; blocked: boolean; error?: string }> {
   const normalized = normalizeReceiptRanges(ranges);
   const seen = new Set<string>();
   const out: Array<{
@@ -201,16 +303,18 @@ export function seriesOptions(
     remaining: number;
     next: number | null;
     blocked: boolean;
+    error?: string;
   }> = [];
   for (const row of normalized) {
     if (seen.has(row.series)) continue;
     seen.add(row.series);
-    const preview = previewNextReceipt(row.series, normalized, issues);
+    const preview = previewNextReceipt(row.series, normalized, issues, nextBySeries);
     out.push({
       series: row.series,
-      remaining: remainingCount(row.series, normalized, issues),
-      next: preview.ok ? preview.number : null,
+      remaining: remainingCount(row.series, normalized, issues, nextBySeries),
+      next: preview.number ?? null,
       blocked: !preview.ok,
+      error: preview.ok ? undefined : preview.error,
     });
   }
   return out;
