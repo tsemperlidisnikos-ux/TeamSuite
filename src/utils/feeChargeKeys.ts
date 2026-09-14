@@ -66,7 +66,15 @@ export function transactionIsSuppressed(
   suppressedKeys: Set<string>,
 ): boolean {
   if (deletedIds.has(tx.id)) return true;
-  return suppressionKeysForTransaction(tx).some((key) => suppressedKeys.has(key));
+  const tags = feeTagsInComments(tx.comments);
+  // Χειροκίνητη χρέωση (χωρίς [fee:…]): διαγράφεται μόνο με tombstone id.
+  // Το κλειδί μήνα `*` μπλοκάρει μόνο την αυτόματη αναγέννηση προτύπων.
+  if (tags.length === 0) return false;
+  return tags.some(
+    (tag) =>
+      suppressedKeys.has(suppressionKey(tx.athleteId, tx.year, tx.month, tag)) ||
+      suppressedKeys.has(monthChargeSuppressionKey(tx.athleteId, tx.year, tx.month)),
+  );
 }
 
 export function rememberDeletedTransaction(

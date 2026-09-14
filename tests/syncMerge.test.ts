@@ -92,6 +92,69 @@ describe('finance tombstones', () => {
     expect(target.revenues[0]?.amount).toBe(25);
     expect(target.revenues[0]?.description).toBe('new');
   });
+
+  it('keeps a new manual charge after an older charge for that month was deleted', () => {
+    const local = club({
+      transactions: [
+        {
+          id: 'txn_new',
+          athleteId: 'ath1',
+          amount: 50,
+          receiptNumber: '',
+          type: 'charge',
+          month: 9,
+          year: 2026,
+          paymentMethod: '',
+          comments: 'Συνδρομή Σεπτεμβρίου',
+          createdAt: '2026-09-14T12:00:00',
+        },
+      ],
+      deletedTransactionIds: ['txn_old'],
+      suppressedFeeChargeKeys: ['ath1|2026|9|*'],
+    });
+    const cloud = club({
+      transactions: [],
+      deletedTransactionIds: ['txn_old'],
+      suppressedFeeChargeKeys: ['ath1|2026|9|*'],
+    });
+    const target = structuredClone(local);
+    applyFinanceCollections(target, local, cloud, {
+      preferLocal: true,
+      treatCloudOnlyTxAsDeleted: false,
+    });
+    expect(target.transactions.some((row) => row.id === 'txn_new')).toBe(true);
+  });
+
+  it('still hides a deleted template fee charge', () => {
+    const tagged = {
+      id: 'txn_fee',
+      athleteId: 'ath1',
+      amount: 50,
+      receiptNumber: '',
+      type: 'charge' as const,
+      month: 9,
+      year: 2026,
+      paymentMethod: '',
+      comments: 'Συνδρομή [fee:tpl1:sub]',
+      createdAt: '2026-09-01T12:00:00',
+    };
+    const local = club({
+      transactions: [tagged],
+      deletedTransactionIds: ['txn_fee'],
+      suppressedFeeChargeKeys: ['ath1|2026|9|[fee:tpl1:sub]', 'ath1|2026|9|*'],
+    });
+    const cloud = club({
+      transactions: [tagged],
+      deletedTransactionIds: ['txn_fee'],
+      suppressedFeeChargeKeys: ['ath1|2026|9|[fee:tpl1:sub]', 'ath1|2026|9|*'],
+    });
+    const target = structuredClone(local);
+    applyFinanceCollections(target, local, cloud, {
+      preferLocal: true,
+      treatCloudOnlyTxAsDeleted: false,
+    });
+    expect(target.transactions.some((row) => row.id === 'txn_fee')).toBe(false);
+  });
 });
 
 describe('ops attendance slot merge', () => {

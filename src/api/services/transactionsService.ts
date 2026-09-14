@@ -87,6 +87,8 @@ export async function createTransaction(input: TransactionInput) {
         getData().transactions.find((t) => t.id === current.id) ?? current;
     }
 
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
+    await flushClubMirrorPush();
     return current;
   });
 }
@@ -111,6 +113,8 @@ export async function updateTransaction(id: string, input: TransactionInput) {
         removeRevenuesForPaymentInData(data, id);
       }
     });
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
+    await flushClubMirrorPush();
     return updated!;
   });
 }
