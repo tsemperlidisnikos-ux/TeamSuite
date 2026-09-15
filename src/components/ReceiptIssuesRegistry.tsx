@@ -8,7 +8,7 @@ import type { PaymentReceiptDraft } from '../utils/paymentReceiptEmail';
 import { amountToGreekWords } from '../utils/amountToGreekWords';
 import { localDateIso } from '../utils/dates';
 import { formatCurrency, formatDate } from '../utils/labels';
-import { normalizeReceiptIssues } from '../utils/receiptBook';
+import { normalizeReceiptIssues, voidReceiptConfirmMessage } from '../utils/receiptBook';
 import {
   describeReceiptIssue,
   receiptKindLabel,
@@ -18,6 +18,7 @@ import { PaymentReceiptModal } from './PaymentReceiptModal';
 import { Button } from './ui/Button';
 import { StatCard } from './ui/StatCard';
 import type { ReceiptIssueKind } from '../types';
+import * as receiptBookService from '../api/services/receiptBookService';
 
 function toReceiptDate(isoOrEmpty: string): string {
   const raw = (isoOrEmpty || localDateIso()).trim();
@@ -69,7 +70,7 @@ function exportReceiptCsv(rows: ReceiptIssueView[]) {
 }
 
 export function ReceiptIssuesRegistry() {
-  const { data } = useAppData();
+  const { data, refresh } = useAppData();
   const session = getSession();
   const clubId = getPreviewClubId() ?? session?.clubId ?? null;
   const club = clubId ? getClubById(clubId) : null;
@@ -80,6 +81,8 @@ export function ReceiptIssuesRegistry() {
   const [status, setStatus] = useState<'all' | 'valid' | 'voided'>('all');
   const [search, setSearch] = useState('');
   const [openIssue, setOpenIssue] = useState<ReceiptIssueView | null>(null);
+  const [voidingId, setVoidingId] = useState('');
+  const [voidError, setVoidError] = useState('');
 
   const views = useMemo(
     () =>
@@ -163,6 +166,28 @@ export function ReceiptIssuesRegistry() {
       .filter(([, val]) => val.count > 0);
   }, [valid]);
 
+  async function handleVoid(row: ReceiptIssueView) {
+    if (row.voidedAt || voidingId) return;
+    const issue = normalizeReceiptIssues(data.receiptIssues).find((item) => item.id === row.id);
+    if (!issue) return;
+    const message = voidReceiptConfirmMessage(
+      issue,
+      data.receiptNumberRanges,
+      data.receiptIssues,
+      data.receiptNextBySeries,
+    );
+    if (!confirm(message)) return;
+    setVoidError('');
+    setVoidingId(row.id);
+    const result = await receiptBookService.voidReceiptIssue(row.id);
+    setVoidingId('');
+    if (!result.success) {
+      setVoidError(result.error ?? 'Αποτυχία ακύρωσης απόδειξης.');
+      return;
+    }
+    refresh();
+  }
+
   const reprintDraft: PaymentReceiptDraft = openIssue
     ? {
         date: toReceiptDate(openIssue.issuedDate),
@@ -221,6 +246,7 @@ export function ReceiptIssuesRegistry() {
           </Button>
         </div>
       </div>
+      {voidError ? <p className="settings-hint" role="alert">{voidError}</p> : null}
 
       <div className="receipt-registry-filters">
         <label className="field">
@@ -420,9 +446,19 @@ export function ReceiptIssuesRegistry() {
                     </td>
                     <td>
                       {!row.voidedAt ? (
-                        <Button type="button" variant="ghost" onClick={() => setOpenIssue(row)}>
-                          Προβολή
-                        </Button>
+                        <div className="receipt-registry-row-actions">
+                          <Button type="button" variant="ghost" onClick={() => setOpenIssue(row)}>
+                            Προβολή
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="danger"
+                            disabled={voidingId === row.id}
+                            onClick={() => void handleVoid(row)}
+                          >
+                            {voidingId === row.id ? 'Ακύρωση…' : 'Ακύρωση απόδειξης'}
+                          </Button>
+                        </div>
                       ) : null}
                     </td>
                   </tr>

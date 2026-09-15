@@ -1710,6 +1710,13 @@ td.row-actions {
   gap: 0.45rem;
 }
 
+.receipt-registry-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
 .receipt-registry-filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));

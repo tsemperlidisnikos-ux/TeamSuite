@@ -4,6 +4,7 @@ import {
   parseReceiptNumberInput,
   previewNextReceipt,
   validateReceiptNumberForIssue,
+  voidReceiptConfirmMessage,
 } from '../src/utils/receiptBook';
 
 const ranges: ReceiptNumberRange[] = [
@@ -60,5 +61,22 @@ describe('receipt book next number', () => {
   it('parses the number from a labeled receipt field', () => {
     expect(parseReceiptNumberInput('Σειρά Γ · Αρ. 51')).toBe(51);
     expect(parseReceiptNumberInput('2')).toBe(2);
+  });
+
+  it('does not reuse a voided number', () => {
+    const issues = [issue(1), issue(2), issue(3), issue(4), issue(5), issue(6), issue(7)].map((row) =>
+      row.number === 5 ? { ...row, voidedAt: '2026-09-15T12:00:00', voidReason: 'διαγραφή' } : row,
+    );
+    const next = previewNextReceipt('Γ', ranges, issues);
+    expect(next).toEqual({ ok: true, series: 'Γ', number: 8 });
+  });
+
+  it('explains the next number in the void confirmation', () => {
+    const issues = [issue(1), issue(2), issue(3), issue(4), issue(5), issue(6), issue(7)];
+    const message = voidReceiptConfirmMessage(issues[4], ranges, issues, { Γ: 8 });
+    expect(message).toContain('Σειρά Γ · Αρ. 5');
+    expect(message).toContain('8');
+    expect(message).toContain('δεν ξαναχρησιμοποιείται');
+    expect(message).toContain('πληρωμή');
   });
 });

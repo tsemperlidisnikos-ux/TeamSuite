@@ -5,12 +5,14 @@ import { localDateTimeIso } from '../../utils/dates';
 import {
   formatReceiptLabel,
   issueForTransaction,
+  markReceiptIssueVoidedInData,
   normalizeReceiptIssues,
   normalizeReceiptRanges,
   previewNextReceipt,
   validateReceiptNumberForIssue,
   validateReceiptRanges,
 } from '../../utils/receiptBook';
+import { upsertRentalBookingRevenueInData } from './rentalRevenueBridge';
 
 export async function saveReceiptRanges(ranges: ReceiptNumberRange[]) {
   return apiClient(async () => {
@@ -147,5 +149,50 @@ export async function allocateReceiptIssue(input: {
     const { publishClubOpsSlice } = await import('./clubOpsSyncService');
     await publishClubOpsSlice();
     return holder.value;
+  });
+}
+
+export async function voidReceiptIssue(issueId: string) {
+  return apiClient(async () => {
+    const id = String(issueId ?? '').trim();
+    if (!id) throw new Error('Η απόδειξη δεν βρέθηκε.');
+    const current = normalizeReceiptIssues(getData().receiptIssues).find((row) => row.id === id);
+    if (!current) throw new Error('Η απόδειξη δεν βρέθηκε.');
+    if (current.voidedAt) return current;
+
+    const txId = String(current.transactionId ?? '').trim();
+    const linkedPayment =
+      txId &&
+      !txId.startsWith('rent_') &&
+      (getData().transactions ?? []).some((row) => row.id === txId);
+
+    if (linkedPayment) {
+      const { deleteTransaction } = await import('./transactionsService');
+      const removed = await deleteTransaction(txId);
+      if (!removed.success) throw new Error(removed.error ?? 'Αποτυχία διαγραφής πληρωμής.');
+    } else {
+      mutateData((data) => {
+        markReceiptIssueVoidedInData(data, id);
+        if (txId.startsWith('rent_')) {
+          const bookingId = txId.slice(5);
+          const booking = (data.rentalBookings ?? []).find((row) => row.id === bookingId);
+          if (booking) {
+            booking.paymentCollected = false;
+            booking.paidOn = undefined;
+            booking.paidAt = undefined;
+            booking.updatedAt = Date.now();
+            upsertRentalBookingRevenueInData(data, booking);
+          }
+        }
+      });
+    }
+
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
+    await flushClubMirrorPush(undefined, { force: true });
+    const { publishClubOpsSlice } = await import('./clubOpsSyncService');
+    await publishClubOpsSlice();
+    const issued = normalizeReceiptIssues(getData().receiptIssues).find((row) => row.id === id);
+    if (!issued) throw new Error('Αποτυχία ακύρωσης απόδειξης.');
+    return issued;
   });
 }

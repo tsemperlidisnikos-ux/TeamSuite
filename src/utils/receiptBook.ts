@@ -342,3 +342,41 @@ export function voidReceiptIssuesForTransactionInData(data: AppData, transaction
     };
   });
 }
+
+export function markReceiptIssueVoidedInData(data: AppData, issueId: string): ReceiptIssueRecord {
+  const id = String(issueId ?? '').trim();
+  const issues = normalizeReceiptIssues(data.receiptIssues);
+  const current = issues.find((row) => row.id === id);
+  if (!current) throw new Error('Η απόδειξη δεν βρέθηκε.');
+  if (current.voidedAt) return current;
+  const now = localDateTimeIso();
+  const next: ReceiptIssueRecord = {
+    ...current,
+    voidedAt: now,
+    voidReason: current.voidReason || voidedReceiptNote(current.series, current.number),
+  };
+  data.receiptIssues = issues.map((row) => (row.id === id ? next : row));
+  return next;
+}
+
+export function voidReceiptConfirmMessage(
+  issue: Pick<ReceiptIssueRecord, 'series' | 'number' | 'transactionId' | 'kind'>,
+  ranges: ReceiptNumberRange[] | undefined | null,
+  issues: ReceiptIssueRecord[] | undefined | null,
+  nextBySeries?: Record<string, number> | null,
+): string {
+  const label = formatReceiptLabel(issue.series, issue.number);
+  const preview = previewNextReceipt(issue.series, ranges, issues, nextBySeries);
+  const nextLine = preview.ok
+    ? `Ο αριθμός ${issue.number} δεν ξαναχρησιμοποιείται. Η επόμενη απόδειξη της σειράς ${preview.series} θα είναι η ${preview.number}.`
+    : `Ο αριθμός ${issue.number} δεν ξαναχρησιμοποιείται.`;
+  const txId = String(issue.transactionId ?? '').trim();
+  let paymentLine = 'Δεν υπάρχει συνδεδεμένη πληρωμή. Μόνο η απόδειξη θα σημειωθεί ως ακυρωμένη.';
+  if (txId.startsWith('rent_') || issue.kind === 'rental') {
+    paymentLine =
+      'Θα ακυρωθεί και η είσπραξη ενοικίασης (το έσοδο αφαιρείται· η κράτηση μένει).';
+  } else if (txId) {
+    paymentLine = 'Θα διαγραφεί και η συνδεδεμένη πληρωμή (και το έσοδο).';
+  }
+  return `Θα ακυρωθεί η ${label}.\n\n${nextLine}\n\n${paymentLine}\n\nΣυνέχεια;`;
+}
