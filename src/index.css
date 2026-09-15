@@ -3869,6 +3869,71 @@ html[data-appearance] .settings-backup-schedule-status {
   gap: 8px;
 }
 
+.tx-month-dropdown {
+  position: relative;
+}
+
+.tx-month-trigger {
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font: inherit;
+  background: #fff;
+  box-sizing: border-box;
+  color: #111;
+  text-align: left;
+  cursor: pointer;
+  min-height: 34px;
+}
+
+.tx-month-trigger span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.tx-month-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  max-height: 260px;
+  overflow: auto;
+  padding: 4px 0;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.tx-month-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  margin: 0;
+}
+
+.tx-month-option:hover {
+  background: #f3f4f6;
+}
+
+.tx-form .tx-month-option input {
+  width: auto;
+  margin: 0;
+  accent-color: #0f766e;
+}
+
+.tx-month-option span {
+  font-weight: 500;
+  color: #111;
+}
+
 .tx-field-notes {
   /* Ίδια στήλη με Αρ. Απόδειξης — δεξιά πλευρά στην ίδια ευθεία */
   grid-column: 1 / 2;
@@ -3887,9 +3952,11 @@ html[data-appearance] .settings-backup-schedule-status {
   color: #111;
 }
 
-.tx-form input:disabled {
+.tx-form input:disabled,
+.tx-form select:disabled {
   background: #f3f4f6;
   color: #374151;
+  cursor: not-allowed;
 }
 
 .tx-form textarea {

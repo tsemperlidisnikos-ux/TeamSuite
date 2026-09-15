@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -98,6 +98,26 @@ function seasonStartFromPeriod(month: number, year: number): number {
   return month >= 8 ? year : year - 1;
 }
 
+function seasonYearForMonth(month: number, startYear: number): number {
+  return month >= 8 ? startYear : startYear + 1;
+}
+
+function sortSeasonMonths(months: number[]): number[] {
+  return [...months].sort(
+    (a, b) => SEASON_MONTHS.indexOf(a) - SEASON_MONTHS.indexOf(b),
+  );
+}
+
+function monthTriggerLabel(months: number[]): string {
+  const sorted = sortSeasonMonths(months);
+  if (!sorted.length) return 'Επιλέξτε μήνες';
+  const names = sorted.map(
+    (value) => MONTHS.find((m) => m.value === value)?.label ?? String(value),
+  );
+  if (names.length <= 3) return names.join(', ');
+  return `${names.length} μήνες`;
+}
+
 /** Υπόλοιπο αθλητή για συγκεκριμένη σεζόν (Αύγ→Ιούλ). */
 function athleteSeasonBalance(
   athleteId: string,
@@ -163,6 +183,9 @@ export function TransactionsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [seasonStart, setSeasonStart] = useState(2026);
   const [form, setForm] = useState<TransactionInput>(emptyForm());
+  const [formMonths, setFormMonths] = useState<number[]>([8]);
+  const [monthMenuOpen, setMonthMenuOpen] = useState(false);
+  const monthMenuRef = useRef<HTMLDivElement>(null);
   const [receiptSeries, setReceiptSeries] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -230,6 +253,39 @@ export function TransactionsPage() {
     };
   }
 
+  function applyNewForm(athleteId = '', start = seasonStart) {
+    setForm(emptyForm(athleteId, start));
+    setFormMonths([8]);
+    setMonthMenuOpen(false);
+  }
+
+  function toggleFormMonth(month: number) {
+    setFormMonths((prev) => {
+      const next = editingId
+        ? [month]
+        : prev.includes(month)
+          ? prev.filter((value) => value !== month)
+          : [...prev, month];
+      const months = next.length ? next : prev;
+      const primary = sortSeasonMonths(months)[0] ?? month;
+      setForm((current) => ({
+        ...current,
+        month: primary,
+        year: seasonYearForMonth(primary, seasonStart),
+      }));
+      return months;
+    });
+  }
+
+  useEffect(() => {
+    if (!monthMenuOpen) return;
+    function onDoc(e: MouseEvent) {
+      if (!monthMenuRef.current?.contains(e.target as Node)) setMonthMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [monthMenuOpen]);
+
   useEffect(() => {
     const fromUrl = searchParams.get('athleteId')?.trim();
     if (!fromUrl) return;
@@ -239,7 +295,7 @@ export function TransactionsPage() {
     setQuery('');
     setSelectedId(athlete.id);
     setEditingId(null);
-    setForm(emptyForm(athlete.id, seasonStart));
+    applyNewForm(athlete.id, seasonStart);
     setError('');
     setSearchParams(
       (prev) => {
@@ -290,7 +346,7 @@ export function TransactionsPage() {
     if (!filteredAthletes.some((s) => s.id === selectedId)) {
       setSelectedId(null);
       setEditingId(null);
-      setForm(emptyForm('', seasonStart));
+      applyNewForm('', seasonStart);
     }
   }, [filteredAthletes, selectedId, seasonStart]);
 
@@ -365,7 +421,7 @@ export function TransactionsPage() {
   function selectAthlete(athlete: Student) {
     setSelectedId(athlete.id);
     setEditingId(null);
-    setForm(emptyForm(athlete.id, seasonStart));
+    applyNewForm(athlete.id, seasonStart);
     setReceiptSeries('');
     setError('');
   }
@@ -390,6 +446,8 @@ export function TransactionsPage() {
       paymentMethod: normalizePaymentMethod(tx.paymentMethod),
       comments: tx.comments || '',
     });
+    setFormMonths([tx.month]);
+    setMonthMenuOpen(false);
     if (tx.type === 'payment' && !parsedNumber && receiptBooks.length) {
       const suggested = applySuggestedReceipt(series);
       setForm((prev) => ({ ...prev, receiptNumber: suggested.number }));
@@ -400,7 +458,7 @@ export function TransactionsPage() {
 
   function cancelEdit() {
     setEditingId(null);
-    setForm(emptyForm(selectedId ?? '', seasonStart));
+    applyNewForm(selectedId ?? '', seasonStart);
     setReceiptSeries('');
     setError('');
   }
@@ -421,10 +479,14 @@ export function TransactionsPage() {
       setError('Επιλέξτε αθλητή από τη λίστα');
       return;
     }
+    const isCharge = form.type === 'charge';
     const payload = {
       ...form,
       athleteId: form.athleteId || selectedId || '',
-      paymentMethod: (normalizePaymentMethod(form.paymentMethod) || 'cash') as TransactionInput['paymentMethod'],
+      receiptNumber: isCharge ? '' : form.receiptNumber,
+      paymentMethod: isCharge
+        ? ''
+        : ((normalizePaymentMethod(form.paymentMethod) || 'cash') as TransactionInput['paymentMethod']),
     };
     const rangesConfigured = (data.receiptNumberRanges ?? []).length > 0;
     let receiptSeriesToIssue = receiptSeries;
@@ -467,46 +529,85 @@ export function TransactionsPage() {
       receiptNumberToIssue = checked.number;
     }
 
-    setSaving(true);
-    setError('');
-    const result = editingId
-      ? await transactionsService.updateTransaction(editingId, payload)
-      : await transactionsService.createTransaction(payload);
-    if (!result.success || !result.data) {
-      setSaving(false);
-      setError(result.error ?? 'Σφάλμα αποθήκευσης');
+    const monthsToSave = editingId
+      ? [payload.month]
+      : sortSeasonMonths(formMonths);
+    if (!monthsToSave.length) {
+      setError('Επιλέξτε τουλάχιστον έναν μήνα');
       return;
     }
 
-    let saved = result.data;
-    const existingIssue = issueForTransaction(data.receiptIssues, saved.id);
-    if (
-      payload.type === 'payment' &&
-      rangesConfigured &&
-      receiptSeriesToIssue &&
-      receiptNumberToIssue &&
-      !existingIssue
-    ) {
+    setSaving(true);
+    setError('');
+    setMonthMenuOpen(false);
+
+    let saved: AthleteTransaction | null = null;
+    let lastPayload = payload;
+    let nextReceiptNumber = receiptNumberToIssue;
+
+    for (let i = 0; i < monthsToSave.length; i += 1) {
+      const month = monthsToSave[i];
+      const year =
+        monthsToSave.length === 1
+          ? payload.year
+          : seasonYearForMonth(month, seasonStart);
+      const one = { ...payload, month, year };
+      if (
+        one.type === 'payment' &&
+        rangesConfigured &&
+        receiptSeriesToIssue &&
+        nextReceiptNumber &&
+        !editingId
+      ) {
+        one.receiptNumber = formatReceiptLabel(receiptSeriesToIssue, nextReceiptNumber);
+      }
+
+      const result = editingId
+        ? await transactionsService.updateTransaction(editingId, one)
+        : await transactionsService.createTransaction(one);
+      if (!result.success || !result.data) {
+        setSaving(false);
+        setError(
+          result.error ??
+            (i > 0
+              ? `Αποθηκεύτηκαν ${i} κινήσεις. Σφάλμα στον μήνα ${MONTHS.find((m) => m.value === month)?.label ?? month}.`
+              : 'Σφάλμα αποθήκευσης'),
+        );
+        refresh();
+        return;
+      }
+
+      saved = result.data;
+      lastPayload = one;
+      const existingIssue = issueForTransaction(data.receiptIssues, saved.id);
+      if (
+        one.type === 'payment' &&
+        rangesConfigured &&
+        receiptSeriesToIssue &&
+        nextReceiptNumber &&
+        !existingIssue
+      ) {
         const athlete =
-          data.students.find((s) => s.id === payload.athleteId) ?? selected ?? null;
-        const monthLabel = t(MONTHS.find((m) => m.value === payload.month)?.label ?? '');
+          data.students.find((s) => s.id === one.athleteId) ?? selected ?? null;
+        const monthLabel = t(MONTHS.find((m) => m.value === one.month)?.label ?? '');
         const issued = await receiptBookService.allocateReceiptIssue({
           series: receiptSeriesToIssue,
-          number: receiptNumberToIssue,
+          number: nextReceiptNumber,
           transactionId: result.data.id,
-          athleteId: payload.athleteId,
-          amount: payload.amount,
+          athleteId: one.athleteId,
+          amount: one.amount,
           receivedFrom: athlete
             ? `${athlete.lastName} ${athlete.firstName}`.trim()
             : '',
           reason:
-            payload.comments?.trim() ||
-            (monthLabel ? `Συνδρομή ${monthLabel} ${payload.year}` : ''),
+            one.comments?.trim() ||
+            (monthLabel ? `Συνδρομή ${monthLabel} ${one.year}` : ''),
           kind: 'subscription',
         });
         if (!issued.success || !issued.data) {
           setSaving(false);
           setError(issued.error ?? 'Η πληρωμή αποθηκεύτηκε, αλλά ο αριθμός απόδειξης δεν εκδόθηκε.');
+          refresh();
           return;
         }
         saved = {
@@ -515,13 +616,15 @@ export function TransactionsPage() {
           receiptSeq: issued.data.number,
           receiptNumber: formatReceiptLabel(issued.data.series, issued.data.number),
         };
+        nextReceiptNumber = issued.data.number + 1;
+      }
     }
     setSaving(false);
 
-    if (payload.type === 'payment' && saved) {
+    if (lastPayload.type === 'payment' && saved && monthsToSave.length === 1) {
       const athlete =
-        data.students.find((s) => s.id === payload.athleteId) ?? selected ?? null;
-      const monthLabel = t(MONTHS.find((m) => m.value === payload.month)?.label ?? '');
+        data.students.find((s) => s.id === lastPayload.athleteId) ?? selected ?? null;
+      const monthLabel = t(MONTHS.find((m) => m.value === lastPayload.month)?.label ?? '');
       setReceiptDraft({
         date: toReceiptDate(localDateIso()),
         series: saved.receiptSeries || receiptSeriesToIssue || '',
@@ -530,26 +633,26 @@ export function TransactionsPage() {
           : receiptNumberToIssue
             ? String(receiptNumberToIssue)
             : '',
-        amount: formatReceiptAmount(payload.amount),
+        amount: formatReceiptAmount(lastPayload.amount),
         receivedFrom: athlete
           ? `${athlete.lastName} ${athlete.firstName}`.trim()
           : '',
         address: athleteAddress(athlete),
-        amountWords: amountToGreekWords(payload.amount),
+        amountWords: amountToGreekWords(lastPayload.amount),
         reason:
-          payload.comments?.trim() ||
-          (monthLabel ? `Συνδρομή ${monthLabel} ${payload.year}` : ''),
+          lastPayload.comments?.trim() ||
+          (monthLabel ? `Συνδρομή ${monthLabel} ${lastPayload.year}` : ''),
       });
       setReceiptAthlete(athlete);
       setReceiptTransactionId(saved.id);
       setReceiptOpen(true);
     }
 
-    if (payload.athleteId) setSelectedId(payload.athleteId);
-    const txSeason = seasonStartFromPeriod(payload.month, payload.year);
+    if (lastPayload.athleteId) setSelectedId(lastPayload.athleteId);
+    const txSeason = seasonStartFromPeriod(lastPayload.month, lastPayload.year);
     setSeasonStart(txSeason);
     setEditingId(null);
-    setForm(emptyForm(payload.athleteId, txSeason));
+    applyNewForm(lastPayload.athleteId, txSeason);
     setReceiptSeries('');
     refresh();
   }
@@ -679,7 +782,8 @@ export function TransactionsPage() {
                         setForm({
                           ...form,
                           type,
-                          receiptNumber: editingId ? form.receiptNumber : '',
+                          receiptNumber: '',
+                          paymentMethod: '',
                         });
                         return;
                       }
@@ -710,30 +814,39 @@ export function TransactionsPage() {
 
                 <div className="tx-field">
                   <div className="tx-field-row">
-                    <label className="tx-field-col">
+                    <div className="tx-field-col" ref={monthMenuRef}>
                       <span>{t('Μήνας')}</span>
-                      <select
-                        value={form.month}
-                        onChange={(e) => {
-                          const month = Number(e.target.value);
-                          setForm({
-                            ...form,
-                            month,
-                            year: month >= 8 ? seasonStart : seasonStart + 1,
-                          });
-                        }}
-                      >
-                        {MONTHS.map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {m.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                      <div className="tx-month-dropdown">
+                        <button
+                          type="button"
+                          className="tx-month-trigger"
+                          aria-haspopup="listbox"
+                          aria-expanded={monthMenuOpen}
+                          onClick={() => setMonthMenuOpen((open) => !open)}
+                        >
+                          <span>{monthTriggerLabel(formMonths)}</span>
+                        </button>
+                        {monthMenuOpen ? (
+                          <div className="tx-month-panel" role="listbox" aria-multiselectable={!editingId}>
+                            {MONTHS.map((m) => (
+                              <label key={m.value} className="tx-month-option">
+                                <input
+                                  type="checkbox"
+                                  checked={formMonths.includes(m.value)}
+                                  onChange={() => toggleFormMonth(m.value)}
+                                />
+                                <span>{m.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
                     <label className="tx-field-col">
                       <span>{t('Έτος')}</span>
                       <select
                         value={form.year}
+                        disabled={formMonths.length > 1}
                         onChange={(e) => setForm({ ...form, year: Number(e.target.value) })}
                       >
                         {[2025, 2026, 2027, 2028].map((y) => (
@@ -794,8 +907,13 @@ export function TransactionsPage() {
                     <span>{t('Αρ. Απόδειξης')}</span>
                     <input
                       type="text"
-                      value={form.receiptNumber}
-                      onChange={(e) => setForm({ ...form, receiptNumber: e.target.value })}
+                      value={form.type === 'charge' ? '' : form.receiptNumber}
+                      disabled={form.type === 'charge'}
+                      readOnly={form.type === 'charge'}
+                      onChange={(e) => {
+                        if (form.type === 'charge') return;
+                        setForm({ ...form, receiptNumber: e.target.value });
+                      }}
                     />
                   </label>
                 )}
@@ -803,13 +921,15 @@ export function TransactionsPage() {
                 <label className="tx-field">
                   <span>{t('Τρόπος πληρωμής')}</span>
                   <select
-                    value={form.paymentMethod}
-                    onChange={(e) =>
+                    value={form.type === 'charge' ? '' : form.paymentMethod}
+                    disabled={form.type === 'charge'}
+                    onChange={(e) => {
+                      if (form.type === 'charge') return;
                       setForm({
                         ...form,
                         paymentMethod: e.target.value as TransactionInput['paymentMethod'],
-                      })
-                    }
+                      });
+                    }}
                   >
                     <option value="">—</option>
                     {PAYMENT_METHODS.map((item) => (
