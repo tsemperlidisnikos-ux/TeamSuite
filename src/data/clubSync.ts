@@ -275,9 +275,9 @@ function clearClubMirrorDirty(clubId: string): void {
   emitClubSyncStatus();
 }
 
-const LIVE_PUSH_MS = 80;
+const LIVE_PUSH_MS = 1_200;
 
-/** Κάθε αποθήκευση συλλόγου ανεβαίνει αμέσως στο cloud (ops + full mirror). */
+/** Κάθε αποθήκευση συλλόγου: άμεσο μικρό club-ops, πλήρες mirror λίγο μετά (χωρίς να παγώνει το κουμπί). */
 export function scheduleClubMirrorPush(clubId?: string | null): void {
   const id = clubId ?? resolveActiveClubId();
   if (!id || id === '_default' || !isAutoSyncEnabled(id)) return;
@@ -327,7 +327,6 @@ export async function flushClubMirrorPush(
   const run = async () => {
     beginClubSyncProgress(id);
     try {
-      await whenClubMapPersisted();
       const result = await pushClubAndAccounts(id, getLastSyncAt(id), { keepalive: opts?.keepalive });
       endClubSyncProgress(id, Boolean(result.success));
       return result;

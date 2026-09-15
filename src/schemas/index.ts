@@ -470,9 +470,10 @@ export const feeChargeTemplateSchema = z.object({
   typeLabel: z.string().min(1, 'Συμπληρώστε τύπο').default('Συνδρομή'),
   monthlyAmount: z.coerce.number().min(0, 'Το ποσό πρέπει να είναι ≥ 0'),
   appliesTo: z
-    .enum(['all', 'monthly', 'registration', 'seasonTicket', 'class', 'customCharge'])
+    .enum(['all', 'monthly', 'registration', 'seasonTicket', 'class', 'customCharge', 'athlete'])
     .default('all'),
   classId: z.string().nullable().optional().default(null),
+  athleteId: z.string().nullable().optional().default(null),
   months: z.array(z.coerce.number().int().min(1).max(12)).default([]),
   reminderDays: z.coerce.number().int().min(0).default(7),
   registrationFee: z.coerce.number().min(0).optional().default(0),

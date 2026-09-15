@@ -50,12 +50,14 @@ export type FeeAppliesTo =
   | 'registration'
   | 'seasonTicket'
   | 'class'
-  | 'customCharge';
+  | 'customCharge'
+  | 'athlete';
 
 export function getFeeAppliesToOptions(customChargeLabel?: string) {
   const label = (customChargeLabel ?? '').trim();
   const options: Array<{ value: FeeAppliesTo; label: string }> = [
     { value: 'all', label: 'Όλοι οι αθλητές' },
+    { value: 'athlete', label: 'Αθλητής' },
     { value: 'monthly', label: 'Αθλητές με χρέωση μήνα' },
   ];
   if (label) {
@@ -88,6 +90,7 @@ export const FEE_APPLIES_TO_LABELS: Record<
   string
 > = {
   all: 'Όλοι οι αθλητές',
+  athlete: 'Αθλητής',
   monthly: 'Αθλητές με χρέωση μήνα',
   registration: 'Αθλητές με χρέωση εγγραφής',
   seasonTicket: 'Αθλητές με εισιτήριο διαρκείας',
@@ -104,6 +107,7 @@ function athleteMatchesAppliesTo(
   student: Student,
   appliesTo: FeeChargeTemplate['appliesTo'],
   classId: string | null | undefined,
+  athleteId?: string | null,
 ): boolean {
   switch (appliesTo) {
     case 'monthly':
@@ -116,6 +120,8 @@ function athleteMatchesAppliesTo(
       return Boolean(student.seasonTicket);
     case 'class':
       return Boolean(classId) && studentInClass(student, classId);
+    case 'athlete':
+      return Boolean(athleteId) && student.id === athleteId;
     case 'all':
     default:
       return true;
@@ -267,10 +273,14 @@ export async function createFeeChargeTemplate(input: FeeChargeTemplateInput) {
     if (parsed.appliesTo === 'class' && !parsed.classId) {
       throw new Error('Επιλέξτε τμήμα για «Συγκεκριμένο τμήμα»');
     }
+    if (parsed.appliesTo === 'athlete' && !parsed.athleteId) {
+      throw new Error('Επιλέξτε αθλητή για «Αθλητής»');
+    }
 
     const template: FeeChargeTemplate = {
       ...parsed,
       classId: parsed.appliesTo === 'class' ? parsed.classId : null,
+      athleteId: parsed.appliesTo === 'athlete' ? parsed.athleteId : null,
       autoGenerate: Boolean(parsed.autoGenerate),
       lastGeneratedAt: null,
       id: createId('feeTpl'),
@@ -300,12 +310,17 @@ export async function generateChargesFromTemplate(templateId: string) {
     if (!template) throw new Error('Το πρότυπο χρέωσης δεν βρέθηκε');
 
     const classSportById = new Map(data.classes.map((c) => [c.id, c.sport ?? '']));
-    const athletes = data.students.filter(
-      (s) =>
-        s.status === 'active' &&
-        athleteMatchesSport(s, template.sport, classSportById) &&
-        athleteMatchesAppliesTo(s, template.appliesTo ?? 'all', template.classId),
-    );
+    const athletes = data.students.filter((s) => {
+      const matchesScope = athleteMatchesAppliesTo(
+        s,
+        template.appliesTo ?? 'all',
+        template.classId,
+        template.athleteId,
+      );
+      if (!matchesScope) return false;
+      if (template.appliesTo === 'athlete') return true;
+      return s.status === 'active' && athleteMatchesSport(s, template.sport, classSportById);
+    });
 
     let created = 0;
     mutateData((store) => {

@@ -629,8 +629,10 @@ export interface FeeChargeTemplate {
   typeLabel: string;
   monthlyAmount: number;
   /** Academio-style: σε ποιους αθλητές ισχύει η χρέωση. */
-  appliesTo: 'all' | 'monthly' | 'registration' | 'seasonTicket' | 'class' | 'customCharge';
+  appliesTo: 'all' | 'monthly' | 'registration' | 'seasonTicket' | 'class' | 'customCharge' | 'athlete';
   classId?: string | null;
+  /** Όταν appliesTo = athlete. */
+  athleteId?: string | null;
   months: number[];
   reminderDays: number;
   registrationFee: number;

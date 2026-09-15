@@ -20,6 +20,7 @@ import { listActiveClubSportNames } from '../utils/clubSports';
 import { normalizeSportKey } from '../utils/sport';
 import { canAccessAmka, formatAmkaForViewer } from '../utils/amkaAccess';
 import { studentClassIds } from '../utils/studentClasses';
+import { studentHasSport } from '../utils/studentSports';
 
 type Panel = 'list' | 'createCharges' | 'reminders' | 'newCharge';
 
@@ -33,6 +34,7 @@ function emptyForm(season: string): FeeChargeTemplateInput {
     monthlyAmount: 30,
     appliesTo: 'all',
     classId: null,
+    athleteId: null,
     months: defaultMonths,
     reminderDays: 7,
     registrationFee: 0,
@@ -67,6 +69,7 @@ export function FeesPage() {
   const [payingId, setPayingId] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
+  const [athleteSearch, setAthleteSearch] = useState('');
 
   useEffect(() => {
     void import('../api/services/paymentMatchingService').then(({ ensureLegacyPaymentsMatched }) => {
@@ -125,6 +128,30 @@ export function FeesPage() {
   const [form, setForm] = useState<FeeChargeTemplateInput>(() =>
     emptyForm(seasons[seasons.length - 1] ?? '2026–2027'),
   );
+
+  const selectedFeeAthlete = useMemo(
+    () => data.students.find((s) => s.id === form.athleteId) ?? null,
+    [data.students, form.athleteId],
+  );
+
+  const feeAthleteHits = useMemo(() => {
+    if (form.appliesTo !== 'athlete') return [];
+    const q = athleteSearch.trim().toLowerCase();
+    if (q.length < 1) return [];
+    const canAmka = canAccessAmka(session?.role);
+    return data.students
+      .filter((s) => s.status !== 'inactive')
+      .filter((s) => !form.sport || studentHasSport(s, form.sport))
+      .filter((s) => {
+        const amkaPart = canAmka ? (s.amka ?? '') : '';
+        const hay = `${s.lastName} ${s.firstName} ${s.fatherFirstName ?? ''} ${amkaPart}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .sort((a, b) =>
+        `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
+      )
+      .slice(0, 12);
+  }, [athleteSearch, data.students, form.appliesTo, form.sport, session?.role]);
 
   const transactions = data.transactions ?? [];
   const templates = data.feeChargeTemplates ?? [];
@@ -188,6 +215,7 @@ export function FeesPage() {
     setError('');
     setMessage('');
     setForm(emptyForm(seasons[seasons.length - 1] ?? '2026–2027'));
+    setAthleteSearch('');
     setPanel('newCharge');
   }
 
@@ -408,9 +436,13 @@ export function FeesPage() {
 
   function templateSummary(tpl: FeeChargeTemplate): string {
     const sport = tpl.sport || t('Όλα');
-    const applies = t(
+    let applies = t(
       feeChargesService.feeAppliesToLabel(tpl.appliesTo ?? 'all', club?.customChargeLabel),
     );
+    if (tpl.appliesTo === 'athlete' && tpl.athleteId) {
+      const athlete = data.students.find((s) => s.id === tpl.athleteId);
+      if (athlete) applies = `${applies}: ${athlete.lastName} ${athlete.firstName}`;
+    }
     const months = tpl.months.length;
     return `${tpl.season} · ${sport} · ${applies} · ${formatCurrency(tpl.monthlyAmount)} · ${months} ${t('μήνες')}`;
   }
@@ -664,7 +696,9 @@ export function FeesPage() {
                       ...form,
                       appliesTo,
                       classId: appliesTo === 'class' ? form.classId : null,
+                      athleteId: appliesTo === 'athlete' ? form.athleteId : null,
                     });
+                    if (appliesTo !== 'athlete') setAthleteSearch('');
                   }}
                 >
                   {feeAppliesToOptions.map((option) => (
@@ -697,6 +731,64 @@ export function FeesPage() {
                     ))}
                 </select>
               </label>
+            ) : null}
+            {form.appliesTo === 'athlete' ? (
+              <div className="field fee-athlete-search">
+                <span className="field-label">{t('Αθλητής')}</span>
+                {selectedFeeAthlete ? (
+                  <div className="fee-athlete-selected">
+                    <strong>
+                      {selectedFeeAthlete.lastName} {selectedFeeAthlete.firstName}
+                    </strong>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setForm({ ...form, athleteId: null });
+                        setAthleteSearch('');
+                      }}
+                    >
+                      {t('Αλλαγή')}
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      className="field-input"
+                      value={athleteSearch}
+                      onChange={(e) => setAthleteSearch(e.target.value)}
+                      placeholder={t('Αναζήτηση επωνύμου, ονόματος…')}
+                      autoComplete="off"
+                    />
+                    {athleteSearch.trim() ? (
+                      <ul className="fee-athlete-search-list" role="listbox">
+                        {feeAthleteHits.length === 0 ? (
+                          <li className="muted">{t('Δεν βρέθηκε αθλητής.')}</li>
+                        ) : (
+                          feeAthleteHits.map((s) => (
+                            <li key={s.id}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setForm({ ...form, athleteId: s.id });
+                                  setAthleteSearch('');
+                                }}
+                              >
+                                {s.lastName} {s.firstName}
+                                {s.fatherFirstName ? ` · ${s.fatherFirstName}` : ''}
+                              </button>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                    ) : (
+                      <span className="settings-hint">
+                        Γράψτε επώνυμο ή όνομα για να επιλέξετε τον αθλητή της χρέωσης.
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
             ) : null}
 
             <div className="field">
