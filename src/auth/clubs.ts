@@ -99,6 +99,8 @@ export interface Club {
   licensePackageId?: string | null;
   usageStartsOn?: string | null;
   usageEndsOn?: string | null;
+  /** ISO timestamp τελευταίας αλλαγής πακέτου/ορίου αδειών από Platform Admin. */
+  licensesUpdatedAt?: string | null;
   logoUrl?: string | null;
   vatNumber?: string;
   taxOffice?: string;
@@ -384,6 +386,8 @@ export function mergeVivaSettings(
 /**
  * Cloud pull/push δεν πρέπει να σβήνει logo (και συναφή media) όταν το
  * εισερχόμενο πακέτο τα έχει κενά — π.χ. Push από άλλο browser χωρίς το αρχείο.
+ * Το όριο αδειών ακολουθεί την πιο πρόσφατη αποθήκευση PA (όχι Math.max), αλλιώς
+ * μείωση π.χ. 2000→600 επανέρχεται στο 2000 στο επόμενο pull.
  */
 export function mergeClubCatalog(localClubs: Club[], incomingClubs: Club[]): Club[] {
   const localById = new Map(localClubs.map((club) => [club.id, club]));
@@ -401,13 +405,11 @@ export function mergeClubCatalog(localClubs: Club[], incomingClubs: Club[]): Clu
         eurobank: mergeKeyedSecretSettings(incoming.eurobank, undefined, 'secretKey'),
       };
     }
+    const license = pickNewerLicenseFields(local, incoming);
     return {
       ...local,
       ...incoming,
-      athleteLicenseLimit: Math.max(
-        Number(incoming.athleteLicenseLimit) || 0,
-        Number(local.athleteLicenseLimit) || 0,
-      ),
+      ...license,
       logoUrl: canonicalizeClubLogoUrl(
         incoming.id,
         pickMediaUrl(incoming.logoUrl, local.logoUrl),
@@ -444,6 +446,42 @@ export function mergeClubCatalog(localClubs: Club[], incomingClubs: Club[]): Clu
     if (!seen.has(local.id)) merged.push(local);
   }
   return merged;
+}
+
+function licenseStampMs(club: Pick<Club, 'licensesUpdatedAt'> | undefined): number {
+  const ts = Date.parse(String(club?.licensesUpdatedAt ?? '').trim());
+  return Number.isFinite(ts) ? ts : 0;
+}
+
+function pickNewerLicenseFields(local: Club, incoming: Club): Pick<
+  Club,
+  | 'athleteLicenseLimit'
+  | 'athleteLicenseUsed'
+  | 'licensePackageId'
+  | 'usageStartsOn'
+  | 'usageEndsOn'
+  | 'licensesUpdatedAt'
+> {
+  const preferLocal = licenseStampMs(local) > licenseStampMs(incoming);
+  const src = preferLocal ? local : incoming;
+  return {
+    athleteLicenseLimit: Number(src.athleteLicenseLimit) || 0,
+    athleteLicenseUsed: Number(src.athleteLicenseUsed) || 0,
+    licensePackageId: src.licensePackageId ?? null,
+    usageStartsOn: src.usageStartsOn ?? null,
+    usageEndsOn: src.usageEndsOn ?? null,
+    licensesUpdatedAt: src.licensesUpdatedAt ?? (preferLocal ? local.licensesUpdatedAt : incoming.licensesUpdatedAt) ?? null,
+  };
+}
+
+/** Τοπικό όριο αδειών νεότερο από το cloud — πρέπει να ξαναγίνει push. */
+export function localClubLicensesNewerThan(localClubs: Club[], incomingClubs: Club[]): boolean {
+  const incomingById = new Map(incomingClubs.map((club) => [club.id, club]));
+  return localClubs.some((local) => {
+    const incoming = incomingById.get(local.id);
+    if (!incoming) return false;
+    return licenseStampMs(local) > licenseStampMs(incoming);
+  });
 }
 
 /**
@@ -621,6 +659,7 @@ export function updateClubLicenses(
         : input.licensePackageId,
     usageStartsOn,
     usageEndsOn,
+    licensesUpdatedAt: new Date().toISOString(),
     onlinePaymentProviders:
       input.onlinePaymentProviders === undefined
         ? clubs[index].onlinePaymentProviders

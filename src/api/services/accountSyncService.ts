@@ -1,7 +1,7 @@
 import { apiClient } from '../apiClient';
 import { syncAuthHeaders } from '../syncAuth';
 import { getSession, getUsers, saveUsers, type AppUser } from '../../auth/auth';
-import { getClubs, mergeClubCatalog, saveClubs, type Club } from '../../auth/clubs';
+import { getClubs, localClubLicensesNewerThan, mergeClubCatalog, saveClubs, type Club } from '../../auth/clubs';
 import {
   applyPlatformBranding,
   clearStampedRoleDefaultPermissions,
@@ -169,6 +169,7 @@ export function applyAccountBundle(
 ) {
   if (bundle.durable === false) return;
   applyingCloudAccount = true;
+  let pushNewerLicenses = false;
   try {
     if (bundle.platformConfig) {
       savePlatformConfig(bundle.platformConfig);
@@ -208,13 +209,16 @@ export function applyAccountBundle(
     } else {
       saveUsers(cleanedUsers);
     }
-    saveClubs(mergeClubCatalog(getClubs(), bundle.clubs));
+    const localClubs = getClubs();
+    saveClubs(mergeClubCatalog(localClubs, bundle.clubs));
+    pushNewerLicenses = localClubLicensesNewerThan(getClubs(), bundle.clubs);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
     }
   } finally {
     applyingCloudAccount = false;
   }
+  if (pushNewerLicenses) scheduleAccountBundlePush();
 }
 
 const ACCOUNT_UPDATED_AT_KEY = 'teamsuite-account-bundle-at-v1';
