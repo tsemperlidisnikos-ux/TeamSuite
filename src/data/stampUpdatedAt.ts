@@ -31,6 +31,7 @@ const ID_COLLECTION_KEYS = [
   'progressReports',
   'registrationApplications',
   'receiptNumberRanges',
+  'receiptIssues',
   'matches',
   'rentalBookings',
   'documentProtocolEntries',

@@ -143,7 +143,9 @@ export async function allocateReceiptIssue(input: {
     });
     if (!holder.value) throw new Error('Αποτυχία έκδοσης αριθμού απόδειξης.');
     const { flushClubMirrorPush } = await import('../../data/clubSync');
-    await flushClubMirrorPush();
+    await flushClubMirrorPush(undefined, { force: true });
+    const { publishClubOpsSlice } = await import('./clubOpsSyncService');
+    await publishClubOpsSlice();
     return holder.value;
   });
 }

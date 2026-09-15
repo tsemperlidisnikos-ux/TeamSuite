@@ -24,6 +24,9 @@ import { studentClassIds } from '../../utils/studentClasses';
 import { hydrateAllClubMirrorsFromCloud, persistLocalStateToCloud } from '../../data/clubSync';
 import { pushAccountBundle } from './accountSyncService';
 import { ensureLegacyPaymentsMatchedAllClubs } from './paymentMatchingService';
+import { backfillAthletePaymentRevenues } from './athletePaymentRevenueBridge';
+import { syncRentalRevenuesInData } from './rentalRevenueBridge';
+import { auditClubIntegrity } from '../../utils/clubIntegrityAudit';
 
 export type DiagnosticSeverity = 'critical' | 'warning' | 'info' | 'ok';
 
@@ -704,6 +707,9 @@ function checkAppData(clubId: string, clubName: string, data: AppData): Diagnost
   }
 
   void coachIds;
+  for (const item of auditClubIntegrity(prefix, data)) {
+    out.push(finding(item));
+  }
   return out;
 }
 
@@ -973,6 +979,7 @@ async function applyAutomaticRepairs(
 
   let orphanAttendanceCleaned = 0;
   let orphanTxnCleaned = 0;
+  let revenueBackfilled = 0;
   const clubIds = [...new Set([
     ...getClubs().map((c) => c.id),
     ...Object.keys(exportAllClubsData()),
@@ -991,6 +998,10 @@ async function applyAutomaticRepairs(
         studentIds.has(t.athleteId),
       );
       orphanTxnCleaned += beforeTxn - draft.transactions.length;
+      const revBefore = draft.revenues?.length ?? 0;
+      backfillAthletePaymentRevenues(draft);
+      syncRentalRevenuesInData(draft);
+      revenueBackfilled += (draft.revenues?.length ?? 0) - revBefore;
     });
   }
 
@@ -1033,6 +1044,19 @@ async function applyAutomaticRepairs(
           ? `Καθαρίστηκαν ${orphanTxnCleaned} ορφανές συναλλαγές`
           : 'Συναλλαγές χωρίς ορφανά OK',
       detail: 'Αφαιρέθηκαν χρεώσεις/πληρωμές με ανύπαρκτο αθλητή στο μητρώο.',
+      fix: 'Καμία ενέργεια.',
+    }),
+  );
+
+  out.push(
+    finding({
+      category: 'Repair',
+      severity: 'ok',
+      title:
+        revenueBackfilled > 0
+          ? `Συμπληρώθηκαν ${revenueBackfilled} γραμμές εσόδων από πληρωμές/ενοικιάσεις`
+          : 'Έσοδα πληρωμών/ενοικιάσεων OK',
+      detail: 'Κάθε πληρωμή αθλητή και εισπραγμένη ενοικίαση έχει αντίστοιχο έσοδο.',
       fix: 'Καμία ενέργεια.',
     }),
   );

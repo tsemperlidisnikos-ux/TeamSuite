@@ -34,6 +34,9 @@ export type ClubOpsSlice = Pick<
   | 'deletedRevenueIds'
   | 'deletedCoachIds'
   | 'deletedStaffIds'
+  | 'receiptIssues'
+  | 'receiptNumberRanges'
+  | 'receiptNextBySeries'
   | 'deletedSeasonIds'
 >;
 
@@ -53,6 +56,9 @@ export function clubOpsSliceFromData(data: AppData): ClubOpsSlice {
     coaches: data.coaches ?? [],
     staff: data.staff ?? [],
     clubSeasons: data.clubSeasons ?? [],
+    receiptIssues: data.receiptIssues ?? [],
+    receiptNumberRanges: data.receiptNumberRanges ?? [],
+    receiptNextBySeries: data.receiptNextBySeries ?? {},
     deletedScheduleIds: data.deletedScheduleIds ?? [],
     deletedTrainingIds: data.deletedTrainingIds ?? [],
     deletedMatchIds: data.deletedMatchIds ?? [],

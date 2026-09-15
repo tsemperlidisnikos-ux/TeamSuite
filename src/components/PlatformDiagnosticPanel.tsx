@@ -47,9 +47,9 @@ function downloadReport(report: DiagnosticReport) {
 }
 
 const REPAIR_CONFIRM =
-  'Το Auto Repair θα καθαρίσει ορφανές συναλλαγές/παρουσίες (αθλητής που δεν υπάρχει στο μητρώο) ' +
-  'και άκυρες συνδέσεις χρήστη→προπονητή/αθλητή σε όλους τους συλλόγους, και θα τις αποθηκεύσει στο cloud.\n\n' +
-  'Συνέχεια;';
+  'Το Auto Repair θα συμπληρώσει έσοδα από πληρωμές/ενοικιάσεις που λείπουν, ' +
+  'θα καθαρίσει ορφανές συναλλαγές/παρουσίες και σπασμένες συνδέσεις χρήστη, ' +
+  'σε όλους τους συλλόγους, και θα τα αποθηκεύσει στο cloud.\n\nΣυνέχεια;';
 
 export function PlatformDiagnosticPanel({
   onSaved,
@@ -62,17 +62,27 @@ export function PlatformDiagnosticPanel({
   const [percent, setPercent] = useState(0);
   const [report, setReport] = useState<DiagnosticReport | null>(null);
   const [filter, setFilter] = useState<'all' | DiagnosticSeverity>('all');
+  const [category, setCategory] = useState('all');
+
+  const categories = useMemo(() => {
+    if (!report) return [] as string[];
+    return [...new Set(report.findings.map((f) => f.category))].sort((a, b) => a.localeCompare(b, 'el'));
+  }, [report]);
 
   const filtered = useMemo(() => {
     if (!report) return [] as DiagnosticFinding[];
-    if (filter === 'all') return report.findings;
-    return report.findings.filter((f) => f.severity === filter);
-  }, [report, filter]);
+    return report.findings.filter((f) => {
+      if (filter !== 'all' && f.severity !== filter) return false;
+      if (category !== 'all' && f.category !== category) return false;
+      return true;
+    });
+  }, [report, filter, category]);
 
   async function run(autoRepair: boolean) {
     setRunning(true);
     setMode(autoRepair ? 'repair' : 'test');
-    setReport(null);
+      setReport(null);
+      setCategory('all');
     setProgress('Έναρξη…');
     setPercent(0);
     try {
@@ -118,9 +128,11 @@ export function PlatformDiagnosticPanel({
   return (
     <div className="entry-form admin-entry platform-diagnostic">
       <p className="admin-entry-note">
-        Το πλήρες τεστ είναι έλεγχος (χωρίς αλλαγές δεδομένων). Το Auto Repair διορθώνει
-        ορφανές συναλλαγές/παρουσίες και σπασμένες συνδέσεις προπονητή/αθλητή, αποθηκεύει στο
-        cloud και ξανατρέχει τον έλεγχο.
+        Το πλήρες τεστ κοιτάει συνδυασμούς: αν η πληρωμή συνδρομής φαίνεται στα έσοδα,
+        αν η καρτέλα αθλητή συμφωνεί με τις κινήσεις, αν οι αποδείξεις ακολουθούν τη
+        δηλωμένη σειρά/αρίθμηση, και αν οι εισπραγμένες ενοικιάσεις έχουν έσοδο. Το Auto
+        Repair διορθώνει όσα γίνεται αυτόματα (έσοδα που λείπουν, ορφανά) και ξανατρέχει
+        τον έλεγχο.
       </p>
 
       <div className="admin-entry-actions">
@@ -160,8 +172,9 @@ export function PlatformDiagnosticPanel({
             </span>
           </div>
 
+          <div className="diag-filters">
           <label className="field" style={{ maxWidth: 280 }}>
-            <span>Φίλτρο</span>
+            <span>Σοβαρότητα</span>
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value as 'all' | DiagnosticSeverity)}
@@ -174,6 +187,18 @@ export function PlatformDiagnosticPanel({
               ))}
             </select>
           </label>
+          <label className="field" style={{ maxWidth: 280 }}>
+            <span>Κατηγορία</span>
+            <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="all">Όλες</option>
+              {categories.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          </div>
 
           <div className="diag-list">
             {filtered.length === 0 ? (

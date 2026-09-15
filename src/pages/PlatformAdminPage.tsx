@@ -39,6 +39,7 @@ import { LoginActivityPanel } from '../components/LoginActivityPanel';
 import { ClubAuditLogPanel } from '../components/ClubAuditLogPanel';
 import { HealthCardTemplatesPanel } from '../components/HealthCardTemplatesPanel';
 import { PlatformDiagnosticPanel } from '../components/PlatformDiagnosticPanel';
+import { ClubReceiptsOverview } from '../components/ClubReceiptsOverview';
 import { AdminDrill, type AdminDrillCategory } from '../components/layout/AdminDrill';
 import { PlatformAdminShell } from '../components/layout/PlatformAdminShell';
 import { Button } from '../components/ui/Button';
@@ -157,7 +158,10 @@ const BACKUP_DRILL: AdminDrillCategory[] = [
     id: 'check',
     label: 'Έλεγχος',
     icon: Activity,
-    items: [{ id: 'diagnostic', label: 'Διαγνωστικό τεστ', icon: Activity }],
+    items: [
+      { id: 'diagnostic', label: 'Αναλυτικός έλεγχος λειτουργιών', icon: Activity },
+      { id: 'receipts', label: 'Μητρώο αποδείξεων συλλόγων', icon: ScrollText },
+    ],
   },
 ];
 
@@ -1707,23 +1711,42 @@ export function PlatformAdminPage() {
           <AdminRow
             drillId="diagnostic"
             activeDrill={backupItem}
-            title="Διαγνωστικό τεστ εφαρμογής"
-            description="Έλεγχος λειτουργιών και Auto Repair για ορφανά δεδομένα / σπασμένες συνδέσεις χρηστών."
+            title="Αναλυτικός έλεγχος λειτουργιών"
+            description="Έλεγχος συνοχής: πληρωμή συνδρομής → έσοδα και καρτέλα αθλητή, αύξων αριθμός απόδειξης, ενοικιάσεις, API και δεδομένα."
             entry={<PlatformDiagnosticPanel onSaved={flash} />}
             records={
               <RecordsTable>
                 <RecordsRow title="Καλύπτει">
-                  API, Redis/sync, storage, users, clubs, SMTP/Viva, δεδομένα, οικονομικά, fees,
-                  αγώνες, config, backup.
+                  Πληρωμή→έσοδα→καρτέλα, αποδείξεις (σειρά/αρίθμηση), ενοικιάσεις, API, sync,
+                  users/clubs, SMTP/Viva, ορφανά δεδομένα.
                 </RecordsRow>
                 <RecordsRow title="Αποτέλεσμα">
                   Κρίσιμα / προειδοποιήσεις / info / OK + τρόπος διόρθωσης ανά εύρημα.
                 </RecordsRow>
                 <RecordsRow title="Auto Repair">
-                  Καθαρίζει ορφανές συναλλαγές/παρουσίες και άκυρα coachId/athleteId, τα αποθηκεύει στο cloud και ξανατρέχει τον έλεγχο.
+                  Συμπληρώνει έσοδα από πληρωμές/ενοικιάσεις, καθαρίζει ορφανά και σπασμένες συνδέσεις,
+                  αποθηκεύει στο cloud και ξανατρέχει τον έλεγχο.
                 </RecordsRow>
                 <RecordsRow title="Εξαγωγή">
                   Λήψη αναφοράς TXT μετά την εκτέλεση.
+                </RecordsRow>
+              </RecordsTable>
+            }
+          />
+
+          <AdminRow
+            drillId="receipts"
+            activeDrill={backupItem}
+            title="Μητρώο αποδείξεων συλλόγων"
+            description="Δείτε τις εκδοθείσες αποδείξεις κάθε συλλόγου (όχι μόνο του χρήστη που τις έκοψε), μετά από φόρτωση cloud."
+            entry={<ClubReceiptsOverview />}
+            records={
+              <RecordsTable>
+                <RecordsRow title="Πηγή">
+                  AppData συλλόγου στο cloud / αυτόν τον browser. Ίδιο μητρώο με Ρυθμίσεις → Αποδείξεις.
+                </RecordsRow>
+                <RecordsRow title="Αν είναι κενό">
+                  Ο χρήστης academy@… να ανοίξει TeamSuite μία φορά (Push) και μετά εδώ «Φόρτωση από cloud».
                 </RecordsRow>
               </RecordsTable>
             }

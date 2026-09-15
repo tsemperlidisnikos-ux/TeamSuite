@@ -505,6 +505,78 @@ function pickNonEmptyHtml(incoming: unknown, existing: unknown): unknown {
   return incoming ?? existing;
 }
 
+function normalizeSeriesKey(raw: unknown): string {
+  return String(raw ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleUpperCase('el');
+}
+
+function receiptIssueKey(row: Record<string, unknown>): string | null {
+  const series = normalizeSeriesKey(row.series);
+  const number = Math.floor(Number(row.number));
+  if (!series || !Number.isFinite(number) || number < 1) return null;
+  return `${series}:${number}`;
+}
+
+function mergeReceiptIssueRows(existingValue: unknown, incomingValue: unknown): Array<Record<string, unknown>> {
+  const existing = studentRowsFromPayload(existingValue);
+  const incoming = studentRowsFromPayload(incomingValue);
+  if (incoming.length === 0 && existing.length > 0) return existing;
+  const map = new Map<string, Record<string, unknown>>();
+  for (const row of existing) {
+    const key = receiptIssueKey(row);
+    if (key) map.set(key, row);
+  }
+  for (const row of incoming) {
+    const key = receiptIssueKey(row);
+    if (!key) continue;
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, row);
+      continue;
+    }
+    map.set(key, {
+      ...prev,
+      ...row,
+      voidedAt: row.voidedAt || prev.voidedAt,
+      voidReason: row.voidReason || prev.voidReason,
+      emailedAt: row.emailedAt || prev.emailedAt,
+      issuedAt: String(prev.issuedAt ?? '') <= String(row.issuedAt ?? '') ? prev.issuedAt : row.issuedAt,
+    });
+  }
+  return [...map.values()];
+}
+
+function mergeReceiptNextBySeries(existingValue: unknown, incomingValue: unknown): Record<string, number> {
+  const prev =
+    existingValue && typeof existingValue === 'object' ? (existingValue as Record<string, unknown>) : {};
+  const next =
+    incomingValue && typeof incomingValue === 'object' ? (incomingValue as Record<string, unknown>) : {};
+  const out: Record<string, number> = {};
+  for (const key of new Set([...Object.keys(prev), ...Object.keys(next)])) {
+    out[key] = Math.max(Number(prev[key]) || 0, Number(next[key]) || 0);
+  }
+  return out;
+}
+
+function mergeReceiptBookFields(
+  prev: Record<string, unknown>,
+  next: Record<string, unknown>,
+): Pick<Record<string, unknown>, 'receiptIssues' | 'receiptNumberRanges' | 'receiptNextBySeries'> {
+  const ranges = mergeIdRowsPreservingCloudOnly(
+    prev.receiptNumberRanges,
+    next.receiptNumberRanges,
+    undefined,
+    undefined,
+  );
+  return {
+    receiptIssues: mergeReceiptIssueRows(prev.receiptIssues, next.receiptIssues),
+    receiptNumberRanges: ranges.rows,
+    receiptNextBySeries: mergeReceiptNextBySeries(prev.receiptNextBySeries, next.receiptNextBySeries),
+  };
+}
+
 export function mergeOpsSliceIntoPayload(
   prev: Record<string, unknown>,
   slice: Record<string, unknown>,
@@ -512,6 +584,11 @@ export function mergeOpsSliceIntoPayload(
   return {
     ...prev,
     ...mergeNamedIdCollections(prev, slice, OPS_ID_COLLECTION_PAIRS),
+    ...mergeReceiptBookFields(prev, {
+      receiptIssues: slice.receiptIssues ?? prev.receiptIssues,
+      receiptNumberRanges: slice.receiptNumberRanges ?? prev.receiptNumberRanges,
+      receiptNextBySeries: slice.receiptNextBySeries ?? prev.receiptNextBySeries,
+    }),
   };
 }
 
@@ -672,6 +749,7 @@ export function mergeMirrorPayloadPreservingRoster(existing: unknown, incoming: 
     feeChargeTemplates: feeTemplates.rows,
     athleteChangeLogs: changeLogs.rows,
     emailUnsubscribes: emailUnsubs,
+    ...mergeReceiptBookFields(prev, next),
     termsOfUseHtml: pickNonEmptyHtml(next.termsOfUseHtml, prev.termsOfUseHtml),
     dpaHtml: pickNonEmptyHtml(next.dpaHtml, prev.dpaHtml),
     retentionPolicyHtml: pickNonEmptyHtml(next.retentionPolicyHtml, prev.retentionPolicyHtml),
