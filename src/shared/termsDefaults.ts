@@ -45,7 +45,7 @@ export const AMKA_CHECKLIST_ITEMS = [
   'Συγκατάθεση χρήστη/γονέα',
   'Privacy Policy & Cookie Policy δημοσιευμένες',
   'Consent Manager (Essential / Analytics / Marketing)',
-  'Κρυπτογράφηση AES-256 (ΑΜΚΑ + ευαίσθητα στο cloud mirror)',
+  'Κρυπτογράφηση AES-256 (μόνο ΑΜΚΑ στο cloud mirror)',
   'RBAC (admin + γραμματεία + ιατρός) για ΑΜΚΑ· ιατρικά μόνο admin + ιατρός',
   'Audit logs ΑΜΚΑ + GDPR DSAR logs',
   'GDPR endpoints (export / erase / correct / consent)',

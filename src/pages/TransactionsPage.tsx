@@ -541,17 +541,37 @@ export function TransactionsPage() {
     setError('');
     setMonthMenuOpen(false);
 
+    const monthPayloads = monthsToSave.map((month) => ({
+      ...payload,
+      month,
+      year:
+        monthsToSave.length === 1 ? payload.year : seasonYearForMonth(month, seasonStart),
+    }));
+
+    if (!editingId && payload.type === 'charge') {
+      const result = await transactionsService.createTransactions(monthPayloads);
+      setSaving(false);
+      if (!result.success || !result.data?.length) {
+        setError(result.error ?? 'Σφάλμα αποθήκευσης');
+        return;
+      }
+      const lastPayload = monthPayloads[monthPayloads.length - 1];
+      if (lastPayload.athleteId) setSelectedId(lastPayload.athleteId);
+      const txSeason = seasonStartFromPeriod(lastPayload.month, lastPayload.year);
+      setSeasonStart(txSeason);
+      setEditingId(null);
+      applyNewForm(lastPayload.athleteId, txSeason);
+      setReceiptSeries('');
+      refresh();
+      return;
+    }
+
     let saved: AthleteTransaction | null = null;
     let lastPayload = payload;
     let nextReceiptNumber = receiptNumberToIssue;
 
-    for (let i = 0; i < monthsToSave.length; i += 1) {
-      const month = monthsToSave[i];
-      const year =
-        monthsToSave.length === 1
-          ? payload.year
-          : seasonYearForMonth(month, seasonStart);
-      const one = { ...payload, month, year };
+    for (let i = 0; i < monthPayloads.length; i += 1) {
+      const one = { ...monthPayloads[i] };
       if (
         one.type === 'payment' &&
         rangesConfigured &&
@@ -570,7 +590,7 @@ export function TransactionsPage() {
         setError(
           result.error ??
             (i > 0
-              ? `Αποθηκεύτηκαν ${i} κινήσεις. Σφάλμα στον μήνα ${MONTHS.find((m) => m.value === month)?.label ?? month}.`
+              ? `Αποθηκεύτηκαν ${i} κινήσεις. Σφάλμα στον μήνα ${MONTHS.find((m) => m.value === one.month)?.label ?? one.month}.`
               : 'Σφάλμα αποθήκευσης'),
         );
         refresh();

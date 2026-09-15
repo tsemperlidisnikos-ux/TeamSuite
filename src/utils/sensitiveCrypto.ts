@@ -1,6 +1,6 @@
 /**
- * Field-level AES-256-GCM for sensitive student data before cloud mirror sync.
- * Uses the same key family as AMKA (server-derived v2 when available).
+ * Field-level AES-256-GCM for AMKA before cloud mirror sync.
+ * Uses the same key family as local AMKA storage (server-derived v2 when available).
  */
 import {
   decryptAmka,
@@ -13,7 +13,10 @@ import {
 export const SENSITIVE_ENC_PREFIX = 'enc:pii:v1:';
 export const SENSITIVE_ENC_PREFIX_V2 = 'enc:pii:v2:';
 
-const SENSITIVE_FIELDS = [
+/** Μόνο το ΑΜΚΑ κρυπτογραφείται στο cloud. Τα υπόλοιπα μένουν για αποκρυπτογράφηση παλιών mirrors. */
+const ENCRYPT_FIELDS = ['amka'] as const;
+
+const LEGACY_DECRYPT_FIELDS = [
   'amka',
   'doctorName',
   'doctorPhone',
@@ -27,7 +30,7 @@ const SENSITIVE_FIELDS = [
   'emergencyAltPhone',
 ] as const;
 
-type SensitiveStudent = Partial<Record<(typeof SENSITIVE_FIELDS)[number], string>> & {
+type SensitiveStudent = Partial<Record<(typeof LEGACY_DECRYPT_FIELDS)[number], string>> & {
   amka?: string;
 };
 
@@ -77,7 +80,7 @@ async function decryptField(value: string, clubId: string): Promise<string> {
   return trimmed;
 }
 
-/** Deep-clone AppData-like payload and encrypt sensitive student fields for cloud. */
+/** Deep-clone AppData-like payload and encrypt AMKA for cloud. */
 export async function encryptSensitivePayloadForCloud<T extends { students?: SensitiveStudent[] }>(
   payload: T,
   clubId: string,
@@ -85,7 +88,7 @@ export async function encryptSensitivePayloadForCloud<T extends { students?: Sen
   const clone = structuredClone(payload);
   if (!Array.isArray(clone.students)) return clone;
   for (const student of clone.students) {
-    for (const field of SENSITIVE_FIELDS) {
+    for (const field of ENCRYPT_FIELDS) {
       const value = student[field];
       if (!value?.trim() || isPiiEncrypted(value)) continue;
       student[field] = await encryptField(value, clubId);
@@ -101,7 +104,7 @@ export async function decryptSensitivePayloadFromCloud<T extends { students?: Se
   const clone = structuredClone(payload);
   if (!Array.isArray(clone.students)) return clone;
   for (const student of clone.students) {
-    for (const field of SENSITIVE_FIELDS) {
+    for (const field of LEGACY_DECRYPT_FIELDS) {
       const value = student[field];
       if (!value?.trim() || !isPiiEncrypted(value)) continue;
       try {
