@@ -40,6 +40,7 @@ import { AthletesIcon } from '../icons/AthletesIcon';
 import { TrainingsIcon } from '../icons/TrainingsIcon';
 import {
   ACADEMY_MODULES,
+  applyAppearanceThemeForClub,
   endPreview,
   getAcademyModulesForClub,
   getAppLogoUrlForClub,
@@ -170,6 +171,10 @@ export function AppLayout() {
       window.removeEventListener('academyhub-users-updated', onUsersUpdated);
     };
   }, []);
+
+  useEffect(() => {
+    applyAppearanceThemeForClub(clubId);
+  }, [clubId, platformTick]);
 
   useEffect(() => {
     if (!clubId) return;

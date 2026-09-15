@@ -236,7 +236,15 @@ export type AppearanceTheme =
   | 'ocean-slate'
   | 'graphite-ember'
   | 'aegean-navy'
-  | 'ivory-club';
+  | 'ivory-club'
+  | 'light-orange'
+  | 'light-blue'
+  | 'light-cyan'
+  | 'light-gold'
+  | 'dark-orange'
+  | 'dark-blue'
+  | 'dark-cyan'
+  | 'dark-gold';
 
 export const APPEARANCE_THEMES: Array<{
   id: AppearanceTheme;
@@ -263,6 +271,46 @@ export const APPEARANCE_THEMES: Array<{
     label: 'Ivory Club',
     description: 'Μπορντό chrome + κρεμ επιφάνειες, χρυσό accent.',
   },
+  {
+    id: 'light-orange',
+    label: 'Light Orange',
+    description: 'Φωτεινό περιβάλλον + ζεστό πορτοκαλί accent.',
+  },
+  {
+    id: 'light-blue',
+    label: 'Light Blue',
+    description: 'Φωτεινό περιβάλλον + καθαρό μπλε accent.',
+  },
+  {
+    id: 'light-cyan',
+    label: 'Light Cyan',
+    description: 'Φωτεινό περιβάλλον + δροσερό κυανό accent.',
+  },
+  {
+    id: 'light-gold',
+    label: 'Light Gold',
+    description: 'Φωτεινό περιβάλλον + premium χρυσό accent.',
+  },
+  {
+    id: 'dark-orange',
+    label: 'Dark Orange',
+    description: 'Μαύρο περιβάλλον + έντονο πορτοκαλί accent.',
+  },
+  {
+    id: 'dark-blue',
+    label: 'Dark Blue',
+    description: 'Μαύρο περιβάλλον + electric blue accent.',
+  },
+  {
+    id: 'dark-cyan',
+    label: 'Dark Cyan',
+    description: 'Μαύρο περιβάλλον + φωτεινό κυανό accent.',
+  },
+  {
+    id: 'dark-gold',
+    label: 'Dark Gold',
+    description: 'Μαύρο περιβάλλον + premium χρυσό accent.',
+  },
 ];
 
 const APPEARANCE_THEME_IDS = new Set<AppearanceTheme>(
@@ -275,6 +323,19 @@ export function sanitizeAppearanceTheme(value: unknown): AppearanceTheme {
   }
   /* ocean-slate default; legacy themes migrate here */
   return 'ocean-slate';
+}
+
+function sanitizeAppearanceThemesByClub(value: unknown): Record<string, AppearanceTheme> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const result: Record<string, AppearanceTheme> = {};
+  for (const [clubId, theme] of Object.entries(value as Record<string, unknown>)) {
+    const id = clubId.trim();
+    if (!id || typeof theme !== 'string' || !APPEARANCE_THEME_IDS.has(theme as AppearanceTheme)) {
+      continue;
+    }
+    result[id] = theme as AppearanceTheme;
+  }
+  return result;
 }
 
 export function sanitizeFinanceTabs(value: unknown): FinanceTabId[] {
@@ -314,8 +375,10 @@ export type PlatformConfig = {
    */
   healthCardTemplatesBySport?: Record<string, HealthCardSportTemplate>;
   appName?: string;
-  /** ocean-slate | graphite-ember | aegean-navy | ivory-club */
+  /** Προεπιλεγμένο θέμα όταν ο σύλλογος δεν έχει δικό του override. */
   appearanceTheme?: AppearanceTheme;
+  /** Προαιρετικό θέμα ανά σύλλογο. */
+  appearanceThemeByClub?: Record<string, AppearanceTheme>;
   backupSchedules?: PlatformBackupSchedules;
 };
 
@@ -464,6 +527,7 @@ export function defaultPlatformConfig(): PlatformConfig {
     healthCardTemplatesBySport: {},
     appName: 'TeamSuite',
     appearanceTheme: 'ocean-slate',
+    appearanceThemeByClub: {},
     backupSchedules: defaultBackupSchedules(),
   };
 }
@@ -537,6 +601,8 @@ function loadPlatformConfigRaw(): PlatformConfig {
         (parsed as { clubRolePermissions?: Partial<Record<ClubRole, string[]>> })
           .clubRolePermissions,
       ),
+      appearanceTheme: sanitizeAppearanceTheme(parsed.appearanceTheme),
+      appearanceThemeByClub: sanitizeAppearanceThemesByClub(parsed.appearanceThemeByClub),
       backupSchedules: sanitizeBackupSchedules(parsed.backupSchedules),
       incomeDescriptions: {
         ...base.incomeDescriptions,
@@ -618,6 +684,7 @@ export function loadPlatformConfig(): PlatformConfig {
           ),
           appName: parsed.appName ?? base.appName,
           appearanceTheme: sanitizeAppearanceTheme(parsed.appearanceTheme),
+          appearanceThemeByClub: sanitizeAppearanceThemesByClub(parsed.appearanceThemeByClub),
           backupSchedules: sanitizeBackupSchedules(parsed.backupSchedules),
         };
         localStorage.setItem(CONFIG_KEY, JSON.stringify(migrated));
@@ -656,6 +723,7 @@ export function loadPlatformConfig(): PlatformConfig {
       ),
       backupSchedules: sanitizeBackupSchedules(parsed.backupSchedules),
       appearanceTheme: sanitizeAppearanceTheme(parsed.appearanceTheme),
+      appearanceThemeByClub: sanitizeAppearanceThemesByClub(parsed.appearanceThemeByClub),
       clubAppLogos: sanitizeClubAppLogos(parsed.clubAppLogos),
       healthCardTemplatesBySport: sanitizeHealthCardTemplatesBySport(
         parsed.healthCardTemplatesBySport,
@@ -717,6 +785,7 @@ export function savePlatformConfig(config: PlatformConfig): void {
     ...config,
     financeTabs: sanitizeFinanceTabs(config.financeTabs),
     appearanceTheme: sanitizeAppearanceTheme(config.appearanceTheme),
+    appearanceThemeByClub: sanitizeAppearanceThemesByClub(config.appearanceThemeByClub),
     healthCardTemplatesBySport: sanitizeHealthCardTemplatesBySport(
       config.healthCardTemplatesBySport,
     ),
@@ -751,14 +820,27 @@ export function updateClubAppLogo(clubId: string, logoUrl: string | null): Platf
   return next;
 }
 
-export function getAppearanceTheme(): AppearanceTheme {
-  return sanitizeAppearanceTheme(loadPlatformConfig().appearanceTheme);
+export function getAppearanceTheme(clubId?: string | null): AppearanceTheme {
+  const config = loadPlatformConfig();
+  const perClub = clubId ? config.appearanceThemeByClub?.[clubId] : undefined;
+  return sanitizeAppearanceTheme(perClub ?? config.appearanceTheme);
+}
+
+function baseAppearanceTheme(theme: AppearanceTheme): AppearanceTheme {
+  if (theme.startsWith('dark-')) return 'graphite-ember';
+  if (theme.startsWith('light-')) return 'ocean-slate';
+  return theme;
 }
 
 export function applyAppearanceTheme(theme?: AppearanceTheme): void {
   if (typeof document === 'undefined') return;
   const resolved = sanitizeAppearanceTheme(theme ?? getAppearanceTheme());
-  document.documentElement.setAttribute('data-appearance', resolved);
+  document.documentElement.setAttribute('data-appearance', baseAppearanceTheme(resolved));
+  document.documentElement.setAttribute('data-color-theme', resolved);
+}
+
+export function applyAppearanceThemeForClub(clubId?: string | null): void {
+  applyAppearanceTheme(getAppearanceTheme(clubId));
 }
 
 export function setAppearanceTheme(theme: AppearanceTheme): PlatformConfig {
@@ -767,6 +849,20 @@ export function setAppearanceTheme(theme: AppearanceTheme): PlatformConfig {
     appearanceTheme: sanitizeAppearanceTheme(theme),
   };
   savePlatformConfig(next);
+  return next;
+}
+
+export function setClubAppearanceTheme(
+  clubId: string,
+  theme: AppearanceTheme | null,
+): PlatformConfig {
+  const current = loadPlatformConfig();
+  const appearanceThemeByClub = { ...(current.appearanceThemeByClub ?? {}) };
+  if (theme) appearanceThemeByClub[clubId] = sanitizeAppearanceTheme(theme);
+  else delete appearanceThemeByClub[clubId];
+  const next: PlatformConfig = { ...current, appearanceThemeByClub };
+  savePlatformConfig(next);
+  applyAppearanceThemeForClub(getPreviewClubId() ?? clubId);
   return next;
 }
 

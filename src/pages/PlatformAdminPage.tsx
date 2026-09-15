@@ -88,6 +88,7 @@ import {
   resetFinanceCatalogDefaults,
   saveFinanceCatalogAsDefaults,
   savePlatformConfig,
+  setClubAppearanceTheme,
   setAppearanceTheme,
   setEnabledFinanceTabs,
   startPreview,
@@ -100,6 +101,102 @@ import {
 } from '../platform/platformConfig';
 
 type AdminWorkspaceTab = 'platform' | 'academio' | 'backup';
+
+const APPEARANCE_SWATCHES: Record<AppearanceTheme, [string, string, string]> = {
+  'ocean-slate': ['#000000', '#f0f4f8', '#2a9bb5'],
+  'graphite-ember': ['#0b0c0e', '#1a1d24', '#e85d2c'],
+  'aegean-navy': ['#0b1f3a', '#f3f6fb', '#2a9bb5'],
+  'ivory-club': ['#5c1a24', '#f7f1e6', '#b8860b'],
+  'light-orange': ['#fff8f2', '#ffffff', '#ed650b'],
+  'light-blue': ['#f4f8ff', '#ffffff', '#246ee9'],
+  'light-cyan': ['#f1fbfd', '#ffffff', '#078ba4'],
+  'light-gold': ['#fcfaf3', '#ffffff', '#b68413'],
+  'dark-orange': ['#070707', '#111111', '#ff6a00'],
+  'dark-blue': ['#06080d', '#0e131d', '#2f81ff'],
+  'dark-cyan': ['#03090b', '#091419', '#31d8f5'],
+  'dark-gold': ['#080704', '#151209', '#f3bd3e'],
+};
+
+function AppearanceThemeDropdown({
+  selected,
+  onSelect,
+}: {
+  selected: AppearanceTheme;
+  onSelect: (theme: AppearanceTheme) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const activeTheme =
+    APPEARANCE_THEMES.find((theme) => theme.id === selected) ?? APPEARANCE_THEMES[0];
+  const activeSwatches = APPEARANCE_SWATCHES[activeTheme.id];
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!dropdownRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, [open]);
+
+  return (
+    <div className="appearance-theme-dropdown" ref={dropdownRef}>
+      <button
+        type="button"
+        className="appearance-theme-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="appearance-theme-trigger-copy">
+          <strong>{activeTheme.label}</strong>
+          <small>{activeTheme.description}</small>
+        </span>
+        <span className="appearance-theme-swatches" aria-hidden>
+          {activeSwatches.map((color) => (
+            <i key={color} style={{ background: color }} />
+          ))}
+        </span>
+        <span className="appearance-theme-chevron" aria-hidden>⌄</span>
+      </button>
+
+      {open ? (
+        <div className="appearance-theme-menu" role="listbox" aria-multiselectable="false">
+          {APPEARANCE_THEMES.map((theme) => {
+            const active = selected === theme.id;
+            const [c1, c2, c3] = APPEARANCE_SWATCHES[theme.id];
+            return (
+              <label
+                key={theme.id}
+                role="option"
+                aria-selected={active}
+                className={`appearance-theme-menu-option${active ? ' is-selected' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={() => {
+                    onSelect(theme.id);
+                    setOpen(false);
+                  }}
+                />
+                <span className="appearance-theme-menu-copy">
+                  <strong>{theme.label}</strong>
+                  <small>{theme.description}</small>
+                </span>
+                <span className="appearance-theme-swatches" aria-hidden>
+                  <i style={{ background: c1 }} />
+                  <i style={{ background: c2 }} />
+                  <i style={{ background: c3 }} />
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 const PLATFORM_DRILL: AdminDrillCategory[] = [
   {
@@ -120,7 +217,7 @@ const PLATFORM_DRILL: AdminDrillCategory[] = [
     icon: Eye,
     items: [
       { id: 'logo', label: 'Logo εφαρμογής', hint: 'Καθολικό σήμα', icon: Image },
-      { id: 'theme', label: 'Εμφάνιση εφαρμογής', hint: 'Ocean Slate / Ember', icon: Palette },
+      { id: 'theme', label: 'Εμφάνιση εφαρμογής', hint: 'Light / Dark ανά σύλλογο', icon: Palette },
     ],
   },
   {
@@ -1095,65 +1192,95 @@ export function PlatformAdminPage() {
             drillId="theme"
             activeDrill={platformItem}
             title="Εμφάνιση εφαρμογής"
-            description="Το θέμα ισχύει για όλους τους συλλόγους: login, shell και modules. Δεν αλλάζει ανά σωματείο."
+            description="Όρισε προεπιλεγμένο θέμα πλατφόρμας ή διαφορετικό χρωματισμό για κάθε σύλλογο."
             entry={
-              <div className="entry-form admin-entry appearance-theme-picker">
-                {APPEARANCE_THEMES.map((theme) => {
-                  const selected =
-                    (config.appearanceTheme ?? 'ocean-slate') === theme.id;
-                  const swatches: Record<AppearanceTheme, [string, string, string]> = {
-                    'ocean-slate': ['#000000', '#f0f4f8', '#2a9bb5'],
-                    'graphite-ember': ['#0b0c0e', '#1a1d24', '#e85d2c'],
-                    'aegean-navy': ['#0b1f3a', '#f3f6fb', '#2a9bb5'],
-                    'ivory-club': ['#5c1a24', '#f7f1e6', '#b8860b'],
-                  };
-                  const [c1, c2, c3] = swatches[theme.id];
-                  return (
-                    <label
-                      key={theme.id}
-                      className={`appearance-theme-option${selected ? ' is-selected' : ''}`}
-                    >
+              <div className="entry-form admin-entry appearance-theme-scope">
+                <div>
+                  <h4>Προεπιλογή πλατφόρμας</h4>
+                  <p className="settings-hint">
+                    Χρησιμοποιείται στο login και σε συλλόγους χωρίς δική τους επιλογή.
+                  </p>
+                </div>
+                <AppearanceThemeDropdown
+                  selected={config.appearanceTheme ?? 'ocean-slate'}
+                  onSelect={(themeId) => {
+                    const next = setAppearanceTheme(themeId);
+                    setConfig(next);
+                    flash(`Προεπιλεγμένο θέμα: ${APPEARANCE_THEMES.find((t) => t.id === themeId)?.label}.`);
+                    void pushAccountBundle().then((pushed) => {
+                      if (!pushed.success) {
+                        flash(
+                          pushed.error ??
+                            'Το θέμα αποθηκεύτηκε τοπικά, αλλά όχι στο cloud. Κάντε Push από Backup.',
+                        );
+                      }
+                    });
+                  }}
+                />
+
+                <div className="appearance-club-theme-head">
+                  <div>
+                    <h4>Θέμα συγκεκριμένου συλλόγου</h4>
+                    <p className="settings-hint">
+                      Ο χρήστης του συλλόγου βλέπει αυτόν τον χρωματισμό μετά τη σύνδεση.
+                    </p>
+                  </div>
+                  <select value={catalogClubId} onChange={(e) => setCatalogClubId(e.target.value)}>
+                    {clubs.map((club) => (
+                      <option key={club.id} value={club.id}>
+                        {club.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {catalogClubId ? (
+                  <>
+                    <label className="admin-check appearance-theme-inherit">
                       <input
-                        type="radio"
-                        name="appearance-theme"
-                        value={theme.id}
-                        checked={selected}
-                        onChange={() => {
-                          const next = setAppearanceTheme(theme.id as AppearanceTheme);
+                        type="checkbox"
+                        checked={!config.appearanceThemeByClub?.[catalogClubId]}
+                        onChange={(e) => {
+                          if (!e.target.checked) return;
+                          const next = setClubAppearanceTheme(catalogClubId, null);
                           setConfig(next);
-                          flash(`Ενεργό θέμα: ${theme.label}.`);
-                          void pushAccountBundle().then((pushed) => {
-                            if (!pushed.success) {
-                              flash(
-                                pushed.error ??
-                                  'Το θέμα αποθηκεύτηκε τοπικά, αλλά όχι στο cloud. Κάντε Push από Backup.',
-                              );
-                            }
-                          });
+                          flash('Ο σύλλογος ακολουθεί ξανά την προεπιλογή πλατφόρμας.');
+                          scheduleAccountBundlePush();
                         }}
                       />
-                      <div>
-                        <strong>{theme.label}</strong>
-                        <span>{theme.description}</span>
-                        <div className="appearance-theme-swatches" aria-hidden>
-                          <i style={{ background: c1 }} />
-                          <i style={{ background: c2 }} />
-                          <i style={{ background: c3 }} />
-                        </div>
-                      </div>
+                      <span>Χρήση προεπιλογής πλατφόρμας</span>
                     </label>
-                  );
-                })}
+                    <AppearanceThemeDropdown
+                      selected={
+                        config.appearanceThemeByClub?.[catalogClubId] ??
+                        config.appearanceTheme ??
+                        'ocean-slate'
+                      }
+                      onSelect={(themeId) => {
+                        const next = setClubAppearanceTheme(catalogClubId, themeId);
+                        setConfig(next);
+                        flash(
+                          `${clubs.find((club) => club.id === catalogClubId)?.name ?? 'Σύλλογος'}: ${
+                            APPEARANCE_THEMES.find((t) => t.id === themeId)?.label
+                          }.`,
+                        );
+                        scheduleAccountBundlePush();
+                      }}
+                    />
+                  </>
+                ) : null}
               </div>
             }
             records={
               <RecordsTable>
-                <RecordsRow title="Ενεργό">
+                <RecordsRow title="Προεπιλογή">
                   {APPEARANCE_THEMES.find(
                     (t) => t.id === (config.appearanceTheme ?? 'ocean-slate'),
                   )?.label ?? 'Ocean Slate'}
                 </RecordsRow>
-                <RecordsRow title="Εμβέλεια">Όλοι οι σύλλογοι (login, shell, modules)</RecordsRow>
+                <RecordsRow title="Ξεχωριστές επιλογές">
+                  {Object.keys(config.appearanceThemeByClub ?? {}).length} σύλλογοι
+                </RecordsRow>
               </RecordsTable>
             }
           />

@@ -1,0 +1,236 @@
+/**
+ * Eight selectable color editions.
+ * Light editions reuse the complete Ocean Slate component treatment.
+ * Dark editions reuse Graphite Ember and replace its color tokens.
+ */
+
+html[data-color-theme='light-orange'] {
+  --bg: #fff8f2;
+  --bg-deep: #f8eade;
+  --surface: #ffffff;
+  --ink: #38251a;
+  --muted: #765f50;
+  --line: rgba(84, 48, 25, 0.13);
+  --brand: #ed650b;
+  --brand-dark: #b94b03;
+  --brand-soft: rgba(237, 101, 11, 0.13);
+  --accent: #ed650b;
+  --accent-soft: rgba(237, 101, 11, 0.17);
+  --body-glow-1: rgba(237, 101, 11, 0.1);
+  --body-glow-2: rgba(255, 180, 123, 0.17);
+  --body-top: #fffaf6;
+  --login-submit: #ed650b;
+  --brand-button-shadow: 0 10px 22px rgba(237, 101, 11, 0.27);
+  --table-head-bg: #f8eade;
+  --table-row-hover: rgba(237, 101, 11, 0.07);
+  --field-bg: #ffffff;
+  --edition-accent: #ed650b;
+  --edition-dark: #b94b03;
+  --edition-rgb: 237 101 11;
+}
+
+html[data-color-theme='light-blue'] {
+  --bg: #f4f8ff;
+  --bg-deep: #e5eefb;
+  --surface: #ffffff;
+  --ink: #162a47;
+  --muted: #586f8f;
+  --line: rgba(22, 42, 71, 0.13);
+  --brand: #246ee9;
+  --brand-dark: #174fa7;
+  --brand-soft: rgba(36, 110, 233, 0.13);
+  --accent: #246ee9;
+  --accent-soft: rgba(36, 110, 233, 0.17);
+  --body-glow-1: rgba(36, 110, 233, 0.1);
+  --body-glow-2: rgba(126, 177, 255, 0.16);
+  --body-top: #f8fbff;
+  --login-submit: #246ee9;
+  --brand-button-shadow: 0 10px 22px rgba(36, 110, 233, 0.27);
+  --table-head-bg: #e7effc;
+  --table-row-hover: rgba(36, 110, 233, 0.07);
+  --field-bg: #ffffff;
+  --edition-accent: #246ee9;
+  --edition-dark: #174fa7;
+  --edition-rgb: 36 110 233;
+}
+
+html[data-color-theme='light-cyan'] {
+  --bg: #f1fbfd;
+  --bg-deep: #e0f2f5;
+  --surface: #ffffff;
+  --ink: #16353b;
+  --muted: #57747b;
+  --line: rgba(22, 53, 59, 0.13);
+  --brand: #078ba4;
+  --brand-dark: #056579;
+  --brand-soft: rgba(7, 139, 164, 0.13);
+  --accent: #078ba4;
+  --accent-soft: rgba(7, 139, 164, 0.17);
+  --body-glow-1: rgba(7, 139, 164, 0.1);
+  --body-glow-2: rgba(93, 213, 233, 0.16);
+  --body-top: #f7fdfe;
+  --login-submit: #078ba4;
+  --brand-button-shadow: 0 10px 22px rgba(7, 139, 164, 0.27);
+  --table-head-bg: #e2f2f5;
+  --table-row-hover: rgba(7, 139, 164, 0.07);
+  --field-bg: #ffffff;
+  --edition-accent: #078ba4;
+  --edition-dark: #056579;
+  --edition-rgb: 7 139 164;
+}
+
+html[data-color-theme='light-gold'] {
+  --bg: #fcfaf3;
+  --bg-deep: #f2ecd9;
+  --surface: #ffffff;
+  --ink: #3b3320;
+  --muted: #73694e;
+  --line: rgba(59, 51, 32, 0.14);
+  --brand: #b68413;
+  --brand-dark: #85600c;
+  --brand-soft: rgba(182, 132, 19, 0.13);
+  --accent: #b68413;
+  --accent-soft: rgba(182, 132, 19, 0.18);
+  --body-glow-1: rgba(182, 132, 19, 0.1);
+  --body-glow-2: rgba(232, 198, 108, 0.18);
+  --body-top: #fffdf8;
+  --login-submit: #b68413;
+  --brand-button-shadow: 0 10px 22px rgba(182, 132, 19, 0.27);
+  --table-head-bg: #f2ecd9;
+  --table-row-hover: rgba(182, 132, 19, 0.07);
+  --field-bg: #ffffff;
+  --edition-accent: #b68413;
+  --edition-dark: #85600c;
+  --edition-rgb: 182 132 19;
+}
+
+html[data-color-theme='dark-orange'] {
+  --edition-accent: #ff6a00;
+  --edition-dark: #d45500;
+  --edition-rgb: 255 106 0;
+}
+
+html[data-color-theme='dark-blue'] {
+  --edition-accent: #2f81ff;
+  --edition-dark: #1e62ca;
+  --edition-rgb: 47 129 255;
+}
+
+html[data-color-theme='dark-cyan'] {
+  --edition-accent: #31d8f5;
+  --edition-dark: #0ca8c4;
+  --edition-rgb: 49 216 245;
+}
+
+html[data-color-theme='dark-gold'] {
+  --edition-accent: #f3bd3e;
+  --edition-dark: #bd8a13;
+  --edition-rgb: 243 189 62;
+}
+
+html[data-color-theme^='dark-'] {
+  --bg: #07090c;
+  --bg-deep: #030405;
+  --surface: #11151b;
+  --ink: #f3f6fa;
+  --muted: #aeb8c5;
+  --line: rgba(235, 242, 250, 0.13);
+  --brand: var(--edition-accent);
+  --brand-dark: var(--edition-dark);
+  --brand-soft: rgb(var(--edition-rgb) / 0.14);
+  --accent: var(--edition-accent);
+  --accent-soft: rgb(var(--edition-rgb) / 0.2);
+  --body-glow-1: rgb(var(--edition-rgb) / 0.1);
+  --body-glow-2: rgb(var(--edition-rgb) / 0.05);
+  --body-top: #090b0f;
+  --login-bg: #050608;
+  --login-submit: var(--edition-accent);
+  --login-submit-fg: #07090c;
+  --brand-button-shadow: 0 10px 24px rgb(var(--edition-rgb) / 0.25);
+  --table-head-bg: #191e26;
+  --table-row-hover: rgb(var(--edition-rgb) / 0.08);
+  --field-bg: #151a21;
+  --chip-bg: rgb(var(--edition-rgb) / 0.14);
+}
+
+/* Replace the base-theme accent in the most visible interactive surfaces. */
+html[data-color-theme^='light-'] .nav-link.active,
+html[data-color-theme^='dark-'] .nav-link.active,
+html[data-color-theme^='light-'] .btn-primary,
+html[data-color-theme^='dark-'] .btn-primary,
+html[data-color-theme^='light-'] .tx-save-btn,
+html[data-color-theme^='dark-'] .tx-save-btn,
+html[data-color-theme^='light-'] .cal-new-btn,
+html[data-color-theme^='dark-'] .cal-new-btn,
+html[data-color-theme^='light-'] .login-submit:not(.login-submit-secondary),
+html[data-color-theme^='dark-'] .login-submit:not(.login-submit-secondary) {
+  background: var(--edition-accent) !important;
+  border-color: var(--edition-accent) !important;
+}
+
+html[data-color-theme^='light-'] .main-area a.text-link,
+html[data-color-theme^='dark-'] .main-area a.text-link,
+html[data-color-theme^='light-'] .login-text-link,
+html[data-color-theme^='dark-'] .login-text-link,
+html[data-color-theme^='light-'] .login-footer-link a,
+html[data-color-theme^='dark-'] .login-footer-link a,
+html[data-color-theme^='light-'] .eyebrow,
+html[data-color-theme^='dark-'] .eyebrow {
+  color: var(--edition-dark) !important;
+}
+
+html[data-color-theme^='dark-'] .login-hero-glow,
+html[data-color-theme^='light-'] .login-hero-glow {
+  background:
+    radial-gradient(ellipse 70% 55% at 12% 8%, rgb(var(--edition-rgb) / 0.28), transparent 58%),
+    radial-gradient(ellipse 65% 50% at 88% 92%, rgb(var(--edition-rgb) / 0.18), transparent 55%),
+    radial-gradient(circle at 40% 45%, rgba(255, 255, 255, 0.03), transparent 42%);
+}
+
+html[data-color-theme^='dark-'] .login-hero-360,
+html[data-color-theme^='light-'] .login-hero-360 {
+  color: var(--edition-accent) !important;
+}
+
+html[data-color-theme^='dark-'] .login-hero-accent,
+html[data-color-theme^='light-'] .login-hero-accent {
+  background: var(--edition-accent) !important;
+}
+
+html[data-color-theme^='light-'] .login-form-panel {
+  background: var(--bg);
+}
+
+html[data-color-theme^='dark-'] .admin-drill-btn.is-active,
+html[data-color-theme^='light-'] .admin-drill-btn.is-active,
+html[data-color-theme^='dark-'] .filter-chip.is-active,
+html[data-color-theme^='light-'] .filter-chip.is-active,
+html[data-color-theme^='dark-'] .segmented button.is-active,
+html[data-color-theme^='light-'] .segmented button.is-active {
+  background: var(--brand-soft) !important;
+  border-color: var(--edition-accent) !important;
+}
+
+html[data-color-theme^='dark-'] .stat-icon,
+html[data-color-theme^='dark-'] .badge-trial,
+html[data-color-theme^='dark-'] .status-badge,
+html[data-color-theme^='dark-'] .notification-badge {
+  background: rgb(var(--edition-rgb) / 0.16) !important;
+  border-color: rgb(var(--edition-rgb) / 0.35) !important;
+}
+
+html[data-color-theme^='dark-'] .stat-icon,
+html[data-color-theme^='dark-'] .stat-icon svg,
+html[data-color-theme^='dark-'] .badge-trial {
+  color: var(--edition-accent) !important;
+}
+
+html[data-color-theme^='dark-'] input:focus,
+html[data-color-theme^='dark-'] select:focus,
+html[data-color-theme^='dark-'] textarea:focus,
+html[data-color-theme^='light-'] input:focus,
+html[data-color-theme^='light-'] select:focus,
+html[data-color-theme^='light-'] textarea:focus {
+  border-color: var(--edition-accent) !important;
+  box-shadow: 0 0 0 3px rgb(var(--edition-rgb) / 0.18) !important;
+}

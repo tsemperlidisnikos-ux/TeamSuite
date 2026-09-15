@@ -621,6 +621,14 @@ const APPEARANCE_THEME_IDS = [
   'graphite-ember',
   'aegean-navy',
   'ivory-club',
+  'light-orange',
+  'light-blue',
+  'light-cyan',
+  'light-gold',
+  'dark-orange',
+  'dark-blue',
+  'dark-cyan',
+  'dark-gold',
 ] as const;
 
 function sanitizeAppearanceThemeId(value: unknown): (typeof APPEARANCE_THEME_IDS)[number] {
@@ -646,8 +654,15 @@ function publicBranding(platformConfig: unknown, clubId?: string | null) {
       : {};
   const perClubRaw = clubId ? logos[clubId] : undefined;
   const perClub = typeof perClubRaw === 'string' ? perClubRaw.trim() : '';
+  const themes =
+    cfg.appearanceThemeByClub &&
+    typeof cfg.appearanceThemeByClub === 'object' &&
+    !Array.isArray(cfg.appearanceThemeByClub)
+      ? (cfg.appearanceThemeByClub as Record<string, unknown>)
+      : {};
+  const clubTheme = clubId ? themes[clubId] : undefined;
   return {
-    appearanceTheme: sanitizeAppearanceThemeId(cfg.appearanceTheme),
+    appearanceTheme: sanitizeAppearanceThemeId(clubTheme ?? cfg.appearanceTheme),
     appName: appName || 'TeamSuite',
     appLogoUrl: perClub || globalLogo || null,
   };

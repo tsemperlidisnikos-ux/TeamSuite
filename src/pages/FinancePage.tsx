@@ -12,10 +12,12 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { useAppData } from '../hooks/useAppData';
 import { useT } from '../i18n/LocaleContext';
+import { getSession } from '../auth/auth';
 import {
   FINANCE_TABS,
   getAppearanceTheme,
   getEnabledFinanceTabs,
+  getPreviewClubId,
   type AppearanceTheme,
   type FinanceTabId,
 } from '../platform/platformConfig';
@@ -36,6 +38,25 @@ const FinanceAnalysisCharts = lazy(() =>
 type Tab = FinanceTabId;
 
 function chartColors(theme: AppearanceTheme) {
+  const editionColors: Partial<Record<AppearanceTheme, { accent: string; secondary: string; grid: string }>> = {
+    'light-orange': { accent: '#ed650b', secondary: '#b94b03', grid: 'rgba(56, 37, 26, 0.1)' },
+    'light-blue': { accent: '#246ee9', secondary: '#174fa7', grid: 'rgba(22, 42, 71, 0.1)' },
+    'light-cyan': { accent: '#078ba4', secondary: '#056579', grid: 'rgba(22, 53, 59, 0.1)' },
+    'light-gold': { accent: '#b68413', secondary: '#85600c', grid: 'rgba(59, 51, 32, 0.1)' },
+    'dark-orange': { accent: '#ff6a00', secondary: '#d45500', grid: 'rgba(243, 246, 250, 0.12)' },
+    'dark-blue': { accent: '#2f81ff', secondary: '#1e62ca', grid: 'rgba(243, 246, 250, 0.12)' },
+    'dark-cyan': { accent: '#31d8f5', secondary: '#0ca8c4', grid: 'rgba(243, 246, 250, 0.12)' },
+    'dark-gold': { accent: '#f3bd3e', secondary: '#bd8a13', grid: 'rgba(243, 246, 250, 0.12)' },
+  };
+  const edition = editionColors[theme];
+  if (edition) {
+    return {
+      pie: [edition.accent, edition.secondary, '#64748b', '#3dcf8e', '#f07167', '#8a8178'],
+      revenue: edition.accent,
+      expense: edition.secondary,
+      grid: edition.grid,
+    };
+  }
   if (theme === 'graphite-ember') {
     return {
       pie: ['#e85d2c', '#c44a20', '#ff7a45', '#8a8178', '#3dcf8e', '#f07167'],
@@ -88,7 +109,9 @@ export function FinancePage() {
   }, [enabledTabs, ownFinanceOnly]);
 
   const [tab, setTab] = useState<Tab>(() => enabledTabs[0] ?? 'analysis');
-  const [appearance, setAppearance] = useState(() => getAppearanceTheme());
+  const effectiveTheme = () =>
+    getAppearanceTheme(getPreviewClubId() ?? getSession()?.clubId ?? null);
+  const [appearance, setAppearance] = useState(effectiveTheme);
   const [summary, setSummary] = useState<Awaited<
     ReturnType<typeof financeService.getFinanceSummary>
   >['data']>();
@@ -96,7 +119,7 @@ export function FinancePage() {
 
   useEffect(() => {
     const sync = () => {
-      setAppearance(getAppearanceTheme());
+      setAppearance(effectiveTheme());
       setPlatformTick((n) => n + 1);
     };
     window.addEventListener('academyhub-platform-updated', sync);

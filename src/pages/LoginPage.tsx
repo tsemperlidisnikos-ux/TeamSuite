@@ -22,6 +22,7 @@ import {
 } from '../auth/auth';
 import { getDemoLoginHint, getDemoRoleHints } from '../auth/demoCredentials';
 import {
+  applyAppearanceTheme,
   endPreview,
   getAppearanceTheme,
   getAppLogoUrl,
@@ -108,7 +109,9 @@ export function LoginPage() {
 
   useEffect(() => {
     const sync = () => {
-      setAppearance(getAppearanceTheme());
+      const theme = getAppearanceTheme();
+      applyAppearanceTheme(theme);
+      setAppearance(theme);
       setAppName(getAppName());
       setAppLogoUrl(getAppLogoUrl());
     };
