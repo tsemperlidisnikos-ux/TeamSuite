@@ -269,7 +269,7 @@ export function scheduleAccountBundlePush() {
   accountPushTimer = setTimeout(() => {
     accountPushTimer = null;
     void flushAccountBundlePush();
-  }, 400);
+  }, 80);
 }
 
 export async function flushAccountBundlePush(opts?: { keepalive?: boolean }) {

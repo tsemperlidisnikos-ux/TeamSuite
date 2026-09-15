@@ -1,84 +1,34 @@
 import { getSession } from '../../auth/auth';
 import { getClubData, getData } from '../../data/repository';
-import { resolveActiveClubId } from '../../data/store';
+import { resolveActiveClubId, whenClubMapPersisted } from '../../data/store';
+import { stripHeavyMedia } from '../../data/mediaStrip';
 import { getPreviewClubId } from '../../platform/platformConfig';
 import type { AppData } from '../../types';
 import { syncAuthHeaders } from '../syncAuth';
 
-export type ClubOpsSlice = Pick<
+/** Live club fields χωρίς roster/AMKA (αυτά πάνε στο encrypted full mirror). */
+export type ClubOpsSlice = Omit<
   AppData,
-  | 'schedule'
-  | 'trainings'
-  | 'matches'
-  | 'products'
-  | 'stockMovements'
-  | 'attendance'
-  | 'classes'
-  | 'announcements'
-  | 'registrationApplications'
-  | 'rentalBookings'
-  | 'revenues'
-  | 'coaches'
-  | 'staff'
-  | 'clubSeasons'
-  | 'deletedScheduleIds'
-  | 'deletedTrainingIds'
-  | 'deletedMatchIds'
-  | 'deletedProductIds'
-  | 'deletedStockMovementIds'
-  | 'deletedAttendanceIds'
-  | 'deletedClassIds'
-  | 'deletedAnnouncementIds'
-  | 'deletedRegistrationApplicationIds'
-  | 'deletedRentalBookingIds'
-  | 'deletedRevenueIds'
-  | 'deletedCoachIds'
-  | 'deletedStaffIds'
-  | 'receiptIssues'
-  | 'receiptNumberRanges'
-  | 'receiptNextBySeries'
-  | 'deletedSeasonIds'
+  'students' | 'deletedStudentIds' | 'amkaAccessLogs' | 'gdprAuditLogs' | 'termsOfUseHtml' | 'dpaHtml' | 'retentionPolicyHtml'
 >;
 
 export function clubOpsSliceFromData(data: AppData): ClubOpsSlice {
-  return {
-    schedule: data.schedule ?? [],
-    trainings: data.trainings ?? [],
-    matches: data.matches ?? [],
-    products: data.products ?? [],
-    stockMovements: data.stockMovements ?? [],
-    attendance: data.attendance ?? [],
-    classes: data.classes ?? [],
-    announcements: data.announcements ?? [],
-    registrationApplications: data.registrationApplications ?? [],
-    rentalBookings: data.rentalBookings ?? [],
-    revenues: data.revenues ?? [],
-    coaches: data.coaches ?? [],
-    staff: data.staff ?? [],
-    clubSeasons: data.clubSeasons ?? [],
-    receiptIssues: data.receiptIssues ?? [],
-    receiptNumberRanges: data.receiptNumberRanges ?? [],
-    receiptNextBySeries: data.receiptNextBySeries ?? {},
-    deletedScheduleIds: data.deletedScheduleIds ?? [],
-    deletedTrainingIds: data.deletedTrainingIds ?? [],
-    deletedMatchIds: data.deletedMatchIds ?? [],
-    deletedProductIds: data.deletedProductIds ?? [],
-    deletedStockMovementIds: data.deletedStockMovementIds ?? [],
-    deletedAttendanceIds: data.deletedAttendanceIds ?? [],
-    deletedClassIds: data.deletedClassIds ?? [],
-    deletedAnnouncementIds: data.deletedAnnouncementIds ?? [],
-    deletedRegistrationApplicationIds: data.deletedRegistrationApplicationIds ?? [],
-    deletedRentalBookingIds: data.deletedRentalBookingIds ?? [],
-    deletedRevenueIds: data.deletedRevenueIds ?? [],
-    deletedCoachIds: data.deletedCoachIds ?? [],
-    deletedStaffIds: data.deletedStaffIds ?? [],
-    deletedSeasonIds: data.deletedSeasonIds ?? [],
-  };
+  const safe = stripHeavyMedia(data);
+  const slice: Record<string, unknown> = { ...safe };
+  delete slice.students;
+  delete slice.deletedStudentIds;
+  delete slice.amkaAccessLogs;
+  delete slice.gdprAuditLogs;
+  delete slice.termsOfUseHtml;
+  delete slice.dpaHtml;
+  delete slice.retentionPolicyHtml;
+  return slice as ClubOpsSlice;
 }
 
 export async function publishClubOpsSlice(clubId?: string | null) {
   const id = (clubId ?? getPreviewClubId() ?? getSession()?.clubId ?? resolveActiveClubId()).trim();
   if (!id || id === '_default') return;
+  await whenClubMapPersisted();
   const data = resolveActiveClubId() === id ? getData() : getClubData(id);
   try {
     const response = await fetch('/api/sync/club-ops', {

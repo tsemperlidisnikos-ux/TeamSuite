@@ -161,7 +161,7 @@ function endClubSyncProgress(clubId: string, ok: boolean): void {
   setClubSyncProgress(clubId, ok ? 100 : 0, false);
 }
 
-const MIN_PULL_GAP_MS = 1_500;
+const MIN_PULL_GAP_MS = 400;
 
 function readMap<T extends Record<string, unknown>>(key: string): T {
   try {
@@ -275,16 +275,19 @@ function clearClubMirrorDirty(clubId: string): void {
   emitClubSyncStatus();
 }
 
-/** Debounced push of active club AppData + account bundle to cloud. */
+const LIVE_PUSH_MS = 80;
+
+/** Κάθε αποθήκευση συλλόγου ανεβαίνει αμέσως στο cloud (ops + full mirror). */
 export function scheduleClubMirrorPush(clubId?: string | null): void {
   const id = clubId ?? resolveActiveClubId();
   if (!id || id === '_default' || !isAutoSyncEnabled(id)) return;
   markClubMirrorDirty(id);
+  void import('../api/services/clubOpsSyncService').then((m) => m.publishClubOpsSlice(id));
 
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
     void flushClubMirrorPush(id);
-  }, 400);
+  }, LIVE_PUSH_MS);
 }
 
 async function maybePushAccountBundle(keepalive?: boolean) {

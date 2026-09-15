@@ -497,6 +497,25 @@ function mergeNamedIdCollections(
   return out;
 }
 
+function chartRowCount(value: unknown): number {
+  const obj = asPlainObject(value);
+  if (!obj) return 0;
+  return (
+    (Array.isArray(obj.kids) ? obj.kids.length : 0) +
+    (Array.isArray(obj.men) ? obj.men.length : 0) +
+    (Array.isArray(obj.women) ? obj.women.length : 0)
+  );
+}
+
+function mergeSizeChartPayload(existing: unknown, incoming: unknown): unknown {
+  if (chartRowCount(incoming) === 0 && chartRowCount(existing) > 0) return existing;
+  return incoming ?? existing;
+}
+
+function mergeIdCatalogPayload(existing: unknown, incoming: unknown): unknown {
+  return mergeIdRowsPreservingCloudOnly(existing, incoming, undefined, undefined).rows;
+}
+
 function pickNonEmptyHtml(incoming: unknown, existing: unknown): unknown {
   const next = typeof incoming === 'string' ? incoming.trim() : '';
   if (next) return incoming;
@@ -581,15 +600,11 @@ export function mergeOpsSliceIntoPayload(
   prev: Record<string, unknown>,
   slice: Record<string, unknown>,
 ): Record<string, unknown> {
-  return {
-    ...prev,
-    ...mergeNamedIdCollections(prev, slice, OPS_ID_COLLECTION_PAIRS),
-    ...mergeReceiptBookFields(prev, {
-      receiptIssues: slice.receiptIssues ?? prev.receiptIssues,
-      receiptNumberRanges: slice.receiptNumberRanges ?? prev.receiptNumberRanges,
-      receiptNextBySeries: slice.receiptNextBySeries ?? prev.receiptNextBySeries,
-    }),
-  };
+  const incoming: Record<string, unknown> = { ...prev };
+  for (const [key, value] of Object.entries(slice)) {
+    if (value !== undefined) incoming[key] = value;
+  }
+  return mergeMirrorPayloadPreservingRoster(prev, incoming) as Record<string, unknown>;
 }
 
 function mergeClosedFinanceMonthsPayload(
@@ -749,6 +764,13 @@ export function mergeMirrorPayloadPreservingRoster(existing: unknown, incoming: 
     feeChargeTemplates: feeTemplates.rows,
     athleteChangeLogs: changeLogs.rows,
     emailUnsubscribes: emailUnsubs,
+    feeReminderLogs: mergeIdCatalogPayload(prev.feeReminderLogs, next.feeReminderLogs),
+    amkaAccessLogs: mergeIdCatalogPayload(prev.amkaAccessLogs, next.amkaAccessLogs),
+    gdprAuditLogs: mergeIdCatalogPayload(prev.gdprAuditLogs, next.gdprAuditLogs),
+    onlineCheckouts: mergeIdCatalogPayload(prev.onlineCheckouts, next.onlineCheckouts),
+    discountReasons: mergeIdCatalogPayload(prev.discountReasons, next.discountReasons),
+    clothingPackages: mergeIdCatalogPayload(prev.clothingPackages, next.clothingPackages),
+    sizeChart: mergeSizeChartPayload(prev.sizeChart, next.sizeChart),
     ...mergeReceiptBookFields(prev, next),
     termsOfUseHtml: pickNonEmptyHtml(next.termsOfUseHtml, prev.termsOfUseHtml),
     dpaHtml: pickNonEmptyHtml(next.dpaHtml, prev.dpaHtml),

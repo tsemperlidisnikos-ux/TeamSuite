@@ -7,8 +7,8 @@ import {
 } from '../lib/serverStore.js';
 
 /**
- * PUT /api/sync/club-ops — γρήγορο patch προγράμματος, ανακοινώσεων, αιτήσεων, κρατήσεων
- * χωρίς να περιμένει πλήρες roster mirror.
+ * PUT /api/sync/club-ops — άμεσο live patch συλλόγου (χωρίς AMKA roster).
+ * Το πλήρες encrypted mirror ακολουθεί για αθλητές.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store');
