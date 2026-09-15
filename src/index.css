@@ -3625,6 +3625,11 @@ html[data-appearance] .settings-backup-schedule-status {
   box-shadow: var(--shadow);
 }
 
+.tx-panel:has(.tx-month-panel) {
+  overflow: visible;
+  z-index: 4;
+}
+
 .tx-panel-soft {
   background: var(--brand-soft);
 }
@@ -3897,16 +3902,22 @@ html[data-appearance] .settings-backup-schedule-status {
 
 .tx-month-panel {
   position: absolute;
-  z-index: 30;
-  top: calc(100% + 4px);
+  z-index: 40;
+  top: auto;
+  bottom: calc(100% + 4px);
   left: 0;
-  right: 0;
+  right: auto;
+  min-width: 100%;
+  width: max(100%, 17rem);
   background: #fff;
   border: 1px solid #ccc;
   border-radius: 6px;
-  max-height: 260px;
-  overflow: auto;
-  padding: 4px 0;
+  max-height: none;
+  overflow: visible;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 8px;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
