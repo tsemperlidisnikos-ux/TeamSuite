@@ -101,6 +101,19 @@ export function validateReceiptRanges(
   return { ok: true, ranges };
 }
 
+export function hasReceiptRangeStarted(
+  range: ReceiptNumberRange,
+  issues: ReceiptIssueRecord[] | undefined | null,
+  nextBySeries?: Record<string, number> | null,
+): boolean {
+  const series = normalizeReceiptSeries(range.series);
+  const issuedInsideRange = normalizeReceiptIssues(issues).some(
+    (row) => row.series === series && row.number >= range.from && row.number <= range.to,
+  );
+  if (issuedInsideRange) return true;
+  return cursorForSeries(series, nextBySeries) > range.from;
+}
+
 export function formatReceiptLabel(series: string, number: number): string {
   const s = normalizeReceiptSeries(series);
   return s ? `Σειρά ${s} · Αρ. ${number}` : `Αρ. ${number}`;

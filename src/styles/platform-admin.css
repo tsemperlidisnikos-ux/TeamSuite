@@ -460,6 +460,42 @@
   font-size: 0.8rem;
 }
 
+.audit-undo-preview {
+  display: grid;
+  gap: 0.75rem;
+  max-height: 48vh;
+  margin: 0.85rem 0;
+  padding-right: 0.25rem;
+  overflow-y: auto;
+}
+
+.audit-undo-event {
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field-bg, var(--surface));
+}
+
+.audit-undo-event p {
+  margin: 0.3rem 0 0.5rem;
+}
+
+.audit-undo-event ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.audit-undo-fields {
+  display: grid;
+  gap: 0.15rem;
+  margin-top: 0.3rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
 .club-waitlist-scroll {
   max-height: none;
 }

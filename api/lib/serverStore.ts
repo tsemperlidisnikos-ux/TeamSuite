@@ -157,8 +157,19 @@ export type ClubAuditEvent = {
   email: string;
   fullName: string;
   role: string;
-  action: 'login' | 'logout' | 'change';
+  action: 'login' | 'logout' | 'change' | 'undo';
   summary: string;
+  undo?: {
+    changes: Array<{
+      collection: string;
+      entityId: string;
+      before: Record<string, unknown> | null;
+      after: Record<string, unknown> | null;
+    }>;
+  } | null;
+  undoReason?: string | null;
+  revertedEventIds?: string[];
+  snapshotId?: string | null;
 };
 
 export type ClubWaitlistEntry = {
@@ -197,6 +208,8 @@ const PUBLIC_CLUB_PREFIX = 'ss360:public-club:';
 const NOTIFY_PREFIX = 'ss360:notify:';
 const PENDING_APPS_PREFIX = 'ss360:pending-apps:';
 const SNAPSHOT_PREFIX = 'ss360:backup-snap:';
+const UNDO_SNAPSHOT_PREFIX = 'ss360:undo-snap:';
+const UNDO_SNAPSHOT_MAX_PER_CLUB = 30;
 const ACCOUNT_BUNDLE_KEY = 'ss360:account-bundle';
 const ACCOUNT_USERS_KEY = 'ss360:account-users';
 const LOGIN_ACTIVITY_KEY = 'ss360:login-activity';
@@ -1046,6 +1059,51 @@ export async function snapshotAllMirrors(): Promise<{
   }
 
   return { dateKey, clubs, durable };
+}
+
+/** Immutable point-in-time mirror captured immediately before a Platform Admin undo. */
+export async function snapshotClubMirrorForUndo(input: {
+  clubId: string;
+  reason: string;
+  requestedBy: string;
+  eventIds: string[];
+  expectedUpdatedAt?: string | null;
+}): Promise<{ id: string; snapshotAt: string; mirrorUpdatedAt: string; durable: boolean }> {
+  const mirror = await loadMirror(input.clubId);
+  if (!mirror) throw new Error('No mirror for club');
+  if (input.expectedUpdatedAt && mirror.updatedAt !== input.expectedUpdatedAt) {
+    throw new Error('Τα δεδομένα του συλλόγου άλλαξαν πριν δημιουργηθεί το snapshot. Δοκιμάστε ξανά.');
+  }
+  const snapshotAt = new Date().toISOString();
+  const id = `undo_${Date.now()}_${randomBytes(4).toString('hex')}`;
+  const snapshot = {
+    id,
+    snapshotAt,
+    clubId: input.clubId,
+    reason: input.reason.slice(0, 500),
+    requestedBy: input.requestedBy.slice(0, 120),
+    eventIds: input.eventIds.slice(0, 50),
+    mirrorUpdatedAt: mirror.updatedAt,
+    payload: mirror.payload,
+  };
+  const durable = isDurableKvEnabled();
+  if (!durable) {
+    memory().mirrors[`${input.clubId}__undo__${id}`] = {
+      updatedAt: snapshotAt,
+      payload: snapshot,
+    };
+    return { id, snapshotAt, mirrorUpdatedAt: mirror.updatedAt, durable };
+  }
+
+  const indexKey = `${UNDO_SNAPSHOT_PREFIX}${input.clubId}:index`;
+  const previous = (await kvGet<string[]>(indexKey)) ?? [];
+  const next = [id, ...previous.filter((value) => value !== id)];
+  await kvSet(`${UNDO_SNAPSHOT_PREFIX}${input.clubId}:${id}`, snapshot);
+  await kvSet(indexKey, next.slice(0, UNDO_SNAPSHOT_MAX_PER_CLUB));
+  for (const expired of next.slice(UNDO_SNAPSHOT_MAX_PER_CLUB)) {
+    await kvDel(`${UNDO_SNAPSHOT_PREFIX}${input.clubId}:${expired}`);
+  }
+  return { id, snapshotAt, mirrorUpdatedAt: mirror.updatedAt, durable };
 }
 
 export async function savePublicClubConfig(config: PublicClubConfig): Promise<void> {

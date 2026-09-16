@@ -989,7 +989,7 @@ export function PlatformAdminPage() {
             activeDrill={platformItem}
             id="club-audit-log"
             title="Ημερολόγιο συλλόγου"
-            description="Μόνο Platform Admin. Ανά σύλλογο και ημέρα: ποιος έκανε είσοδο/έξοδο και ποιες καταχωρήσεις (αθλητές, οικονομικά, πρόγραμμα κ.λπ.)."
+            description="Μόνο Platform Admin. Όλες οι νέες καταχωρήσεις ανά σύλλογο, χρήστη και ημέρα, με ασφαλή ατομική ή μαζική αναίρεση όπου υποστηρίζεται."
             entry={<ClubAuditLogPanel onSaved={flash} />}
             records={
               <RecordsTable>

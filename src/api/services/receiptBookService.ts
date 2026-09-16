@@ -4,6 +4,7 @@ import type { ReceiptIssueKind, ReceiptIssueRecord, ReceiptNumberRange } from '.
 import { localDateTimeIso } from '../../utils/dates';
 import {
   formatReceiptLabel,
+  hasReceiptRangeStarted,
   issueForTransaction,
   markReceiptIssueVoidedInData,
   normalizeReceiptIssues,
@@ -18,6 +19,25 @@ export async function saveReceiptRanges(ranges: ReceiptNumberRange[]) {
   return apiClient(async () => {
     const checked = validateReceiptRanges(ranges);
     if (!checked.ok) throw new Error(checked.error);
+    const currentData = getData();
+    const savedRanges = normalizeReceiptRanges(currentData.receiptNumberRanges);
+    const changedStartedRange = savedRanges.find((saved) => {
+      const retained = checked.ranges.find((next) => next.id === saved.id);
+      const unchanged =
+        retained &&
+        retained.series === saved.series &&
+        retained.from === saved.from &&
+        retained.to === saved.to;
+      return (
+        !unchanged &&
+        hasReceiptRangeStarted(saved, currentData.receiptIssues, currentData.receiptNextBySeries)
+      );
+    });
+    if (changedStartedRange) {
+      throw new Error(
+        `Η σειρά ${changedStartedRange.series} ${changedStartedRange.from}–${changedStartedRange.to} έχει ήδη ξεκινήσει και δεν μπορεί να διαγραφεί ή να αλλάξει.`,
+      );
+    }
     mutateData((data) => {
       data.receiptNumberRanges = checked.ranges;
       data.receiptIssues = normalizeReceiptIssues(data.receiptIssues);

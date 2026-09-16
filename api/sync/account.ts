@@ -4,6 +4,7 @@ import {
   appendClubWaitlist,
   appendLoginActivity,
   appendClubAudit,
+  snapshotClubMirrorForUndo,
   listClubAudit,
   deleteClubAudit,
   clearClubAudit,
@@ -519,7 +520,12 @@ function parseClubAuditEvent(body: unknown): ClubAuditEvent | null {
   const role = typeof raw.role === 'string' ? raw.role.trim() : '';
   const summary = typeof raw.summary === 'string' ? raw.summary.trim().slice(0, 500) : '';
   const action =
-    raw.action === 'login' || raw.action === 'logout' || raw.action === 'change' ? raw.action : null;
+    raw.action === 'login' ||
+    raw.action === 'logout' ||
+    raw.action === 'change' ||
+    raw.action === 'undo'
+      ? raw.action
+      : null;
   if (!id || !at || !clubId || !userId || !email || !fullName || !role || !action || !summary) {
     return null;
   }
@@ -529,7 +535,70 @@ function parseClubAuditEvent(body: unknown): ClubAuditEvent | null {
       : typeof raw.clubName === 'string'
         ? raw.clubName.slice(0, 120)
         : null;
-  return { id, at, clubId, clubName, userId, email, fullName, role, action, summary };
+  const allowedCollections = new Set([
+    'attendance',
+    'trainings',
+    'schedule',
+    'announcements',
+    'matches',
+    'products',
+    'stockMovements',
+    'feeChargeTemplates',
+  ]);
+  const rawChanges =
+    raw.undo && typeof raw.undo === 'object' && Array.isArray((raw.undo as { changes?: unknown }).changes)
+      ? (raw.undo as { changes: unknown[] }).changes
+      : [];
+  if (rawChanges.length > 50 || JSON.stringify(rawChanges).length > 120_000) return null;
+  const changes = rawChanges.flatMap((value) => {
+    if (!value || typeof value !== 'object') return [];
+    const change = value as Record<string, unknown>;
+    const collection = typeof change.collection === 'string' ? change.collection : '';
+    const entityId = typeof change.entityId === 'string' ? change.entityId.trim().slice(0, 120) : '';
+    const before =
+      change.before === null ||
+      (typeof change.before === 'object' && !Array.isArray(change.before))
+        ? (change.before as Record<string, unknown> | null)
+        : undefined;
+    const after =
+      change.after === null ||
+      (typeof change.after === 'object' && !Array.isArray(change.after))
+        ? (change.after as Record<string, unknown> | null)
+        : undefined;
+    if (!allowedCollections.has(collection) || !entityId || before === undefined || after === undefined) {
+      return [];
+    }
+    return [{ collection, entityId, before, after }];
+  });
+  if (changes.length !== rawChanges.length) return null;
+  const undo = changes.length ? { changes } : null;
+  const undoReason =
+    typeof raw.undoReason === 'string' ? raw.undoReason.trim().slice(0, 300) || null : null;
+  const revertedEventIds = Array.isArray(raw.revertedEventIds)
+    ? raw.revertedEventIds
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim().slice(0, 80))
+        .filter(Boolean)
+        .slice(0, 50)
+    : [];
+  const snapshotId =
+    typeof raw.snapshotId === 'string' ? raw.snapshotId.trim().slice(0, 100) || null : null;
+  return {
+    id,
+    at,
+    clubId,
+    clubName,
+    userId,
+    email,
+    fullName,
+    role,
+    action,
+    summary,
+    undo,
+    undoReason,
+    revertedEventIds,
+    snapshotId,
+  };
 }
 
 async function handleClubAudit(req: VercelRequest, res: VercelResponse) {
@@ -553,6 +622,9 @@ async function handleClubAudit(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ ok: false, error: 'Invalid club audit payload' });
     }
     const auth = getSyncAuthContext(req);
+    if (event.action === 'undo' && auth.claims?.role !== 'platform_admin') {
+      return res.status(403).json({ ok: false, error: 'Forbidden: Platform Admin required' });
+    }
     if (auth.claims && auth.claims.role !== 'platform_admin') {
       if (!auth.claims.clubId || auth.claims.clubId !== event.clubId) {
         return res.status(403).json({ ok: false, error: 'Forbidden: club mismatch' });
@@ -605,6 +677,49 @@ async function handleClubAudit(req: VercelRequest, res: VercelResponse) {
 
   res.setHeader('Allow', 'GET, POST, DELETE');
   return res.status(405).json({ ok: false, error: 'Method not allowed' });
+}
+
+async function handleClubAuditSnapshot(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+  if (!(await assertLoginActivityAdmin(req, res))) return;
+  const body = (req.body ?? {}) as {
+    clubId?: string;
+    reason?: string;
+    eventIds?: unknown[];
+    expectedUpdatedAt?: string | null;
+  };
+  const clubId = clip(body.clubId, 80);
+  const reason = clip(body.reason, 500);
+  const eventIds = Array.isArray(body.eventIds)
+    ? body.eventIds
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim().slice(0, 80))
+        .filter(Boolean)
+        .slice(0, 50)
+    : [];
+  if (!clubId || !reason || !eventIds.length) {
+    return res.status(400).json({ ok: false, error: 'clubId, reason and eventIds required' });
+  }
+  const auth = getSyncAuthContext(req);
+  try {
+    const snapshot = await snapshotClubMirrorForUndo({
+      clubId,
+      reason,
+      eventIds,
+      requestedBy: auth.claims?.email || auth.claims?.sub || 'platform_admin',
+      expectedUpdatedAt:
+        typeof body.expectedUpdatedAt === 'string' ? body.expectedUpdatedAt.slice(0, 80) : null,
+    });
+    return res.status(200).json({ ok: true, ...snapshot });
+  } catch (error) {
+    return res.status(409).json({
+      ok: false,
+      error: error instanceof Error ? error.message : 'Αποτυχία snapshot πριν την αναίρεση',
+    });
+  }
 }
 
 function kindOf(req: VercelRequest): string {
@@ -1629,6 +1744,10 @@ async function dispatchAccount(req: VercelRequest, res: VercelResponse) {
 
   if (kind === 'club-audit') {
     return handleClubAudit(req, res);
+  }
+
+  if (kind === 'club-audit-snapshot') {
+    return handleClubAuditSnapshot(req, res);
   }
 
   if (kind === 'login-activity') {

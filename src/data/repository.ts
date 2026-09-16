@@ -20,7 +20,7 @@ import {
   writeClubStoreExclusive,
 } from './store';
 import type { AppData } from '../types';
-import { summarizeAppDataChange } from './clubAuditDiff';
+import { buildAppDataAudit } from './clubAuditDiff';
 import { ensureAmkaPrivacySection } from '../shared/termsDefaults';
 import { resolveCatalogSportName } from '../shared/sportsCatalog';
 import { pruneAmkaAccessLogs } from '../utils/amkaAccess';
@@ -443,10 +443,16 @@ export function mutateData(updater: (data: AppData) => void): AppData {
   saveStore(data);
   notifyAppDataChanged();
   scheduleClubMirrorPush(cacheClubId);
-  const summary = summarizeAppDataChange(before, data);
-  if (summary) {
+  const audit = buildAppDataAudit(before, data);
+  if (audit) {
     void import('../api/services/clubAuditService').then((m) => {
-      m.recordClubAudit({ action: 'change', summary, clubId: cacheClubId });
+      m.recordClubAudit({
+        action: 'change',
+        summary: audit.summary,
+        clubId: cacheClubId,
+        undo: audit.undoable ? { changes: audit.changes } : null,
+        undoReason: audit.undoReason,
+      });
     });
   }
   return data;
@@ -466,7 +472,8 @@ export function clubHasStoredData(clubId: string): boolean {
 
 /** Mutate AppData for a specific clubId (works without session). */
 export function mutateClubData(clubId: string, updater: (data: AppData) => void): AppData {
-  const data = getClubData(clubId);
+  const before = getClubData(clubId);
+  const data = structuredClone(before);
   updater(data);
   stampMissingUpdatedAt(data);
   stampLocalWrite(data);
@@ -479,6 +486,18 @@ export function mutateClubData(clubId: string, updater: (data: AppData) => void)
   }
   notifyAppDataChanged();
   scheduleClubMirrorPush(clubId);
+  const audit = buildAppDataAudit(before, data);
+  if (audit) {
+    void import('../api/services/clubAuditService').then((m) => {
+      m.recordClubAudit({
+        action: 'change',
+        summary: audit.summary,
+        clubId,
+        undo: audit.undoable ? { changes: audit.changes } : null,
+        undoReason: audit.undoReason,
+      });
+    });
+  }
   return data;
 }
 

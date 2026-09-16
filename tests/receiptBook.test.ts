@@ -1,11 +1,48 @@
 import { describe, expect, it } from 'vitest';
 import type { ReceiptIssueRecord, ReceiptNumberRange } from '../src/types';
 import {
+  hasReceiptRangeStarted,
   parseReceiptNumberInput,
   previewNextReceipt,
   validateReceiptNumberForIssue,
   voidReceiptConfirmMessage,
 } from '../src/utils/receiptBook';
+
+const range: ReceiptNumberRange = {
+  id: 'range-a',
+  series: 'Γ',
+  from: 1,
+  to: 50,
+};
+
+function startedIssue(number: number): ReceiptIssueRecord {
+  return {
+    id: `issue-${number}`,
+    series: 'Γ',
+    number,
+    issuedAt: '2026-09-16T12:00:00.000Z',
+  };
+}
+
+describe('hasReceiptRangeStarted', () => {
+  it('keeps an unused block removable', () => {
+    expect(hasReceiptRangeStarted(range, [], { Γ: 1 })).toBe(false);
+  });
+
+  it('locks a block after a receipt inside it has been issued', () => {
+    expect(hasReceiptRangeStarted(range, [startedIssue(1)])).toBe(true);
+  });
+
+  it('locks a block when its persisted numbering cursor has advanced', () => {
+    expect(hasReceiptRangeStarted(range, [], { Γ: 2 })).toBe(true);
+  });
+
+  it('does not lock a later block before numbering reaches it', () => {
+    expect(
+      hasReceiptRangeStarted({ ...range, id: 'range-b', from: 51, to: 100 }, [], { Γ: 25 }),
+    ).toBe(false);
+  });
+});
 
 const ranges: ReceiptNumberRange[] = [
   { id: 'r1', series: 'Γ', from: 1, to: 50 },

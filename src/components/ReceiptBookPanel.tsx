@@ -6,6 +6,7 @@ import { ReceiptIssuesRegistry } from './ReceiptIssuesRegistry';
 import { useAppData } from '../hooks/useAppData';
 import type { ReceiptNumberRange } from '../types';
 import {
+  hasReceiptRangeStarted,
   normalizeReceiptIssues,
   normalizeReceiptRanges,
   remainingInRange,
@@ -199,24 +200,37 @@ export function ReceiptBookPanel() {
           <p className="size-chart-empty">Δεν υπάρχουν εύρη αριθμών αποδείξεων</p>
         ) : (
           <ul className="clothing-pkg-list">
-            {draft.map((row) => (
-              <li key={row.id} className="clothing-pkg-row receipt-book-row">
-                <span>
-                  Σειρά <strong>{row.series}</strong> · Αρ. {row.from}–{row.to}
-                  <span className="ap-muted">
-                    {' '}
-                    · απομένουν {remainingInRange(row, draft, issues)}
+            {draft.map((row) => {
+              const started = hasReceiptRangeStarted(
+                row,
+                issues,
+                data.receiptNextBySeries,
+              );
+              return (
+                <li key={row.id} className="clothing-pkg-row receipt-book-row">
+                  <span>
+                    Σειρά <strong>{row.series}</strong> · Αρ. {row.from}–{row.to}
+                    <span className="ap-muted">
+                      {' '}
+                      · απομένουν {remainingInRange(row, draft, issues)}
+                    </span>
                   </span>
-                </span>
-                <button
-                  type="button"
-                  className="size-chart-delete"
-                  onClick={() => removeRange(row.id)}
-                >
-                  Διαγραφή
-                </button>
-              </li>
-            ))}
+                  <button
+                    type="button"
+                    className="size-chart-delete"
+                    disabled={started}
+                    title={
+                      started
+                        ? 'Το μπλοκ έχει ήδη ξεκινήσει και δεν μπορεί να διαγραφεί.'
+                        : 'Διαγραφή μπλοκ'
+                    }
+                    onClick={() => removeRange(row.id)}
+                  >
+                    {started ? 'Σε χρήση' : 'Διαγραφή'}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

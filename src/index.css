@@ -2798,9 +2798,16 @@ html[data-appearance] .settings-backup-schedule-status {
   border-radius: 999px;
 }
 
-.size-chart-delete:hover {
+.size-chart-delete:hover:not(:disabled) {
   background: rgba(240, 113, 103, 0.22);
   text-decoration: none;
+}
+
+.size-chart-delete:disabled {
+  background: var(--field-bg, rgba(127, 127, 127, 0.12));
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.75;
 }
 
 .size-chart-add-inline {
