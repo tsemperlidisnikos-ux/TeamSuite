@@ -12,7 +12,7 @@ import type {
 import { localDateIso, localDateTimeIso } from '../../utils/dates';
 import { isFeeChargeSuppressed } from '../../utils/feeChargeKeys';
 import { normalizeSportKey } from '../../utils/sport';
-import { studentInClass } from '../../utils/studentClasses';
+import { studentHasNoClass, studentInClass } from '../../utils/studentClasses';
 import { studentHasSport } from '../../utils/studentSports';
 import { sendClubEmail } from './emailService';
 import { sendClubSms } from './smsService';
@@ -50,6 +50,7 @@ export type FeeAppliesTo =
   | 'registration'
   | 'seasonTicket'
   | 'class'
+  | 'noClass'
   | 'customCharge'
   | 'athlete';
 
@@ -57,6 +58,7 @@ export function getFeeAppliesToOptions(customChargeLabel?: string) {
   const label = (customChargeLabel ?? '').trim();
   const options: Array<{ value: FeeAppliesTo; label: string }> = [
     { value: 'all', label: 'Όλοι οι αθλητές' },
+    { value: 'noClass', label: 'Χωρίς τμήμα' },
     { value: 'athlete', label: 'Αθλητής' },
     { value: 'monthly', label: 'Αθλητές με χρέωση μήνα' },
   ];
@@ -95,6 +97,7 @@ export const FEE_APPLIES_TO_LABELS: Record<
   registration: 'Αθλητές με χρέωση εγγραφής',
   seasonTicket: 'Αθλητές με εισιτήριο διαρκείας',
   class: 'Συγκεκριμένο τμήμα',
+  noClass: 'Χωρίς τμήμα',
 };
 
 function customChargeProgramLabel(): string {
@@ -120,6 +123,8 @@ function athleteMatchesAppliesTo(
       return Boolean(student.seasonTicket);
     case 'class':
       return Boolean(classId) && studentInClass(student, classId);
+    case 'noClass':
+      return studentHasNoClass(student);
     case 'athlete':
       return Boolean(athleteId) && student.id === athleteId;
     case 'all':

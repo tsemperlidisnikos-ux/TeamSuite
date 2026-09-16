@@ -629,7 +629,15 @@ export interface FeeChargeTemplate {
   typeLabel: string;
   monthlyAmount: number;
   /** Academio-style: σε ποιους αθλητές ισχύει η χρέωση. */
-  appliesTo: 'all' | 'monthly' | 'registration' | 'seasonTicket' | 'class' | 'customCharge' | 'athlete';
+  appliesTo:
+    | 'all'
+    | 'monthly'
+    | 'registration'
+    | 'seasonTicket'
+    | 'class'
+    | 'noClass'
+    | 'customCharge'
+    | 'athlete';
   classId?: string | null;
   /** Όταν appliesTo = athlete. */
   athleteId?: string | null;
