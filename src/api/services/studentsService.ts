@@ -304,6 +304,8 @@ export type StudentBulkPatch = {
   status?: StudentStatus;
   gender?: Gender;
   sport?: string;
+  /** undefined = χωρίς αλλαγή, null = αφαίρεση από όλα τα τμήματα. */
+  classId?: string | null;
   /** true = Έγκυρη, false = Όχι (και καθαρισμός ημερομηνίας λήξης). */
   healthCard?: boolean;
 };
@@ -317,8 +319,10 @@ export async function bulkPatchStudents(patch: StudentBulkPatch) {
     const hasGender = patch.gender !== undefined;
     const sportValue = patch.sport?.trim() ?? '';
     const hasSport = patch.sport !== undefined;
+    const classIdValue = patch.classId?.trim() || null;
+    const hasClassId = patch.classId !== undefined;
     const hasHealthCard = patch.healthCard !== undefined;
-    if (!hasStatus && !hasGender && !hasSport && !hasHealthCard) {
+    if (!hasStatus && !hasGender && !hasSport && !hasClassId && !hasHealthCard) {
       throw new Error('Δεν επιλέχθηκε πεδίο για αλλαγή');
     }
 
@@ -350,6 +354,12 @@ export async function bulkPatchStudents(patch: StudentBulkPatch) {
         if (hasGender) next = { ...next, gender: patch.gender };
         if (hasSport) {
           next = { ...next, ...normalizeStudentSports(sportValue ? [sportValue] : [], sportValue) };
+        }
+        if (hasClassId) {
+          next = {
+            ...next,
+            ...normalizeStudentClasses(classIdValue ? [classIdValue] : [], classIdValue),
+          };
         }
         if (hasHealthCard) {
           const on = Boolean(patch.healthCard);

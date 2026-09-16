@@ -33,7 +33,11 @@ import {
   planAthleteImport,
   studentToSheetRow,
 } from '../utils/athleteSpreadsheet';
-import { studentClassIds } from '../utils/studentClasses';
+import {
+  NO_CLASS_FILTER,
+  studentClassIds,
+  studentMatchesTeamFilter,
+} from '../utils/studentClasses';
 import { studentHasSport, studentSports } from '../utils/studentSports';
 import { downloadXlsx } from '../utils/xlsxDownload';
 import { clubAthletesXlsxFileName } from '../shared/clubBackupFilename';
@@ -167,6 +171,7 @@ export function StudentsPage() {
   const [bulkStatus, setBulkStatus] = useState<'' | StudentStatus>('');
   const [bulkGender, setBulkGender] = useState<'' | Gender>('');
   const [bulkSport, setBulkSport] = useState('');
+  const [bulkClassId, setBulkClassId] = useState('');
   const [bulkHealthCard, setBulkHealthCard] = useState<'' | 'yes' | 'no'>('');
   const [bulkSaving, setBulkSaving] = useState(false);
   const [joinFormApp, setJoinFormApp] = useState<RegistrationApplication | null>(null);
@@ -233,7 +238,7 @@ export function StudentsPage() {
     return scoped
       .filter((s) => {
         if (statusFilter && s.status !== statusFilter) return false;
-        if (classFilter && !studentClassIds(s).includes(classFilter)) return false;
+        if (!studentMatchesTeamFilter(s, classFilter)) return false;
         if (sportFilter) {
           const classSports = studentClassIds(s).map(
             (id) => data.classes.find((c) => c.id === id)?.sport,
@@ -295,6 +300,7 @@ export function StudentsPage() {
     setBulkStatus('');
     setBulkGender('');
     setBulkSport('');
+    setBulkClassId('');
     setBulkHealthCard('');
     setBulkOpen(true);
   }
@@ -305,12 +311,15 @@ export function StudentsPage() {
     if (bulkStatus) patch.status = bulkStatus;
     if (bulkGender) patch.gender = bulkGender;
     if (bulkSport) patch.sport = bulkSport;
+    if (bulkClassId === NO_CLASS_FILTER) patch.classId = null;
+    else if (bulkClassId) patch.classId = bulkClassId;
     if (bulkHealthCard === 'yes') patch.healthCard = true;
     if (bulkHealthCard === 'no') patch.healthCard = false;
     if (
       !patch.status &&
       patch.gender === undefined &&
       !patch.sport &&
+      patch.classId === undefined &&
       patch.healthCard === undefined
     ) {
       window.alert('Επιλέξτε τουλάχιστον ένα πεδίο για αλλαγή.');
@@ -842,6 +851,7 @@ export function StudentsPage() {
             onChange={(e) => setClassFilter(e.target.value)}
           >
             <option value=""> {t('Όλα τα τμήματα')}</option>
+            <option value={NO_CLASS_FILTER}>{t('Χωρίς τμήμα')}</option>
             {classOptions.map((cls) => (
               <option key={cls.id} value={cls.id}>
                 {cls.name}
@@ -1162,10 +1172,28 @@ export function StudentsPage() {
         <p className="muted">
           Θα ενημερωθούν {selected.length} αθλητές
           {classFilter
-            ? ` του τμήματος «${classOptions.find((c) => c.id === classFilter)?.name ?? ''}»`
+            ? classFilter === NO_CLASS_FILTER
+              ? ' χωρίς τμήμα'
+              : ` του τμήματος «${classOptions.find((c) => c.id === classFilter)?.name ?? ''}»`
             : ''}
           . Αφήστε «Χωρίς αλλαγή» στα πεδία που δεν θέλετε να πειράξετε.
         </p>
+        <label className="field">
+          <span className="field-label">{t('Τμήμα')}</span>
+          <select
+            className="field-input"
+            value={bulkClassId}
+            onChange={(e) => setBulkClassId(e.target.value)}
+          >
+            <option value="">Χωρίς αλλαγή</option>
+            <option value={NO_CLASS_FILTER}>Χωρίς τμήμα</option>
+            {classOptions.map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="field">
           <span className="field-label">{t('Κατάσταση')}</span>
           <select
