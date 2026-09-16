@@ -272,6 +272,7 @@ export function StudentsPage() {
     const next = new URLSearchParams(searchParams);
     if (value.trim()) next.set('sport', value.trim());
     else next.delete('sport');
+    setSelected([]);
     setSearchParams(next, { replace: true });
   }
 
@@ -821,7 +822,10 @@ export function StudentsPage() {
           <Search size={16} />
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelected([]);
+            }}
             placeholder={
               isDoctor
                 ? 'Αναζήτηση αθλητή, ΑΜΚΑ ή γονέα...'
@@ -848,7 +852,10 @@ export function StudentsPage() {
           <select
             className="field-input"
             value={classFilter}
-            onChange={(e) => setClassFilter(e.target.value)}
+            onChange={(e) => {
+              setClassFilter(e.target.value);
+              setSelected([]);
+            }}
           >
             <option value=""> {t('Όλα τα τμήματα')}</option>
             <option value={NO_CLASS_FILTER}>{t('Χωρίς τμήμα')}</option>
@@ -864,7 +871,10 @@ export function StudentsPage() {
           <select
             className="field-input"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setSelected([]);
+            }}
           >
             <option value="">Όλα</option>
             <option value="active">{t('Ενεργός')}</option>

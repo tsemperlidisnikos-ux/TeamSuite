@@ -345,6 +345,7 @@ export async function bulkPatchStudents(patch: StudentBulkPatch) {
         }
       }
       const wanted = new Set(ids);
+      const changedAt = Date.now();
       for (let i = 0; i < data.students.length; i += 1) {
         const current = data.students[i];
         if (!wanted.has(current.id)) continue;
@@ -370,6 +371,7 @@ export async function bulkPatchStudents(patch: StudentBulkPatch) {
             ...(on ? {} : { healthCardExpires: '' }),
           };
         }
+        next.updatedAt = changedAt;
         const previous = current;
         data.students[i] = next;
         appendAthleteChangeLog(data, previous, next);

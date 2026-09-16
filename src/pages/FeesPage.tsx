@@ -67,6 +67,7 @@ export function FeesPage() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [correctingTemplateId, setCorrectingTemplateId] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
   const [athleteSearch, setAthleteSearch] = useState('');
@@ -155,6 +156,16 @@ export function FeesPage() {
 
   const transactions = data.transactions ?? [];
   const templates = data.feeChargeTemplates ?? [];
+  const inactiveChargePreview = useMemo(
+    () =>
+      new Map(
+        templates.map((template) => [
+          template.id,
+          feeChargesService.previewInactiveTemplateCharges(template.id),
+        ]),
+      ),
+    [templates, data.transactions, data.students],
+  );
 
   const sports = useMemo(() => {
     const active = listActiveClubSportNames(data.sports);
@@ -318,6 +329,38 @@ export function FeesPage() {
     await feeChargesService.deleteFeeChargeTemplate(id);
     if (selectedTemplateId === id) setSelectedTemplateId('');
     setSelectedTemplateIds((prev) => prev.filter((item) => item !== id));
+    refresh();
+  }
+
+  async function handleDeleteInactiveTemplateCharges(id: string) {
+    const preview = feeChargesService.previewInactiveTemplateCharges(id);
+    if (preview.charges === 0) {
+      setMessage('Δεν βρέθηκαν χρεώσεις αυτού του προτύπου σε ανενεργούς αθλητές.');
+      return;
+    }
+    if (preview.linkedPayments > 0) {
+      setError(
+        `Βρέθηκαν ${preview.linkedPayments} συνδεδεμένες πληρωμές. Δεν έγινε καμία διαγραφή.`,
+      );
+      return;
+    }
+    if (
+      !confirm(
+        `Θα διαγραφούν ${preview.charges} χρεώσεις συνολικού ποσού ${formatCurrency(preview.amount)} από ${preview.athletes} ανενεργούς αθλητές.\n\nΘα αφαιρεθούν μόνο χρεώσεις που δημιουργήθηκαν από αυτό το πρότυπο και θα μπλοκαριστεί η επανεμφάνισή τους από το cloud.\n\nΣυνέχεια;`,
+      )
+    ) return;
+    setCorrectingTemplateId(id);
+    setError('');
+    setMessage('');
+    const result = await feeChargesService.deleteInactiveTemplateCharges(id);
+    setCorrectingTemplateId(null);
+    if (!result.success || !result.data) {
+      setError(result.error ?? 'Αποτυχία διόρθωσης χρεώσεων');
+      return;
+    }
+    setMessage(
+      `Διορθώθηκαν ${result.data.charges} χρεώσεις για ${result.data.athletes} ανενεργούς αθλητές (${formatCurrency(result.data.amount)}).`,
+    );
     refresh();
   }
   async function handleSendReminder(row: feeChargesService.DebtReminderRow) {
@@ -948,6 +991,7 @@ export function FeesPage() {
                   <tbody>
                     {templates.map((tpl) => {
                       const checked = selectedTemplateIds.includes(tpl.id);
+                      const inactivePreview = inactiveChargePreview.get(tpl.id);
                       return (
                         <tr key={tpl.id} className={checked ? 'is-selected' : undefined}>
                           <td>
@@ -965,9 +1009,22 @@ export function FeesPage() {
                           <td>{formatCurrency(tpl.seasonTicketAmount)}</td>
                           <td>{tpl.autoGenerate ? t('Ναι') : t('Όχι')}</td>
                           <td className="row-actions">
+                            {inactivePreview && inactivePreview.charges > 0 ? (
+                              <button
+                                type="button"
+                                className="btn btn-danger"
+                                disabled={Boolean(correctingTemplateId)}
+                                onClick={() => void handleDeleteInactiveTemplateCharges(tpl.id)}
+                              >
+                                {correctingTemplateId === tpl.id
+                                  ? 'Διόρθωση…'
+                                  : `Διόρθωση ανενεργών (${inactivePreview.charges})`}
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               className="btn btn-ghost"
+                              disabled={Boolean(correctingTemplateId)}
                               onClick={() => void handleDeleteTemplate(tpl.id)}
                             >
                               {t('Διαγραφή')}

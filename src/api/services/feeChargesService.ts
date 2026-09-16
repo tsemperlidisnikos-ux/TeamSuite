@@ -10,7 +10,10 @@ import type {
   Student,
 } from '../../types';
 import { localDateIso, localDateTimeIso } from '../../utils/dates';
-import { isFeeChargeSuppressed } from '../../utils/feeChargeKeys';
+import {
+  isFeeChargeSuppressed,
+  rememberDeletedTransaction,
+} from '../../utils/feeChargeKeys';
 import { normalizeSportKey } from '../../utils/sport';
 import { studentHasNoClass, studentInClass } from '../../utils/studentClasses';
 import { studentHasSport } from '../../utils/studentSports';
@@ -305,6 +308,75 @@ export async function deleteFeeChargeTemplate(id: string) {
       data.feeChargeTemplates = (data.feeChargeTemplates ?? []).filter((t) => t.id !== id);
     });
     return { id };
+  });
+}
+
+export function previewInactiveTemplateCharges(templateId: string): {
+  charges: number;
+  athletes: number;
+  amount: number;
+  linkedPayments: number;
+} {
+  const data = getData();
+  const inactiveIds = new Set(
+    (data.students ?? []).filter((student) => student.status === 'inactive').map((student) => student.id),
+  );
+  const tagStart = `[fee:${templateId}:`;
+  const charges = (data.transactions ?? []).filter(
+    (row) =>
+      row.type === 'charge' &&
+      inactiveIds.has(row.athleteId) &&
+      row.comments.includes(tagStart),
+  );
+  const chargeIds = new Set(charges.map((row) => row.id));
+  return {
+    charges: charges.length,
+    athletes: new Set(charges.map((row) => row.athleteId)).size,
+    amount: charges.reduce((sum, row) => sum + row.amount, 0),
+    linkedPayments: (data.transactions ?? []).filter(
+      (row) => row.type === 'payment' && Boolean(row.allocatesChargeId && chargeIds.has(row.allocatesChargeId)),
+    ).length,
+  };
+}
+
+export async function deleteInactiveTemplateCharges(templateId: string) {
+  return apiClient(async () => {
+    const preview = previewInactiveTemplateCharges(templateId);
+    if (preview.linkedPayments > 0) {
+      throw new Error(
+        `Βρέθηκαν ${preview.linkedPayments} συνδεδεμένες πληρωμές. Η μαζική διόρθωση σταμάτησε για έλεγχο.`,
+      );
+    }
+    if (preview.charges === 0) return preview;
+
+    mutateData((data) => {
+      const inactiveIds = new Set(
+        data.students.filter((student) => student.status === 'inactive').map((student) => student.id),
+      );
+      const tagStart = `[fee:${templateId}:`;
+      const removed = data.transactions.filter(
+        (row) =>
+          row.type === 'charge' &&
+          inactiveIds.has(row.athleteId) &&
+          row.comments.includes(tagStart),
+      );
+      const removedIds = new Set(removed.map((row) => row.id));
+      data.transactions = data.transactions.filter((row) => !removedIds.has(row.id));
+      let deletedIds = data.deletedTransactionIds;
+      let suppressedKeys = data.suppressedFeeChargeKeys;
+      for (const row of removed) {
+        const remembered = rememberDeletedTransaction(deletedIds, suppressedKeys, row);
+        deletedIds = remembered.deletedTransactionIds;
+        suppressedKeys = remembered.suppressedFeeChargeKeys;
+      }
+      data.deletedTransactionIds = deletedIds;
+      data.suppressedFeeChargeKeys = suppressedKeys;
+    });
+    const { flushClubMirrorPush } = await import('../../data/clubSync');
+    await flushClubMirrorPush(undefined, { force: true });
+    const { publishClubOpsSlice } = await import('./clubOpsSyncService');
+    await publishClubOpsSlice();
+    return preview;
   });
 }
 
