@@ -1009,18 +1009,16 @@ export function FeesPage() {
                           <td>{formatCurrency(tpl.seasonTicketAmount)}</td>
                           <td>{tpl.autoGenerate ? t('Ναι') : t('Όχι')}</td>
                           <td className="row-actions">
-                            {inactivePreview && inactivePreview.charges > 0 ? (
-                              <button
-                                type="button"
-                                className="btn btn-danger"
-                                disabled={Boolean(correctingTemplateId)}
-                                onClick={() => void handleDeleteInactiveTemplateCharges(tpl.id)}
-                              >
-                                {correctingTemplateId === tpl.id
-                                  ? 'Διόρθωση…'
-                                  : `Διόρθωση ανενεργών (${inactivePreview.charges})`}
-                              </button>
-                            ) : null}
+                            <button
+                              type="button"
+                              className="btn btn-danger"
+                              disabled={Boolean(correctingTemplateId)}
+                              onClick={() => void handleDeleteInactiveTemplateCharges(tpl.id)}
+                            >
+                              {correctingTemplateId === tpl.id
+                                ? 'Διόρθωση…'
+                                : `Διόρθωση ανενεργών (${inactivePreview?.charges ?? 0})`}
+                            </button>
                             <button
                               type="button"
                               className="btn btn-ghost"

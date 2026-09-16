@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TeamSuite — Dark color mockups</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, "Segoe UI", system-ui, sans-serif;
+      background: #050505;
+      color: #f5f5f5;
+    }
+    button { font: inherit; }
+    .page { width: min(1440px, 100%); margin: auto; padding: 26px; }
+    .intro { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
+    h1 { margin: 0 0 6px; font-size: clamp(22px, 3vw, 34px); letter-spacing: -.04em; }
+    .intro p { margin: 0; color: #969696; font-size: 14px; }
+    .theme-tabs { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .theme-tabs button {
+      border: 1px solid #303030;
+      border-radius: 999px;
+      padding: 9px 13px;
+      color: #bcbcbc;
+      background: #111;
+      cursor: pointer;
+    }
+    .theme-tabs button[aria-selected="true"] {
+      color: var(--accentText);
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 24px var(--glow);
+    }
+    .palette {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      border: 1px solid #232323;
+      border-radius: 12px;
+      background: #0c0c0c;
+      color: #aaa;
+      font-size: 13px;
+    }
+    .swatch { width: 22px; height: 22px; border-radius: 7px; border: 1px solid #ffffff24; }
+    .palette strong { color: #f5f5f5; margin-right: 6px; }
+    .frame {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--bg);
+      box-shadow: 0 30px 100px #000, 0 0 50px var(--glow);
+    }
+    .app { display: grid; grid-template-columns: 220px 1fr; min-height: 700px; }
+    .sidebar {
+      position: relative;
+      padding: 22px 14px;
+      background: var(--sidebar);
+      border-right: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 25px; font-size: 17px; font-weight: 800; }
+    .logo {
+      display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+      background: var(--accent); color: var(--accentText); box-shadow: 0 0 20px var(--glow);
+    }
+    .nav-label { margin: 12px 10px 7px; color: #666; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px; margin: 3px 0;
+      border-radius: 9px; color: #8d8d8d; font-size: 13px;
+    }
+    .nav-item.active {
+      color: #fff; background: var(--active);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .nav-icon { width: 18px; color: var(--accent); text-align: center; font-weight: 900; }
+    .profile {
+      position: absolute; left: 14px; right: 14px; bottom: 18px; padding: 11px;
+      border: 1px solid var(--line); border-radius: 10px; background: #ffffff05;
+      font-size: 12px; color: #888;
+    }
+    .profile strong { display: block; color: #ddd; margin-bottom: 3px; }
+    main { padding: 24px; background: radial-gradient(circle at 80% 0, var(--wash), transparent 32%), var(--bg); }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 22px; }
+    .topbar h2 { margin: 0 0 4px; font-size: 24px; letter-spacing: -.03em; }
+    .topbar p { margin: 0; color: var(--muted); font-size: 13px; }
+    .sync {
+      display: flex; align-items: center; gap: 8px; padding: 8px 11px;
+      border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: #aaa; font-size: 12px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+    .card {
+      border: 1px solid var(--line); border-radius: 13px; background: var(--surface);
+      box-shadow: 0 14px 35px #0006;
+    }
+    .kpi { position: relative; overflow: hidden; padding: 16px; }
+    .kpi::after {
+      content: ""; position: absolute; inset: auto -22px -35px auto; width: 90px; height: 90px;
+      border-radius: 50%; background: var(--accent); opacity: .07; filter: blur(4px);
+    }
+    .kpi small { color: var(--muted); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; }
+    .kpi b { display: block; margin: 8px 0 5px; font-size: 25px; color: var(--accent); }
+    .trend { color: #6f6f6f; font-size: 11px; }
+    .content-grid { display: grid; grid-template-columns: 1.35fr .65fr; gap: 14px; }
+    .panel { padding: 17px; }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 13px; }
+    .panel h3 { margin: 0; font-size: 14px; }
+    .action { border: 0; border-radius: 8px; padding: 8px 11px; background: var(--accent); color: var(--accentText); font-weight: 750; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { padding: 10px; text-align: left; color: #656565; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; border-bottom: 1px solid var(--line); }
+    td { padding: 12px 10px; color: #bdbdbd; border-bottom: 1px solid var(--line); }
+    tr:last-child td { border-bottom: 0; }
+    .status { display: inline-block; padding: 4px 7px; border-radius: 999px; color: var(--accent); background: var(--active); font-size: 10px; font-weight: 700; }
+    .activity { display: grid; gap: 9px; }
+    .activity-item { display: grid; grid-template-columns: 8px 1fr; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: #ffffff03; }
+    .activity-item strong { display: block; font-size: 12px; margin-bottom: 3px; }
+    .activity-item span { color: var(--muted); font-size: 11px; }
+    .theme-orange { --bg:#070707; --sidebar:#0b0b0b; --surface:#111; --line:#26211d; --muted:#80766e; --accent:#ff6a00; --accentText:#090909; --active:#ff6a0018; --glow:#ff6a0035; --wash:#ff6a0010; }
+    .theme-blue { --bg:#06080d; --sidebar:#080b12; --surface:#0e131d; --line:#1d2c46; --muted:#71809b; --accent:#2f81ff; --accentText:#fff; --active:#2f81ff18; --glow:#2f81ff38; --wash:#2f81ff12; }
+    .theme-emerald { --bg:#050907; --sidebar:#070c09; --surface:#0c1410; --line:#183326; --muted:#6f8277; --accent:#27d17f; --accentText:#031008; --active:#27d17f17; --glow:#27d17f32; --wash:#27d17f10; }
+    .theme-violet { --bg:#08060b; --sidebar:#0d0911; --surface:#141019; --line:#31213b; --muted:#8a7791; --accent:#b45cff; --accentText:#fff; --active:#b45cff18; --glow:#b45cff38; --wash:#b45cff12; }
+    .theme-gold { --bg:#080704; --sidebar:#0d0b06; --surface:#151209; --line:#38301a; --muted:#8c8268; --accent:#f3bd3e; --accentText:#100c02; --active:#f3bd3e18; --glow:#f3bd3e30; --wash:#f3bd3e10; }
+    .theme-cyan { --bg:#03090b; --sidebar:#050d10; --surface:#091419; --line:#15343e; --muted:#6c848c; --accent:#31d8f5; --accentText:#021013; --active:#31d8f518; --glow:#31d8f535; --wash:#31d8f510; }
+    @media (max-width: 900px) {
+      .intro { align-items: flex-start; flex-direction: column; }
+      .theme-tabs { justify-content: flex-start; }
+      .app { grid-template-columns: 74px 1fr; }
+      .sidebar { padding-inline: 10px; }
+      .brand span, .nav-label, .nav-item span:last-child, .profile { display: none; }
+      .brand { padding-inline: 8px; }
+      .nav-item { justify-content: center; }
+      .kpis { grid-template-columns: 1fr 1fr; }
+      .content-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="theme-orange">
+  <div class="page">
+    <header class="intro">
+      <div>
+        <h1>TeamSuite · Black Edition</h1>
+        <p>Μαύρη βάση με διαφορετικό accent. Ίδια δομή εφαρμογής, διαφορετικός χαρακτήρας.</p>
+      </div>
+      <div class="theme-tabs" role="tablist">
+        <button data-theme="orange" aria-selected="true">Πορτοκαλί</button>
+        <button data-theme="blue" aria-selected="false">Μπλε</button>
+        <button data-theme="emerald" aria-selected="false">Πράσινο</button>
+        <button data-theme="violet" aria-selected="false">Μωβ</button>
+        <button data-theme="gold" aria-selected="false">Χρυσό</button>
+        <button data-theme="cyan" aria-selected="false">Κυανό</button>
+      </div>
+    </header>
+    <div class="palette" id="palette"></div>
+    <section class="frame">
+      <div class="app">
+        <aside class="sidebar">
+          <div class="brand"><div class="logo">TS</div><span>TeamSuite</span></div>
+          <div class="nav-label">ΑΚΑΔΗΜΙΑ</div>
+          <div class="nav-item active"><span class="nav-icon">◆</span><span>Προεπισκόπηση</span></div>
+          <div class="nav-item"><span class="nav-icon">○</span><span>Ημερολόγιο</span></div>
+          <div class="nav-item"><span class="nav-icon">◇</span><span>Αθλητές</span></div>
+          <div class="nav-item"><span class="nav-icon">□</span><span>Τμήματα</span></div>
+          <div class="nav-item"><span class="nav-icon">△</span><span>Προπονήσεις</span></div>
+          <div class="nav-item"><span class="nav-icon">↗</span><span>Συναλλαγές</span></div>
+          <div class="nav-item"><span class="nav-icon">€</span><span>Οικονομικά</span></div>
+          <div class="profile"><strong>Διαχειριστής Συλλόγου</strong>Α.Σ. Απόλλων Πατρών</div>
+        </aside>
+        <main>
+          <div class="topbar">
+            <div><h2>Προεπισκόπηση</h2><p>Τετάρτη, 16 Σεπτεμβρίου 2026 · Σεζόν 2026–2027</p></div>
+            <div class="sync"><span class="dot"></span> Cloud συγχρονισμένο</div>
+          </div>
+          <div class="kpis">
+            <div class="card kpi"><small>Ενεργοί αθλητές</small><b>206</b><span class="trend">+12 αυτή τη σεζόν</span></div>
+            <div class="card kpi"><small>Έσοδα μήνα</small><b>8.420 €</b><span class="trend">78% του στόχου</span></div>
+            <div class="card kpi"><small>Εκκρεμείς οφειλές</small><b>1.340 €</b><span class="trend">18 αθλητές</span></div>
+            <div class="card kpi"><small>Προπονήσεις σήμερα</small><b>14</b><span class="trend">6 τμήματα</span></div>
+          </div>
+          <div class="content-grid">
+            <div class="card panel">
+              <div class="panel-head"><h3>Σημερινό πρόγραμμα</h3><button class="action">Νέα προπόνηση</button></div>
+              <table>
+                <thead><tr><th>Ώρα</th><th>Τμήμα</th><th>Γήπεδο</th><th>Κατάσταση</th></tr></thead>
+                <tbody>
+                  <tr><td>16:00</td><td>Μπάσκετ U12</td><td>Κεντρικό</td><td><span class="status">Έτοιμο</span></td></tr>
+                  <tr><td>18:00</td><td>Βόλεϊ Κ16</td><td>Κλειστό Α</td><td><span class="status">Έτοιμο</span></td></tr>
+                  <tr><td>20:30</td><td>Ανδρικό</td><td>Κεντρικό</td><td><span class="status">Έτοιμο</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card panel">
+              <div class="panel-head"><h3>Πρόσφατη δραστηριότητα</h3></div>
+              <div class="activity">
+                <div class="activity-item"><span class="dot"></span><div><strong>Νέα πληρωμή 45 €</strong><span>Χριστόπουλος Βασίλειος · πριν 8′</span></div></div>
+                <div class="activity-item"><span class="dot"></span><div><strong>Εγγραφή νέου αθλητή</strong><span>Μπάσκετ U12 · πριν 22′</span></div></div>
+                <div class="activity-item"><span class="dot"></span><div><strong>Ολοκλήρωση παρουσιών</strong><span>Βόλεϊ Κ16 · πριν 35′</span></div></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </section>
+  </div>
+  <script>
+    const themes = {
+      orange: { name: "Μαύρο + Πορτοκαλί", colors: ["#070707", "#111111", "#ff6a00"], note: "Δυναμικό και αθλητικό" },
+      blue: { name: "Μαύρο + Electric Blue", colors: ["#06080d", "#0e131d", "#2f81ff"], note: "Τεχνολογικό και καθαρό" },
+      emerald: { name: "Μαύρο + Emerald", colors: ["#050907", "#0c1410", "#27d17f"], note: "Premium και ήρεμο" },
+      violet: { name: "Μαύρο + Μωβ", colors: ["#08060b", "#141019", "#b45cff"], note: "Σύγχρονο και ξεχωριστό" },
+      gold: { name: "Μαύρο + Χρυσό", colors: ["#080704", "#151209", "#f3bd3e"], note: "Luxury club identity" },
+      cyan: { name: "Μαύρο + Κυανό", colors: ["#03090b", "#091419", "#31d8f5"], note: "Φωτεινό και γρήγορο" }
+    };
+    const palette = document.getElementById("palette");
+    function setTheme(id) {
+      document.body.className = `theme-${id}`;
+      document.querySelectorAll("[data-theme]").forEach((button) => {
+        button.setAttribute("aria-selected", button.dataset.theme === id ? "true" : "false");
+      });
+      const theme = themes[id];
+      palette.innerHTML = `<strong>${theme.name}</strong>${theme.colors.map(color => `<i class="swatch" style="background:${color}"></i>`).join("")}<span>${theme.note}</span>`;
+    }
+    document.querySelectorAll("[data-theme]").forEach((button) => {
+      button.addEventListener("click", () => setTheme(button.dataset.theme));
+    });
+    setTheme("orange");
+  </script>
+</body>
+</html>

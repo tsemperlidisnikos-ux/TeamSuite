@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TeamSuite — νέα themes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #e8e4dc; color: #1b1916; }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 24px 20px 56px; }
+    h1 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: -0.03em; }
+    .lede { color: #5c574e; max-width: 72ch; line-height: 1.5; margin: 0 0 18px; font-size: 14px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .tabs button {
+      border: 1px solid #c9c2b6; background: #fff; padding: 8px 12px; border-radius: 999px;
+      cursor: pointer; font: 600 12.5px/1 Inter, sans-serif;
+    }
+    .tabs button[aria-selected="true"] { background: #1b1916; color: #fff; border-color: #1b1916; }
+    .blurb { background: #fff; border: 1px solid #d5cec2; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; font-size: 14px; line-height: 1.45; }
+    .blurb strong { display: block; margin-bottom: 2px; }
+    .frame { background: #cfc8bc; border-radius: 14px; padding: 14px; }
+
+    .app {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      min-height: 640px;
+      overflow: hidden;
+      font-size: 14px;
+    }
+    .nav { padding: 22px 16px; }
+    .brand { font-weight: 700; font-size: 15px; margin-bottom: 22px; letter-spacing: 0.04em; }
+    .ni { padding: 8px 10px; margin-bottom: 2px; border-radius: 8px; opacity: 0.72; }
+    .ni.on { opacity: 1; font-weight: 600; }
+    .main { padding: 22px 24px; }
+    .main h2 { margin: 0 0 4px; font-size: 22px; }
+    .sub { font-size: 13px; margin-bottom: 16px; opacity: 0.7; }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+    .kpi { padding: 12px 14px; }
+    .kpi span { display: block; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.65; }
+    .kpi b { display: block; font-size: 22px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .panel { padding: 14px; }
+    .panel h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13.5px; }
+
+    .t-olive { --bg: #f3eee4; --nav: #2f3a24; --navink: #f3eee4; --ink: #2a281f; --muted: #6a6558; --card: #fffaf3; --line: #ddd4c4; --acc: #9a3d24; --hi: #3f4d2e; font-family: "Source Serif 4", Georgia, serif; }
+    .t-olive .ni, .t-olive .sub, .t-olive .kpi span, .t-olive .panel h3 { font-family: Inter, sans-serif; }
+    .t-olive .kpi b { color: var(--acc); }
+
+    .t-ink { --bg: #f7f7f5; --nav: #111; --navink: #f7f7f5; --ink: #111; --muted: #5c5c5c; --card: #fff; --line: #111; --acc: #c1121f; --hi: #111; font-family: Inter, sans-serif; }
+    .t-ink .kpi, .t-ink .panel, .t-ink .ni.on { border-radius: 0; }
+    .t-ink .kpi b { color: var(--ink); }
+    .t-ink .kpi.warn b { color: var(--acc); }
+
+    .t-fog { --bg: #eef1ee; --nav: #4d5a56; --navink: #eef1ee; --ink: #2c3331; --muted: #66716d; --card: #f7f9f7; --line: #d4dbd6; --acc: #3d6b62; --hi: #3d6b62; font-family: "IBM Plex Sans", sans-serif; }
+    .t-fog .kpi, .t-fog .panel { border-radius: 4px; }
+    .t-fog .kpi b { color: var(--acc); }
+
+    .t-copper { --bg: #1c1612; --nav: #120e0b; --navink: #eddcc8; --ink: #f0e6d8; --muted: #b7a593; --card: #261e18; --line: #3d3228; --acc: #c9844a; --hi: #c9844a; font-family: Inter, sans-serif; }
+    .t-copper .kpi b { color: var(--acc); }
+
+    .t-forest { --bg: #e8eee6; --nav: #143024; --navink: #e8eee6; --ink: #14241c; --muted: #4d6156; --card: #f5f8f4; --line: #c9d6cc; --acc: #1f6b45; --hi: #1f6b45; font-family: Inter, sans-serif; }
+    .t-forest .kpi b { color: var(--hi); }
+
+    .t-linen { --bg: #e6e0d4; --nav: #e6e0d4; --navink: #2c281f; --ink: #2c281f; --muted: #6e675c; --card: #f3eee4; --line: #c9c0b0; --acc: #5c4a32; --hi: #2c281f; font-family: "Source Serif 4", Georgia, serif; }
+    .t-linen .ni, .t-linen .kpi span, .t-linen .panel h3 { font-family: Inter, sans-serif; }
+    .t-linen .nav { border-right: 1px solid var(--line); }
+    .t-linen .kpi b { color: var(--ink); }
+
+    .app { background: var(--bg); color: var(--ink); }
+    .nav { background: var(--nav); color: var(--navink); }
+    .ni.on { background: color-mix(in srgb, var(--navink) 12%, transparent); }
+    .kpi, .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+    .row { border-bottom: 1px solid var(--line); }
+    .row:last-child { border-bottom: 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Έξι νέα themes — ίδια εφαρμογή, άλλη ατμόσφαιρα</h1>
+    <p class="lede">
+      Όχι σκορμπόρντ, απόδειξη ή σανίδα. Κανονικό TeamSuite (μενού, ταμείο, τμήματα).
+      Μακριά από τα υπάρχοντα Ocean / Ember / Navy / Ivory: χωρίς teal, χωρίς πορτοκαλί κάρβουνο, χωρίς μπορντό χρυσό.
+    </p>
+    <div class="tabs" role="tablist">
+      <button type="button" data-t="olive" aria-selected="true">Ελιά</button>
+      <button type="button" data-t="ink" aria-selected="false">Μελάνι</button>
+      <button type="button" data-t="fog" aria-selected="false">Ομίχλη</button>
+      <button type="button" data-t="copper" aria-selected="false">Χαλκός</button>
+      <button type="button" data-t="forest" aria-selected="false">Δάσος</button>
+      <button type="button" data-t="linen" aria-selected="false">Λινάρι</button>
+    </div>
+    <div class="blurb" id="blurb"></div>
+    <div class="frame">
+      <div class="app t-olive" id="app">
+        <aside class="nav">
+          <div class="brand">TeamSuite</div>
+          <div class="ni on">Προεπισκόπηση</div>
+          <div class="ni">Τμήματα</div>
+          <div class="ni">Πρόγραμμα</div>
+          <div class="ni">Οικονομικά</div>
+          <div class="ni">Εγκαταστάσεις</div>
+        </aside>
+        <main class="main">
+          <h2>Προεπισκόπηση</h2>
+          <div class="sub">Πέμπτη 10 Σεπτεμβρίου · 3 προπονήσεις σε εξέλιξη</div>
+          <div class="kpis">
+            <div class="kpi"><span>Ταμείο</span><b>0 €</b></div>
+            <div class="kpi warn"><span>Οφειλές</span><b>0 €</b></div>
+            <div class="kpi"><span>Έσοδα σήμερα</span><b>0 €</b></div>
+            <div class="kpi"><span>Εισπράξεις μήνα</span><b>0 €</b></div>
+          </div>
+          <div class="cols">
+            <div class="panel">
+              <h3>Ποδόσφαιρο</h3>
+              <div class="row"><span>U12</span><span>21:00 · Γήπεδο 1</span></div>
+              <div class="row"><span>Κ16</span><span>Αύριο 18:00</span></div>
+              <div class="row"><span>Άνδρες</span><span>Σάββατο 20:00</span></div>
+            </div>
+            <div class="panel">
+              <h3>Σήμερα</h3>
+              <div class="row"><span>Κ16 Βόλεϊ</span><span>Κλειστό</span></div>
+              <div class="row"><span>Ενοικίαση Α</span><span>21:30</span></div>
+              <div class="row"><span>Άδειες υγείας</span><span>4 λήγουν</span></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+  <script>
+    const copy = {
+      olive: { t: "Ελιά", d: "Κρεμ χαρτί, πράσινο ελιάς, τερακότα στα νούμερα. Μεσογειακό σωματείο — όχι ναυτικό μπλε." },
+      ink: { t: "Μελάνι", d: "Άσπρο/μαύρο, μία κόκκινη γραμμή στις οφειλές, μηδέν στρογγύλεμα. Αυστηρό, εφημερίδα χωρίς το κόλπο της μακέτας." },
+      fog: { t: "Ομίχλη", d: "Φασκόμηλο, δροσερό γκρι-πράσινο, ήσυχο. Σκανδιναβικό γραφείο — το αντίθετο του teal SaaS." },
+      copper: { t: "Χαλκός", d: "Σκούρο καφέ στούντιο, χάλκινα νούμερα. Νυχτερινό χωρίς το πορτοκαλί Ember που ήδη έχεις." },
+      forest: { t: "Δάσος", d: "Βαθύ πράσινο μενού, ανοιχτό φύλλο στο περιεχόμενο. Άθλημα σε πάρκο, όχι σε γήπεδο LED." },
+      linen: { t: "Λινάρι", d: "Όλη η εφαρμογή στο ίδιο λινό. Χωρίς σκούρο sidebar. Πινακοθήκη / αρχείο — πολύ ήσυχο." }
+    };
+    const app = document.getElementById("app");
+    const blurb = document.getElementById("blurb");
+    function setT(id) {
+      app.className = "app t-" + id;
+      document.querySelectorAll("[data-t]").forEach((b) => b.setAttribute("aria-selected", b.getAttribute("data-t") === id ? "true" : "false"));
+      const c = copy[id];
+      blurb.innerHTML = "<strong>" + c.t + "</strong>" + c.d;
+    }
+    document.querySelectorAll("[data-t]").forEach((b) => b.addEventListener("click", () => setT(b.getAttribute("data-t"))));
+    setT("olive");
+  </script>
+</body>
+</html>

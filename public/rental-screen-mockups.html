@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mockup Ενοικίαση — διάταξη</title>
+  <style>
+    :root {
+      --teal: #0e8a8a;
+      --teal-dark: #0a6e6e;
+      --line: #d8e0e4;
+      --bg: #eef4f6;
+      --surface: #fff;
+      --muted: #5b6b72;
+      --text: #1c2a30;
+      --danger: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.45 system-ui, Segoe UI, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    header.page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 1.25rem 1.25rem 0.5rem;
+    }
+    header.page h1 { margin: 0 0 0.35rem; font-size: 1.35rem; }
+    header.page p { margin: 0; color: var(--muted); }
+    nav.jumps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin: 1rem 0 0;
+    }
+    nav.jumps a {
+      color: var(--teal-dark);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.28rem 0.7rem;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    section.mock {
+      max-width: 1180px;
+      margin: 1.25rem auto 2rem;
+      padding: 0 1.25rem;
+    }
+    section.mock h2 {
+      margin: 0 0 0.25rem;
+      font-size: 1.05rem;
+    }
+    section.mock .why {
+      margin: 0 0 0.75rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .app {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 1rem 1.1rem 1.15rem;
+      box-shadow: 0 1px 0 rgba(255,255,255,.7) inset;
+    }
+    .tabs { display: flex; gap: 0.4rem; margin-bottom: 0.9rem; }
+    .tab {
+      border: 0;
+      background: #edf3f4;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 0.35rem 0.85rem;
+      font-weight: 650;
+    }
+    .tab.on { background: var(--teal); color: #fff; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      border: 0;
+      background: var(--teal);
+      color: #fff;
+      border-radius: 999px;
+      padding: 0.4rem 0.95rem;
+      font-weight: 650;
+      cursor: default;
+    }
+    .btn.ghost {
+      background: #fff;
+      color: var(--teal-dark);
+      border: 1px solid var(--line);
+    }
+    .chip {
+      display: inline-flex;
+      min-width: 2rem;
+      justify-content: center;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-size: 0.78rem;
+      background: #fff;
+    }
+    .chip.on { background: var(--teal); color: #fff; border-color: var(--teal); }
+    .muted { color: var(--muted); }
+    .photo {
+      width: 92px;
+      height: 62px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #9bb8b8, #5e8080);
+      flex-shrink: 0;
+    }
+    .field {
+      display: grid;
+      gap: 0.15rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .field input, .field select {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.32rem 0.45rem;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+      min-width: 4.5rem;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: end; }
+    hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0.85rem 0; }
+    .sticky {
+      position: sticky;
+      bottom: 0;
+      background: rgba(255,255,255,.94);
+      border-top: 1px solid var(--line);
+      padding: 0.7rem 0 0;
+      margin-top: 0.7rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    table.dense { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    table.dense th {
+      text-align: left;
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 650;
+      padding: 0.35rem 0.4rem;
+      border-bottom: 1px solid var(--line);
+    }
+    table.dense td {
+      padding: 0.45rem 0.4rem;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+    }
+    .week {
+      display: grid;
+      grid-template-columns: 140px repeat(7, 1fr);
+      gap: 4px;
+      font-size: 0.75rem;
+    }
+    .week .h { color: var(--muted); font-weight: 650; text-align: center; padding: 0.2rem; }
+    .week .name { font-weight: 700; padding: 0.35rem 0.2rem; }
+    .week .cell {
+      background: #f4f8f8;
+      border-radius: 6px;
+      min-height: 42px;
+      padding: 0.25rem;
+      text-align: center;
+    }
+    .week .cell.off { background: #fff; color: #c5ced1; }
+    .split { display: grid; grid-template-columns: 200px 1fr; gap: 1rem; align-items: start; }
+    @media (max-width: 800px) {
+      .split, .week { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <header class="page">
+    <h1>Mockup διάταξης — Ενοικίαση (Διαθεσιμότητα)</h1>
+    <p>Ίδια χρώματα με την εφαρμογή. Μόνο δομή. Διάλεξε ένα και το εφαρμόζουμε στην πραγματική οθόνη.</p>
+    <nav class="jumps">
+      <a href="#m0">0 · Σήμερα</a>
+      <a href="#m1">1 · Πίνακας</a>
+      <a href="#m2">2 · Φωτο + ρυθμίσεις</a>
+      <a href="#m3">3 · Εβδομάδα</a>
+      <a href="#m4">4 · Sticky αποθήκευση</a>
+      <a href="#m5">5 · Γραφείο ημέρας</a>
+      <a href="#m6">6 · Μία ανοιχτή γραμμή</a>
+    </nav>
+  </header>
+
+  <section class="mock" id="m0">
+    <h2>0. Όπως είναι τώρα</h2>
+    <p class="why">Κάρτα ανά γήπεδο, όλα τα πεδία σε μία μακριά γραμμή. Πολύ κενό δεξιά, δύσκολο σκανάρισμα τιμών.</p>
+    <div class="app">
+      <div class="tabs"><span class="tab">Δημόσιο link</span><span class="tab on">Διαθεσιμότητα</span><span class="tab">Κρατήσεις</span></div>
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <strong>ΚΕΝΤΡΙΚΗ ΣΑΛΑ</strong>
+        <span class="muted">Βόλεϊ, Μπάσκετ</span>
+      </div>
+      <div class="row" style="margin-top:.55rem">
+        <span class="chip on">Δευ</span><span class="chip">Τρι</span><span class="chip on">Τετ</span>
+        <span class="chip">Πεμ</span><span class="chip on">Παρ</span><span class="chip">Σαβ</span><span class="chip">Κυρ</span>
+      </div>
+      <div class="row" style="margin-top:.7rem;align-items:start">
+        <div class="photo"></div>
+        <div class="field">Από <input value="20:00" /></div>
+        <div class="field">Έως <input value="25:00" /></div>
+        <div class="field">Διάρκεια <select><option>60 λεπτά</option></select></div>
+        <div class="field">€/ώρα ολόκληρο <input value="80" /></div>
+        <div class="field">€/ώρα μισό <input value="50" /></div>
+        <label class="muted" style="align-self:center">Χρήση αποδυτηρίου</label>
+        <div class="field">€ επιπλέον ώρα <input /></div>
+      </div>
+      <hr class="sep" />
+      <button class="btn">Αποθήκευση διαθεσιμότητας</button>
+    </div>
+  </section>
+
+  <section class="mock" id="m1">
+    <h2>1. Πίνακας γηπέδων (πυκνό)</h2>
+    <p class="why">Όλα τα γήπεδα σε γραμμές. Οι τιμές συγκρίνονται με το μάτι. Κλικ στη γραμμή ανοίγει ημέρες/φωτο.</p>
+    <div class="app">
+      <div class="tabs"><span class="tab">Δημόσιο link</span><span class="tab on">Διαθεσιμότητα</span><span class="tab">Κρατήσεις</span></div>
+      <table class="dense">
+        <thead>
+          <tr>
+            <th></th><th>Γήπεδο</th><th>Ημέρες</th><th>Ώρες</th><th>Slot</th><th>€ ολόκληρο</th><th>€ μισό</th><th>Αποδυτήρια</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox" checked /></td>
+            <td><strong>Κεντρική σάλα</strong><div class="muted">Βόλεϊ, Μπάσκετ</div></td>
+            <td>Δευ Τετ Παρ</td>
+            <td>20:00–25:00</td>
+            <td>60΄</td>
+            <td>80</td>
+            <td>50</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" checked /></td>
+            <td><strong>Προπονητήριο 1</strong><div class="muted">Καλοκαιρινούδης</div></td>
+            <td>Δευ–Παρ</td>
+            <td>21:00–22:30</td>
+            <td>90΄</td>
+            <td>70</td>
+            <td>—</td>
+            <td>✓</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" checked /></td>
+            <td><strong>Προπονητήριο 2</strong><div class="muted">Βόλεϊ</div></td>
+            <td>Όλες</td>
+            <td>08:00–23:59</td>
+            <td>60΄</td>
+            <td>60</td>
+            <td>40</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="muted" style="margin:.7rem 0 0">Επιλεγμένη γραμμή: ημέρες + φωτογραφία από κάτω (όχι όλα ανοιχτά μαζί).</p>
+      <button class="btn" style="margin-top:.7rem">Αποθήκευση διαθεσιμότητας</button>
+    </div>
+  </section>
+
+  <section class="mock" id="m2">
+    <h2>2. Δύο στήλες: φωτο αριστερά, ώρες/τιμές δεξιά</h2>
+    <p class="why">Σταματάει η οριζόντια «ουρά» πεδίων. Κάθε γήπεδο διαβάζεται σαν φόρμα, όχι σαν σεντόνι.</p>
+    <div class="app">
+      <div class="tabs"><span class="tab">Δημόσιο link</span><span class="tab on">Διαθεσιμότητα</span><span class="tab">Κρατήσεις</span></div>
+      <div class="split">
+        <div>
+          <div class="photo" style="width:100%;height:110px"></div>
+          <div class="muted" style="margin-top:.4rem">Φωτογραφία γηπέδου · Αφαίρεση</div>
+        </div>
+        <div>
+          <div class="row" style="justify-content:space-between">
+            <strong>ΚΕΝΤΡΙΚΗ ΣΑΛΑ</strong>
+            <span class="muted">Βόλεϊ, Μπάσκετ</span>
+          </div>
+          <div class="row" style="margin:.5rem 0">
+            <span class="chip on">Δευ</span><span class="chip">Τρι</span><span class="chip on">Τετ</span>
+            <span class="chip">Πεμ</span><span class="chip on">Παρ</span><span class="chip">Σαβ</span><span class="chip">Κυρ</span>
+          </div>
+          <div class="row">
+            <div class="field">Από <input value="20:00" /></div>
+            <div class="field">Έως <input value="25:00" /></div>
+            <div class="field">Διάρκεια <select><option>60 λεπτά</option></select></div>
+          </div>
+          <div class="row" style="margin-top:.5rem">
+            <div class="field">€/ώρα ολόκληρο <input value="80" /></div>
+            <div class="field">€/ώρα μισό <input value="50" /></div>
+            <div class="field">€ επιπλέον ώρα <input /></div>
+            <label class="muted" style="align-self:end;padding-bottom:.35rem">Χρήση αποδυτηρίου</label>
+          </div>
+        </div>
+      </div>
+      <hr class="sep" />
+      <p class="muted">Ίδιο μπλοκ επαναλαμβάνεται για κάθε γήπεδο.</p>
+      <button class="btn">Αποθήκευση διαθεσιμότητας</button>
+    </div>
+  </section>
+
+  <section class="mock" id="m3">
+    <h2>3. Εβδομαδιαίο πλέγμα ωρών</h2>
+    <p class="why">Βλέπεις μονομιάς ποια γήπεδα είναι ανοιχτά ποια μέρα — σαν μικρό πρόγραμμα ενοικίασης, όχι chips.</p>
+    <div class="app">
+      <div class="tabs"><span class="tab">Δημόσιο link</span><span class="tab on">Διαθεσιμότητα</span><span class="tab">Κρατήσεις</span></div>
+      <div class="week">
+        <div></div>
+        <div class="h">Δευ</div><div class="h">Τρι</div><div class="h">Τετ</div>
+        <div class="h">Πεμ</div><div class="h">Παρ</div><div class="h">Σαβ</div><div class="h">Κυρ</div>
+        <div class="name">Κεντρική σάλα</div>
+        <div class="cell">20:00–25:00</div>
+        <div class="cell off">—</div>
+        <div class="cell">20:00–25:00</div>
+        <div class="cell off">—</div>
+        <div class="cell">20:00–25:00</div>
+        <div class="cell off">—</div>
+        <div class="cell off">—</div>
+        <div class="name">Προπον. 1</div>
+        <div class="cell">21:00–22:30</div>
+        <div class="cell">21:00–22:30</div>
+        <div class="cell">21:00–22:30</div>
+        <div class="cell">21:00–22:30</div>
+        <div class="cell">21:00–22:30</div>
+        <div class="cell off">—</div>
+        <div class="cell off">—</div>
+        <div class="name">Προπον. 2</div>
+        <div class="cell">08:00–24:00</div>
+        <div class="cell">08:00–24:00</div>
+        <div class="cell">08:00–24:00</div>
+        <div class="cell">08:00–24:00</div>
+        <div class="cell">08:00–24:00</div>
+        <div class="cell">08:00–24:00</div>
+        <div class="cell">08:00–24:00</div>
+      </div>
+      <p class="muted" style="margin:.75rem 0 0">Κλικ σε κελί → ώρες/τιμές γι’ αυτό το γήπεδο. Τιμές (80 / 50) σε δεύτερη γραμμή κάτω από τον πίνακα.</p>
+      <button class="btn" style="margin-top:.7rem">Αποθήκευση διαθεσιμότητας</button>
+    </div>
+  </section>
+
+  <section class="mock" id="m4">
+    <h2>4. Ίδιες κάρτες + σταθερό κουμπί αποθήκευσης</h2>
+    <p class="why">Μικρή αλλαγή: λιγότερο κείμενο βοήθειας, το Αποθήκευση μένει κάτω στην οθόνη όσο σκρολάρεις 3 γήπεδα.</p>
+    <div class="app">
+      <div class="tabs"><span class="tab">Δημόσιο link</span><span class="tab on">Διαθεσιμότητα</span><span class="tab">Κρατήσεις</span></div>
+      <p class="muted" style="margin:0 0 .7rem">Χωρίς τη μεγάλη παράγραφο οδηγιών πάνω από τις καρτέλες.</p>
+      <strong>ΚΕΝΤΡΙΚΗ ΣΑΛΑ</strong>
+      <div class="row" style="margin:.4rem 0 .8rem">
+        <span class="chip on">Δευ</span><span class="chip on">Τετ</span><span class="chip on">Παρ</span>
+        <span class="muted">20:00–25:00 · 80€ / 50€</span>
+      </div>
+      <strong>ΠΡΟΠΟΝΗΤΗΡΙΟ 1</strong>
+      <div class="row" style="margin:.4rem 0 .8rem">
+        <span class="chip on">Δευ</span><span class="chip on">Τρι</span><span class="chip on">Τετ</span>
+        <span class="muted">21:00–22:30 · 70€</span>
+      </div>
+      <strong>ΠΡΟΠΟΝΗΤΗΡΙΟ 2</strong>
+      <div class="row" style="margin:.4rem 0">
+        <span class="chip on">Όλες</span>
+        <span class="muted">08:00–23:59 · 60€ / 40€</span>
+      </div>
+      <div class="sticky">
+        <span class="muted">3 γήπεδα · μη αποθηκευμένες αλλαγές</span>
+        <span>
+          <button class="btn ghost">Ακύρωση</button>
+          <button class="btn">Αποθήκευση διαθεσιμότητας</button>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <section class="mock" id="m5">
+    <h2>5. Γραφείο ημέρας</h2>
+    <p class="why">Link ως λεπτή μπάρα. Στην ίδια καρτέλα: διαθεσιμότητα + σημερινές κρατήσεις + γρήγορη καταχώρηση — λιγότερο πήγαινε-έλα στις καρτέλες.</p>
+    <div class="app">
+      <div class="row" style="justify-content:space-between;margin-bottom:.75rem">
+        <span class="muted">Δημόσιο: teamsuite.me/rent/apollon · <strong>Αντιγραφή</strong> · QR</span>
+        <span class="chip on">Σήμερα 11/9</span>
+      </div>
+      <div class="split" style="grid-template-columns:1.2fr .9fr">
+        <div>
+          <strong>Διαθεσιμότητα</strong>
+          <p class="muted" style="margin:.3rem 0">Κεντρική 20:00–25:00 · Προπον.1 21:00–22:30 · Προπον.2 όλη μέρα</p>
+          <button class="btn ghost">Επεξεργασία ωρών</button>
+        </div>
+        <div>
+          <strong>Κρατήσεις σήμερα</strong>
+          <p style="margin:.35rem 0">21:00 Κεντρική · Παπαδόπουλος · 80€ εισπράχθηκε</p>
+          <p style="margin:.35rem 0">22:00 Προπον.2 · online · εκκρεμεί πληρωμή</p>
+          <div class="row" style="margin-top:.5rem">
+            <div class="field">Ώρα <input value="19:00" /></div>
+            <div class="field">Γήπεδο <select><option>Κεντρική</option></select></div>
+            <button class="btn">Νέα κράτηση</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mock" id="m6">
+    <h2>6. Συμπαγείς γραμμές (ένα γήπεδο ανοιχτό)</h2>
+    <p class="why">Οι άλλες κάρτες κλειστές. Η γραμματεία ανοίγει μόνο αυτό που αλλάζει — καλύτερο σε laptop/tablet.</p>
+    <div class="app">
+      <div class="tabs"><span class="tab">Δημόσιο link</span><span class="tab on">Διαθεσιμότητα</span><span class="tab">Κρατήσεις</span></div>
+      <div style="padding:.55rem 0;border-bottom:1px solid var(--line)">
+        <strong>ΚΕΝΤΡΙΚΗ ΣΑΛΑ</strong>
+        <span class="muted"> · Δευ Τετ Παρ · 20:00–25:00 · 80€</span>
+      </div>
+      <div style="padding:.7rem 0;border-bottom:1px solid var(--line)">
+        <strong>ΠΡΟΠΟΝΗΤΗΡΙΟ 1</strong> <span class="muted">(ανοιχτό)</span>
+        <div class="row" style="margin-top:.55rem">
+          <span class="chip on">Δευ</span><span class="chip on">Τρι</span><span class="chip on">Τετ</span>
+          <span class="chip on">Πεμ</span><span class="chip on">Παρ</span>
+        </div>
+        <div class="row" style="margin-top:.5rem">
+          <div class="field">Από <input value="21:00" /></div>
+          <div class="field">Έως <input value="22:30" /></div>
+          <div class="field">€/ώρα <input value="70" /></div>
+        </div>
+      </div>
+      <div style="padding:.55rem 0">
+        <strong>ΠΡΟΠΟΝΗΤΗΡΙΟ 2</strong>
+        <span class="muted"> · όλες · 08:00–23:59 · 60€</span>
+      </div>
+      <button class="btn" style="margin-top:.8rem">Αποθήκευση διαθεσιμότητας</button>
+    </div>
+  </section>
+</body>
+</html>

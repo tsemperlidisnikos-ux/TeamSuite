@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TeamSuite — Light color mockups</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, "Segoe UI", system-ui, sans-serif;
+      background: #eef1f4;
+      color: #17202a;
+    }
+    button { font: inherit; }
+    .page { width: min(1440px, 100%); margin: auto; padding: 26px; }
+    .intro { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
+    h1 { margin: 0 0 6px; font-size: clamp(22px, 3vw, 34px); letter-spacing: -.04em; }
+    .intro p { margin: 0; color: #68717c; font-size: 14px; }
+    .theme-tabs { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .theme-tabs button {
+      border: 1px solid #d8dde3;
+      border-radius: 999px;
+      padding: 9px 13px;
+      color: #5f6873;
+      background: #fff;
+      cursor: pointer;
+    }
+    .theme-tabs button[aria-selected="true"] {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 8px 22px var(--glow);
+    }
+    .palette {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      border: 1px solid #dce1e6;
+      border-radius: 12px;
+      background: #fff;
+      color: #6e7680;
+      font-size: 13px;
+    }
+    .palette strong { color: #202833; margin-right: 6px; }
+    .swatch { width: 22px; height: 22px; border-radius: 7px; border: 1px solid #00000014; }
+    .frame {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--bg);
+      box-shadow: 0 30px 80px #26384b20;
+    }
+    .app { display: grid; grid-template-columns: 220px 1fr; min-height: 700px; }
+    .sidebar {
+      position: relative;
+      padding: 22px 14px;
+      background: var(--sidebar);
+      color: var(--sidebarText);
+      border-right: 1px solid var(--sidebarLine);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 25px; font-size: 17px; font-weight: 800; }
+    .logo {
+      display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+      color: #fff; background: var(--accent); box-shadow: 0 8px 18px var(--glow);
+    }
+    .nav-label { margin: 12px 10px 7px; color: var(--sidebarMuted); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px; margin: 3px 0;
+      border-radius: 9px; color: var(--sidebarMuted); font-size: 13px;
+    }
+    .nav-item.active {
+      color: var(--activeText); background: var(--active);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .nav-icon { width: 18px; color: var(--accent); text-align: center; font-weight: 900; }
+    .profile {
+      position: absolute; left: 14px; right: 14px; bottom: 18px; padding: 11px;
+      border: 1px solid var(--sidebarLine); border-radius: 10px; background: var(--profileBg);
+      font-size: 12px; color: var(--sidebarMuted);
+    }
+    .profile strong { display: block; color: var(--sidebarText); margin-bottom: 3px; }
+    main { padding: 24px; background: radial-gradient(circle at 82% 0, var(--wash), transparent 34%), var(--bg); }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 22px; }
+    .topbar h2 { margin: 0 0 4px; font-size: 24px; letter-spacing: -.03em; color: var(--ink); }
+    .topbar p { margin: 0; color: var(--muted); font-size: 13px; }
+    .sync {
+      display: flex; align-items: center; gap: 8px; padding: 8px 11px;
+      border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--muted); font-size: 12px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 9px var(--glow); }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+    .card {
+      border: 1px solid var(--line); border-radius: 13px; background: var(--surface);
+      box-shadow: 0 12px 30px var(--shadow);
+    }
+    .kpi { position: relative; overflow: hidden; padding: 16px; }
+    .kpi::after {
+      content: ""; position: absolute; inset: auto -22px -35px auto; width: 90px; height: 90px;
+      border-radius: 50%; background: var(--accent); opacity: .09;
+    }
+    .kpi small { color: var(--muted); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; }
+    .kpi b { display: block; margin: 8px 0 5px; font-size: 25px; color: var(--accent); }
+    .trend { color: var(--softText); font-size: 11px; }
+    .content-grid { display: grid; grid-template-columns: 1.35fr .65fr; gap: 14px; }
+    .panel { padding: 17px; }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 13px; }
+    .panel h3 { margin: 0; color: var(--ink); font-size: 14px; }
+    .action { border: 0; border-radius: 8px; padding: 8px 11px; background: var(--accent); color: #fff; font-weight: 750; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { padding: 10px; text-align: left; color: var(--softText); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; border-bottom: 1px solid var(--line); }
+    td { padding: 12px 10px; color: var(--ink); border-bottom: 1px solid var(--line); }
+    tr:last-child td { border-bottom: 0; }
+    .status { display: inline-block; padding: 4px 7px; border-radius: 999px; color: var(--accent); background: var(--active); font-size: 10px; font-weight: 700; }
+    .activity { display: grid; gap: 9px; }
+    .activity-item { display: grid; grid-template-columns: 8px 1fr; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--itemBg); }
+    .activity-item strong { display: block; color: var(--ink); font-size: 12px; margin-bottom: 3px; }
+    .activity-item span { color: var(--muted); font-size: 11px; }
+
+    .theme-orange { --bg:#fff8f2; --sidebar:#fff; --surface:#fff; --line:#f0ddd0; --ink:#38251a; --muted:#8c7464; --softText:#aa8c78; --accent:#ed650b; --active:#fff0e5; --activeText:#9e3d00; --glow:#ed650b35; --wash:#ffb47b35; --shadow:#a64c1410; --sidebarText:#38251a; --sidebarMuted:#9b806f; --sidebarLine:#f0ddd0; --profileBg:#fff8f2; --itemBg:#fffbf7; }
+    .theme-blue { --bg:#f4f8ff; --sidebar:#fff; --surface:#fff; --line:#d8e4f5; --ink:#162a47; --muted:#6c7e98; --softText:#8ba0bd; --accent:#246ee9; --active:#eaf2ff; --activeText:#174fa7; --glow:#246ee938; --wash:#7eb1ff35; --shadow:#315b9a10; --sidebarText:#162a47; --sidebarMuted:#7186a3; --sidebarLine:#d8e4f5; --profileBg:#f4f8ff; --itemBg:#f8fbff; }
+    .theme-emerald { --bg:#f2faf6; --sidebar:#fff; --surface:#fff; --line:#d2e9dc; --ink:#173528; --muted:#6b8478; --softText:#89a497; --accent:#168b55; --active:#e4f6ec; --activeText:#0c673d; --glow:#168b5530; --wash:#66d49d2b; --shadow:#155f3910; --sidebarText:#173528; --sidebarMuted:#6d8c7d; --sidebarLine:#d2e9dc; --profileBg:#f2faf6; --itemBg:#f8fcfa; }
+    .theme-violet { --bg:#faf6ff; --sidebar:#fff; --surface:#fff; --line:#e7d9f4; --ink:#322044; --muted:#826e91; --softText:#9e89ad; --accent:#8b45cf; --active:#f3e9fc; --activeText:#6726a2; --glow:#8b45cf32; --wash:#c391f12e; --shadow:#6b2e9d10; --sidebarText:#322044; --sidebarMuted:#887397; --sidebarLine:#e7d9f4; --profileBg:#faf6ff; --itemBg:#fdfaff; }
+    .theme-gold { --bg:#fcfaf3; --sidebar:#26303b; --surface:#fff; --line:#e8e0c9; --ink:#3b3320; --muted:#887d60; --softText:#a0967c; --accent:#b68413; --active:#ffffff18; --activeText:#fff; --glow:#b6841330; --wash:#e8c66c2e; --shadow:#66501110; --sidebarText:#fff; --sidebarMuted:#aeb6be; --sidebarLine:#3a4652; --profileBg:#ffffff0a; --itemBg:#fdfbf6; }
+    .theme-cyan { --bg:#f1fbfd; --sidebar:#fff; --surface:#fff; --line:#d0e9ed; --ink:#16353b; --muted:#68868d; --softText:#86a3aa; --accent:#078ba4; --active:#e1f6fa; --activeText:#056579; --glow:#078ba432; --wash:#5dd5e933; --shadow:#12667510; --sidebarText:#16353b; --sidebarMuted:#698990; --sidebarLine:#d0e9ed; --profileBg:#f1fbfd; --itemBg:#f7fdfe; }
+    @media (max-width: 900px) {
+      .intro { align-items: flex-start; flex-direction: column; }
+      .theme-tabs { justify-content: flex-start; }
+      .app { grid-template-columns: 74px 1fr; }
+      .sidebar { padding-inline: 10px; }
+      .brand span, .nav-label, .nav-item span:last-child, .profile { display: none; }
+      .brand { padding-inline: 8px; }
+      .nav-item { justify-content: center; }
+      .kpis { grid-template-columns: 1fr 1fr; }
+      .content-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="theme-orange">
+  <div class="page">
+    <header class="intro">
+      <div>
+        <h1>TeamSuite · Light Edition</h1>
+        <p>Φωτεινή βάση με διαφορετικό accent. Ίδια εφαρμογή, έξι καθαρές χρωματικές ταυτότητες.</p>
+      </div>
+      <div class="theme-tabs" role="tablist">
+        <button data-theme="orange" aria-selected="true">Πορτοκαλί</button>
+        <button data-theme="blue" aria-selected="false">Μπλε</button>
+        <button data-theme="emerald" aria-selected="false">Πράσινο</button>
+        <button data-theme="violet" aria-selected="false">Μωβ</button>
+        <button data-theme="gold" aria-selected="false">Χρυσό</button>
+        <button data-theme="cyan" aria-selected="false">Κυανό</button>
+      </div>
+    </header>
+    <div class="palette" id="palette"></div>
+    <section class="frame">
+      <div class="app">
+        <aside class="sidebar">
+          <div class="brand"><div class="logo">TS</div><span>TeamSuite</span></div>
+          <div class="nav-label">ΑΚΑΔΗΜΙΑ</div>
+          <div class="nav-item active"><span class="nav-icon">◆</span><span>Προεπισκόπηση</span></div>
+          <div class="nav-item"><span class="nav-icon">○</span><span>Ημερολόγιο</span></div>
+          <div class="nav-item"><span class="nav-icon">◇</span><span>Αθλητές</span></div>
+          <div class="nav-item"><span class="nav-icon">□</span><span>Τμήματα</span></div>
+          <div class="nav-item"><span class="nav-icon">△</span><span>Προπονήσεις</span></div>
+          <div class="nav-item"><span class="nav-icon">↗</span><span>Συναλλαγές</span></div>
+          <div class="nav-item"><span class="nav-icon">€</span><span>Οικονομικά</span></div>
+          <div class="profile"><strong>Διαχειριστής Συλλόγου</strong>Α.Σ. Απόλλων Πατρών</div>
+        </aside>
+        <main>
+          <div class="topbar">
+            <div><h2>Προεπισκόπηση</h2><p>Τετάρτη, 16 Σεπτεμβρίου 2026 · Σεζόν 2026–2027</p></div>
+            <div class="sync"><span class="dot"></span> Cloud συγχρονισμένο</div>
+          </div>
+          <div class="kpis">
+            <div class="card kpi"><small>Ενεργοί αθλητές</small><b>206</b><span class="trend">+12 αυτή τη σεζόν</span></div>
+            <div class="card kpi"><small>Έσοδα μήνα</small><b>8.420 €</b><span class="trend">78% του στόχου</span></div>
+            <div class="card kpi"><small>Εκκρεμείς οφειλές</small><b>1.340 €</b><span class="trend">18 αθλητές</span></div>
+            <div class="card kpi"><small>Προπονήσεις σήμερα</small><b>14</b><span class="trend">6 τμήματα</span></div>
+          </div>
+          <div class="content-grid">
+            <div class="card panel">
+              <div class="panel-head"><h3>Σημερινό πρόγραμμα</h3><button class="action">Νέα προπόνηση</button></div>
+              <table>
+                <thead><tr><th>Ώρα</th><th>Τμήμα</th><th>Γήπεδο</th><th>Κατάσταση</th></tr></thead>
+                <tbody>
+                  <tr><td>16:00</td><td>Μπάσκετ U12</td><td>Κεντρικό</td><td><span class="status">Έτοιμο</span></td></tr>
+                  <tr><td>18:00</td><td>Βόλεϊ Κ16</td><td>Κλειστό Α</td><td><span class="status">Έτοιμο</span></td></tr>
+                  <tr><td>20:30</td><td>Ανδρικό</td><td>Κεντρικό</td><td><span class="status">Έτοιμο</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card panel">
+              <div class="panel-head"><h3>Πρόσφατη δραστηριότητα</h3></div>
+              <div class="activity">
+                <div class="activity-item"><span class="dot"></span><div><strong>Νέα πληρωμή 45 €</strong><span>Χριστόπουλος Βασίλειος · πριν 8′</span></div></div>
+                <div class="activity-item"><span class="dot"></span><div><strong>Εγγραφή νέου αθλητή</strong><span>Μπάσκετ U12 · πριν 22′</span></div></div>
+                <div class="activity-item"><span class="dot"></span><div><strong>Ολοκλήρωση παρουσιών</strong><span>Βόλεϊ Κ16 · πριν 35′</span></div></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </section>
+  </div>
+  <script>
+    const themes = {
+      orange: { name: "Λευκό + Πορτοκαλί", colors: ["#fff8f2", "#ffffff", "#ed650b"], note: "Ζεστό και αθλητικό" },
+      blue: { name: "Λευκό + Μπλε", colors: ["#f4f8ff", "#ffffff", "#246ee9"], note: "Επαγγελματικό και ασφαλές" },
+      emerald: { name: "Λευκό + Emerald", colors: ["#f2faf6", "#ffffff", "#168b55"], note: "Φυσικό και ήρεμο" },
+      violet: { name: "Λευκό + Μωβ", colors: ["#faf6ff", "#ffffff", "#8b45cf"], note: "Σύγχρονο και ιδιαίτερο" },
+      gold: { name: "Λευκό + Χρυσό / Slate", colors: ["#fcfaf3", "#26303b", "#b68413"], note: "Premium σωματειακή ταυτότητα" },
+      cyan: { name: "Λευκό + Κυανό", colors: ["#f1fbfd", "#ffffff", "#078ba4"], note: "Φρέσκο και καθαρό" }
+    };
+    const palette = document.getElementById("palette");
+    function setTheme(id) {
+      document.body.className = `theme-${id}`;
+      document.querySelectorAll("[data-theme]").forEach((button) => {
+        button.setAttribute("aria-selected", button.dataset.theme === id ? "true" : "false");
+      });
+      const theme = themes[id];
+      palette.innerHTML = `<strong>${theme.name}</strong>${theme.colors.map(color => `<i class="swatch" style="background:${color}"></i>`).join("")}<span>${theme.note}</span>`;
+    }
+    document.querySelectorAll("[data-theme]").forEach((button) => {
+      button.addEventListener("click", () => setTheme(button.dataset.theme));
+    });
+    setTheme("orange");
+  </script>
+</body>
+</html>

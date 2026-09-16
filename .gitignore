@@ -26,3 +26,13 @@ dist-ssr
 .vercel
 .netlify
 .env*
+
+# Android TWA build output
+android-twa/.gradle/
+android-twa/app/build/
+android-twa/*.apk
+android-twa/*.aab
+android-twa/*.keystore
+android-twa/*.jks
+android-twa/local.properties
+

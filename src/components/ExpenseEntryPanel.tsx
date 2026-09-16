@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Trash2 } from 'lucide-react';
+import { FilePenLine, Trash2 } from 'lucide-react';
 import * as financeService from '../api/services/financeService';
 import { staffNameParts } from '../api/services/staffService';
 import { Button } from './ui/Button';
 import { useAppData } from '../hooks/useAppData';
 import type { ExpenseInput } from '../schemas';
-import type { MatchExpenseDetails } from '../types';
+import type { Expense, MatchExpenseDetails } from '../types';
 import {
   mapExpenseSubcategoryToCategory,
   matchExpenseTotal,
@@ -23,6 +23,7 @@ import { formatCurrency, formatDate } from '../utils/labels';
 import { filterOwnFinanceEntries } from '../utils/financeOwnEntries';
 import { sportsMatch } from '../utils/coachScope';
 import { studentClassIds, studentInClass } from '../utils/studentClasses';
+import { FinanceEntryDetailsModal } from './FinanceEntryDetailsModal';
 
 const today = () => localDateIso();
 
@@ -99,7 +100,7 @@ function emptyMatchDetails(): MatchExpenseDetails {
 }
 
 export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
-  const { data } = useAppData();
+  const { data, refresh } = useAppData();
   const [subcategory, setSubcategory] = useState<string>(
     () => getConfiguredExpenseCategories()[0] ?? 'ΑΓΩΝΕΣ',
   );
@@ -117,6 +118,7 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
   const isMatch = usesMatchExpenseForm(subcategory);
   const isCoachExpense = subcategory === 'ΠΡΟΠΟΝΗΤΕΣ / ΓΥΜΝΑΣΤΕΣ';
@@ -133,6 +135,10 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
     [data.associations],
   );
   const sports = useMemo(() => (data.sports ?? []).filter((s) => s.active), [data.sports]);
+  const cashAccounts = useMemo(
+    () => (data.cashAccounts ?? []).filter((account) => account.active),
+    [data.cashAccounts],
+  );
 
   const classOptions = useMemo(() => {
     const list = data.classes ?? [];
@@ -899,6 +905,15 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
                     <button
                       type="button"
                       className="btn btn-ghost"
+                      aria-label="Προβολή και διόρθωση εξόδου"
+                      title="Ανάλυση / Διόρθωση"
+                      onClick={() => setSelectedExpense(exp)}
+                    >
+                      <FilePenLine size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
                       aria-label="Διαγραφή"
                       disabled={deletingId === exp.id}
                       onClick={() => void handleDelete(exp.id)}
@@ -912,6 +927,16 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
           </table>
         )}
       </div>
+      <FinanceEntryDetailsModal
+        kind="expense"
+        entry={selectedExpense}
+        cashAccounts={cashAccounts}
+        onClose={() => setSelectedExpense(null)}
+        onSaved={() => {
+          refresh();
+          onSaved();
+        }}
+      />
     </section>
   );
 }

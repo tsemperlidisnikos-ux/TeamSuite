@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TeamSuite - Professional Olympic Theme</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f9fa;
+            padding: 30px;
+            color: #1a1a1a;
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+            font-weight: 700;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            margin-bottom: 40px;
+            color: #6c757d;
+            font-size: 14px;
+            font-weight: 400;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin: 40px 0 20px 0;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #0066cc;
+            border-radius: 2px;
+        }
+        
+        .mockups-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 24px;
+        }
+        
+        .mockup-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+        
+        .mockup-header {
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .mockup-title {
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        
+        .mockup-badge {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        
+        .mockup-body {
+            padding: 24px;
+            background: #f8f9fa;
+            min-height: 400px;
+        }
+        
+        /* Professional Olympic Theme */
+        .sidebar {
+            width: 64px;
+            height: 320px;
+            background: #ffffff;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 12px;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid #e9ecef;
+        }
+        
+        .nav-item {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            color: #6c757d;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .nav-item:hover {
+            background: #e9ecef;
+        }
+        
+        .nav-item.active {
+            background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,102,204,0.3);
+        }
+        
+        .main-content {
+            flex: 1;
+            margin-left: 20px;
+        }
+        
+        .page-header {
+            margin-bottom: 20px;
+        }
+        
+        .page-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 6px;
+            letter-spacing: -0.3px;
+        }
+        
+        .page-subtitle {
+            font-size: 13px;
+            color: #6c757d;
+            font-weight: 400;
+        }
+        
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .kpi-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid #e9ecef;
+            transition: all 0.2s ease;
+        }
+        
+        .kpi-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
+        }
+        
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0066cc;
+            margin-bottom: 6px;
+            letter-spacing: -0.5px;
+        }
+        
+        .kpi-label {
+            font-size: 12px;
+            color: #6c757d;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .kpi-trend {
+            font-size: 11px;
+            color: #28a745;
+            margin-top: 8px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .kpi-trend.down {
+            color: #dc3545;
+        }
+        
+        .button {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+            letter-spacing: 0.3px;
+            transition: all 0.2s ease;
+        }
+        
+        .button-primary {
+            background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,102,204,0.3);
+        }
+        
+        .button-primary:hover {
+            box-shadow: 0 6px 16px rgba(0,102,204,0.4);
+            transform: translateY(-1px);
+        }
+        
+        .button-secondary {
+            background: #f8f9fa;
+            color: #1a1a1a;
+            border: 1px solid #e9ecef;
+        }
+        
+        .button-secondary:hover {
+            background: #e9ecef;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid #e9ecef;
+        }
+        
+        .table th {
+            background: #f8f9fa;
+            color: #495057;
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .table td {
+            padding: 14px 16px;
+            color: #1a1a1a;
+            font-size: 13px;
+            border-bottom: 1px solid #f1f3f5;
+        }
+        
+        .table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .table tr:hover td {
+            background: #f8f9fa;
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-active {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+            border: 1px solid rgba(40, 167, 69, 0.2);
+        }
+        
+        .status-inactive {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            border: 1px solid rgba(220, 53, 69, 0.2);
+        }
+        
+        .status-pending {
+            background: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.2);
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            background: white;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #0066cc;
+            box-shadow: 0 0 0 3px rgba(0,102,204,0.1);
+        }
+        
+        .form-input::placeholder {
+            color: #adb5bd;
+        }
+        
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #0066cc;
+            box-shadow: 0 0 0 3px rgba(0,102,204,0.1);
+        }
+        
+        .filter-select {
+            padding: 12px 16px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 2px;
+        }
+        
+        .tab {
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            color: #6c757d;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .tab:hover {
+            color: #0066cc;
+        }
+        
+        .tab.active {
+            color: #0066cc;
+            border-bottom-color: #0066cc;
+            font-weight: 600;
+        }
+        
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin-top: 16px;
+        }
+        
+        .calendar-day {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            min-height: 70px;
+            font-size: 12px;
+            border: 1px solid #e9ecef;
+            transition: all 0.2s ease;
+        }
+        
+        .calendar-day:hover {
+            border-color: #0066cc;
+            box-shadow: 0 2px 8px rgba(0,102,204,0.1);
+        }
+        
+        .calendar-day.today {
+            background: linear-gradient(135deg, rgba(0,102,204,0.1) 0%, rgba(0,82,163,0.1) 100%);
+            border-color: #0066cc;
+            font-weight: 600;
+        }
+        
+        .calendar-day-number {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 6px;
+        }
+        
+        .calendar-event {
+            background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+        
+        .progress-bar {
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0066cc 0%, #0052a3 100%);
+            border-radius: 3px;
+        }
+        
+        .card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .list-item {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid #e9ecef;
+            transition: all 0.2s ease;
+        }
+        
+        .list-item:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            transform: translateY(-1px);
+        }
+        
+        .avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(0,102,204,0.1) 0%, rgba(0,82,163,0.1) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0066cc;
+            font-weight: 700;
+            font-size: 16px;
+            border: 1px solid rgba(0,102,204,0.2);
+        }
+        
+        .item-info {
+            flex: 1;
+        }
+        
+        .item-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+        
+        .item-subtitle {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .notification-badge {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+            color: #1a1a1a;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+        }
+        
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0,102,204,0.3);
+        }
+        
+        .feature-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+        
+        .feature-card:hover {
+            border-color: #0066cc;
+            box-shadow: 0 4px 16px rgba(0,102,204,0.1);
+        }
+        
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        
+        .feature-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+        
+        .feature-desc {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .divider {
+            height: 1px;
+            background: #e9ecef;
+            margin: 20px 0;
+        }
+        
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #f8f9fa;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #495057;
+            border: 1px solid #e9ecef;
+        }
+        
+        .chip.active {
+            background: linear-gradient(135deg, rgba(0,102,204,0.1) 0%, rgba(0,82,163,0.1) 100%);
+            color: #0066cc;
+            border-color: rgba(0,102,204,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TeamSuite - Professional Olympic Theme</h1>
+        <p class="subtitle">Enterprise-Grade UI Design System</p>
+        
+        <!-- Main Pages -->
+        <div class="section-title">Main Dashboard & Navigation</div>
+        <div class="mockups-grid">
+            <!-- Dashboard -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Executive Dashboard</span>
+                    <span class="mockup-badge">Main</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex;">
+                        <div class="sidebar">
+                            <div class="nav-item active">📊</div>
+                            <div class="nav-item">📅</div>
+                            <div class="nav-item">👥</div>
+                            <div class="nav-item">💰</div>
+                            <div class="nav-item">⚙️</div>
+                        </div>
+                        <div class="main-content">
+                            <div class="page-header">
+                                <div class="page-title">Απόλλων Πατρών</div>
+                                <div class="page-subtitle">Executive Overview • September 2026</div>
+                            </div>
+                            <div class="kpi-grid">
+                                <div class="kpi-card">
+                                    <div class="kpi-value">127</div>
+                                    <div class="kpi-label">Active Athletes</div>
+                                    <div class="kpi-trend">↑ 12% MoM</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-value">12</div>
+                                    <div class="kpi-label">Coaching Staff</div>
+                                    <div class="kpi-trend">Stable</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-value">8</div>
+                                    <div class="kpi-label">Active Programs</div>
+                                    <div class="kpi-trend">↑ 2 New</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-value">€3,450</div>
+                                    <div class="kpi-label">Monthly Revenue</div>
+                                    <div class="kpi-trend">↑ 8% MoM</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 12px;">
+                                <button class="button button-primary">Schedule Training</button>
+                                <button class="button button-secondary">View Reports</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Calendar -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Academic Calendar</span>
+                    <span class="mockup-badge">Main</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex;">
+                        <div class="sidebar">
+                            <div class="nav-item">📊</div>
+                            <div class="nav-item active">📅</div>
+                            <div class="nav-item">👥</div>
+                            <div class="nav-item">💰</div>
+                        </div>
+                        <div class="main-content">
+                            <div class="page-header">
+                                <div class="page-title">Calendar Management</div>
+                                <div class="page-subtitle">September 2026 • Week 37</div>
+                            </div>
+                            <div class="calendar-grid">
+                                <div class="calendar-day">
+                                    <div class="calendar-day-number">1</div>
+                                </div>
+                                <div class="calendar-day">
+                                    <div class="calendar-day-number">2</div>
+                                    <div class="calendar-event">Training</div>
+                                </div>
+                                <div class="calendar-day">
+                                    <div class="calendar-day-number">3</div>
+                                </div>
+                                <div class="calendar-day">
+                                    <div class="calendar-day-number">4</div>
+                                    <div class="calendar-event">Match</div>
+                                </div>
+                                <div class="calendar-day">
+                                    <div class="calendar-day-number">5</div>
+                                </div>
+                                <div class="calendar-day">
+                                    <div class="calendar-day-number">6</div>
+                                    <div class="calendar-event">Training</div>
+                                </div>
+                                <div class="calendar-day today">
+                                    <div class="calendar-day-number">7</div>
+                                    <div class="calendar-event">Today</div>
+                                </div>
+                            </div>
+                            <div class="kpi-card" style="margin-top: 16px;">
+                                <div class="kpi-label">Today's Schedule</div>
+                                <div class="item-title">2 Training Sessions • 1 Competition</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Athletes -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Athlete Registry</span>
+                    <span class="mockup-badge">Main</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex;">
+                        <div class="sidebar">
+                            <div class="nav-item">📊</div>
+                            <div class="nav-item">📅</div>
+                            <div class="nav-item active">👥</div>
+                            <div class="nav-item">💰</div>
+                        </div>
+                        <div class="main-content">
+                            <div class="action-bar">
+                                <div>
+                                    <div class="page-title">Athletes</div>
+                                    <div class="page-subtitle">127 Total • 118 Active</div>
+                                </div>
+                                <button class="button button-primary">+ Add Athlete</button>
+                            </div>
+                            <div class="search-bar">
+                                <input class="search-input" placeholder="Search athletes...">
+                                <select class="filter-select">
+                                    <option>All Programs</option>
+                                    <option>Basketball</option>
+                                    <option>Volleyball</option>
+                                </select>
+                                <select class="filter-select">
+                                    <option>All Status</option>
+                                    <option>Active</option>
+                                    <option>Inactive</option>
+                                </select>
+                            </div>
+                            <table class="table">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Program</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                                <tr>
+                                    <td>Georgios Papadopoulos</td>
+                                    <td>Basketball U12</td>
+                                    <td><span class="status-badge status-active">Active</span></td>
+                                    <td>⋮</td>
+                                </tr>
+                                <tr>
+                                    <td>Maria Dimitriou</td>
+                                    <td>Volleyball U14</td>
+                                    <td><span class="status-badge status-active">Active</span></td>
+                                    <td>⋮</td>
+                                </tr>
+                                <tr>
+                                    <td>Nikos Anagnostopoulos</td>
+                                    <td>Basketball U16</td>
+                                    <td><span class="status-badge status-inactive">Inactive</span></td>
+                                    <td>⋮</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Staff -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Staff Management</span>
+                    <span class="mockup-badge">Main</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex;">
+                        <div class="sidebar">
+                            <div class="nav-item">📊</div>
+                            <div class="nav-item">📅</div>
+                            <div class="nav-item">👥</div>
+                            <div class="nav-item active">👔</div>
+                        </div>
+                        <div class="main-content">
+                            <div class="action-bar">
+                                <div>
+                                    <div class="page-title">Staff Directory</div>
+                                    <div class="page-subtitle">24 Members • 5 Departments</div>
+                                </div>
+                                <button class="button button-primary">+ Add Staff</button>
+                            </div>
+                            <div class="card-list">
+                                <div class="list-item">
+                                    <div class="avatar">ΓΠ</div>
+                                    <div class="item-info">
+                                        <div class="item-title">Georgios Papadopoulos</div>
+                                        <div class="item-subtitle">Administration • Secretariat</div>
+                                    </div>
+                                    <span class="status-badge status-active">Active</span>
+                                </div>
+                                <div class="list-item">
+                                    <div class="avatar">ΜΔ</div>
+                                    <div class="item-info">
+                                        <div class="item-title">Maria Dimitriou</div>
+                                        <div class="item-subtitle">Management • Operations</div>
+                                    </div>
+                                    <span class="status-badge status-active">Active</span>
+                                </div>
+                                <div class="list-item">
+                                    <div class="avatar">ΚΓ</div>
+                                    <div class="item-info">
+                                        <div class="item-title">Kostas Georgiou</div>
+                                        <div class="item-subtitle">Coaching • Basketball</div>
+                                    </div>
+                                    <span class="status-badge status-active">Active</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Coaches -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Coaching Staff</span>
+                    <span class="mockup-badge">Main</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex;">
+                        <div class="sidebar">
+                            <div class="nav-item">📊</div>
+                            <div class="nav-item">📅</div>
+                            <div class="nav-item">👥</div>
+                            <div class="nav-item active">🏆</div>
+                        </div>
+                        <div class="main-content">
+                            <div class="action-bar">
+                                <div>
+                                    <div class="page-title">Coaching Staff</div>
+                                    <div class="page-subtitle">12 Coaches • 8 Programs</div>
+                                </div>
+                                <button class="button button-primary">+ Add Coach</button>
+                            </div>
+                            <div class="card-list">
+                                <div class="list-item">
+                                    <div class="avatar">ΚΓ</div>
+                                    <div class="item-info">
+                                        <div class="item-title">Kostas Georgiou</div>
+                                        <div class="item-subtitle">Head Coach • Basketball • 5 Years</div>
+                                    </div>
+                                    <span class="status-badge status-active">Active</span>
+                                </div>
+                                <div class="list-item">
+                                    <div class="avatar">ΑΝ</div>
+                                    <div class="item-info">
+                                        <div class="item-title">Andreas Nicolaou</div>
+                                        <div class="item-subtitle">Head Coach • Volleyball • 3 Years</div>
+                                    </div>
+                                    <span class="status-badge status-active">Active</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Classes -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Program Management</span>
+                    <span class="mockup-badge">Main</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex;">
+                        <div class="sidebar">
+                            <div class="nav-item">📊</div>
+                            <div class="nav-item">📅</div>
+                            <div class="nav-item">👥</div>
+                            <div class="nav-item active">📚</div>
+                        </div>
+                        <div class="main-content">
+                            <div class="action-bar">
+                                <div>
+                                    <div class="page-title">Training Programs</div>
+                                    <div class="page-subtitle">8 Active • 156 Total Athletes</div>
+                                </div>
+                                <button class="button button-primary">+ New Program</button>
+                            </div>
+                            <div class="card-list">
+                                <div class="list-item">
+                                    <div class="item-info">
+                                        <div class="item-title">Basketball U12</div>
+                                        <div class="item-subtitle">18 Athletes • Kostas Georgiou • Mon/Wed/Fri</div>
+                                    </div>
+                                    <span class="notification-badge">18/20</span>
+                                </div>
+                                <div class="list-item">
+                                    <div class="item-info">
+                                        <div class="item-title">Volleyball U14</div>
+                                        <div class="item-subtitle">15 Athletes • Andreas Nicolaou • Tue/Thu/Sat</div>
+                                    </div>
+                                    <span class="notification-badge">15/20</span>
+                                </div>
+                                <div class="list-item">
+                                    <div class="item-info">
+                                        <div class="item-title">Basketball U16</div>
+                                        <div class="item-subtitle">20 Athletes • Nikos Pavlou • Mon/Wed/Fri</div>
+                                    </div>
+                                    <span class="notification-badge">20/20</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Finance Pages -->
+        <div class="section-title">Financial Management</div>
+        <div class="mockups-grid">
+            <!-- Finance -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Financial Dashboard</span>
+                    <span class="mockup-badge">Finance</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex;">
+                        <div class="sidebar">
+                            <div class="nav-item">📊</div>
+                            <div class="nav-item">📅</div>
+                            <div class="nav-item">👥</div>
+                            <div class="nav-item active">💰</div>
+                        </div>
+                        <div class="main-content">
+                            <div class="tabs">
+                                <button class="tab active">Analytics</button>
+                                <button class="tab">Revenue</button>
+                                <button class="tab">Expenses</button>
+                                <button class="tab">Balance</button>
+                                <button class="tab">Budget</button>
+                            </div>
+                            <div class="kpi-grid">
+                                <div class="kpi-card">
+                                    <div class="kpi-value">€12,450</div>
+                                    <div class="kpi-label">Total Revenue</div>
+                                    <div class="kpi-trend">↑ 15% YoY</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-value">€8,200</div>
+                                    <div class="kpi-label">Total Expenses</div>
+                                    <div class="kpi-trend down">↑ 5% YoY</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-value">€4,250</div>
+                                    <div class="kpi-label">Net Profit</div>
+                                    <div class="kpi-trend">↑ 22% YoY</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-value">€1,500</div>
+                                    <div class="kpi-label">Outstanding</div>
+                                    <div class="kpi-trend down">↓ 8% MoM</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fees -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Fee Management</span>
+                    <span class="mockup-badge">Finance</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex;">
+                        <div class="sidebar">
+                            <div class="nav-item">📊</div>
+                            <div class="nav-item">📅</div>
+                            <div class="nav-item">👥</div>
+                            <div class="nav-item active">💰</div>
+                        </div>
+                        <div class="main-content">
+                            <div class="action-bar">
+                                <div>
+                                    <div class="page-title">Fee Schedule</div>
+                                    <div class="page-subtitle">September 2026 • €4,200 Collected</div>
+                                </div>
+                                <button class="button button-primary">+ Charge Fee</button>
+                            </div>
+                            <table class="table">
+                                <tr>
+                                    <th>Athlete</th>
+                                    <th>Amount</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                </tr>
+                                <tr>
+                                    <td>Georgios Papadopoulos</td>
+                                    <td>€120</td>
+                                    <td>15/09/2026</td>
+                                    <td><span class="status-badge status-active">Paid</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Maria Dimitriou</td>
+                                    <td>€120</td>
+                                    <td>15/09/2026</td>
+                                    <td><span class="status-badge status-pending">Pending</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Nikos Anagnostopoulos</td>
+                                    <td>€150</td>
+                                    <td>20/09/2026</td>
+                                    <td><span class="status-badge status-inactive">Overdue</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Transactions -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Transaction History</span>
+                    <span class="mockup-badge">Finance</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex;">
+                        <div class="sidebar">
+                            <div class="nav-item">📊</div>
+                            <div class="nav-item">📅</div>
+                            <div class="nav-item">👥</div>
+                            <div class="nav-item active">💰</div>
+                        </div>
+                        <div class="main-content">
+                            <div class="page-header">
+                                <div class="page-title">Transaction Log</div>
+                                <div class="page-subtitle">September 2026 • 47 Transactions</div>
+                            </div>
+                            <div class="search-bar">
+                                <input class="search-input" placeholder="Search transactions...">
+                                <select class="filter-select">
+                                    <option>All Types</option>
+                                    <option>Income</option>
+                                    <option>Expense</option>
+                                </select>
+                            </div>
+                            <table class="table">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Category</th>
+                                    <th>Amount</th>
+                                </tr>
+                                <tr>
+                                    <td>01/09/2026</td>
+                                    <td>Monthly Fee - G. Papadopoulos</td>
+                                    <td>Membership</td>
+                                    <td>€120</td>
+                                </tr>
+                                <tr>
+                                    <td>02/09/2026</td>
+                                    <td>Match Ticket Sales</td>
+                                    <td>Event Revenue</td>
+                                    <td>€350</td>
+                                </tr>
+                                <tr>
+                                    <td>03/09/2026</td>
+                                    <td>Equipment Purchase</td>
+                                    <td>Operations</td>
+                                    <td>-€850</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Portal Pages -->
+        <div class="section-title">User Portals</div>
+        <div class="mockups-grid">
+            <!-- Parent Portal -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Parent Portal</span>
+                    <span class="mockup-badge">Portal</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex;">
+                        <div class="sidebar">
+                            <div class="nav-item active">🏠</div>
+                            <div class="nav-item">📅</div>
+                            <div class="nav-item">💰</div>
+                            <div class="nav-item">📋</div>
+                        </div>
+                        <div class="main-content">
+                            <div class="page-header">
+                                <div class="page-title">Parent Dashboard</div>
+                                <div class="page-subtitle">Georgios Papadopoulos • 2 Connected Athletes</div>
+                            </div>
+                            <div class="kpi-grid">
+                                <div class="kpi-card">
+                                    <div class="kpi-value">2</div>
+                                    <div class="kpi-label">Connected Athletes</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-value">€0</div>
+                                    <div class="kpi-label">Outstanding Balance</div>
+                                </div>
+                            </div>
+                            <div class="card-list">
+                                <div class="list-item">
+                                    <div class="avatar">ΝΠ</div>
+                                    <div class="item-info">
+                                        <div class="item-title">Nikos Papadopoulos</div>
+                                        <div class="item-subtitle">Basketball U12 • Next Training: Tomorrow 18:00</div>
+                                    </div>
+                                    <span class="status-badge status-active">Active</span>
+                                </div>
+                                <div class="list-item">
+                                    <div class="avatar">ΜΠ</div>
+                                    <div class="item-info">
+                                        <div class="item-title">Maria Papadopoulou</div>
+                                        <div class="item-subtitle">Volleyball U10 • Next Training: Wed 17:00</div>
+                                    </div>
+                                    <span class="status-badge status-active">Active</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Coach Portal -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Coach Portal</span>
+                    <span class="mockup-badge">Portal</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex;">
+                        <div class="sidebar">
+                            <div class="nav-item active">🏠</div>
+                            <div class="nav-item">📅</div>
+                            <div class="nav-item">👥</div>
+                            <div class="nav-item">📊</div>
+                        </div>
+                        <div class="main-content">
+                            <div class="page-header">
+                                <div class="page-title">Coach Dashboard</div>
+                                <div class="page-subtitle">Kostas Georgiou • Basketball Head Coach</div>
+                            </div>
+                            <div class="kpi-grid">
+                                <div class="kpi-card">
+                                    <div class="kpi-value">18</div>
+                                    <div class="kpi-label">Total Athletes</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-value">3</div>
+                                    <div class="kpi-label">Weekly Sessions</div>
+                                </div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-label">Upcoming Session</div>
+                                <div class="item-title">Tomorrow 18:00-20:00 • Basketball U12 • 18 Athletes</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Public Pages -->
+        <div class="section-title">Public Interface</div>
+        <div class="mockups-grid">
+            <!-- Login -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Authentication</span>
+                    <span class="mockup-badge">Public</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+                        <div style="background: white; padding: 40px; border-radius: 16px; width: 100%; max-width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,0.08); border: 1px solid #e9ecef;">
+                            <div style="text-align: center; margin-bottom: 32px;">
+                                <div class="logo" style="margin: 0 auto 20px;">🏅</div>
+                                <div style="font-size: 20px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px;">TeamSuite</div>
+                                <div style="font-size: 13px; color: #6c757d;">Academy Management Platform</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email Address</label>
+                                <input class="form-input" type="email" placeholder="your@email.com">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Password</label>
+                                <input class="form-input" type="password" placeholder="••••••••">
+                            </div>
+                            <button class="button button-primary" style="width: 100%; margin-top: 16px;">Sign In</button>
+                            <div class="divider"></div>
+                            <button class="button button-secondary" style="width: 100%;">Demo Access</button>
+                            <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #6c757d;">
+                                <a href="#" style="color: #0066cc; text-decoration: none;">Forgot password?</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Public Join -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Public Registration</span>
+                    <span class="mockup-badge">Public</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="text-align: center;">
+                        <div style="background: white; padding: 24px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e9ecef;">
+                            <div class="logo" style="margin: 0 auto 16px;">🏅</div>
+                            <div style="font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px;">Απόλλων Πατρών</div>
+                            <div style="font-size: 12px; color: #6c757d;">Athlete Registration Form</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">First Name</label>
+                            <input class="form-input" placeholder="Enter first name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Last Name</label>
+                            <input class="form-input" placeholder="Enter last name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date of Birth</label>
+                            <input class="form-input" type="date">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Sport Interest</label>
+                            <select class="form-input">
+                                <option>Select sport...</option>
+                                <option>Basketball</option>
+                                <option>Volleyball</option>
+                            </select>
+                        </div>
+                        <button class="button button-primary" style="width: 100%; margin-top: 16px;">Submit Application</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Public Rent -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Facility Rental</span>
+                    <span class="mockup-badge">Public</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="text-align: center;">
+                        <div style="background: white; padding: 24px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e9ecef;">
+                            <div style="font-size: 32px; margin-bottom: 12px;">🏟️</div>
+                            <div style="font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px;">Facility Rental</div>
+                            <div style="font-size: 12px; color: #6c757d;">Απόλλων Πατρών</div>
+                        </div>
+                        <div class="kpi-grid">
+                            <div class="kpi-card">
+                                <div class="kpi-value">3</div>
+                                <div class="kpi-label">Available Courts</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-value">€25</div>
+                                <div class="kpi-label">Hourly Rate</div>
+                            </div>
+                        </div>
+                        <div class="feature-card" style="margin-top: 16px;">
+                            <div class="feature-icon">📅</div>
+                            <div class="feature-title">Real-time Availability</div>
+                            <div class="feature-desc">Check availability and book instantly</div>
+                        </div>
+                        <button class="button button-primary" style="width: 100%; margin-top: 16px;">Book Facility</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Platform Admin -->
+        <div class="section-title">Platform Administration</div>
+        <div class="mockups-grid">
+            <!-- Platform Dashboard -->
+            <div class="mockup-card">
+                <div class="mockup-header">
+                    <span class="mockup-title">Platform Administration</span>
+                    <span class="mockup-badge">Admin</span>
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex;">
+                        <div class="sidebar">
+                            <div class="nav-item active">🏛️</div>
+                            <div class="nav-item">👥</div>
+                            <div class="nav-item">📦</div>
+                            <div class="nav-item">⚙️</div>
+                        </div>
+                        <div class="main-content">
+                            <div class="page-header">
+                                <div class="page-title">Platform Dashboard</div>
+                                <div class="page-subtitle">TeamSuite Platform • 15 Active Clubs</div>
+                            </div>
+                            <div class="kpi-grid">
+                                <div class="kpi-card">
+                                    <div class="kpi-value">15</div>
+                                    <div class="kpi-label">Active Clubs</div>
+                                    <div class="kpi-trend">↑ 2 This Month</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-value">1,245</div>
+                                    <div class="kpi-label">Total Athletes</div>
+                                    <div class="kpi-trend">↑ 8% MoM</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-value">99.8%</div>
+                                    <div class="kpi-label">System Uptime</div>
+                                    <div class="kpi-trend">Excellent</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-value">127</div>
+                                    <div class="kpi-label">Active Users</div>
+                                    <div class="kpi-trend">↑ 12% MoM</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 12px; margin-top: 16px;">
+                                <div class="chip active">Overview</div>
+                                <div class="chip">Performance</div>
+                                <div class="chip">Security</div>
+                                <div class="chip">Backups</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

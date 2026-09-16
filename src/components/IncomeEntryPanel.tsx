@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Trash2 } from 'lucide-react';
+import { FilePenLine, Trash2 } from 'lucide-react';
 import {
   ATHLETE_INCOME_SUBCATEGORY,
   ensureAthletePaymentRevenuesSynced,
@@ -27,6 +27,7 @@ import { localDateIso } from '../utils/dates';
 import { formatCurrency, formatDate, formatMonthYearNumeric } from '../utils/labels';
 import { filterOwnFinanceEntries } from '../utils/financeOwnEntries';
 import type { PaymentMethod, Revenue } from '../types';
+import { FinanceEntryDetailsModal } from './FinanceEntryDetailsModal';
 
 const today = () => localDateIso();
 
@@ -80,6 +81,7 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedRevenue, setSelectedRevenue] = useState<Revenue | null>(null);
 
   useEffect(() => {
     const matched = ensureLegacyPaymentsMatched();
@@ -542,6 +544,15 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
                     <button
                       type="button"
                       className="btn btn-ghost"
+                      aria-label="Προβολή και διόρθωση εσόδου"
+                      title="Ανάλυση / Διόρθωση"
+                      onClick={() => setSelectedRevenue(rev)}
+                    >
+                      <FilePenLine size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
                       aria-label="Διαγραφή"
                       disabled={deletingId === rev.id}
                       onClick={() => void handleDelete(rev)}
@@ -555,6 +566,16 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
           </table>
         )}
       </div>
+      <FinanceEntryDetailsModal
+        kind="revenue"
+        entry={selectedRevenue}
+        cashAccounts={cashAccounts}
+        onClose={() => setSelectedRevenue(null)}
+        onSaved={() => {
+          refresh();
+          onSaved();
+        }}
+      />
     </section>
   );
 }

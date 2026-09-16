@@ -1,0 +1,46 @@
+﻿{
+  "packageId": "me.teamsuite.app",
+  "host": "teamsuite-seven.vercel.app",
+  "name": "TeamSuite",
+  "launcherName": "TeamSuite",
+  "display": "standalone",
+  "themeColor": "#0F2744",
+  "themeColorDark": "#0F2744",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "backgroundColor": "#0F2744",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://teamsuite-seven.vercel.app/icons/icon-512.png",
+  "maskableIconUrl": "https://teamsuite-seven.vercel.app/icons/icon-512.png",
+  "monochromeIconUrl": "",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android-release-key.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "2",
+  "appVersionCode": 2,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://teamsuite-seven.vercel.app/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://teamsuite-seven.vercel.app/",
+  "minSdkVersion": 21,
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": []
+}
+
