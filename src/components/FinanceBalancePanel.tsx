@@ -40,6 +40,7 @@ import { localDateIso } from '../utils/dates';
 import { formatCurrency, formatDate } from '../utils/labels';
 import { filterOwnFinanceEntries } from '../utils/financeOwnEntries';
 import type { Expense, PaymentMethod, Revenue } from '../types';
+import { downloadXlsx } from '../utils/xlsxDownload';
 
 type PayBucket = 'cash' | 'card' | 'bank' | 'online';
 
@@ -198,56 +199,74 @@ function countActiveFilters(f: BalanceFilters, defaults: BalanceFilters) {
   return n;
 }
 
-function exportBalanceCsv(
+function exportBalanceXlsx(
   income: AggRow[],
   expenses: AggRow[],
   collectionMethods: CollectionMethodRow[],
   filename: string,
 ) {
   const headers = [
-    'Τύπος',
-    'Άθλημα',
+    'Ενότητα',
+    'Τύπος / Άθλημα',
     'Κατηγορία',
     'Μετρητά',
-    'Κάρτες',
-    'Τράπεζα',
+    'POS',
+    'Κατάθεση',
     'Online',
+    'Κινήσεις',
     'Ποσό',
   ];
-  const balanceLines = [
+  const rows = [
+    ...collectionMethods.map((row) => [
+      'ΕΙΣΠΡΑΞΕΙΣ ΑΝΑ ΤΡΟΠΟ',
+      row.label,
+      '',
+      '',
+      '',
+      '',
+      '',
+      String(row.count),
+      row.amount.toFixed(2),
+    ]),
     ...income.map((r) =>
-      ['ΕΣΟΔΟ', r.sport, r.category, r.cash, r.card, r.bank, r.online, r.total]
-        .map((c) => `"${String(c).replace(/"/g, '""')}"`)
-        .join(';'),
+      [
+        'ΙΣΟΖΥΓΙΟ',
+        `ΕΣΟΔΟ · ${r.sport}`,
+        r.category,
+        r.cash.toFixed(2),
+        r.card.toFixed(2),
+        r.bank.toFixed(2),
+        r.online.toFixed(2),
+        '',
+        r.total.toFixed(2),
+      ],
     ),
     ...expenses.map((r) =>
-      ['ΕΞΟΔΟ', r.sport, r.category, r.cash, r.card, r.bank, r.online, r.total]
-        .map((c) => `"${String(c).replace(/"/g, '""')}"`)
-        .join(';'),
+      [
+        'ΙΣΟΖΥΓΙΟ',
+        `ΕΞΟΔΟ · ${r.sport}`,
+        r.category,
+        r.cash.toFixed(2),
+        r.card.toFixed(2),
+        r.bank.toFixed(2),
+        r.online.toFixed(2),
+        '',
+        r.total.toFixed(2),
+      ],
     ),
   ];
-  const methodLines = collectionMethods.map((row) =>
-    [row.label, row.count, row.amount]
-      .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
-      .join(';'),
-  );
-  const csv = [
-    'ΑΝΑΦΟΡΑ ΕΙΣΠΡΑΞΕΩΝ ΑΝΑ ΤΡΟΠΟ',
-    'Τρόπος;Κινήσεις;Ποσό',
-    ...methodLines,
-    '',
-    headers.join(';'),
-    ...balanceLines,
-  ].join('\n');
-  const blob = new Blob(['\uFEFF' + csv], {
-    type: 'text/csv;charset=utf-8;',
+  downloadXlsx('Ισοζύγιο', headers, rows, filename);
+}
+
+function printFinanceBalance() {
+  document.body.classList.add('printing-finance-balance');
+  window.requestAnimationFrame(() => {
+    try {
+      window.print();
+    } finally {
+      document.body.classList.remove('printing-finance-balance');
+    }
   });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 function CollectionMethodsTable({
@@ -639,11 +658,11 @@ export function FinanceBalancePanel() {
             type="button"
             className="btn btn-ghost"
             onClick={() =>
-              exportBalanceCsv(
+              exportBalanceXlsx(
                 incomeRows,
                 expenseRows,
                 collectionMethodRows,
-                `isozigio-${localDateIso()}.csv`,
+                `isozigio-${localDateIso()}.xlsx`,
               )
             }
           >
@@ -652,7 +671,7 @@ export function FinanceBalancePanel() {
           <button
             type="button"
             className="btn btn-ghost"
-            onClick={() => window.print()}
+            onClick={printFinanceBalance}
           >
             <Printer size={16} /> Print
           </button>
@@ -685,31 +704,33 @@ export function FinanceBalancePanel() {
         </Button>
       </section>
 
-      <section className="stats-grid cols-3 balance-summary">
-        <StatCard
-          label="Έσοδα"
-          value={formatCurrency(incomeTotal)}
-          icon={TrendingUp}
-          tone="positive"
-        />
-        <StatCard
-          label="Έξοδα"
-          value={formatCurrency(expenseTotal)}
-          icon={TrendingDown}
-          tone="negative"
-        />
-        <StatCard
-          label="Υπόλοιπο"
-          value={formatCurrency(balance)}
-          icon={Wallet}
-          tone={balance >= 0 ? 'positive' : 'negative'}
-        />
-      </section>
+      <div id="balance-print-area" className="stack-lg">
+        <section className="stats-grid cols-3 balance-summary">
+          <StatCard
+            label="Έσοδα"
+            value={formatCurrency(incomeTotal)}
+            icon={TrendingUp}
+            tone="positive"
+          />
+          <StatCard
+            label="Έξοδα"
+            value={formatCurrency(expenseTotal)}
+            icon={TrendingDown}
+            tone="negative"
+          />
+          <StatCard
+            label="Υπόλοιπο"
+            value={formatCurrency(balance)}
+            icon={Wallet}
+            tone={balance >= 0 ? 'positive' : 'negative'}
+          />
+        </section>
 
-      <CollectionMethodsTable rows={collectionMethodRows} periodLabel={periodLabel} />
+        <CollectionMethodsTable rows={collectionMethodRows} periodLabel={periodLabel} />
 
-      <BalanceTable title="Έσοδα" rows={incomeRows} />
-      <BalanceTable title="Έξοδα" rows={expenseRows} />
+        <BalanceTable title="Έσοδα" rows={incomeRows} />
+        <BalanceTable title="Έξοδα" rows={expenseRows} />
+      </div>
 
       <AppPopupLayer
         open={filtersOpen}

@@ -874,4 +874,45 @@
   body:has(.daily-till) .daily-till-print {
     display: none !important;
   }
+
+  body.printing-finance-report * {
+    visibility: hidden !important;
+  }
+
+  body.printing-finance-report #report-print-area,
+  body.printing-finance-report #report-print-area * {
+    visibility: visible !important;
+  }
+
+  body.printing-finance-report #report-print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    margin: 0;
+  }
+
+  body.printing-finance-report .modal-backdrop {
+    display: none !important;
+  }
+
+  body.printing-finance-balance * {
+    visibility: hidden !important;
+  }
+
+  body.printing-finance-balance #balance-print-area,
+  body.printing-finance-balance #balance-print-area * {
+    visibility: visible !important;
+  }
+
+  body.printing-finance-balance #balance-print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+  }
+
+  body.printing-finance-report .report-table tr,
+  body.printing-finance-balance .balance-collection-report,
+  body.printing-finance-balance .balance-table-block {
+    break-inside: avoid;
+  }
 }

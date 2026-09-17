@@ -582,9 +582,10 @@ export function periodLabel(month: number, year: number): string {
   return `${label} ${year}`;
 }
 
-/** Ανοιχτές χρεώσεις αθλητή (μετά από αντιστοιχισμένες + FIFO πληρωμές). */
-export function listOpenCharges(athleteId: string): OpenChargeRow[] {
-  const txns = (getData().transactions ?? []).filter((t) => t.athleteId === athleteId);
+function listOpenChargesFromTransactions(
+  athleteId: string,
+  txns: AthleteTransaction[],
+): OpenChargeRow[] {
   const charges = txns
     .filter((t) => t.type === 'charge')
     .sort((a, b) => `${a.year}-${String(a.month).padStart(2, '0')}`.localeCompare(
@@ -631,6 +632,12 @@ export function listOpenCharges(athleteId: string): OpenChargeRow[] {
   return rows;
 }
 
+/** Ανοιχτές χρεώσεις αθλητή (μετά από αντιστοιχισμένες + FIFO πληρωμές). */
+export function listOpenCharges(athleteId: string): OpenChargeRow[] {
+  const txns = (getData().transactions ?? []).filter((t) => t.athleteId === athleteId);
+  return listOpenChargesFromTransactions(athleteId, txns);
+}
+
 export type ClubOpenChargeRow = OpenChargeRow & {
   athleteName: string;
   clubName: string;
@@ -643,13 +650,17 @@ export function listClubOpenCharges(): ClubOpenChargeRow[] {
   const data = getData();
   const students = data.students ?? [];
   const byId = new Map(students.map((s) => [s.id, s]));
-  const ids = new Set(
-    (data.transactions ?? []).filter((t) => t.type === 'charge').map((t) => t.athleteId),
-  );
+  const transactionsByAthlete = new Map<string, AthleteTransaction[]>();
+  for (const transaction of data.transactions ?? []) {
+    const athleteRows = transactionsByAthlete.get(transaction.athleteId) ?? [];
+    athleteRows.push(transaction);
+    transactionsByAthlete.set(transaction.athleteId, athleteRows);
+  }
   const rows: ClubOpenChargeRow[] = [];
-  for (const athleteId of ids) {
+  for (const [athleteId, transactions] of transactionsByAthlete) {
+    if (!transactions.some((transaction) => transaction.type === 'charge')) continue;
     const student = byId.get(athleteId);
-    for (const row of listOpenCharges(athleteId)) {
+    for (const row of listOpenChargesFromTransactions(athleteId, transactions)) {
       rows.push({
         ...row,
         athleteName: student

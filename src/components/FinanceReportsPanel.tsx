@@ -20,6 +20,8 @@ import { buildSeasonPresets } from '../shared/seasonPresets';
 import { localDateIso } from '../utils/dates';
 import type { MatchExpenseDetails } from '../types';
 import { formatCurrency, formatDate } from '../utils/labels';
+import { paymentMethodLabel } from '../shared/paymentMethods';
+import { downloadXlsx } from '../utils/xlsxDownload';
 import {
   filterOwnFinanceEntries,
   sessionSeesOnlyOwnFinance,
@@ -115,7 +117,7 @@ function matchesFilters(row: ReportRow, filters: ReportFilters): boolean {
   return true;
 }
 
-function exportCsv(items: ReportRow[], filename: string) {
+function exportReportXlsx(items: ReportRow[], filename: string) {
   const headers = [
     'Ημερομηνία',
     'Τύπος',
@@ -129,8 +131,7 @@ function exportCsv(items: ReportRow[], filename: string) {
     'ΦΠΑ %',
     'Σημειώσεις',
   ];
-  const lines = items.map((item) =>
-    [
+  const rows = items.map((item) => [
       formatDate(item.date),
       item.type === 'income' ? 'ΕΣΟΔΟ' : 'ΕΞΟΔΟ',
       item.clubName,
@@ -138,23 +139,23 @@ function exportCsv(items: ReportRow[], filename: string) {
       item.subcategory,
       item.description,
       [item.surname, item.firstName].filter(Boolean).join(' '),
-      String(item.amount),
-      item.paymentMethod ?? '',
+      item.amount.toFixed(2),
+      paymentMethodLabel(item.paymentMethod),
       item.vatRate != null ? String(item.vatRate) : '',
       item.notes ?? '',
-    ]
-      .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
-      .join(';'),
-  );
-  const blob = new Blob(['\uFEFF' + [headers.join(';'), ...lines].join('\n')], {
-    type: 'text/csv;charset=utf-8;',
+    ]);
+  downloadXlsx('Οικονομικές αναφορές', headers, rows, filename);
+}
+
+function printFinanceReport() {
+  document.body.classList.add('printing-finance-report');
+  window.requestAnimationFrame(() => {
+    try {
+      window.print();
+    } finally {
+      document.body.classList.remove('printing-finance-report');
+    }
   });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
 }
 
 export function FinanceReportsPanel() {
@@ -383,7 +384,9 @@ export function FinanceReportsPanel() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => exportCsv(items, 'kiniseis.csv')}
+            onClick={() =>
+              exportReportXlsx(items, `oikonomikes-anafores-${localDateIso()}.xlsx`)
+            }
             disabled={items.length === 0}
           >
             Excel
@@ -391,12 +394,12 @@ export function FinanceReportsPanel() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => window.print()}
+            onClick={printFinanceReport}
             disabled={items.length === 0}
           >
             PDF
           </Button>
-          <Button type="button" variant="secondary" onClick={() => window.print()}>
+          <Button type="button" variant="secondary" onClick={printFinanceReport}>
             Εκτύπωση
           </Button>
         </div>
@@ -760,7 +763,7 @@ export function FinanceReportsPanel() {
             <Button variant="secondary" type="button" onClick={() => setPreviewOpen(false)}>
               Κλείσιμο
             </Button>
-            <Button type="button" onClick={() => window.print()}>
+            <Button type="button" onClick={printFinanceReport}>
               Εκτύπωση
             </Button>
           </>
