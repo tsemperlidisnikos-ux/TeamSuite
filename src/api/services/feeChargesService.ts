@@ -14,6 +14,7 @@ import {
   isFeeChargeSuppressed,
   rememberDeletedTransaction,
 } from '../../utils/feeChargeKeys';
+import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { normalizeSportKey } from '../../utils/sport';
 import { studentHasNoClass, studentInClass } from '../../utils/studentClasses';
 import { studentHasSport } from '../../utils/studentSports';
@@ -306,6 +307,10 @@ export async function deleteFeeChargeTemplate(id: string) {
   return apiClient(() => {
     mutateData((data) => {
       data.feeChargeTemplates = (data.feeChargeTemplates ?? []).filter((t) => t.id !== id);
+      data.deletedFeeChargeTemplateIds = rememberDeletedId(
+        data.deletedFeeChargeTemplateIds,
+        id,
+      );
     });
     return { id };
   });

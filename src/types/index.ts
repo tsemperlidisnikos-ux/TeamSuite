@@ -840,6 +840,8 @@ export interface AppData {
   deletedCashAccountIds?: string[];
   /** Γραμμές προϋπολογισμού που διαγράφηκαν ρητά. */
   deletedBudgetIds?: string[];
+  /** Πρότυπα χρεώσεων που διαγράφηκαν ρητά — δεν επανέρχονται από cloud sync. */
+  deletedFeeChargeTemplateIds?: string[];
   /** Αθλητές που διαγράφηκαν ρητά — δεν επαναφέρονται από παλιό mirror. */
   deletedStudentIds?: string[];
   deletedClassIds?: string[];

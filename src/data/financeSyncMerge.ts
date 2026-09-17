@@ -132,6 +132,10 @@ export function applyFinanceCollections(
   const deletedExpenses = unionIdSet(local.deletedExpenseIds, cloud.deletedExpenseIds);
   const deletedCash = unionIdSet(local.deletedCashAccountIds, cloud.deletedCashAccountIds);
   const deletedBudgets = unionIdSet(local.deletedBudgetIds, cloud.deletedBudgetIds);
+  const deletedFeeTemplates = unionIdSet(
+    local.deletedFeeChargeTemplateIds,
+    cloud.deletedFeeChargeTemplateIds,
+  );
 
   const localTxnIds = new Set((local.transactions ?? []).map((t) => t.id));
   if (opts.treatCloudOnlyTxAsDeleted) {
@@ -152,6 +156,7 @@ export function applyFinanceCollections(
   target.deletedExpenseIds = [...deletedExpenses].slice(-FINANCE_TOMBSTONE_CAP);
   target.deletedCashAccountIds = [...deletedCash].slice(-FINANCE_TOMBSTONE_CAP);
   target.deletedBudgetIds = [...deletedBudgets].slice(-FINANCE_TOMBSTONE_CAP);
+  target.deletedFeeChargeTemplateIds = [...deletedFeeTemplates].slice(-FINANCE_TOMBSTONE_CAP);
 
   target.expenses = mergeByIdPreferringUpdatedAt(
     local.expenses,
@@ -180,7 +185,7 @@ export function applyFinanceCollections(
   target.feeChargeTemplates = mergeByIdPreferringUpdatedAt(
     local.feeChargeTemplates,
     cloud.feeChargeTemplates,
-    new Set(),
+    deletedFeeTemplates,
     opts.preferLocal,
   );
   target.receiptNumberRanges = mergeById(
@@ -267,6 +272,12 @@ export function financeCollectionsChanged(a: AppData, b: AppData): boolean {
   if (sortedJson(a.deletedExpenseIds ?? []) !== sortedJson(b.deletedExpenseIds ?? [])) return true;
   if (sortedJson(a.deletedCashAccountIds ?? []) !== sortedJson(b.deletedCashAccountIds ?? [])) return true;
   if (sortedJson(a.deletedBudgetIds ?? []) !== sortedJson(b.deletedBudgetIds ?? [])) return true;
+  if (
+    sortedJson(a.deletedFeeChargeTemplateIds ?? []) !==
+    sortedJson(b.deletedFeeChargeTemplateIds ?? [])
+  ) {
+    return true;
+  }
   if (sortedJson(a.deletedTransactionIds ?? []) !== sortedJson(b.deletedTransactionIds ?? [])) return true;
   if (sortedJson(a.suppressedFeeChargeKeys ?? []) !== sortedJson(b.suppressedFeeChargeKeys ?? [])) {
     return true;
@@ -303,6 +314,14 @@ export function localFinanceNeedsPush(local: AppData, cloud: AppData): boolean {
   if (hasLocalOnlyIds(local.deletedExpenseIds, cloud.deletedExpenseIds)) return true;
   if (hasLocalOnlyIds(local.deletedCashAccountIds, cloud.deletedCashAccountIds)) return true;
   if (hasLocalOnlyIds(local.deletedBudgetIds, cloud.deletedBudgetIds)) return true;
+  if (
+    hasLocalOnlyIds(
+      local.deletedFeeChargeTemplateIds,
+      cloud.deletedFeeChargeTemplateIds,
+    )
+  ) {
+    return true;
+  }
   if (hasLocalOnlyIds(local.suppressedFeeChargeKeys, cloud.suppressedFeeChargeKeys)) return true;
   const localRev = local.financeMonthLockRev ?? {};
   const cloudRev = cloud.financeMonthLockRev ?? {};

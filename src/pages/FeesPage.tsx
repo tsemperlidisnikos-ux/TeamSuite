@@ -326,9 +326,16 @@ export function FeesPage() {
 
   async function handleDeleteTemplate(id: string) {
     if (!confirm('Διαγραφή προτύπου χρέωσης;')) return;
-    await feeChargesService.deleteFeeChargeTemplate(id);
+    setError('');
+    setMessage('');
+    const result = await feeChargesService.deleteFeeChargeTemplate(id);
+    if (!result.success) {
+      setError(result.error ?? 'Το πρότυπο χρέωσης δεν διαγράφηκε.');
+      return;
+    }
     if (selectedTemplateId === id) setSelectedTemplateId('');
     setSelectedTemplateIds((prev) => prev.filter((item) => item !== id));
+    setMessage('Το πρότυπο χρέωσης διαγράφηκε.');
     refresh();
   }
 

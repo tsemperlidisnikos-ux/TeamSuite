@@ -59,8 +59,8 @@ function Field({
   full?: boolean;
 }) {
   return (
-    <label className={full ? 'full-width' : undefined}>
-      <span>{label}</span>
+    <label className={`finance-entry-field${full ? ' full-width' : ''}`}>
+      <span className="finance-entry-field-label">{label}</span>
       {children}
     </label>
   );
@@ -124,7 +124,7 @@ function RevenueEditor({
       : 'Χειροκίνητη καταχώρηση';
 
   return (
-    <form onSubmit={(event) => void submit(event)}>
+    <form className="finance-entry-details-form" onSubmit={(event) => void submit(event)}>
       <p className="admin-entry-note">
         <strong>Προέλευση:</strong> {source}
         {linked
@@ -273,7 +273,7 @@ function RevenueEditor({
         {entry.createdByEmail ? ` · Καταχώρηση από: ${entry.createdByEmail}` : ''}
       </p>
       {error ? <p className="form-error">{error}</p> : null}
-      <div className="modal-footer">
+      <div className="finance-entry-modal-actions">
         <Button type="button" variant="secondary" onClick={onClose}>
           Κλείσιμο
         </Button>
@@ -357,7 +357,7 @@ function ExpenseEditor({
   }
 
   return (
-    <form onSubmit={(event) => void submit(event)}>
+    <form className="finance-entry-details-form" onSubmit={(event) => void submit(event)}>
       <div className="form-grid">
         <Field label="Ημερομηνία">
           <input
@@ -516,7 +516,7 @@ function ExpenseEditor({
         {formatCurrency(matchTotal)}
       </p>
       {error ? <p className="form-error">{error}</p> : null}
-      <div className="modal-footer">
+      <div className="finance-entry-modal-actions">
         <Button type="button" variant="secondary" onClick={onClose}>
           Κλείσιμο
         </Button>
@@ -534,6 +534,7 @@ export function FinanceEntryDetailsModal(props: Props) {
       open={Boolean(props.entry)}
       title={props.kind === 'revenue' ? 'Ανάλυση εσόδου' : 'Ανάλυση εξόδου'}
       onClose={props.onClose}
+      className="finance-entry-modal"
       wide
     >
       {props.kind === 'revenue' && props.entry ? (

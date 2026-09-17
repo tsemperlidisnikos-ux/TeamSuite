@@ -57,6 +57,37 @@ describe('finance tombstones', () => {
     expect(target.revenues.some((row) => row.id === 'rev_1')).toBe(false);
   });
 
+  it('does not revive a deleted fee charge template', () => {
+    const template = {
+      id: 'fee_tpl_1',
+      season: '2026-2027',
+      sport: 'Μπάσκετ',
+      typeLabel: 'Μηνιαία συνδρομή',
+      monthlyAmount: 30,
+      appliesTo: 'all' as const,
+      classId: null,
+      athleteId: null,
+      months: [9],
+      reminderDays: 7,
+      registrationFee: 0,
+      seasonTicketAmount: 0,
+      seasonTicketMonths: [],
+      customChargeAmount: 0,
+      createdAt: '2026-09-17T10:00:00',
+    };
+    const local = club({
+      feeChargeTemplates: [],
+      deletedFeeChargeTemplateIds: rememberDeletedId([], template.id),
+    });
+    const cloud = club({ feeChargeTemplates: [template] });
+    const target = structuredClone(local);
+    applyFinanceCollections(target, local, cloud, {
+      preferLocal: true,
+      treatCloudOnlyTxAsDeleted: false,
+    });
+    expect(target.feeChargeTemplates.some((row) => row.id === template.id)).toBe(false);
+  });
+
   it('keeps the newer revenue when two devices edit the same id', () => {
     const local = club({
       revenues: [

@@ -26,7 +26,11 @@ import {
   INCOME_SUBCATEGORIES,
   isSubscriptionSubcategory,
 } from '../shared/financeCategories';
-import { PAYMENT_METHODS, normalizePaymentMethod } from '../shared/paymentMethods';
+import {
+  PAYMENT_METHODS,
+  normalizePaymentMethod,
+  paymentMethodLabel,
+} from '../shared/paymentMethods';
 import {
   currentSeasonStartYear,
   dayBounds,
@@ -61,6 +65,13 @@ type AggRow = {
   bank: number;
   online: number;
   total: number;
+};
+
+type CollectionMethodRow = {
+  key: string;
+  label: string;
+  count: number;
+  amount: number;
 };
 
 const emptyFilters = (): BalanceFilters => {
@@ -190,6 +201,7 @@ function countActiveFilters(f: BalanceFilters, defaults: BalanceFilters) {
 function exportBalanceCsv(
   income: AggRow[],
   expenses: AggRow[],
+  collectionMethods: CollectionMethodRow[],
   filename: string,
 ) {
   const headers = [
@@ -202,7 +214,7 @@ function exportBalanceCsv(
     'Online',
     'Ποσό',
   ];
-  const lines = [
+  const balanceLines = [
     ...income.map((r) =>
       ['ΕΣΟΔΟ', r.sport, r.category, r.cash, r.card, r.bank, r.online, r.total]
         .map((c) => `"${String(c).replace(/"/g, '""')}"`)
@@ -214,7 +226,20 @@ function exportBalanceCsv(
         .join(';'),
     ),
   ];
-  const blob = new Blob(['\uFEFF' + [headers.join(';'), ...lines].join('\n')], {
+  const methodLines = collectionMethods.map((row) =>
+    [row.label, row.count, row.amount]
+      .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+      .join(';'),
+  );
+  const csv = [
+    'ΑΝΑΦΟΡΑ ΕΙΣΠΡΑΞΕΩΝ ΑΝΑ ΤΡΟΠΟ',
+    'Τρόπος;Κινήσεις;Ποσό',
+    ...methodLines,
+    '',
+    headers.join(';'),
+    ...balanceLines,
+  ].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], {
     type: 'text/csv;charset=utf-8;',
   });
   const url = URL.createObjectURL(blob);
@@ -223,6 +248,63 @@ function exportBalanceCsv(
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function CollectionMethodsTable({
+  rows,
+  periodLabel,
+}: {
+  rows: CollectionMethodRow[];
+  periodLabel: string;
+}) {
+  const totalCount = rows.reduce((sum, row) => sum + row.count, 0);
+  const totalAmount = rows.reduce((sum, row) => sum + row.amount, 0);
+  return (
+    <section className="balance-collection-report">
+      <div className="balance-collection-report-head">
+        <div>
+          <p className="eyebrow">Report εισπράξεων</p>
+          <h3>Ανά τρόπο πληρωμής</h3>
+        </div>
+        <span>{periodLabel}</span>
+      </div>
+      <div className="table-wrap">
+        <table className="data-table balance-method-table">
+          <thead>
+            <tr>
+              <th>Τρόπος πληρωμής</th>
+              <th className="num">Κινήσεις</th>
+              <th className="num">Εισπράχθηκαν</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="muted">
+                  Δεν υπάρχουν εισπράξεις στην επιλεγμένη περίοδο
+                </td>
+              </tr>
+            ) : (
+              rows.map((row) => (
+                <tr key={row.key}>
+                  <td>{row.label}</td>
+                  <td className="num">{row.count}</td>
+                  <td className="num">{formatCurrency(row.amount)}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+          <tfoot>
+            <tr className="balance-total-row">
+              <td>Σύνολο</td>
+              <td className="num">{totalCount}</td>
+              <td className="num">{formatCurrency(totalAmount)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+  );
 }
 
 function BalanceTable({
@@ -422,6 +504,42 @@ export function FinanceBalancePanel() {
     [filteredExpenses],
   );
 
+  const collectionMethodRows = useMemo(() => {
+    const map = new Map<string, CollectionMethodRow>(
+      PAYMENT_METHODS.map((method) => [
+        method.value,
+        { key: method.value, label: method.label, count: 0, amount: 0 },
+      ]),
+    );
+    const seenLinkedParts = new Set<string>();
+    for (const revenue of filteredIncome) {
+      if (revenue.paymentStatus !== 'paid') continue;
+      const sourceId = revenue.linkedTransactionId || revenue.linkedRentalBookingId;
+      if (sourceId) {
+        const partKey = [
+          sourceId,
+          revenue.description,
+          Number(revenue.amount) || 0,
+          normalizePaymentMethod(revenue.paymentMethod),
+        ].join('|');
+        if (seenLinkedParts.has(partKey)) continue;
+        seenLinkedParts.add(partKey);
+      }
+      const method = normalizePaymentMethod(revenue.paymentMethod);
+      const key = method || 'unspecified';
+      const row = map.get(key) ?? {
+        key,
+        label: method ? paymentMethodLabel(method) : 'Χωρίς τρόπο πληρωμής',
+        count: 0,
+        amount: 0,
+      };
+      row.count += 1;
+      row.amount += Number(revenue.amount) || 0;
+      map.set(key, row);
+    }
+    return [...map.values()].filter((row) => row.count > 0);
+  }, [filteredIncome]);
+
   const incomeTotal = filteredIncome.reduce((s, r) => s + r.amount, 0);
   const expenseTotal = filteredExpenses.reduce((s, r) => s + r.amount, 0);
   const balance = incomeTotal - expenseTotal;
@@ -524,6 +642,7 @@ export function FinanceBalancePanel() {
               exportBalanceCsv(
                 incomeRows,
                 expenseRows,
+                collectionMethodRows,
                 `isozigio-${localDateIso()}.csv`,
               )
             }
@@ -539,6 +658,32 @@ export function FinanceBalancePanel() {
           </button>
         </div>
       </div>
+
+      <section className="balance-date-report no-print">
+        <div className="balance-date-report-title">
+          <strong>Περίοδος report εισπράξεων</strong>
+          <span>Επίλεξε ημερομηνίες και πάτησε «Προβολή report».</span>
+        </div>
+        <label>
+          <span>Από</span>
+          <input
+            type="date"
+            value={draft.dateFrom}
+            onChange={(e) => updateDraft('dateFrom', e.target.value)}
+          />
+        </label>
+        <label>
+          <span>Έως</span>
+          <input
+            type="date"
+            value={draft.dateTo}
+            onChange={(e) => updateDraft('dateTo', e.target.value)}
+          />
+        </label>
+        <Button type="button" onClick={() => applyView()}>
+          Προβολή report
+        </Button>
+      </section>
 
       <section className="stats-grid cols-3 balance-summary">
         <StatCard
@@ -560,6 +705,8 @@ export function FinanceBalancePanel() {
           tone={balance >= 0 ? 'positive' : 'negative'}
         />
       </section>
+
+      <CollectionMethodsTable rows={collectionMethodRows} periodLabel={periodLabel} />
 
       <BalanceTable title="Έσοδα" rows={incomeRows} />
       <BalanceTable title="Έξοδα" rows={expenseRows} />

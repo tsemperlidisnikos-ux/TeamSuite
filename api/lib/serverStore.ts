@@ -740,8 +740,8 @@ export function mergeMirrorPayloadPreservingRoster(existing: unknown, incoming: 
   const feeTemplates = mergeIdRowsPreservingCloudOnly(
     prev.feeChargeTemplates,
     next.feeChargeTemplates,
-    undefined,
-    undefined,
+    prev.deletedFeeChargeTemplateIds,
+    next.deletedFeeChargeTemplateIds,
   );
   const changeLogs = mergeIdRowsPreservingCloudOnly(
     prev.athleteChangeLogs,
@@ -775,6 +775,7 @@ export function mergeMirrorPayloadPreservingRoster(existing: unknown, incoming: 
     closedFinanceMonths: months.closed,
     financeMonthLockRev: months.lockRev,
     feeChargeTemplates: feeTemplates.rows,
+    deletedFeeChargeTemplateIds: feeTemplates.deleted,
     athleteChangeLogs: changeLogs.rows,
     emailUnsubscribes: emailUnsubs,
     feeReminderLogs: mergeIdCatalogPayload(prev.feeReminderLogs, next.feeReminderLogs),

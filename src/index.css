@@ -1363,6 +1363,80 @@ td.row-actions {
   grid-column: 1 / -1;
 }
 
+.finance-entry-modal {
+  width: min(920px, calc(100vw - 2rem));
+}
+
+.finance-entry-modal .modal-body {
+  padding: 1.25rem;
+}
+
+.finance-entry-details-form .form-grid {
+  gap: 1rem 1.25rem;
+  align-items: start;
+}
+
+.finance-entry-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.finance-entry-field-label {
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.finance-entry-field input,
+.finance-entry-field select,
+.finance-entry-field textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--field-bg, var(--surface));
+  color: var(--ink);
+  font: inherit;
+}
+
+.finance-entry-field input,
+.finance-entry-field select {
+  min-height: 42px;
+  padding: 0.6rem 0.7rem;
+}
+
+.finance-entry-field textarea {
+  min-height: 86px;
+  padding: 0.7rem;
+  resize: vertical;
+}
+
+.finance-entry-field input:focus,
+.finance-entry-field select:focus,
+.finance-entry-field textarea:focus {
+  border-color: var(--brand);
+  outline: 2px solid color-mix(in srgb, var(--brand) 20%, transparent);
+  outline-offset: 1px;
+}
+
+.finance-entry-field :disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.finance-entry-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
 .product-form {
   display: flex;
   flex-direction: column;

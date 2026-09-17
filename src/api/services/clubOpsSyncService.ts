@@ -49,6 +49,7 @@ export function clubOpsSliceFromData(data: AppData): Record<string, unknown> {
     deletedSeasonIds: data.deletedSeasonIds ?? [],
     deletedCashAccountIds: data.deletedCashAccountIds ?? [],
     deletedBudgetIds: data.deletedBudgetIds ?? [],
+    deletedFeeChargeTemplateIds: data.deletedFeeChargeTemplateIds ?? [],
   };
 }
 

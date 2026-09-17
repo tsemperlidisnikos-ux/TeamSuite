@@ -369,10 +369,11 @@ export function FinanceReportsPanel() {
     <section className="income-entry-panel finance-reports-panel">
       <div className="income-entry-heading">
         <div>
-          <p className="eyebrow">Κατηγορία</p>
-          <h2>ΕΚΤΥΠΩΣΕΙΣ</h2>
+          <p className="eyebrow">Οικονομικά</p>
+          <h2>ΑΝΑΦΟΡΕΣ</h2>
           <p className="lede">
-            Reports με φίλτρα. Προεπισκόπηση PDF, εκτύπωση browser ή εξαγωγή Excel / PDF.
+            Αναλυτικές αναφορές εσόδων, εξόδων και οφειλών με φίλτρα ημερομηνίας.
+            Προεπισκόπηση, εκτύπωση ή εξαγωγή Excel / PDF.
           </p>
         </div>
         <div className="report-export-actions no-print">

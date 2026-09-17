@@ -53,6 +53,7 @@ function ensureCollections(data: AppData): boolean {
   if (!data.deletedExpenseIds) data.deletedExpenseIds = [];
   if (!data.deletedCashAccountIds) data.deletedCashAccountIds = [];
   if (!data.deletedBudgetIds) data.deletedBudgetIds = [];
+  if (!data.deletedFeeChargeTemplateIds) data.deletedFeeChargeTemplateIds = [];
   if (!data.deletedStudentIds) data.deletedStudentIds = [];
   if (!data.deletedClassIds) data.deletedClassIds = [];
   if (!data.deletedScheduleIds) data.deletedScheduleIds = [];

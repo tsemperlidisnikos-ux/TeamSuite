@@ -1,6 +1,6 @@
 # Κατάλογος Backup — TeamSuite
 
-Τελευταία ενημέρωση περιεχομένου: **2026-09-16** (ZIP `C:\TeamSuite_backup` + deploy `teamsuite`).
+Τελευταία ενημέρωση περιεχομένου: **2026-09-17** (ZIP `C:\TeamSuite_backup` + deploy `teamsuite`).
 
 Αυτό το αρχείο ενημερώνεται κάθε φορά που αλλάζει τι περιλαμβάνει κάποιο backup, ή μετά από **BACKUP + DEPLOY** (νέα γραμμή στο ιστορικό ZIP κώδικα).
 
@@ -15,7 +15,7 @@
 | **Platform full JSON** | Platform Admin → Backup → Λήψη full backup | Όλους τους συλλόγους (`appDataByClub`), ενεργό `appData`, `users` (χωρίς hashes), `clubs` (χωρίς SMTP/SMS/Viva secrets), πλήρες `platformConfig` (modules, δικαιώματα, λογότυπα, **θέμα εμφάνισης ανά σύλλογο**, **PDF κάρτας υγείας ανά άθλημα**). `scope: platform`. **Restore:** μόνο «Επαναφορά όλης της εφαρμογής» (.json, όχι club-only αρχεία) | SMTP passwords, SMS API keys, Viva secrets, password hashes (redacted στο download) |
 | **Scheduled full (browser)** | Platform Admin → Πρόγραμμα backup → fullApp | Ίδιο με Platform full JSON αν mode=download· αν mode=cloud: push mirror **όλων** των συλλόγων | Secrets στα JSON (redacted)· δεν τρέχει αν δεν είναι ανοιχτή η εφαρμογή ως Platform Admin |
 | **Scheduled per-club (browser)** | Πρόγραμμα backup → perClub | Ανά επιλεγμένο σύλλογο: ίδιο με **Club JSON** (ή cloud mirror push) | Άλλους συλλόγους· secrets στα JSON |
-| **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) · `POST /api/sync/mirror-students` · `PUT /api/sync/club-ops` | Live `AppData` στο Blob/Redis. Κάθε αποθήκευση στην εφαρμογή στέλνει αμέσως club-ops και σε ~80ms το πλήρες mirror. Οι άλλες ανοιχτές συσκευές τραβούν περίπου κάθε 1 δευτερόλεπτο. Κάθε Pull ενώνει **όλες** τις συλλογές με `updatedAt` και tombstones. Μερικό Push δεν σβήνει cloud-only γραμμές. **Αποδείξεις:** ένωση στο server. Auto sync ενεργό από προεπιλογή (opt-out) | Users/clubs/config, SMTP/Viva στο mirror |
+| **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) · `POST /api/sync/mirror-students` · `PUT /api/sync/club-ops` | Live `AppData` στο Blob/Redis. Κάθε αποθήκευση στην εφαρμογή στέλνει αμέσως club-ops και σε ~80ms το πλήρες mirror. Οι άλλες ανοιχτές συσκευές τραβούν περίπου κάθε 1 δευτερόλεπτο. Κάθε Pull ενώνει **όλες** τις συλλογές με `updatedAt` και tombstones, συμπεριλαμβανομένων των **διαγραμμένων προτύπων χρεώσεων** ώστε να μην επανέρχονται. Μερικό Push δεν σβήνει cloud-only γραμμές. **Αποδείξεις:** ένωση στο server. Auto sync ενεργό από προεπιλογή (opt-out) | Users/clubs/config, SMTP/Viva στο mirror |
 | **Cloud account bundle** | Platform Admin: Push/Pull λογαριασμοί | `users`, `clubs`, `platformConfig` στο cloud, μαζί με την καθολική εμφάνιση και τα theme overrides ανά σύλλογο. Pull/push **διατηρεί** υπάρχοντα SMTP/SMS/Viva secrets αν το εισερχόμενο έχει κενό/`********` | AppData αθλητών (αυτό είναι στο mirror) |
 | **Ημερολόγιο συλλόγου (PA)** | Platform Admin → Λειτουργία → Ημερολόγιο συλλόγου | Cloud log ανά σύλλογο: είσοδος/έξοδος και νέες καταχωρήσεις (ποιος, πότε, τι). Για ασφαλείς κατηγορίες κρατά περιορισμένα before/after δεδομένα, προεπισκόπηση και ατομική/μαζική αναίρεση με αιτιολογία. Κάθε αναίρεση προστίθεται ως νέα μόνιμη καταγραφή. Μόνο PA | Πλήρες αντίγραφο AppData· AMKA· κινήσεις πριν το deploy του μηχανισμού αναίρεσης· γενική αναίρεση οικονομικών/αποδείξεων/GDPR/external payments |
 | **Snapshot πριν από αναίρεση (PA)** | Αυτόματα πριν από κάθε ατομική/μαζική αναίρεση στο Ημερολόγιο συλλόγου | Πλήρες τρέχον cloud mirror του συγκεκριμένου συλλόγου, μαζί με αιτιολογία, Platform Admin και IDs κινήσεων. Διατηρούνται τα 30 νεότερα snapshots ανά σύλλογο. Αν αποτύχει ή δεν υπάρχει durable cloud store, η αναίρεση δεν εκτελείται | Account bundle· άλλους συλλόγους· αυτόματη επαναφορά χωρίς έλεγχο |
@@ -44,6 +44,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `TeamSuite_2026-09-17_15-02-23.zip` | 2026-09-17 | Ισοζύγιο: report εισπράξεων ανά ημερομηνία και τρόπο πληρωμής με Excel/CSV · σαφής λειτουργία καρτέλας Αναφορές · μόνιμη διαγραφή προτύπων χρεώσεων μέσω cloud tombstone · βελτιωμένη εμφάνιση ανάλυσης Εσόδων/Εξόδων |
 | `TeamSuite_2026-09-16_23-38-20.zip` | 2026-09-16 | Οικονομικά: αναλυτική προβολή και ασφαλής διόρθωση καταχωρήσεων Εσόδων/Εξόδων · εμφάνιση διόρθωσης χρεώσεων ανενεργών |
 | `TeamSuite_2026-09-16_23-05-01.zip` | 2026-09-16 | Μαζική αλλαγή αθλητών με σωστό `updatedAt`/καθαρισμό παλιών επιλογών · ασφαλής μαζική διαγραφή χρεώσεων προτύπου από ανενεργούς χωρίς πληρωμές |
 | `TeamSuite_2026-09-16_21-43-13.zip` | 2026-09-16 | Πρότυπα χρεώσεων: νέα επιλογή «Χωρίς τμήμα» στο πεδίο «Ισχύει για» |

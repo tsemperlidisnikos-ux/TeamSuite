@@ -50,4 +50,22 @@ describe('cloud receipt merge', () => {
     expect(merged.transactions).toHaveLength(1);
     expect(merged.rentalBookings.some((row) => row.id === 'rb_1')).toBe(true);
   });
+
+  it('does not restore a deleted fee charge template from the cloud mirror', () => {
+    const existing = {
+      students: [],
+      feeChargeTemplates: [{ id: 'fee_tpl_1', typeLabel: 'Συνδρομή' }],
+    };
+    const incoming = {
+      students: [],
+      feeChargeTemplates: [],
+      deletedFeeChargeTemplateIds: ['fee_tpl_1'],
+    };
+    const merged = mergeMirrorPayloadPreservingRoster(existing, incoming) as {
+      feeChargeTemplates: Array<{ id: string }>;
+      deletedFeeChargeTemplateIds: string[];
+    };
+    expect(merged.feeChargeTemplates).toHaveLength(0);
+    expect(merged.deletedFeeChargeTemplateIds).toContain('fee_tpl_1');
+  });
 });

@@ -575,6 +575,88 @@
   gap: 0.45rem;
 }
 
+.balance-date-report {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(150px, 190px)) auto;
+  align-items: end;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line, var(--color-border));
+  border-radius: 14px;
+  background: var(--surface, #fff);
+}
+
+.balance-date-report-title {
+  display: grid;
+  align-self: center;
+  gap: 0.2rem;
+}
+
+.balance-date-report-title strong {
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.balance-date-report-title span,
+.balance-date-report label > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.balance-date-report label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.balance-date-report input {
+  width: 100%;
+  min-height: 40px;
+  box-sizing: border-box;
+  border: 1px solid var(--line, var(--color-border));
+  border-radius: 9px;
+  padding: 0.55rem 0.65rem;
+  background: var(--field-bg, var(--surface, #fff));
+  color: var(--ink);
+  font: inherit;
+}
+
+.balance-collection-report {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1rem;
+  border: 1px solid var(--line, var(--color-border));
+  border-radius: 14px;
+  background: var(--surface, #fff);
+}
+
+.balance-collection-report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.balance-collection-report-head h3,
+.balance-collection-report-head p {
+  margin: 0;
+}
+
+.balance-collection-report-head > span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.balance-method-table {
+  width: 100%;
+}
+
+.balance-method-table th.num,
+.balance-method-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .balance-table-block {
   display: grid;
   gap: 0.55rem;
@@ -651,6 +733,14 @@
   .balance-period-presets,
   .balance-period-dates {
     grid-template-columns: 1fr;
+  }
+
+  .balance-date-report {
+    grid-template-columns: 1fr;
+  }
+
+  .balance-date-report .btn {
+    width: 100%;
   }
 }
 

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import * as financeService from '../api/services/financeService';
 import { ExpenseEntryPanel } from '../components/ExpenseEntryPanel';
@@ -90,6 +90,7 @@ function chartColors(theme: AppearanceTheme) {
 }
 
 export function FinancePage() {
+  const pageRef = useRef<HTMLDivElement>(null);
   const { t } = useT();
   const { refresh, version } = useAppData();
   const [platformTick, setPlatformTick] = useState(0);
@@ -133,6 +134,10 @@ export function FinancePage() {
   }, [availableTabs, tab]);
 
   useEffect(() => {
+    pageRef.current?.scrollIntoView({ block: 'start' });
+  }, [tab]);
+
+  useEffect(() => {
     void financeService.getFinanceSummary().then((res) => {
       if (res.success) setSummary(res.data);
     });
@@ -160,7 +165,7 @@ export function FinancePage() {
     })) ?? [];
 
   return (
-    <div className="stack-lg finance-page">
+    <div ref={pageRef} className="stack-lg finance-page">
       <PageHeader
         title="Οικονομικά"
         subtitle={

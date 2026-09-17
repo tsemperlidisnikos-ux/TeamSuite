@@ -90,6 +90,7 @@ const TOMBSTONES: Partial<Record<ClubAuditChange['collection'], keyof AppData>> 
   matches: 'deletedMatchIds',
   products: 'deletedProductIds',
   stockMovements: 'deletedStockMovementIds',
+  feeChargeTemplates: 'deletedFeeChargeTemplateIds',
 };
 
 function sameValue(a: unknown, b: unknown): boolean {
