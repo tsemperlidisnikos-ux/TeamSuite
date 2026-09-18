@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import * as financeService from '../api/services/financeService';
+import { useAppData } from '../hooks/useAppData';
 import type { ExpenseInput, RevenueInput } from '../schemas';
 import { PAYMENT_METHODS } from '../shared/paymentMethods';
+import { isCanteenFinanceCategory } from '../shared/financeCategories';
 import type { CashAccount, Expense, MatchExpenseDetails, PaymentMethod, Revenue } from '../types';
-import { formatCurrency } from '../utils/labels';
+import { sportsMatch } from '../utils/coachScope';
+import { formatCurrency, parseMoneyInput } from '../utils/labels';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
@@ -66,6 +69,51 @@ function Field({
   );
 }
 
+function CatalogSelect({
+  value,
+  options,
+  emptyLabel,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  emptyLabel: string;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const names = options.filter(Boolean);
+  if (value && !names.includes(value)) names.unshift(value);
+  return (
+    <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+      <option value="">{emptyLabel}</option>
+      {names.map((name) => (
+        <option key={name} value={name}>
+          {name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function useFinanceOrgOptions(sportFilter = '') {
+  const { data } = useAppData();
+  const clubs = useMemo(
+    () => (data.associations ?? []).filter((a) => a.active !== false).map((a) => a.name),
+    [data.associations],
+  );
+  const sports = useMemo(
+    () => (data.sports ?? []).filter((s) => s.active).map((s) => s.name),
+    [data.sports],
+  );
+  const classes = useMemo(() => {
+    const list = data.classes ?? [];
+    if (!sportFilter) return list.map((item) => item.name);
+    return list.filter((item) => sportsMatch(item.sport, sportFilter)).map((item) => item.name);
+  }, [data.classes, sportFilter]);
+  return { clubs, sports, classes };
+}
+
 function RevenueEditor({
   entry,
   cashAccounts,
@@ -81,6 +129,8 @@ function RevenueEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const linked = Boolean(entry.linkedTransactionId || entry.linkedRentalBookingId);
+  const skipSportAndClass = isCanteenFinanceCategory(draft.subcategory ?? '');
+  const { clubs, sports } = useFinanceOrgOptions(draft.sport ?? '');
 
   useEffect(() => setDraft(entry), [entry]);
 
@@ -129,7 +179,7 @@ function RevenueEditor({
         <strong>Προέλευση:</strong> {source}
         {linked
           ? ' — η διόρθωση πρέπει να γίνει στην αρχική πληρωμή ή ενοικίαση ώστε να παραμείνουν σωστά τα συνδεδεμένα στοιχεία.'
-          : ''}
+          : ' — μπορείτε να αλλάξετε ή να αδειάσετε οποιοδήποτε πεδίο και να πατήσετε «Αποθήκευση διόρθωσης».'}
       </p>
       <div className="form-grid">
         <Field label="Ημερομηνία">
@@ -146,9 +196,10 @@ function RevenueEditor({
             type="number"
             min={0.01}
             step="0.01"
+            inputMode="decimal"
             value={draft.amount}
             disabled={linked}
-            onChange={(e) => setDraft({ ...draft, amount: Number(e.target.value) })}
+            onChange={(e) => setDraft({ ...draft, amount: parseMoneyInput(e.target.value) })}
             required
           />
         </Field>
@@ -184,19 +235,34 @@ function RevenueEditor({
           />
         </Field>
         <Field label="Σωματείο">
-          <input
+          <CatalogSelect
             value={draft.clubName ?? ''}
+            options={clubs}
+            emptyLabel={skipSportAndClass ? 'Δεν απαιτείται' : '— χωρίς σωματείο —'}
             disabled={linked}
-            onChange={(e) => setDraft({ ...draft, clubName: e.target.value })}
+            onChange={(clubName) => setDraft({ ...draft, clubName })}
           />
         </Field>
         <Field label="Άθλημα">
-          <input
+          <CatalogSelect
             value={draft.sport ?? ''}
+            options={sports}
+            emptyLabel={skipSportAndClass ? 'Δεν απαιτείται' : '— χωρίς άθλημα —'}
             disabled={linked}
-            onChange={(e) => setDraft({ ...draft, sport: e.target.value })}
+            onChange={(sport) => setDraft({ ...draft, sport })}
           />
         </Field>
+        {skipSportAndClass && !linked && (draft.clubName || draft.sport) ? (
+          <div className="finance-entry-field full-width">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setDraft({ ...draft, clubName: '', sport: '' })}
+            >
+              Άδειασμα σωματείου / αθλήματος
+            </Button>
+          </div>
+        ) : null}
         <Field label="Επώνυμο">
           <input
             value={draft.surname ?? ''}
@@ -301,6 +367,8 @@ function ExpenseEditor({
   const [draft, setDraft] = useState(entry);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const skipSportAndClass = isCanteenFinanceCategory(draft.subcategory ?? '');
+  const { clubs, sports, classes } = useFinanceOrgOptions(draft.sport ?? '');
 
   useEffect(() => setDraft(entry), [entry]);
 
@@ -358,6 +426,13 @@ function ExpenseEditor({
 
   return (
     <form className="finance-entry-details-form" onSubmit={(event) => void submit(event)}>
+      <p className="admin-entry-note">
+        Μπορείτε να αλλάξετε ή να αδειάσετε οποιοδήποτε πεδίο και να πατήσετε «Αποθήκευση
+        διόρθωσης».
+        {skipSportAndClass
+          ? ' Για καντίνα / κυλικείο το σωματείο, το άθλημα και το τμήμα δεν απαιτούνται.'
+          : ''}
+      </p>
       <div className="form-grid">
         <Field label="Ημερομηνία">
           <input
@@ -372,9 +447,10 @@ function ExpenseEditor({
             type="number"
             min={0.01}
             step="0.01"
+            inputMode="decimal"
             value={matchTotal}
             disabled={Boolean(draft.matchDetails)}
-            onChange={(e) => setDraft({ ...draft, amount: Number(e.target.value) })}
+            onChange={(e) => setDraft({ ...draft, amount: parseMoneyInput(e.target.value) })}
             required
           />
         </Field>
@@ -392,23 +468,40 @@ function ExpenseEditor({
           />
         </Field>
         <Field label="Σωματείο">
-          <input
+          <CatalogSelect
             value={draft.clubName ?? ''}
-            onChange={(e) => setDraft({ ...draft, clubName: e.target.value })}
+            options={clubs}
+            emptyLabel={skipSportAndClass ? 'Δεν απαιτείται' : '— χωρίς σωματείο —'}
+            onChange={(clubName) => setDraft({ ...draft, clubName })}
           />
         </Field>
         <Field label="Άθλημα">
-          <input
+          <CatalogSelect
             value={draft.sport ?? ''}
-            onChange={(e) => setDraft({ ...draft, sport: e.target.value })}
+            options={sports}
+            emptyLabel={skipSportAndClass ? 'Δεν απαιτείται' : '— χωρίς άθλημα —'}
+            onChange={(sport) => setDraft({ ...draft, sport, className: '' })}
           />
         </Field>
         <Field label="Τμήμα">
-          <input
+          <CatalogSelect
             value={draft.className ?? ''}
-            onChange={(e) => setDraft({ ...draft, className: e.target.value })}
+            options={classes}
+            emptyLabel={skipSportAndClass ? 'Δεν απαιτείται' : '— χωρίς τμήμα —'}
+            onChange={(className) => setDraft({ ...draft, className })}
           />
         </Field>
+        {skipSportAndClass && (draft.clubName || draft.sport || draft.className) ? (
+          <div className="finance-entry-field full-width">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setDraft({ ...draft, clubName: '', sport: '', className: '' })}
+            >
+              Άδειασμα σωματείου / αθλήματος / τμήματος
+            </Button>
+          </div>
+        ) : null}
         <Field label="Προμηθευτής">
           <input
             value={draft.vendor ?? ''}
@@ -457,8 +550,9 @@ function ExpenseEditor({
                   type="number"
                   min={0}
                   step="0.01"
+                  inputMode="decimal"
                   value={draft.matchDetails?.[field.key] ?? 0}
-                  onChange={(e) => setMatchField(field.key, Number(e.target.value))}
+                  onChange={(e) => setMatchField(field.key, parseMoneyInput(e.target.value))}
                 />
               </Field>
             ))}
@@ -532,7 +626,7 @@ export function FinanceEntryDetailsModal(props: Props) {
   return (
     <Modal
       open={Boolean(props.entry)}
-      title={props.kind === 'revenue' ? 'Ανάλυση εσόδου' : 'Ανάλυση εξόδου'}
+      title={props.kind === 'revenue' ? 'Ανάλυση / Διόρθωση εσόδου' : 'Ανάλυση / Διόρθωση εξόδου'}
       onClose={props.onClose}
       className="finance-entry-modal"
       wide

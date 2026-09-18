@@ -272,6 +272,7 @@ export interface Revenue {
   linkedRentalBookingId?: string;
   createdByUserId?: string;
   createdByEmail?: string;
+  updatedAt?: number;
 }
 
 export interface MatchExpenseDetails {
@@ -311,6 +312,7 @@ export interface Expense {
   vatRate?: number;
   createdByUserId?: string;
   createdByEmail?: string;
+  updatedAt?: number;
 }
 
 export interface CashAccount {

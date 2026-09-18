@@ -22,7 +22,7 @@ import { Modal } from '../components/ui/Modal';
 import { useAppData } from '../hooks/useAppData';
 import { PRODUCT_CATEGORIES, type WarehouseProductInput } from '../schemas';
 import type { WarehouseProduct } from '../types';
-import { formatCurrency } from '../utils/labels';
+import { formatCurrency, parseMoneyInput } from '../utils/labels';
 import { isLowStock, listLowStockProducts, minStockOf } from '../utils/warehouseStock';
 import {
   formatProductSize,
@@ -739,8 +739,9 @@ export function WarehousePage() {
                 type="number"
                 min={0}
                 step="0.01"
+                inputMode="decimal"
                 value={form.salePrice || ''}
-                onChange={(e) => setForm({ ...form, salePrice: Number(e.target.value) })}
+                onChange={(e) => setForm({ ...form, salePrice: parseMoneyInput(e.target.value) })}
                 required
               />
             </label>
@@ -751,8 +752,9 @@ export function WarehousePage() {
                 type="number"
                 min={0}
                 step="0.01"
+                inputMode="decimal"
                 value={form.costPrice || ''}
-                onChange={(e) => setForm({ ...form, costPrice: Number(e.target.value) || 0 })}
+                onChange={(e) => setForm({ ...form, costPrice: parseMoneyInput(e.target.value) })}
               />
             </label>
             <label className="field">

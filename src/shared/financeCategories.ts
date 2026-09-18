@@ -149,6 +149,21 @@ export const DEFAULT_EXPENSE_DESCRIPTIONS: Record<
 export type IncomeSubcategory = (typeof INCOME_SUBCATEGORIES)[number];
 export type ExpenseSubcategory = (typeof EXPENSE_SUBCATEGORIES)[number];
 
+export function isCanteenFinanceCategory(subcategory: string): boolean {
+  const key = subcategory
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  return (
+    key.includes('ΚΑΝΤΙΝΑ') ||
+    key.includes('ΚΥΛΙΚΕΙΟ') ||
+    key.includes('KANTINA') ||
+    key.includes('KYLIKEIO') ||
+    key.includes('CANTEEN')
+  );
+}
+
 export function requiresPersonName(subcategory: string): boolean {
   return (
     subcategory === 'ΣΥΝΔΡΟΜΕΣ ΑΘΛΗΤΩΝ' ||

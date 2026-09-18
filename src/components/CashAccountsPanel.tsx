@@ -5,7 +5,7 @@ import * as financePeriodService from '../api/services/financePeriodService';
 import { Button } from './ui/Button';
 import { useAppData } from '../hooks/useAppData';
 import { localDateIso } from '../utils/dates';
-import { formatCurrency } from '../utils/labels';
+import { formatCurrency, parseMoneyInput } from '../utils/labels';
 import type { CashAccount } from '../types';
 
 const KIND_LABELS: Record<CashAccount['kind'], string> = {
@@ -120,8 +120,9 @@ export function CashAccountsPanel({ onSaved }: { onSaved: () => void }) {
               <input
                 type="number"
                 step="0.01"
+                inputMode="decimal"
                 value={openingBalance}
-                onChange={(e) => setOpeningBalance(Number(e.target.value) || 0)}
+                onChange={(e) => setOpeningBalance(parseMoneyInput(e.target.value))}
               />
             </label>
           </div>

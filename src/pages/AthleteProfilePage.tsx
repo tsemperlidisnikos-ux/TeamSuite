@@ -46,7 +46,7 @@ import {
   studentDiscountReasonIds,
 } from '../utils/discountReasons';
 import { sizeChartOptGroups } from '../utils/sizeChartOptions';
-import { formatCurrency, formatDate } from '../utils/labels';
+import { formatCurrency, formatDate, parseMoneyInput } from '../utils/labels';
 import { localDateIso } from '../utils/dates';
 import { getPreviewClubId, getAppLogoUrl, loadPlatformConfig } from '../platform/platformConfig';
 import { athletePublicCode, buildAthleteIdCardUrl } from '../utils/athleteIdCard';
@@ -1992,10 +1992,11 @@ export function AthleteProfilePage() {
                     type="number"
                     min={0}
                     step="0.01"
+                    inputMode="decimal"
                     className={inputClass}
                     value={form.discountAmount ?? 0}
                     disabled={disabled}
-                    onChange={(e) => setField('discountAmount', Number(e.target.value))}
+                    onChange={(e) => setField('discountAmount', parseMoneyInput(e.target.value))}
                   />
                 </ApField>
                 <ApField label="Λόγος έκπτωσης" className="ap-span-2">

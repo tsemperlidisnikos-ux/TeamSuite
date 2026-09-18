@@ -25,7 +25,7 @@ import type { TransactionInput } from '../schemas';
 import type { AthleteTransaction, Student } from '../types';
 import { PAYMENT_METHODS, normalizePaymentMethod } from '../shared/paymentMethods';
 import { localDateIso } from '../utils/dates';
-import { formatCurrency, formatDate } from '../utils/labels';
+import { formatCurrency, formatDate, parseMoneyInput } from '../utils/labels';
 import { amountToGreekWords } from '../utils/amountToGreekWords';
 import {
   formatReceiptLabel,
@@ -130,14 +130,30 @@ function athleteSeasonBalance(
     .reduce((sum, t) => sum + (t.type === 'charge' ? txAmount(t) : -txAmount(t)), 0);
 }
 
-function emptyForm(athleteId = '', seasonStart = 2026): TransactionInput {
+function currentTransactionDate() {
+  const now = new Date();
+  return {
+    day: now.getDate(),
+    month: now.getMonth() + 1,
+    year: now.getFullYear(),
+  };
+}
+
+function currentSeasonStart() {
+  const today = currentTransactionDate();
+  return seasonStartFromPeriod(today.month, today.year);
+}
+
+function emptyForm(athleteId = ''): TransactionInput {
+  const today = currentTransactionDate();
   return {
     athleteId,
     amount: 0,
     receiptNumber: '',
     type: 'charge',
-    month: 8,
-    year: seasonStart,
+    day: today.day,
+    month: today.month,
+    year: today.year,
     paymentMethod: '',
     comments: '',
   };
@@ -181,8 +197,8 @@ export function TransactionsPage() {
   const [query, setQuery] = useState('');
   const [sport, setSport] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [seasonStart, setSeasonStart] = useState(2026);
-  const [form, setForm] = useState<TransactionInput>(emptyForm());
+  const [seasonStart, setSeasonStart] = useState(currentSeasonStart);
+  const [form, setForm] = useState<TransactionInput>(emptyForm);
   const [formMonths, setFormMonths] = useState<number[]>([8]);
   const [monthMenuOpen, setMonthMenuOpen] = useState(false);
   const monthMenuRef = useRef<HTMLDivElement>(null);
@@ -253,9 +269,10 @@ export function TransactionsPage() {
     };
   }
 
-  function applyNewForm(athleteId = '', start = seasonStart) {
-    setForm(emptyForm(athleteId, start));
-    setFormMonths([8]);
+  function applyNewForm(athleteId = '') {
+    const today = currentTransactionDate();
+    setForm(emptyForm(athleteId));
+    setFormMonths([today.month]);
     setMonthMenuOpen(false);
   }
 
@@ -268,10 +285,13 @@ export function TransactionsPage() {
           : [...prev, month];
       const months = next.length ? next : prev;
       const primary = sortSeasonMonths(months)[0] ?? month;
+      const year = seasonYearForMonth(primary, seasonStart);
+      const maxDay = new Date(year, primary, 0).getDate();
       setForm((current) => ({
         ...current,
         month: primary,
-        year: seasonYearForMonth(primary, seasonStart),
+        year,
+        day: Math.min(current.day ?? currentTransactionDate().day, maxDay),
       }));
       return months;
     });
@@ -295,7 +315,7 @@ export function TransactionsPage() {
     setQuery('');
     setSelectedId(athlete.id);
     setEditingId(null);
-    applyNewForm(athlete.id, seasonStart);
+    applyNewForm(athlete.id);
     setError('');
     setSearchParams(
       (prev) => {
@@ -346,7 +366,7 @@ export function TransactionsPage() {
     if (!filteredAthletes.some((s) => s.id === selectedId)) {
       setSelectedId(null);
       setEditingId(null);
-      applyNewForm('', seasonStart);
+      applyNewForm('');
     }
   }, [filteredAthletes, selectedId, seasonStart]);
 
@@ -421,7 +441,7 @@ export function TransactionsPage() {
   function selectAthlete(athlete: Student) {
     setSelectedId(athlete.id);
     setEditingId(null);
-    applyNewForm(athlete.id, seasonStart);
+    applyNewForm(athlete.id);
     setReceiptSeries('');
     setError('');
   }
@@ -441,6 +461,7 @@ export function TransactionsPage() {
           ? String(parsedNumber)
           : tx.receiptNumber,
       type: tx.type,
+      day: Number(tx.createdAt?.slice(8, 10)) || new Date().getDate(),
       month: tx.month,
       year: tx.year,
       paymentMethod: normalizePaymentMethod(tx.paymentMethod),
@@ -458,7 +479,7 @@ export function TransactionsPage() {
 
   function cancelEdit() {
     setEditingId(null);
-    applyNewForm(selectedId ?? '', seasonStart);
+    applyNewForm(selectedId ?? '');
     setReceiptSeries('');
     setError('');
   }
@@ -560,7 +581,7 @@ export function TransactionsPage() {
       const txSeason = seasonStartFromPeriod(lastPayload.month, lastPayload.year);
       setSeasonStart(txSeason);
       setEditingId(null);
-      applyNewForm(lastPayload.athleteId, txSeason);
+      applyNewForm(lastPayload.athleteId);
       setReceiptSeries('');
       refresh();
       return;
@@ -623,6 +644,7 @@ export function TransactionsPage() {
             one.comments?.trim() ||
             (monthLabel ? `Συνδρομή ${monthLabel} ${one.year}` : ''),
           kind: 'subscription',
+          issuedAt: result.data.createdAt,
         });
         if (!issued.success || !issued.data) {
           setSaving(false);
@@ -646,7 +668,7 @@ export function TransactionsPage() {
         data.students.find((s) => s.id === lastPayload.athleteId) ?? selected ?? null;
       const monthLabel = t(MONTHS.find((m) => m.value === lastPayload.month)?.label ?? '');
       setReceiptDraft({
-        date: toReceiptDate(localDateIso()),
+        date: toReceiptDate(saved.createdAt.slice(0, 10)),
         series: saved.receiptSeries || receiptSeriesToIssue || '',
         number: saved.receiptSeq
           ? String(saved.receiptSeq)
@@ -672,7 +694,7 @@ export function TransactionsPage() {
     const txSeason = seasonStartFromPeriod(lastPayload.month, lastPayload.year);
     setSeasonStart(txSeason);
     setEditingId(null);
-    applyNewForm(lastPayload.athleteId, txSeason);
+    applyNewForm(lastPayload.athleteId);
     setReceiptSeries('');
     refresh();
   }
@@ -827,13 +849,31 @@ export function TransactionsPage() {
                     type="number"
                     min="0"
                     step="0.01"
+                    inputMode="decimal"
                     value={form.amount || ''}
-                    onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
+                    onChange={(e) => setForm({ ...form, amount: parseMoneyInput(e.target.value) })}
                   />
                 </label>
 
                 <div className="tx-field">
-                  <div className="tx-field-row">
+                  <div className="tx-field-row tx-date-row">
+                    <label className="tx-field-col">
+                      <span>{t('Ημέρα')}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={31}
+                        step={1}
+                        inputMode="numeric"
+                        value={form.day ?? ''}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            day: e.target.value === '' ? undefined : Number(e.target.value),
+                          })
+                        }
+                      />
+                    </label>
                     <div className="tx-field-col" ref={monthMenuRef}>
                       <span>{t('Μήνας')}</span>
                       <div className="tx-month-dropdown">
@@ -867,9 +907,27 @@ export function TransactionsPage() {
                       <select
                         value={form.year}
                         disabled={formMonths.length > 1}
-                        onChange={(e) => setForm({ ...form, year: Number(e.target.value) })}
+                        onChange={(e) => {
+                          const year = Number(e.target.value);
+                          const maxDay = new Date(year, form.month, 0).getDate();
+                          setForm({
+                            ...form,
+                            year,
+                            day: Math.min(form.day ?? currentTransactionDate().day, maxDay),
+                          });
+                        }}
                       >
-                        {[2025, 2026, 2027, 2028].map((y) => (
+                        {Array.from(
+                          new Set([
+                            currentTransactionDate().year - 1,
+                            currentTransactionDate().year,
+                            currentTransactionDate().year + 1,
+                            currentTransactionDate().year + 2,
+                            form.year,
+                          ]),
+                        )
+                          .sort((a, b) => a - b)
+                          .map((y) => (
                           <option key={y} value={y}>
                             {y}
                           </option>

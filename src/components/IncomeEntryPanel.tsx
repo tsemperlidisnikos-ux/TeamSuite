@@ -17,6 +17,7 @@ import {
   mapIncomeSubcategoryToCategory,
   personNameKind,
   requiresPersonName,
+  isCanteenFinanceCategory,
 } from '../shared/financeCategories';
 import {
   getConfiguredIncomeCategories,
@@ -24,7 +25,7 @@ import {
 } from '../platform/financeCatalog';
 import { PAYMENT_METHODS } from '../shared/paymentMethods';
 import { localDateIso } from '../utils/dates';
-import { formatCurrency, formatDate, formatMonthYearNumeric } from '../utils/labels';
+import { formatCurrency, formatDate, formatMonthYearNumeric, parseMoneyInput } from '../utils/labels';
 import { filterOwnFinanceEntries } from '../utils/financeOwnEntries';
 import type { PaymentMethod, Revenue } from '../types';
 import { FinanceEntryDetailsModal } from './FinanceEntryDetailsModal';
@@ -105,6 +106,7 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
     return [ATHLETE_INCOME_SUBCATEGORY, ...configured];
   }, [catalogTick]);
   const isAthletePayments = subcategory === ATHLETE_INCOME_SUBCATEGORY;
+  const skipSportAndClass = isCanteenFinanceCategory(subcategory);
   const showPersonFields = requiresPersonName(subcategory);
   const showSubscriptionPeriod = isSubscriptionSubcategory(subcategory);
   const nameKind = personNameKind(subcategory);
@@ -145,6 +147,10 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
     setStudentId('');
     setSurname('');
     setFirstName('');
+    if (isCanteenFinanceCategory(next)) {
+      setClubName('');
+      setSport('');
+    }
   }
 
   function handleRegistrySelect(id: string) {
@@ -163,11 +169,11 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!clubName) {
+    if (!skipSportAndClass && !clubName) {
       setError('Επιλέξτε σωματείο');
       return;
     }
-    if (!sport) {
+    if (!skipSportAndClass && !sport) {
       setError('Επιλέξτε άθλημα');
       return;
     }
@@ -194,8 +200,8 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
       paymentStatus: 'paid',
       studentId: studentId || undefined,
       subcategory,
-      clubName,
-      sport,
+      clubName: skipSportAndClass ? '' : clubName,
+      sport: skipSportAndClass ? '' : sport,
       surname: showPersonFields ? surname.trim() : '',
       firstName: showPersonFields ? firstName.trim() : '',
       subscriptionPeriod: showSubscriptionPeriod ? subscriptionPeriod : '',
@@ -298,9 +304,12 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
                 setClubName(e.target.value);
                 setSport('');
               }}
-              required
+              disabled={skipSportAndClass}
+              required={!skipSportAndClass}
             >
-              <option value="">Επιλέξτε σωματείο...</option>
+              <option value="">
+                {skipSportAndClass ? 'Δεν απαιτείται' : 'Επιλέξτε σωματείο...'}
+              </option>
               {clubs.map((c) => (
                 <option key={c.id} value={c.name}>
                   {c.name}
@@ -314,11 +323,15 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
               id="income-sport"
               value={sport}
               onChange={(e) => setSport(e.target.value)}
-              disabled={!clubName}
-              required
+              disabled={skipSportAndClass || !clubName}
+              required={!skipSportAndClass}
             >
               <option value="">
-                {clubName ? 'Επιλέξτε άθλημα...' : 'Επιλέξτε πρώτα σωματείο...'}
+                {skipSportAndClass
+                  ? 'Δεν απαιτείται'
+                  : clubName
+                    ? 'Επιλέξτε άθλημα...'
+                    : 'Επιλέξτε πρώτα σωματείο...'}
               </option>
               {sports.map((s) => (
                 <option key={s.id} value={s.name}>
@@ -469,8 +482,9 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
                 type="number"
                 min={0}
                 step="0.01"
+                inputMode="decimal"
                 value={amount || ''}
-                onChange={(e) => setAmount(Number(e.target.value))}
+                onChange={(e) => setAmount(parseMoneyInput(e.target.value))}
                 required
               />
               <span>€</span>

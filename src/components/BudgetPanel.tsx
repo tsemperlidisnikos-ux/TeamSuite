@@ -13,7 +13,7 @@ import {
   currentSeasonStartYear,
   seasonBounds,
 } from '../shared/seasonPresets';
-import { formatCurrency } from '../utils/labels';
+import { formatCurrency, parseMoneyInput } from '../utils/labels';
 
 function seasonLabel(start: number): string {
   return `${start}–${String(start + 1).slice(2)}`;
@@ -319,8 +319,9 @@ export function BudgetPanel({ onSaved }: { onSaved: () => void }) {
                   type="number"
                   min={0}
                   step="0.01"
+                  inputMode="decimal"
                   value={amount || ''}
-                  onChange={(e) => setAmount(Number(e.target.value))}
+                  onChange={(e) => setAmount(parseMoneyInput(e.target.value))}
                   required
                 />
                 <span>€</span>

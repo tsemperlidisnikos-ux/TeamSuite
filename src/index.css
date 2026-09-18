@@ -1428,6 +1428,10 @@ td.row-actions {
   opacity: 0.72;
 }
 
+.finance-entry-details-form .admin-entry-note {
+  margin: 0 0 1rem;
+}
+
 .finance-entry-modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -3953,6 +3957,10 @@ html[data-appearance] .settings-backup-schedule-status {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.tx-date-row {
+  grid-template-columns: minmax(64px, 0.55fr) minmax(0, 1.45fr) minmax(84px, 0.85fr);
 }
 
 .tx-month-dropdown {

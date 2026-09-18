@@ -1,11 +1,12 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2 } from 'lucide-react';
+import { FilePenLine, Trash2 } from 'lucide-react';
 import { ATHLETE_INCOME_SUBCATEGORY } from '../api/services/athletePaymentRevenueBridge';
 import * as feeChargesService from '../api/services/feeChargesService';
 import * as financeService from '../api/services/financeService';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { FinanceEntryDetailsModal } from './FinanceEntryDetailsModal';
 import { useAppData } from '../hooks/useAppData';
 import {
   EXPENSE_SUBCATEGORIES,
@@ -18,8 +19,8 @@ import {
 import type { ReportFilters } from '../shared/reportFilters';
 import { buildSeasonPresets } from '../shared/seasonPresets';
 import { localDateIso } from '../utils/dates';
-import type { MatchExpenseDetails } from '../types';
-import { formatCurrency, formatDate } from '../utils/labels';
+import type { Expense, MatchExpenseDetails, Revenue } from '../types';
+import { formatCurrency, formatDate, parseMoneyInput } from '../utils/labels';
 import { paymentMethodLabel } from '../shared/paymentMethods';
 import { downloadXlsx } from '../utils/xlsxDownload';
 import {
@@ -147,16 +148,7 @@ function exportReportXlsx(items: ReportRow[], filename: string) {
   downloadXlsx('Οικονομικές αναφορές', headers, rows, filename);
 }
 
-function printFinanceReport() {
-  document.body.classList.add('printing-finance-report');
-  window.requestAnimationFrame(() => {
-    try {
-      window.print();
-    } finally {
-      document.body.classList.remove('printing-finance-report');
-    }
-  });
-}
+const REPORT_PAGE_SIZE = 100;
 
 export function FinanceReportsPanel() {
   const { data, refresh } = useAppData();
@@ -166,12 +158,26 @@ export function FinanceReportsPanel() {
   const seasonPresets = buildSeasonPresets();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [openChargeBaseRows, setOpenChargeBaseRows] = useState<
+    feeChargesService.ClubOpenChargeRow[]
+  >([]);
+  const [openChargesLoading, setOpenChargesLoading] = useState(false);
+  const [visibleItemCount, setVisibleItemCount] = useState(REPORT_PAGE_SIZE);
+  const [visibleChargeCount, setVisibleChargeCount] = useState(REPORT_PAGE_SIZE);
+  const [visibleDayCount, setVisibleDayCount] = useState(REPORT_PAGE_SIZE);
+  const [renderAllForPrint, setRenderAllForPrint] = useState(false);
+  const [selectedRevenue, setSelectedRevenue] = useState<Revenue | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
   const clubs = useMemo(
     () => (data.associations ?? []).filter((a) => a.active !== false),
     [data.associations],
   );
   const sports = useMemo(() => (data.sports ?? []).filter((s) => s.active), [data.sports]);
+  const cashAccounts = useMemo(
+    () => (data.cashAccounts ?? []).filter((account) => account.active),
+    [data.cashAccounts],
+  );
 
   const allRows = useMemo<ReportRow[]>(() => {
     const incomeRows: ReportRow[] = filterOwnFinanceEntries(data.revenues).map((rev) => ({
@@ -229,10 +235,23 @@ export function FinanceReportsPanel() {
     [allRows, applied],
   );
 
-  const openChargeRows = useMemo(() => {
-    if (sessionSeesOnlyOwnFinance()) return [];
-    const rows = feeChargesService.listClubOpenCharges();
-    return rows.filter((row) => {
+  useEffect(() => {
+    if (sessionSeesOnlyOwnFinance()) {
+      setOpenChargeBaseRows([]);
+      setOpenChargesLoading(false);
+      return;
+    }
+    setOpenChargesLoading(true);
+    const timer = window.setTimeout(() => {
+      setOpenChargeBaseRows(feeChargesService.listClubOpenCharges());
+      setOpenChargesLoading(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [data.transactions, data.students]);
+
+  const openChargeRows = useMemo(
+    () =>
+      openChargeBaseRows.filter((row) => {
       if (applied.dateFrom && row.chargeDate && row.chargeDate < applied.dateFrom) return false;
       if (applied.dateTo && row.chargeDate && row.chargeDate > applied.dateTo) return false;
       if (applied.clubName && row.clubName !== applied.clubName) return false;
@@ -249,8 +268,39 @@ export function FinanceReportsPanel() {
         if (!hay.includes(q)) return false;
       }
       return true;
+      }),
+    [applied, openChargeBaseRows],
+  );
+
+  useEffect(() => {
+    setVisibleItemCount(REPORT_PAGE_SIZE);
+    setVisibleChargeCount(REPORT_PAGE_SIZE);
+    setVisibleDayCount(REPORT_PAGE_SIZE);
+  }, [applied]);
+
+  const visibleItems = renderAllForPrint ? items : items.slice(0, visibleItemCount);
+  const visibleOpenChargeRows = renderAllForPrint
+    ? openChargeRows
+    : openChargeRows.slice(0, visibleChargeCount);
+
+  function handlePrintFinanceReport() {
+    setRenderAllForPrint(true);
+    document.body.classList.add('printing-finance-report');
+    const cleanup = () => {
+      document.body.classList.remove('printing-finance-report');
+      setRenderAllForPrint(false);
+    };
+    window.addEventListener('afterprint', cleanup, { once: true });
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        try {
+          window.print();
+        } finally {
+          window.setTimeout(cleanup, 0);
+        }
+      });
     });
-  }, [applied, data.transactions, data.students]);
+  }
 
   const openChargesTotal = openChargeRows.reduce((sum, row) => sum + row.remaining, 0);
 
@@ -289,6 +339,9 @@ export function FinanceReportsPanel() {
         balance: values.income - values.expense,
       }));
   }, [items]);
+  const visibleDailyTotals = renderAllForPrint
+    ? dailyTotals
+    : dailyTotals.slice(0, visibleDayCount);
 
   function updateDraft<K extends keyof ReportFilters>(key: K, value: ReportFilters[K]) {
     if (key === 'dateFrom' || key === 'dateTo') setActiveSeason(null);
@@ -330,6 +383,16 @@ export function FinanceReportsPanel() {
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     applyFilters(draft);
+  }
+
+  function openEdit(item: ReportRow) {
+    if (item.type === 'income') {
+      setSelectedExpense(null);
+      setSelectedRevenue(data.revenues.find((rev) => rev.id === item.id) ?? null);
+      return;
+    }
+    setSelectedRevenue(null);
+    setSelectedExpense(data.expenses.find((exp) => exp.id === item.id) ?? null);
   }
 
   async function handleDelete(item: ReportRow) {
@@ -394,12 +457,12 @@ export function FinanceReportsPanel() {
           <Button
             type="button"
             variant="secondary"
-            onClick={printFinanceReport}
+            onClick={handlePrintFinanceReport}
             disabled={items.length === 0}
           >
             PDF
           </Button>
-          <Button type="button" variant="secondary" onClick={printFinanceReport}>
+          <Button type="button" variant="secondary" onClick={handlePrintFinanceReport}>
             Εκτύπωση
           </Button>
         </div>
@@ -479,7 +542,7 @@ export function FinanceReportsPanel() {
                 </tr>
               </thead>
               <tbody>
-                {dailyTotals.map((day) => (
+                {visibleDailyTotals.map((day) => (
                   <tr key={day.date}>
                     <td>{formatDate(day.date)}</td>
                     <td className="amount income">{formatCurrency(day.income)}</td>
@@ -489,6 +552,20 @@ export function FinanceReportsPanel() {
                 ))}
               </tbody>
             </table>
+            {!renderAllForPrint && visibleDayCount < dailyTotals.length ? (
+              <div className="report-pagination no-print">
+                <span>
+                  Εμφανίζονται {visibleDailyTotals.length} από {dailyTotals.length} ημέρες
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setVisibleDayCount((count) => count + REPORT_PAGE_SIZE)}
+                >
+                  Εμφάνιση περισσότερων
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -571,11 +648,12 @@ export function FinanceReportsPanel() {
                 type="number"
                 min={0}
                 step="0.01"
+                inputMode="decimal"
                 value={draft.minAmount ?? ''}
                 onChange={(e) =>
                   updateDraft(
                     'minAmount',
-                    e.target.value === '' ? undefined : Number(e.target.value),
+                    e.target.value === '' ? undefined : parseMoneyInput(e.target.value),
                   )
                 }
               />
@@ -589,11 +667,12 @@ export function FinanceReportsPanel() {
                 type="number"
                 min={0}
                 step="0.01"
+                inputMode="decimal"
                 value={draft.maxAmount ?? ''}
                 onChange={(e) =>
                   updateDraft(
                     'maxAmount',
-                    e.target.value === '' ? undefined : Number(e.target.value),
+                    e.target.value === '' ? undefined : parseMoneyInput(e.target.value),
                   )
                 }
               />
@@ -640,12 +719,16 @@ export function FinanceReportsPanel() {
                 </tr>
               </thead>
               <tbody>
-                {openChargeRows.length === 0 ? (
+                {openChargesLoading ? (
+                  <tr>
+                    <td colSpan={4}>Υπολογισμός οφειλών…</td>
+                  </tr>
+                ) : openChargeRows.length === 0 ? (
                   <tr>
                     <td colSpan={4}>Δεν υπάρχουν ανοιχτές χρεώσεις αθλητών σε αυτά τα φίλτρα.</td>
                   </tr>
                 ) : (
-                  openChargeRows.map((row) => (
+                  visibleOpenChargeRows.map((row) => (
                     <tr key={row.chargeId}>
                       <td>{row.periodLabel}</td>
                       <td>
@@ -667,6 +750,20 @@ export function FinanceReportsPanel() {
                 )}
               </tbody>
             </table>
+            {!renderAllForPrint && visibleChargeCount < openChargeRows.length ? (
+              <div className="report-pagination no-print">
+                <span>
+                  Εμφανίζονται {visibleOpenChargeRows.length} από {openChargeRows.length} οφειλές
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setVisibleChargeCount((count) => count + REPORT_PAGE_SIZE)}
+                >
+                  Εμφάνιση περισσότερων
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -690,7 +787,7 @@ export function FinanceReportsPanel() {
                   <td colSpan={8}>Δεν βρέθηκαν εγγραφές με αυτά τα φίλτρα.</td>
                 </tr>
               ) : (
-                items.map((item) => (
+                visibleItems.map((item) => (
                   <tr key={`${item.type}-${item.id}`}>
                     <td>{formatDate(item.date)}</td>
                     <td>{item.clubName || '—'}</td>
@@ -717,7 +814,16 @@ export function FinanceReportsPanel() {
                     <td className={item.type === 'income' ? 'amount income' : 'amount expense'}>
                       {formatCurrency(item.amount)}
                     </td>
-                    <td className="row-actions">
+                    <td className="row-actions no-print">
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        aria-label="Προβολή και διόρθωση"
+                        title="Ανάλυση / Διόρθωση"
+                        onClick={() => openEdit(item)}
+                      >
+                        <FilePenLine size={16} />
+                      </button>
                       <button
                         type="button"
                         className="btn btn-ghost"
@@ -749,6 +855,20 @@ export function FinanceReportsPanel() {
               </tfoot>
             ) : null}
           </table>
+          {!renderAllForPrint && visibleItemCount < items.length ? (
+            <div className="report-pagination no-print">
+              <span>
+                Εμφανίζονται {visibleItems.length} από {items.length} κινήσεις
+              </span>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setVisibleItemCount((count) => count + REPORT_PAGE_SIZE)}
+              >
+                Εμφάνιση περισσότερων
+              </Button>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -763,7 +883,7 @@ export function FinanceReportsPanel() {
             <Button variant="secondary" type="button" onClick={() => setPreviewOpen(false)}>
               Κλείσιμο
             </Button>
-            <Button type="button" onClick={printFinanceReport}>
+            <Button type="button" onClick={handlePrintFinanceReport}>
               Εκτύπωση
             </Button>
           </>
@@ -779,6 +899,20 @@ export function FinanceReportsPanel() {
           <p className="muted-text">Εγγραφές: {items.length}</p>
         </div>
       </Modal>
+      <FinanceEntryDetailsModal
+        kind="revenue"
+        entry={selectedRevenue}
+        cashAccounts={cashAccounts}
+        onClose={() => setSelectedRevenue(null)}
+        onSaved={() => refresh()}
+      />
+      <FinanceEntryDetailsModal
+        kind="expense"
+        entry={selectedExpense}
+        cashAccounts={cashAccounts}
+        onClose={() => setSelectedExpense(null)}
+        onSaved={() => refresh()}
+      />
     </section>
   );
 }

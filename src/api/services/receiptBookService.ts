@@ -88,6 +88,7 @@ export async function allocateReceiptIssue(input: {
   receivedFrom?: string | null;
   reason?: string | null;
   kind?: ReceiptIssueKind | null;
+  issuedAt?: string | null;
 }) {
   return apiClient(async () => {
     const holder: { value: ReceiptIssueRecord | null } = { value: null };
@@ -98,7 +99,7 @@ export async function allocateReceiptIssue(input: {
         issueForTransaction(issues, input.transactionId) ??
         issues.find((row) => row.id === input.transactionId) ??
         null;
-      const now = localDateTimeIso();
+      const now = input.issuedAt?.trim() || localDateTimeIso();
       const snap = snapshotFields(input);
       if (existing) {
         holder.value = {

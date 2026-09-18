@@ -44,11 +44,23 @@ export const expenseCategoryLabels: Record<ExpenseCategory, string> = {
   other: 'Άλλο',
 };
 
+/** Αποδέχεται 12,50 ή 12.50 χωρίς στρογγυλοποίηση σε ακέραιο. */
+export function parseMoneyInput(raw: string): number {
+  const normalized = String(raw ?? '')
+    .trim()
+    .replace(/\s/g, '')
+    .replace(',', '.');
+  if (!normalized) return 0;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('el-GR', {
     style: 'currency',
     currency: 'EUR',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 

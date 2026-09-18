@@ -15,7 +15,7 @@ import { useT } from '../i18n/LocaleContext';
 import { getPreviewClubId, loadPlatformConfig } from '../platform/platformConfig';
 import type { FeeChargeTemplateInput } from '../schemas';
 import type { FeeChargeTemplate } from '../types';
-import { formatCurrency, formatDate } from '../utils/labels';
+import { formatCurrency, formatDate, parseMoneyInput } from '../utils/labels';
 import { listActiveClubSportNames } from '../utils/clubSports';
 import { normalizeSportKey } from '../utils/sport';
 import { canAccessAmka, formatAmkaForViewer } from '../utils/amkaAccess';
@@ -700,9 +700,10 @@ export function FeesPage() {
                 type="number"
                 min={0}
                 step="0.01"
+                inputMode="decimal"
                 value={form.registrationFee || ''}
                 onChange={(e) =>
-                  setForm({ ...form, registrationFee: Number(e.target.value) || 0 })
+                  setForm({ ...form, registrationFee: parseMoneyInput(e.target.value) })
                 }
               />
             </label>
@@ -729,9 +730,10 @@ export function FeesPage() {
                   type="number"
                   min={0}
                   step="0.01"
+                  inputMode="decimal"
                   value={form.monthlyAmount || ''}
                   onChange={(e) =>
-                    setForm({ ...form, monthlyAmount: Number(e.target.value) || 0 })
+                    setForm({ ...form, monthlyAmount: parseMoneyInput(e.target.value) })
                   }
                 />
               </label>
@@ -885,9 +887,10 @@ export function FeesPage() {
                 type="number"
                 min={0}
                 step="0.01"
+                inputMode="decimal"
                 value={form.seasonTicketAmount || ''}
                 onChange={(e) =>
-                  setForm({ ...form, seasonTicketAmount: Number(e.target.value) || 0 })
+                  setForm({ ...form, seasonTicketAmount: parseMoneyInput(e.target.value) })
                 }
               />
             </label>

@@ -115,9 +115,10 @@ export function LicensePackagesPage() {
                         type="number"
                         min={0}
                         step={0.01}
+                        inputMode="decimal"
                         value={Number.isFinite(pkg.price) ? pkg.price : 0}
                         onChange={(e) => {
-                          const value = e.target.value === '' ? 0 : Number(e.target.value);
+                          const value = e.target.value === '' ? 0 : Number(e.target.value.replace(',', '.'));
                           updatePackage(pkg.id, { price: Number.isFinite(value) ? value : 0 });
                         }}
                       />

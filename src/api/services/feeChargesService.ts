@@ -10,6 +10,7 @@ import type {
   Student,
 } from '../../types';
 import { localDateIso, localDateTimeIso } from '../../utils/dates';
+import { formatCurrency } from '../../utils/labels';
 import {
   isFeeChargeSuppressed,
   rememberDeletedTransaction,
@@ -858,10 +859,7 @@ export function buildDebtReminderEmail(input: {
 }
 
 function formatCurrencyLocal(amount: number): string {
-  return new Intl.NumberFormat('el-GR', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(amount);
+  return formatCurrency(amount);
 }
 
 function escapeHtml(value: string): string {

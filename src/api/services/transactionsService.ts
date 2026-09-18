@@ -54,12 +54,29 @@ function assertCanAddPayment(data: AppData, transaction: AthleteTransaction) {
   assertPaymentDoesNotOverpay(data, transaction);
 }
 
+function transactionDateTime(
+  input: Pick<TransactionInput, 'day' | 'month' | 'year'>,
+  timeSource = localDateTimeIso(),
+): string {
+  if (input.day == null) return timeSource;
+  const date = [
+    input.year,
+    String(input.month).padStart(2, '0'),
+    String(input.day).padStart(2, '0'),
+  ].join('-');
+  const time = timeSource.includes('T')
+    ? timeSource.slice(timeSource.indexOf('T'))
+    : localDateTimeIso().slice(10);
+  return `${date}${time}`;
+}
+
 function buildTransaction(input: TransactionInput): AthleteTransaction {
   const parsed = transactionSchema.parse(input);
+  const { day, ...fields } = parsed;
   return {
-    ...parsed,
+    ...fields,
     id: createId('txn'),
-    createdAt: localDateTimeIso(),
+    createdAt: transactionDateTime(parsed),
     updatedAt: Date.now(),
     allocatesChargeId: parsed.allocatesChargeId ?? null,
   };
@@ -81,16 +98,14 @@ export async function createTransaction(input: TransactionInput): Promise<ApiRes
 export async function createTransactions(inputs: TransactionInput[]) {
   return apiClient(async () => {
     if (!inputs.length) return [] as AthleteTransaction[];
-    const created: AthleteTransaction[] = [];
+    const created = inputs.map(buildTransaction);
     mutateData((data) => {
       if (!data.transactions) data.transactions = [];
-      for (const input of inputs) {
-        const transaction = buildTransaction(input);
+      for (const transaction of created) {
         if (transaction.type === 'payment') {
           assertCanAddPayment(data, transaction);
         }
         data.transactions.push(transaction);
-        created.push(transaction);
       }
     });
 
@@ -126,9 +141,15 @@ export async function updateTransaction(id: string, input: TransactionInput) {
       if (!data.transactions) data.transactions = [];
       const index = data.transactions.findIndex((t) => t.id === id);
       if (index === -1) throw new Error('Η κίνηση δεν βρέθηκε');
+      const current = data.transactions[index];
+      const { day, ...fields } = parsed;
       updated = {
-        ...data.transactions[index],
-        ...parsed,
+        ...current,
+        ...fields,
+        createdAt:
+          day == null
+            ? current.createdAt
+            : transactionDateTime(parsed, current.createdAt),
         updatedAt: Date.now(),
       };
       data.transactions[index] = updated;

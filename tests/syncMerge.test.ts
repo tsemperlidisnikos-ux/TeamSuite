@@ -11,12 +11,21 @@ function club(partial: Partial<AppData>): AppData {
 }
 
 describe('entity field merge', () => {
-  it('fills empty fields from the older record', () => {
-    const local = { id: 's1', phone: '111', email: '', updatedAt: 20 };
+  it('fills empty fields from the older record when timestamps are equal', () => {
+    const local = { id: 's1', phone: '111', email: '', updatedAt: 10 };
     const cloud = { id: 's1', phone: '222', email: 'a@b.gr', updatedAt: 10 };
     const merged = mergeTwoRecords(local, cloud, true);
     expect(merged.phone).toBe('111');
     expect(merged.email).toBe('a@b.gr');
+    expect(merged.updatedAt).toBe(10);
+  });
+
+  it('lets a strictly newer record clear a field', () => {
+    const local = { id: 's1', clubName: '', sport: '', updatedAt: 20 };
+    const cloud = { id: 's1', clubName: 'Α.Σ. ΑΠΟΛΛΩΝ', sport: 'Μπάσκετ', updatedAt: 10 };
+    const merged = mergeTwoRecords(local, cloud, true);
+    expect(merged.clubName).toBe('');
+    expect(merged.sport).toBe('');
     expect(merged.updatedAt).toBe(20);
   });
 

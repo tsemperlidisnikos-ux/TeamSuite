@@ -5,7 +5,6 @@ import { ExpenseEntryPanel } from '../components/ExpenseEntryPanel';
 import { BudgetPanel } from '../components/BudgetPanel';
 import { CashAccountsPanel } from '../components/CashAccountsPanel';
 import { FinanceBalancePanel } from '../components/FinanceBalancePanel';
-import { FinanceReportsPanel } from '../components/FinanceReportsPanel';
 import { IncomeEntryPanel } from '../components/IncomeEntryPanel';
 import { DailyTillPanel } from '../components/DailyTillPanel';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -32,6 +31,11 @@ import {
 const FinanceAnalysisCharts = lazy(() =>
   import('../components/FinanceAnalysisCharts').then((module) => ({
     default: module.FinanceAnalysisCharts,
+  })),
+);
+const FinanceReportsPanel = lazy(() =>
+  import('../components/FinanceReportsPanel').then((module) => ({
+    default: module.FinanceReportsPanel,
   })),
 );
 
@@ -138,6 +142,11 @@ export function FinancePage() {
   }, [tab]);
 
   useEffect(() => {
+    const cleared = financeService.clearCanteenOrgFields();
+    if (cleared.expenses > 0 || cleared.revenues > 0) refresh();
+  }, [refresh]);
+
+  useEffect(() => {
     void financeService.getFinanceSummary().then((res) => {
       if (res.success) setSummary(res.data);
     });
@@ -229,7 +238,17 @@ export function FinancePage() {
       {tab === 'accounts' ? <CashAccountsPanel onSaved={refresh} /> : null}
       {tab === 'balance' ? <FinanceBalancePanel /> : null}
       {tab === 'budget' ? <BudgetPanel onSaved={refresh} /> : null}
-      {tab === 'reports' ? <FinanceReportsPanel /> : null}
+      {tab === 'reports' ? (
+        <Suspense
+          fallback={
+            <section className="panel">
+              <p className="muted">Φόρτωση αναφορών…</p>
+            </section>
+          }
+        >
+          <FinanceReportsPanel />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

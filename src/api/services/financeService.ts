@@ -14,6 +14,7 @@ import {
   filterOwnFinanceEntries,
 } from '../../utils/financeOwnEntries';
 import { rememberDeletedId } from '../../data/financeSyncMerge';
+import { isCanteenFinanceCategory } from '../../shared/financeCategories';
 import { ensureAthletePaymentRevenuesSynced } from './athletePaymentRevenueBridge';
 import { assertFinanceMonthOpen } from './financePeriodService';
 import { ensureLegacyPaymentsMatched } from './paymentMatchingService';
@@ -36,6 +37,7 @@ export async function createRevenue(input: RevenueInput) {
       id: createId('rev'),
       createdByUserId: actor?.userId,
       createdByEmail: actor?.email,
+      updatedAt: Date.now(),
     };
     mutateData((data) => {
       data.revenues.push(revenue);
@@ -59,6 +61,7 @@ export async function updateRevenue(id: string, input: RevenueInput) {
         ...parsed,
         createdByUserId: data.revenues[index].createdByUserId,
         createdByEmail: data.revenues[index].createdByEmail,
+        updatedAt: Date.now(),
       };
       data.revenues[index] = updated;
     });
@@ -95,6 +98,7 @@ export async function createExpense(input: ExpenseInput) {
       id: createId('exp'),
       createdByUserId: actor?.userId,
       createdByEmail: actor?.email,
+      updatedAt: Date.now(),
     };
     mutateData((data) => {
       data.expenses.push(expense);
@@ -118,6 +122,7 @@ export async function updateExpense(id: string, input: ExpenseInput) {
         ...parsed,
         createdByUserId: data.expenses[index].createdByUserId,
         createdByEmail: data.expenses[index].createdByEmail,
+        updatedAt: Date.now(),
       };
       data.expenses[index] = updated;
     });
@@ -233,4 +238,37 @@ export async function getFinanceSummary() {
       accounts,
     };
   });
+}
+
+function hasCanteenOrgValue(row: {
+  clubName?: string;
+  sport?: string;
+  className?: string;
+}): boolean {
+  return Boolean(row.clubName?.trim() || row.sport?.trim() || row.className?.trim());
+}
+
+/** Καθαρίζει σωματείο / άθλημα / τμήμα από καταχωρήσεις καντίνας. */
+export function clearCanteenOrgFields(): { expenses: number; revenues: number } {
+  const result = { expenses: 0, revenues: 0 };
+  mutateData((data) => {
+    for (const row of data.expenses ?? []) {
+      if (!isCanteenFinanceCategory(row.subcategory ?? '')) continue;
+      if (!hasCanteenOrgValue(row)) continue;
+      row.clubName = '';
+      row.sport = '';
+      row.className = '';
+      row.updatedAt = Date.now();
+      result.expenses += 1;
+    }
+    for (const row of data.revenues ?? []) {
+      if (!isCanteenFinanceCategory(row.subcategory ?? '')) continue;
+      if (!row.clubName?.trim() && !row.sport?.trim()) continue;
+      row.clubName = '';
+      row.sport = '';
+      row.updatedAt = Date.now();
+      result.revenues += 1;
+    }
+  });
+  return result;
 }

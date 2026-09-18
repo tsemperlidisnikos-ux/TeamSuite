@@ -231,11 +231,26 @@ export const transactionSchema = z.object({
   amount: z.coerce.number().positive('Το ποσό πρέπει να είναι θετικό'),
   receiptNumber: z.string().optional().default(''),
   type: z.enum(['charge', 'payment']),
+  day: z.coerce.number().int().min(1).max(31).optional(),
   month: z.coerce.number().int().min(1).max(12),
   year: z.coerce.number().int().min(2000),
   paymentMethod: z.enum(['cash', 'transfer', 'card', 'viva', 'stripe', 'eurobank', 'other', '']),
   comments: z.string().optional().default(''),
   allocatesChargeId: z.string().nullable().optional(),
+}).superRefine((value, ctx) => {
+  if (value.day == null) return;
+  const date = new Date(value.year, value.month - 1, value.day);
+  if (
+    date.getFullYear() !== value.year ||
+    date.getMonth() !== value.month - 1 ||
+    date.getDate() !== value.day
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Η ημέρα δεν είναι έγκυρη για τον επιλεγμένο μήνα',
+      path: ['day'],
+    });
+  }
 });
 
 export type TransactionInput = z.infer<typeof transactionSchema>;

@@ -32,8 +32,10 @@ export function mergeTwoRecords<T extends { updatedAt?: number }>(
     older = local;
   }
   const out = { ...older, ...newer } as T;
+  const newerIsStrictlyNewer = recordUpdatedAt(newer) > recordUpdatedAt(older);
   for (const key of Object.keys(older) as Array<keyof T>) {
     if (isEmptyMergeValue(out[key]) && !isEmptyMergeValue(older[key])) {
+      if (newerIsStrictlyNewer) continue;
       out[key] = older[key];
     }
   }

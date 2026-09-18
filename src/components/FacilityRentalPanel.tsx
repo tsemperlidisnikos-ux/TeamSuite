@@ -17,7 +17,7 @@ import { paymentMethodLabel } from '../shared/paymentMethods';
 import type { FacilityInput, RentalBookingInput } from '../schemas';
 import type { Facility, FacilityRentalRule, RentalBooking, RentalCourtShare, RentalSettings } from '../types';
 import { localDateIso } from '../utils/dates';
-import { formatCurrency, formatDate } from '../utils/labels';
+import { formatCurrency, formatDate, parseMoneyInput } from '../utils/labels';
 import { amountToGreekWords } from '../utils/amountToGreekWords';
 import { listActiveFacilities } from '../utils/facilityHours';
 import { optimizeCoverImageDataUrl } from '../utils/clubLogoFile';
@@ -864,10 +864,11 @@ export function FacilityRentalPanel() {
                     type="number"
                     min={0}
                     step="0.01"
+                    inputMode="decimal"
                     value={rule.hourlyRateFull || ''}
                     disabled={!rule.enabled}
                     onChange={(e) => {
-                      const full = Number(e.target.value) || 0;
+                      const full = parseMoneyInput(e.target.value);
                       patchRule(facility.id, { hourlyRateFull: full, hourlyRate: full });
                     }}
                   />
@@ -879,10 +880,11 @@ export function FacilityRentalPanel() {
                     type="number"
                     min={0}
                     step="0.01"
+                    inputMode="decimal"
                     value={rule.hourlyRateHalf || ''}
                     disabled={!rule.enabled}
                     onChange={(e) =>
-                      patchRule(facility.id, { hourlyRateHalf: Number(e.target.value) || 0 })
+                      patchRule(facility.id, { hourlyRateHalf: parseMoneyInput(e.target.value) })
                     }
                   />
                 </label>
@@ -904,10 +906,11 @@ export function FacilityRentalPanel() {
                     type="number"
                     min={0}
                     step="0.01"
+                    inputMode="decimal"
                     value={rule.lockerRoomFee || ''}
                     disabled={!rule.enabled || !rule.lockerRoomAvailable}
                     onChange={(e) =>
-                      patchRule(facility.id, { lockerRoomFee: Number(e.target.value) || 0 })
+                      patchRule(facility.id, { lockerRoomFee: parseMoneyInput(e.target.value) })
                     }
                   />
                 </label>
