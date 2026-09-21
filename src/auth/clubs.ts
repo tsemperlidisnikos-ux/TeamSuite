@@ -17,6 +17,7 @@ import {
   slugifyClubName as slugifyClubNameFromUtil,
   usedPublicSlugs,
 } from '../utils/publicClubSlug';
+import { encodeClubMediaAppUrl } from '../utils/clubMediaUrl';
 
 export interface ClubSmtpSettings {
   enabled: boolean;
@@ -199,6 +200,9 @@ export function canonicalizeClubLogoUrl(
   if (!raw) return null;
   if (/vercel-storage\.com/i.test(raw)) {
     return `/api/club-media?p=${encodeURIComponent(`ss360-media/${clubId}/club-logo`)}`;
+  }
+  if (raw.startsWith('/api/club-media')) {
+    return encodeClubMediaAppUrl(raw);
   }
   return raw;
 }

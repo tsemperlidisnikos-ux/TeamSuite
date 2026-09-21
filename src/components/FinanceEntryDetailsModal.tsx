@@ -3,7 +3,7 @@ import * as financeService from '../api/services/financeService';
 import { useAppData } from '../hooks/useAppData';
 import type { ExpenseInput, RevenueInput } from '../schemas';
 import { PAYMENT_METHODS } from '../shared/paymentMethods';
-import { isCanteenFinanceCategory } from '../shared/financeCategories';
+import { isCanteenFinanceCategory, expenseSkipsSportAndClass } from '../shared/financeCategories';
 import type { CashAccount, Expense, MatchExpenseDetails, PaymentMethod, Revenue } from '../types';
 import { sportsMatch } from '../utils/coachScope';
 import { formatCurrency, parseMoneyInput } from '../utils/labels';
@@ -368,6 +368,7 @@ function ExpenseEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const skipSportAndClass = isCanteenFinanceCategory(draft.subcategory ?? '');
+  const skipSportClassFields = expenseSkipsSportAndClass(draft.subcategory ?? '');
   const { clubs, sports, classes } = useFinanceOrgOptions(draft.sport ?? '');
 
   useEffect(() => setDraft(entry), [entry]);
@@ -402,9 +403,9 @@ function ExpenseEditor({
       description: draft.description,
       vendor: draft.vendor ?? '',
       subcategory: draft.subcategory ?? '',
-      clubName: draft.clubName ?? '',
-      sport: draft.sport ?? '',
-      className: draft.className ?? '',
+      clubName: skipSportAndClass ? '' : (draft.clubName ?? ''),
+      sport: skipSportClassFields ? '' : (draft.sport ?? ''),
+      className: skipSportClassFields ? '' : (draft.className ?? ''),
       surname: draft.surname ?? '',
       firstName: draft.firstName ?? '',
       studentId: draft.studentId,
@@ -431,7 +432,9 @@ function ExpenseEditor({
         διόρθωσης».
         {skipSportAndClass
           ? ' Για καντίνα / κυλικείο το σωματείο, το άθλημα και το τμήμα δεν απαιτούνται.'
-          : ''}
+          : skipSportClassFields
+            ? ' Το άθλημα και το τμήμα δεν απαιτούνται για αυτή την υποκατηγορία.'
+            : ''}
       </p>
       <div className="form-grid">
         <Field label="Ημερομηνία">
@@ -477,17 +480,19 @@ function ExpenseEditor({
         </Field>
         <Field label="Άθλημα">
           <CatalogSelect
-            value={draft.sport ?? ''}
+            value={skipSportClassFields ? '' : (draft.sport ?? '')}
             options={sports}
-            emptyLabel={skipSportAndClass ? 'Δεν απαιτείται' : '— χωρίς άθλημα —'}
+            emptyLabel={skipSportClassFields ? 'Δεν απαιτείται' : '— χωρίς άθλημα —'}
+            disabled={skipSportClassFields}
             onChange={(sport) => setDraft({ ...draft, sport, className: '' })}
           />
         </Field>
         <Field label="Τμήμα">
           <CatalogSelect
-            value={draft.className ?? ''}
+            value={skipSportClassFields ? '' : (draft.className ?? '')}
             options={classes}
-            emptyLabel={skipSportAndClass ? 'Δεν απαιτείται' : '— χωρίς τμήμα —'}
+            emptyLabel={skipSportClassFields ? 'Δεν απαιτείται' : '— χωρίς τμήμα —'}
+            disabled={skipSportClassFields}
             onChange={(className) => setDraft({ ...draft, className })}
           />
         </Field>

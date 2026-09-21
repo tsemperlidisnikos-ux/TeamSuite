@@ -26,6 +26,7 @@ const roleLabels: Record<StaffMember['role'], string> = {
   coach: 'Προπονητής',
   secretariat: 'Γραμματεία',
   employee: 'Υπάλληλος',
+  misc: 'Διάφορα',
 };
 
 const emptyForm: StaffInput = {
@@ -292,6 +293,7 @@ export function StaffPage() {
             <option value="coach">Προπονητής</option>
             <option value="secretariat">Γραμματεία</option>
             <option value="employee">Υπάλληλος</option>
+            <option value="misc">Διάφορα</option>
           </select>
         </label>
         <label className="field">
@@ -588,6 +590,7 @@ export function StaffPage() {
               <option value="admin">Διαχειριστής</option>
               <option value="secretariat">Γραμματεία</option>
               <option value="employee">Υπάλληλος</option>
+              <option value="misc">Διάφορα</option>
               {form.role === 'coach' ? (
                 <option value="coach">Προπονητής</option>
               ) : null}
@@ -615,7 +618,7 @@ export function StaffPage() {
           'Κάντε εξαγωγή με το κουμπί Εξαγωγή (ώστε να έχετε όλες τις στήλες).',
           'Προσθέστε γραμμές στο Excel.',
           'Για νέα μέλη προσωπικού αφήστε κενό το πεδίο Κωδικός. Αν αντιγράψετε υπάρχουσα γραμμή και αφήσετε τον ίδιο κωδικό, θα ενημερωθεί το υπάρχον μέλος, δεν θα δημιουργηθεί δεύτερο.',
-          'Ο ρόλος γράφεται όπως στο πρόγραμμα: Διαχειριστής, Γραμματεία ή Υπάλληλος.',
+          'Ο ρόλος γράφεται όπως στο πρόγραμμα: Διαχειριστής, Γραμματεία, Υπάλληλος ή Διάφορα.',
           'Όνομα, επώνυμο και έγκυρο email είναι υποχρεωτικά. Οι φωτογραφίες δεν εισάγονται.',
         ]}
       />

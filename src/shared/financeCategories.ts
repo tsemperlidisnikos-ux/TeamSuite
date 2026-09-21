@@ -184,6 +184,23 @@ export function usesMatchExpenseForm(subcategory: string): boolean {
 /** Τμήμα εξόδου όταν η υποκατηγορία είναι Προσωπικό (ανεξάρτητα σωματείου). */
 export const STAFF_EXPENSE_CLASS_NAME = 'Προσωπικό';
 
+export function isStaffFinanceCategory(subcategory: string): boolean {
+  return subcategory.trim() === 'ΠΡΟΣΩΠΙΚΟ';
+}
+
+export function isAdministrativeFinanceCategory(subcategory: string): boolean {
+  return subcategory.trim() === 'ΔΙΟΙΚΗΤΙΚΑ';
+}
+
+/** Άθλημα/τμήμα δεν ισχύουν σε καντίνα, προσωπικό και διοικητικά. */
+export function expenseSkipsSportAndClass(subcategory: string): boolean {
+  return (
+    isCanteenFinanceCategory(subcategory) ||
+    isStaffFinanceCategory(subcategory) ||
+    isAdministrativeFinanceCategory(subcategory)
+  );
+}
+
 export function personNameKind(subcategory: string): 'athletes' | 'members' {
   return subcategory === 'ΣΥΝΔΡΟΜΕΣ ΜΕΛΩΝ' ? 'members' : 'athletes';
 }

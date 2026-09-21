@@ -8,11 +8,12 @@ import type { ExpenseInput } from '../schemas';
 import type { Expense, MatchExpenseDetails } from '../types';
 import {
   isCanteenFinanceCategory,
+  isStaffFinanceCategory,
+  expenseSkipsSportAndClass,
   mapExpenseSubcategoryToCategory,
   matchExpenseTotal,
   personNameKind,
   requiresPersonName,
-  STAFF_EXPENSE_CLASS_NAME,
   usesMatchExpenseForm,
 } from '../shared/financeCategories';
 import {
@@ -124,8 +125,9 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
 
   const isMatch = usesMatchExpenseForm(subcategory);
   const isCoachExpense = subcategory === 'ΠΡΟΠΟΝΗΤΕΣ / ΓΥΜΝΑΣΤΕΣ';
-  const isStaffExpense = subcategory === 'ΠΡΟΣΩΠΙΚΟ';
+  const isStaffExpense = isStaffFinanceCategory(subcategory);
   const skipSportAndClass = isCanteenFinanceCategory(subcategory);
+  const skipSportClassFields = expenseSkipsSportAndClass(subcategory);
   const showPersonFields = !isMatch && requiresPersonName(subcategory);
   const showClassField = !isMatch && !isCoachExpense;
   const nameKind = personNameKind(subcategory);
@@ -145,10 +147,9 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
 
   const classOptions = useMemo(() => {
     const list = data.classes ?? [];
-    if (isStaffExpense && !sport) return [];
     if (!sport) return list;
     return list.filter((c) => sportsMatch(c.sport, sport));
-  }, [data.classes, isStaffExpense, sport]);
+  }, [data.classes, sport]);
 
   const selectedClassId = useMemo(() => {
     if (!className) return null;
@@ -238,11 +239,13 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
     setStudentId('');
     setSurname('');
     setFirstName('');
-    setClassName(next === 'ΠΡΟΣΩΠΙΚΟ' ? STAFF_EXPENSE_CLASS_NAME : '');
-    if (isCanteenFinanceCategory(next)) {
-      setClubName('');
+    setClassName('');
+    if (expenseSkipsSportAndClass(next)) {
       setSport('');
       setClassName('');
+    }
+    if (isCanteenFinanceCategory(next)) {
+      setClubName('');
     }
     setMatchDetails(emptyMatchDetails());
   }
@@ -317,7 +320,7 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
       setError('Επιλέξτε σωματείο');
       return;
     }
-    if (!skipSportAndClass && !sport) {
+    if (!skipSportClassFields && !sport) {
       setError('Επιλέξτε άθλημα');
       return;
     }
@@ -350,14 +353,8 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
       vendor: '',
       subcategory,
       clubName: skipSportAndClass ? '' : clubName,
-      sport: skipSportAndClass ? '' : sport,
-      className: skipSportAndClass
-        ? ''
-        : isCoachExpense
-        ? ''
-        : isStaffExpense
-          ? className.trim() || STAFF_EXPENSE_CLASS_NAME
-          : className,
+      sport: skipSportClassFields ? '' : sport,
+      className: skipSportClassFields ? '' : isCoachExpense ? '' : className,
       surname:
         showPersonFields || isCoachExpense || isStaffExpense ? surname.trim() : '',
       firstName:
@@ -647,7 +644,7 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
                 onChange={(e) => {
                   setClubName(e.target.value);
                   setSport('');
-                  setClassName(isStaffExpense ? STAFF_EXPENSE_CLASS_NAME : '');
+                  setClassName('');
                 }}
                 disabled={skipSportAndClass}
                 required={!skipSportAndClass}
@@ -669,20 +666,16 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
                 value={sport}
                 onChange={(e) => {
                   setSport(e.target.value);
-                  if (isStaffExpense) {
-                    setClassName(STAFF_EXPENSE_CLASS_NAME);
-                    return;
-                  }
                   setClassName('');
                   setStudentId('');
                   setSurname('');
                   setFirstName('');
                 }}
-                disabled={skipSportAndClass || !clubName}
-                required={!skipSportAndClass}
+                disabled={skipSportClassFields || !clubName}
+                required={!skipSportClassFields}
               >
                 <option value="">
-                  {skipSportAndClass
+                  {skipSportClassFields
                     ? 'Δεν απαιτείται'
                     : clubName
                       ? 'Επιλέξτε άθλημα...'
@@ -708,19 +701,15 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
                     setSurname('');
                     setFirstName('');
                   }}
-                  disabled={skipSportAndClass || (!isStaffExpense && !sport)}
+                  disabled={skipSportClassFields || !sport}
                 >
                   <option value="">
-                    {skipSportAndClass
+                    {skipSportClassFields
                       ? 'Δεν απαιτείται'
-                      : isStaffExpense || sport
+                      : sport
                       ? 'Επιλέξτε τμήμα...'
                       : 'Επιλέξτε πρώτα άθλημα...'}
                   </option>
-                  {isStaffExpense &&
-                  !classOptions.some((c) => c.name === STAFF_EXPENSE_CLASS_NAME) ? (
-                    <option value={STAFF_EXPENSE_CLASS_NAME}>{STAFF_EXPENSE_CLASS_NAME}</option>
-                  ) : null}
                   {classOptions.map((c) => (
                     <option key={c.id} value={c.name}>
                       {c.ageGroup ? `${c.name} · ${c.ageGroup}` : c.name}

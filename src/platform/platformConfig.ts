@@ -4,6 +4,7 @@ import {
   EXPENSE_SUBCATEGORIES,
   INCOME_SUBCATEGORIES,
 } from '../shared/financeCategories';
+import { encodeClubMediaAppUrl } from '../utils/clubMediaUrl';
 
 export const SCF_MODULES = [
   { id: 'dashboard', label: 'DASHBOARD', path: '/' },
@@ -800,14 +801,15 @@ export function getAppName(): string {
 }
 
 export function getAppLogoUrl(): string | null {
-  return loadPlatformConfig().appLogoUrl ?? null;
+  const url = loadPlatformConfig().appLogoUrl ?? null;
+  return url ? encodeClubMediaAppUrl(url) : null;
 }
 
 export function getAppLogoUrlForClub(clubId?: string | null): string | null {
   const config = loadPlatformConfig();
   const perClub = clubId ? (config.clubAppLogos?.[clubId] ?? '').trim() : '';
-  if (perClub) return perClub;
-  return config.appLogoUrl ?? null;
+  const url = perClub || config.appLogoUrl || null;
+  return url ? encodeClubMediaAppUrl(url) : null;
 }
 
 export function updateClubAppLogo(clubId: string, logoUrl: string | null): PlatformConfig {

@@ -341,7 +341,7 @@ export interface StaffMember {
   lastName?: string;
   email: string;
   phone: string;
-  role: 'admin' | 'coach' | 'secretariat' | 'employee';
+  role: 'admin' | 'coach' | 'secretariat' | 'employee' | 'misc';
   active: boolean;
   hireDate: string;
   teamLabel?: string;

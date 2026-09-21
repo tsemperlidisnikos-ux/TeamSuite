@@ -13,6 +13,7 @@ const roleLabels: Record<StaffMember['role'], string> = {
   coach: 'Προπονητής',
   secretariat: 'Γραμματεία',
   employee: 'Υπάλληλος',
+  misc: 'Διάφορα',
 };
 
 type ColumnKey = 'id' | 'lastName' | 'firstName' | 'email' | 'phone' | 'role' | 'active' | 'teamLabel' | 'hireDate';
@@ -42,6 +43,7 @@ function parseRole(raw: string): StaffMember['role'] | undefined {
   if (['προπονητής', 'προπονητης', 'coach'].includes(v)) return 'coach';
   if (['γραμματεία', 'γραμματεια', 'secretariat'].includes(v)) return 'secretariat';
   if (['υπάλληλος', 'υπαλληλος', 'employee'].includes(v)) return 'employee';
+  if (['διάφορα', 'διαφορα', 'misc', 'various'].includes(v)) return 'misc';
   return undefined;
 }
 
