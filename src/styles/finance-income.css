@@ -481,6 +481,43 @@
   gap: 0.45rem;
 }
 
+.balance-print-menu {
+  position: relative;
+}
+
+.balance-print-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 8;
+  min-width: 13.5rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.balance-print-menu-panel button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  font-weight: 650;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.balance-print-menu-panel button:hover {
+  background: var(--brand-soft);
+}
+
 .balance-icon-btn {
   width: 2.35rem;
   height: 2.35rem;
@@ -918,6 +955,12 @@
     position: absolute;
     inset: 0 auto auto 0;
     width: 100%;
+  }
+
+  body.printing-finance-balance-collections .balance-summary,
+  body.printing-finance-balance-collections .balance-table-block--expenses {
+    display: none !important;
+    visibility: hidden !important;
   }
 
   body.printing-finance-report .report-table tr,

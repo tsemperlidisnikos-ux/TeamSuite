@@ -14,6 +14,8 @@ const roleLabels: Record<StaffMember['role'], string> = {
   secretariat: 'Γραμματεία',
   employee: 'Υπάλληλος',
   misc: 'Διάφορα',
+  cleaner: 'Καθαρίστρια',
+  cook: 'Μάγειρας / Μαγείρισσα',
 };
 
 type ColumnKey = 'id' | 'lastName' | 'firstName' | 'email' | 'phone' | 'role' | 'active' | 'teamLabel' | 'hireDate';
@@ -44,6 +46,24 @@ function parseRole(raw: string): StaffMember['role'] | undefined {
   if (['γραμματεία', 'γραμματεια', 'secretariat'].includes(v)) return 'secretariat';
   if (['υπάλληλος', 'υπαλληλος', 'employee'].includes(v)) return 'employee';
   if (['διάφορα', 'διαφορα', 'misc', 'various'].includes(v)) return 'misc';
+  if (
+    ['καθαρίστρια', 'καθαριστρια', 'καθαρήστρια', 'καθαρηστρια', 'cleaner'].includes(v)
+  ) {
+    return 'cleaner';
+  }
+  if (
+    [
+      'μάγειρας / μαγείρισσα',
+      'μαγειρας / μαγειρισσα',
+      'μάγειρας',
+      'μαγειρας',
+      'μαγείρισσα',
+      'μαγειρισσα',
+      'cook',
+    ].includes(v)
+  ) {
+    return 'cook';
+  }
   return undefined;
 }
 

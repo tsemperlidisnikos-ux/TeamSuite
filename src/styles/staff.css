@@ -190,6 +190,12 @@
   color: var(--ink);
 }
 
+.stf-role.is-cleaner,
+.stf-role.is-cook {
+  border-color: var(--muted);
+  color: var(--ink);
+}
+
 .stf-status {
   display: inline-flex;
   padding: 0.22rem 0.55rem;

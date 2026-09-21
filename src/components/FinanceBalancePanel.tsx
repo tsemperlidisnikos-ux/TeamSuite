@@ -258,13 +258,21 @@ function exportBalanceXlsx(
   downloadXlsx('Ισοζύγιο', headers, rows, filename);
 }
 
-function printFinanceBalance() {
+function printFinanceBalance(mode: 'full' | 'collections' = 'full') {
   document.body.classList.add('printing-finance-balance');
+  if (mode === 'collections') {
+    document.body.classList.add('printing-finance-balance-collections');
+  }
+  const cleanup = () => {
+    document.body.classList.remove('printing-finance-balance');
+    document.body.classList.remove('printing-finance-balance-collections');
+  };
+  window.addEventListener('afterprint', cleanup, { once: true });
   window.requestAnimationFrame(() => {
     try {
       window.print();
     } finally {
-      document.body.classList.remove('printing-finance-balance');
+      window.setTimeout(cleanup, 0);
     }
   });
 }
@@ -329,13 +337,15 @@ function CollectionMethodsTable({
 function BalanceTable({
   title,
   rows,
+  className = '',
 }: {
   title: string;
   rows: AggRow[];
+  className?: string;
 }) {
   const totals = sumRows(rows);
   return (
-    <section className="balance-table-block">
+    <section className={`balance-table-block${className ? ` ${className}` : ''}`}>
       <h3>{title}</h3>
       <div className="table-wrap balance-table-wrap">
         <table className="data-table balance-data-table">
@@ -403,7 +413,7 @@ export function FinanceBalancePanel() {
   const [applied, setApplied] = useState<BalanceFilters>(defaults);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const filtersAnchorRef = useRef<HTMLDivElement>(null);
-  const [periodOpen, setPeriodOpen] = useState(false);
+  const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const [activeSeason, setActiveSeason] = useState<string | null>(() =>
     String(currentSeasonStartYear()),
   );
@@ -668,13 +678,41 @@ export function FinanceBalancePanel() {
           >
             Excel
           </button>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={printFinanceBalance}
-          >
-            <Printer size={16} /> Print
-          </button>
+          <div className="balance-print-menu">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              aria-expanded={printMenuOpen}
+              aria-haspopup="menu"
+              onClick={() => setPrintMenuOpen((open) => !open)}
+            >
+              <Printer size={16} /> Print
+            </button>
+            {printMenuOpen ? (
+              <div className="balance-print-menu-panel" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setPrintMenuOpen(false);
+                    printFinanceBalance('full');
+                  }}
+                >
+                  Πλήρες ισοζύγιο
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setPrintMenuOpen(false);
+                    printFinanceBalance('collections');
+                  }}
+                >
+                  Μόνο εισπράξεις και έσοδα
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -729,7 +767,7 @@ export function FinanceBalancePanel() {
         <CollectionMethodsTable rows={collectionMethodRows} periodLabel={periodLabel} />
 
         <BalanceTable title="Έσοδα" rows={incomeRows} />
-        <BalanceTable title="Έξοδα" rows={expenseRows} />
+        <BalanceTable title="Έξοδα" rows={expenseRows} className="balance-table-block--expenses" />
       </div>
 
       <AppPopupLayer
