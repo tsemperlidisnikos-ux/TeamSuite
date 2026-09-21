@@ -414,6 +414,7 @@ export function FinanceBalancePanel() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const filtersAnchorRef = useRef<HTMLDivElement>(null);
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
+  const [periodOpen, setPeriodOpen] = useState(false);
   const [activeSeason, setActiveSeason] = useState<string | null>(() =>
     String(currentSeasonStartYear()),
   );
