@@ -16,6 +16,7 @@ import {
 } from './auth';
 import { ensureSessionClub, isClubUsageActive } from './clubs';
 import { useIdleSessionLogout } from './sessionIdle';
+import { isParentAppMode, parentAppPath } from '../utils/parentApp';
 
 type GateState = 'checking' | 'ok' | 'deny' | 'retry';
 
@@ -115,7 +116,13 @@ export function RequireAuth() {
   }
 
   if (gate === 'deny' || !isAuthenticated()) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return (
+      <Navigate
+        to={isParentAppMode() ? parentAppPath() : '/login'}
+        replace
+        state={{ from: location.pathname }}
+      />
+    );
   }
 
   const session = getSession();

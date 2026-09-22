@@ -9,7 +9,7 @@
   "navigationColor": "#000000",
   "navigationColorDark": "#000000",
   "backgroundColor": "#0F2744",
-  "enableNotifications": false,
+  "enableNotifications": true,
   "startUrl": "/",
   "iconUrl": "https://teamsuite-seven.vercel.app/icons/icon-512.png",
   "maskableIconUrl": "https://teamsuite-seven.vercel.app/icons/icon-512.png",

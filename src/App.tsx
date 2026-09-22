@@ -43,6 +43,9 @@ const DashboardPage = lazy(() =>
 const ParentPortalPage = lazy(() =>
   import('./pages/ParentPortalPage').then((m) => ({ default: m.ParentPortalPage })),
 );
+const ParentAppPage = lazy(() =>
+  import('./pages/ParentAppPage').then((m) => ({ default: m.ParentAppPage })),
+);
 const CoachPortalPage = lazy(() =>
   import('./pages/CoachPortalPage').then((m) => ({ default: m.CoachPortalPage })),
 );
@@ -152,6 +155,7 @@ export default function App() {
       <Suspense fallback={<PageFallback />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/app/parent" element={<ParentAppPage />} />
           <Route path="/register" element={<RegisterClubPage />} />
           <Route path="/join/:slug" element={<PublicJoinPage />} />
           <Route path="/rent/:slug" element={<PublicRentPage />} />

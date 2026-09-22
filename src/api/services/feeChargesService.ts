@@ -933,6 +933,20 @@ export async function runDueFeeReminders(clubId: string) {
     const smtp = getClubSmtp(clubId);
     const sms = getClubSms(clubId);
     if (!smtp.enabled && !sms.enabled) {
+      const { sendParentPush, athleteParentUserIds } = await import('./pushService');
+      const due = listDebtReminders();
+      const parentIds = athleteParentUserIds(due.map((row) => row.athleteId));
+      if (parentIds.length > 0) {
+        const club = getClubById(clubId);
+        await sendParentPush({
+          clubId,
+          userIds: parentIds,
+          title: `Υπενθύμιση οφειλής — ${club?.name ?? 'TeamSuite'}`,
+          body: 'Υπάρχει ανοιχτή οφειλή. Ανοίξτε την εφαρμογή γονέα για πληρωμή.',
+          url: '/app/parent?tab=payments',
+        });
+        return { sent: parentIds.length, skipped: 0, reason: 'ok' as const };
+      }
       return { sent: 0, skipped: 0, reason: 'smtp-disabled' as const };
     }
 
@@ -1015,6 +1029,18 @@ export async function runDueFeeReminders(clubId: string) {
         note: `Αυτόματη υπενθύμιση (${channels.join(', ')}) · ${formatCurrencyLocal(row.balance)}`,
       });
       sent += 1;
+    }
+
+    const { sendParentPush, athleteParentUserIds } = await import('./pushService');
+    const parentIds = athleteParentUserIds(rows.map((row) => row.athleteId));
+    if (parentIds.length > 0) {
+      await sendParentPush({
+        clubId,
+        userIds: parentIds,
+        title: `Υπενθύμιση οφειλής — ${clubName}`,
+        body: 'Υπάρχει ανοιχτή οφειλή. Ανοίξτε την εφαρμογή γονέα για πληρωμή.',
+        url: '/app/parent?tab=payments',
+      });
     }
 
     return { sent, skipped, reason: 'ok' as const };

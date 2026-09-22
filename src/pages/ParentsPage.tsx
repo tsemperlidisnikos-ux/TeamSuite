@@ -8,6 +8,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { useAppData } from '../hooks/useAppData';
 import { getPreviewClubId } from '../platform/platformConfig';
 import { downloadXlsx } from '../utils/xlsxDownload';
+import { parentAppUrl } from '../utils/parentApp';
 
 const PAGE_SIZE = 10;
 
@@ -202,6 +203,32 @@ export function ParentsPage() {
       />
 
       {message ? <p className="settings-success">{message}</p> : null}
+
+      <section className="panel parent-app-share">
+        <p>
+          <strong>Εφαρμογή γονέα:</strong>{' '}
+          <a href={parentAppUrl()} target="_blank" rel="noreferrer">
+            {parentAppUrl()}
+          </a>
+        </p>
+        <p className="muted">
+          Στείλτε τον σύνδεσμο στους γονείς. Στο Android ανοίγουν Chrome → «Προσθήκη στην αρχική
+          οθόνη». Μετά την είσοδο ενεργοποιούν ειδοποιήσεις.
+        </p>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            const url = parentAppUrl();
+            void navigator.clipboard?.writeText(url).then(
+              () => setMessage('Ο σύνδεσμος αντιγράφηκε.'),
+              () => setMessage(url),
+            );
+          }}
+        >
+          Αντιγραφή συνδέσμου
+        </Button>
+      </section>
 
       <div className="toolbar">
         <label className="search-field">

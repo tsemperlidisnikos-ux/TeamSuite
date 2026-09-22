@@ -14,6 +14,7 @@ import { getClubSms } from '../../auth/clubs';
 import { localDateIso } from '../../utils/dates';
 import { sendClubEmail } from './emailService';
 import { sendClubSms, studentContactPhones } from './smsService';
+import * as pushService from './pushService';
 
 function uniqueEmails(emails: Array<string | undefined | null>): string[] {
   const set = new Set<string>();
@@ -194,6 +195,34 @@ export async function sendAnnouncementEmails(input: {
   return { success: true as const, data: { sent, failed }, error: null };
 }
 
+export async function sendAnnouncementParentPush(input: {
+  clubId: string;
+  title: string;
+  message: string;
+  audienceRoles?: AnnouncementInput['audienceRoles'];
+  classIds?: AnnouncementInput['classIds'];
+  recipientIds?: AnnouncementInput['recipientIds'];
+  sportCategories?: string;
+  teamsLabel?: string;
+}) {
+  const userIds = pushService.announcementParentUserIds({
+    audienceRoles: input.audienceRoles,
+    classIds: input.classIds,
+    recipientIds: input.recipientIds,
+    sportCategories: input.sportCategories,
+    teamsLabel: input.teamsLabel,
+    status: 'published',
+  });
+  if (userIds.length === 0) return { sent: 0 };
+  return pushService.sendParentPush({
+    clubId: input.clubId,
+    userIds,
+    title: input.title,
+    body: input.message,
+    url: '/app/parent',
+  });
+}
+
 export async function notifyAbsenceByEmail(input: {
   clubId: string;
   studentId: string;
@@ -288,6 +317,16 @@ export async function notifyClassSessionMessage(input: {
     if (sms.sent.length) ok = true;
     if (ok) sent += 1;
     else skipped += 1;
+  }
+  const parentIds = pushService.classParentUserIds(input.classId);
+  if (parentIds.length > 0) {
+    await pushService.sendParentPush({
+      clubId: input.clubId,
+      userIds: parentIds,
+      title: subject,
+      body: text,
+      url: '/app/parent?tab=schedule',
+    });
   }
   return { success: true as const, data: { sent, skipped }, error: null };
 }

@@ -607,18 +607,30 @@ export function AnnouncementsPage() {
       return;
     }
 
-    if (status === 'published' && sendEmail && !editing) {
+    if (status === 'published' && !editing) {
       const clubId = session?.clubId;
       if (clubId) {
-        const emails = notificationService.resolveAnnouncementEmails(payload);
-        if (emails.length > 0) {
-          await notificationService.sendAnnouncementEmails({
-            clubId,
-            title: payload.title,
-            message: payload.message,
-            emails,
-          });
+        if (sendEmail) {
+          const emails = notificationService.resolveAnnouncementEmails(payload);
+          if (emails.length > 0) {
+            await notificationService.sendAnnouncementEmails({
+              clubId,
+              title: payload.title,
+              message: payload.message,
+              emails,
+            });
+          }
         }
+        await notificationService.sendAnnouncementParentPush({
+          clubId,
+          title: payload.title,
+          message: payload.message,
+          audienceRoles: payload.audienceRoles,
+          classIds: payload.classIds,
+          recipientIds: payload.recipientIds,
+          sportCategories: payload.sportCategories,
+          teamsLabel: payload.teamsLabel,
+        });
       }
     }
 

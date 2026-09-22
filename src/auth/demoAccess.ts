@@ -165,7 +165,23 @@ export async function enterDemoPresentation(): Promise<ApiResult<AppUser>> {
   );
   saveClubs(refreshedClubs);
 
-  const sessionResult = await login(DEMO_EMAIL, DEMO_PASSWORD);
+  return finishDemoLogin(clubId, DEMO_EMAIL);
+}
+
+/** Same DEMO club/data, logged in as parent (for /app/parent). */
+export async function enterDemoParentPresentation(): Promise<ApiResult<AppUser>> {
+  const admin = await enterDemoPresentation();
+  if (!admin.success) return admin;
+  const sessionResult = await login(DEMO_PARENT_EMAIL, DEMO_PASSWORD);
+  if (!sessionResult.success || !sessionResult.data) {
+    return fail(sessionResult.error ?? 'Αποτυχία σύνδεσης DEMO γονέα');
+  }
+  window.dispatchEvent(new CustomEvent('academyhub-users-updated'));
+  return ok(sessionResult.data);
+}
+
+async function finishDemoLogin(clubId: string, email: string): Promise<ApiResult<AppUser>> {
+  const sessionResult = await login(email, DEMO_PASSWORD);
   if (!sessionResult.success || !sessionResult.data) {
     return fail(sessionResult.error ?? 'Αποτυχία σύνδεσης DEMO');
   }

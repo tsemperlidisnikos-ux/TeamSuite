@@ -263,7 +263,8 @@ export function AppLayout() {
     const { persistLocalStateToCloudBeforeLogout } = await import('../../data/clubSync');
     await persistLocalStateToCloudBeforeLogout();
     logout();
-    navigate('/login', { replace: true });
+    const { isParentAppMode, parentAppPath } = await import('../../utils/parentApp');
+    navigate(isParentAppMode() ? parentAppPath() : '/login', { replace: true });
   }
 
   async function handleAppLogoChange(event: ChangeEvent<HTMLInputElement>) {

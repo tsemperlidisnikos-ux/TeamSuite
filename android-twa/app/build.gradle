@@ -33,7 +33,7 @@ def twaManifest = [
     navigationDividerColor: '#000000', // The navbar divider color.
     navigationDividerColorDark: '#000000', // The dark navbar divider color.
     backgroundColor: '#0F2744', // The color used for the splash screen background.
-    enableNotifications: false, // Set to true to enable notification delegation.
+    enableNotifications: true, // Web push / notification delegation for parent + club apps.
     // Every shortcut must include the following fields:
     // - name: String that will show up in the shortcut.
     // - short_name: Shorter string used if |name| is too long.
@@ -50,24 +50,33 @@ def twaManifest = [
     orientation: 'default',
 ]
 
+def isParentApp = project.hasProperty('parentApp')
+def resolvedAppId = isParentApp ? 'me.teamsuite.parents' : twaManifest.applicationId
+def resolvedLaunchPath = isParentApp ? '/app/parent' : twaManifest.launchUrl
+def resolvedAppName = isParentApp ? 'TeamSuite Γονείς' : twaManifest.name
+def resolvedLauncherName = isParentApp ? 'TeamSuite Γονείς' : twaManifest.launcherName
+def resolvedManifestUrl = isParentApp
+    ? 'https://teamsuite-seven.vercel.app/manifest-parent.webmanifest'
+    : 'https://teamsuite-seven.vercel.app/manifest.webmanifest'
+
 android {
     compileSdkVersion 36
     namespace "me.teamsuite.app"
     defaultConfig {
-        applicationId "me.teamsuite.app"
+        applicationId resolvedAppId
         minSdkVersion 21
         targetSdkVersion 36
         versionCode 2
         versionName "2"
 
         // The name for the application
-        resValue "string", "appName", twaManifest.name
+        resValue "string", "appName", resolvedAppName
 
         // The name for the application on the Android Launcher
-        resValue "string", "launcherName", twaManifest.launcherName
+        resValue "string", "launcherName", resolvedLauncherName
 
         // The URL that will be used when launching the TWA from the Android Launcher
-        def launchUrl = "https://" + twaManifest.hostName + twaManifest.launchUrl
+        def launchUrl = "https://" + twaManifest.hostName + resolvedLaunchPath
         resValue "string", "launchUrl", launchUrl
 
         
@@ -76,7 +85,7 @@ android {
             // The URL the Web Manifest for the Progressive Web App that the TWA points to. This
             // is used by Chrome OS and Meta Quest to open the Web version of the PWA instead of
             // the TWA, as it will probably give a better user experience for non-mobile devices.
-            resValue "string", "webManifestUrl", 'https://teamsuite-seven.vercel.app/manifest.webmanifest'
+            resValue "string", "webManifestUrl", resolvedManifestUrl
         
 
         
@@ -125,7 +134,7 @@ android {
         resValue "color", "backgroundColor", twaManifest.backgroundColor
 
         // Defines a provider authority for the Splash Screen
-        resValue "string", "providerAuthority", twaManifest.applicationId + '.fileprovider'
+        resValue "string", "providerAuthority", resolvedAppId + '.fileprovider'
 
         // The enableNotification resource is used to enable or disable the
         // TrustedWebActivityService, by changing the android:enabled and android:exported

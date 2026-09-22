@@ -19,6 +19,15 @@
     />
     <script>
       try {
+        if (location.pathname.indexOf('/app/parent') === 0) {
+          var parentManifest = document.querySelector('link[rel="manifest"]');
+          if (parentManifest) parentManifest.setAttribute('href', '/manifest-parent.webmanifest');
+          document.title = 'TeamSuite Γονείς';
+          var appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+          if (appleTitle) appleTitle.setAttribute('content', 'TeamSuite Γονείς');
+        }
+      } catch (e) {}
+      try {
         var raw = localStorage.getItem('teamsuite-platform-config-v1');
         var theme = 'navy-amber';
         if (raw) {

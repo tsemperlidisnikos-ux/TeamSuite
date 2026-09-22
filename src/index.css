@@ -2212,6 +2212,90 @@ td.row-actions {
   margin: 0;
 }
 
+.parent-app-shell {
+  min-height: 100vh;
+  padding: 0 1rem 2rem;
+  background: var(--bg, #f4f6f8);
+}
+
+.parent-app-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+}
+
+.parent-app-bar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.parent-app-bar-brand img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.parent-app-bar-brand strong,
+.parent-app-bar-brand span {
+  display: block;
+}
+
+.parent-app-bar-brand span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.parent-app-logout,
+.parent-app-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--line, #d5dbe3);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.parent-app-tool-btn--primary {
+  background: var(--accent, #0f2744);
+  border-color: var(--accent, #0f2744);
+  color: #fff;
+}
+
+.parent-app-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.parent-app-tool-hint,
+.parent-app-tool-msg {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.parent-app-wrong-role {
+  max-width: 32rem;
+  margin: 4rem auto;
+  padding: 1.5rem;
+}
+
+.parent-app-share {
+  display: grid;
+  gap: 0.65rem;
+}
+
 .dashboard-kpi-row {
   margin-bottom: 0.25rem;
 }

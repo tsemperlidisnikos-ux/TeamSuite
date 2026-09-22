@@ -1,5 +1,6 @@
 import { getSession } from '../auth/auth';
 import { getAppLogoUrlForClub, getAppName, getPreviewClubId } from '../platform/platformConfig';
+import { applyParentChrome, isParentAppMode } from './parentApp';
 
 const FAVICON_LINK_ID = 'app-favicon';
 const DEFAULT_FAVICON = '/favicon.svg';
@@ -20,8 +21,11 @@ function ensureFaviconLink(): HTMLLinkElement {
 
 /** Sets browser tab icon + title from platform branding (app logo / name). */
 export function applyDocumentBranding(): void {
-  const appName = getAppName();
-  document.title = `${appName} — Διαχείριση`;
+  if (isParentAppMode()) {
+    applyParentChrome();
+  } else {
+    document.title = `${getAppName()} — Διαχείριση`;
+  }
 
   const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
   const logoUrl = getAppLogoUrlForClub(clubId);

@@ -8,6 +8,7 @@ const account = await source('api/sync/account.ts');
 const store = await source('api/lib/serverStore.ts');
 const viva = await source('api/viva.ts');
 const email = await source('api/send-email.ts');
+const push = await source('api/push.ts');
 const publicJoin = await source('api/public-join.ts');
 const auth = await source('src/auth/auth.ts');
 const durableKv = await source('api/lib/durableKv.ts');
@@ -30,6 +31,9 @@ assert.match(account, /Πολλά αιτήματα upload/, 'media uploads must 
 assert.match(viva, /Πολλά webhook requests/, 'Viva webhooks must be rate limited');
 assert.match(publicJoin, /Πολλά αιτήματα εγγραφής/, 'public registration must be rate limited');
 assert.match(email, /Πολλά αιτήματα email/, 'email sending must be rate limited');
+assert.match(push, /assertClubTenantAccess/, 'push subscribe/send must be tenant scoped');
+assert.match(push, /Πολλά αιτήματα αποστολής ειδοποιήσεων/, 'push send must be rate limited');
+assert.match(push, /Δεν επιτρέπεται αποστολή ειδοποιήσεων/, 'parents must not send push to others');
 assert.match(durableKv, /kvSetIfAbsent/, 'settlement claims must use an atomic Redis set-if-absent');
 assert.match(serverStore, /Settlement requires orderCode/, 'settlement validation must reject incomplete identifiers');
 assert.match(serverStore, /deletedExpenseIds/, 'mirror merge must preserve expense tombstones');
