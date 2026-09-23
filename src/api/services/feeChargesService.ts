@@ -796,7 +796,7 @@ export function feePaymentAppOrigin(): string {
 /** Login URL that lands parents on the portal after auth. */
 export function feePaymentLoginUrl(origin = feePaymentAppOrigin()): string {
   const base = origin.replace(/\/$/, '');
-  return `${base}/login`;
+  return `${base}/app/parent?tab=payments`;
 }
 
 export function buildDebtReminderEmail(input: {
@@ -809,8 +809,8 @@ export function buildDebtReminderEmail(input: {
 }): { subject: string; text: string; html: string } {
   const amount = formatCurrencyLocal(input.balance);
   const payHint = input.vivaEnabled
-    ? 'Μετά τη σύνδεση ως γονέας μπορείτε να πληρώσετε online με κάρτα (Viva).'
-    : 'Μετά τη σύνδεση ως γονέας μπορείτε να δείτε τις οφειλές στο portal γονέα.';
+    ? 'Ανοίξτε την εφαρμογή γονέα για να πληρώσετε online με κάρτα.'
+    : 'Ανοίξτε την εφαρμογή γονέα για να δείτε και να τακτοποιήσετε την οφειλή.';
 
   const text = [
     `Αγαπητοί γονείς,`,

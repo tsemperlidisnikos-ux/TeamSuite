@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type ChangeEvent } from 'react';
 import * as accountSyncService from '../api/services/accountSyncService';
 import * as backendSyncService from '../api/services/backendSyncService';
-import { getSession, isPlatformAdmin } from '../auth/auth';
+import { getSession, getUsers, isPlatformAdmin, saveUsers } from '../auth/auth';
 import {
   CLUB_BACKUP_WEEKDAYS,
   datetimeLocalValue,
@@ -43,6 +43,8 @@ import {
   pickAppDataForRestore,
   confirmClubBackupRestore,
   readBackupFile,
+  ensureClubFromBackup,
+  mergeUsersPreservingPasswords,
 } from '../utils/backupArchive';
 import { syncClubAthleteLicenseUsed } from '../utils/athleteLicenseCap';
 
@@ -343,15 +345,14 @@ export function BackupPanel() {
     setError('');
     setMessage('');
     try {
-      const activeClubId = resolveTargetClubId();
+      let activeClubId = resolveTargetClubId();
       setClubTick((n) => n + 1);
-      if (!activeClubId) {
-        throw new Error(
-          'Δεν βρέθηκε ενεργός σύλλογος. Αποσύνδεση → «Είσοδος DEMO παρουσίασης» και ξαναδοκιμάστε.',
-        );
-      }
-
       const parsed = await readBackupFile(file);
+      if (!activeClubId) {
+        const ensured = ensureClubFromBackup(parsed);
+        activeClubId = ensured.clubId;
+        setClubTick((n) => n + 1);
+      }
       assertClubScopedRestore(parsed, activeClubId);
       const clubData = pickAppDataForRestore(parsed, activeClubId);
       if (!clubData) {
@@ -372,6 +373,14 @@ export function BackupPanel() {
       const expectedStudents = clubData.students?.length ?? 0;
       replaceClubData(activeClubId, clubData);
       syncClubAthleteLicenseUsed(clubData.students ?? [], activeClubId);
+      const incomingUsers = (parsed.users ?? [])
+        .filter((u) => u.role !== 'platform_admin')
+        .map((u) => ({ ...u, clubId: activeClubId }));
+      if (incomingUsers.length > 0) {
+        const others = getUsers().filter((u) => u.clubId !== activeClubId);
+        const existingClubUsers = getUsers().filter((u) => u.clubId === activeClubId);
+        saveUsers([...others, ...mergeUsersPreservingPasswords(incomingUsers, existingClubUsers)]);
+      }
 
       if (isDemoClubName(getClubById(activeClubId)?.name)) {
         markDemoShowcaseApplied(activeClubId);

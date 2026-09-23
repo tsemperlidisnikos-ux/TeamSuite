@@ -51,13 +51,16 @@ def twaManifest = [
 ]
 
 def isParentApp = project.hasProperty('parentApp')
-def resolvedAppId = isParentApp ? 'me.teamsuite.parents' : twaManifest.applicationId
-def resolvedLaunchPath = isParentApp ? '/app/parent' : twaManifest.launchUrl
-def resolvedAppName = isParentApp ? 'TeamSuite Γονείς' : twaManifest.name
-def resolvedLauncherName = isParentApp ? 'TeamSuite Γονείς' : twaManifest.launcherName
+def isCoachApp = project.hasProperty('coachApp')
+def resolvedAppId = isParentApp ? 'me.teamsuite.parents' : isCoachApp ? 'me.teamsuite.coaches' : twaManifest.applicationId
+def resolvedLaunchPath = isParentApp ? '/app/parent' : isCoachApp ? '/app/coach' : twaManifest.launchUrl
+def resolvedAppName = isParentApp ? 'TeamSuite Γονείς' : isCoachApp ? 'TeamSuite Προπονητές' : twaManifest.name
+def resolvedLauncherName = isParentApp ? 'TeamSuite Γονείς' : isCoachApp ? 'TeamSuite Προπονητές' : twaManifest.launcherName
 def resolvedManifestUrl = isParentApp
     ? 'https://teamsuite-seven.vercel.app/manifest-parent.webmanifest'
-    : 'https://teamsuite-seven.vercel.app/manifest.webmanifest'
+    : isCoachApp
+        ? 'https://teamsuite-seven.vercel.app/manifest-coach.webmanifest'
+        : 'https://teamsuite-seven.vercel.app/manifest.webmanifest'
 
 android {
     compileSdkVersion 36

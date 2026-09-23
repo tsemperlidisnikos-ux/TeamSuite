@@ -1,6 +1,6 @@
 # Κατάλογος Backup — TeamSuite
 
-Τελευταία ενημέρωση περιεχομένου: **2026-09-23** (ZIP `C:\TeamSuite_backup` + deploy `teamsuite`).
+Τελευταία ενημέρωση περιεχομένου: **2026-09-24** (ZIP `C:\TeamSuite_backup` + deploy `teamsuite`).
 
 Αυτό το αρχείο ενημερώνεται κάθε φορά που αλλάζει τι περιλαμβάνει κάποιο backup, ή μετά από **BACKUP + DEPLOY** (νέα γραμμή στο ιστορικό ZIP κώδικα).
 
@@ -10,7 +10,7 @@
 
 | Ονομασία backup | Πού / πώς | Τι ακριβώς περιλαμβάνει | Τι ΔΕΝ περιλαμβάνει |
 |-----------------|-----------|-------------------------|---------------------|
-| **Club JSON** | Ρυθμίσεις → Backup → Λήψη JSON · ή Platform Admin → Backup συλλόγου · ή κλικ στο logo συλλόγου (διαχειριστής / γραμματεία / PA) | Μόνο τον ενεργό/επιλεγμένο σύλλογο: `AppData` (αθλητές, τμήματα, πρόγραμμα, παρουσίες, οικονομικά, αποθήκη, αιτήσεις, GDPR logs εντός AppData, κ.λπ.), το record του συλλόγου (προφίλ, licenses, δημόσια εγγραφή **χωρίς** secrets), users του συλλόγου **χωρίς** password hashes. `scope: club`. **Όνομα αρχείου:** `TeamSuite-{όνομα-συλλόγου}-YYYY-MM-DD-ΩΩ-ΛΛ (ενεργοί).json` π.χ. `TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-13-00-26 (142).json` (ελληνικοί χαρακτήρες· τελείες/κενά στο όνομα γίνονται `-`· στο τέλος οι ενεργοί αθλητές). **Κλικ logo:** το ίδιο JSON **και** Excel λίστας αθλητών. **Restore:** club Settings ή Platform Admin «Επαναφορά συλλόγου» (.json) | Άλλους συλλόγους, `platformConfig`, platform admins, SMTP password, SMS API key, Viva clientSecret, password hashes |
+| **Club JSON** | Ρυθμίσεις → Backup → Λήψη JSON · ή Platform Admin → Backup συλλόγου · ή κλικ στο logo συλλόγου (διαχειριστής / γραμματεία / PA) | Μόνο τον ενεργό/επιλεγμένο σύλλογο: `AppData` (αθλητές, τμήματα, πρόγραμμα, παρουσίες, οικονομικά, αποθήκη, αιτήσεις, GDPR logs εντός AppData, κ.λπ.), το record του συλλόγου (προφίλ, licenses, δημόσια εγγραφή **χωρίς** secrets), users του συλλόγου **χωρίς** password hashes. `scope: club`. **Όνομα αρχείου:** `TeamSuite-{όνομα-συλλόγου}-YYYY-MM-DD-ΩΩ-ΛΛ (ενεργοί).json` π.χ. `TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-13-00-26 (142).json` (ελληνικοί χαρακτήρες· τελείες/κενά στο όνομα γίνονται `-`· στο τέλος οι ενεργοί αθλητές). **Κλικ logo:** το ίδιο JSON **και** Excel λίστας αθλητών. **Restore:** club Settings ή Platform Admin «Επαναφορά συλλόγου» (.json). Αν ο σύλλογος λείπει τοπικά, δημιουργείται με το **ίδιο `sourceClubId`** από το αρχείο (όχι άδειος νέος σύλλογος) | Άλλους συλλόγους, `platformConfig`, platform admins, SMTP password, SMS API key, Viva clientSecret, password hashes |
 | **Club scheduled backup** | Ρυθμίσεις → Backup → Προγραμματισμένο backup | Ίδιο με **Club JSON** (mode=λήψη JSON) ή **Cloud mirror** την ορισμένη ημερομηνία/ώρα (μία φορά) ή καθημερινά/εβδομαδιαία. Τρέχει στο browser όσο η εφαρμογή είναι ανοιχτή· αν χάθηκε η ώρα, εκτελείται στο επόμενο άνοιγμα | Secrets όπως Club JSON· δεν τρέχει με κλειστό tab |
 | **Platform full JSON** | Platform Admin → Backup → Λήψη full backup | Όλους τους συλλόγους (`appDataByClub`), ενεργό `appData`, `users` (χωρίς hashes), `clubs` (χωρίς SMTP/SMS/Viva secrets), πλήρες `platformConfig` (modules, δικαιώματα, λογότυπα, **θέμα εμφάνισης ανά σύλλογο**, **PDF κάρτας υγείας ανά άθλημα**). `scope: platform`. **Restore:** μόνο «Επαναφορά όλης της εφαρμογής» (.json, όχι club-only αρχεία) | SMTP passwords, SMS API keys, Viva secrets, password hashes (redacted στο download) |
 | **Scheduled full (browser)** | Platform Admin → Πρόγραμμα backup → fullApp | Ίδιο με Platform full JSON αν mode=download· αν mode=cloud: push mirror **όλων** των συλλόγων | Secrets στα JSON (redacted)· δεν τρέχει αν δεν είναι ανοιχτή η εφαρμογή ως Platform Admin |
@@ -44,6 +44,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `TeamSuite_2026-09-24_00-39-29.zip` | 2026-09-24 | Εφαρμογή προπονητή `/app/coach` · υιοθέτηση γονέα/προπονητή (ποιος έχει push, SMS/Viber) · υπενθυμίσεις κάρτας υγείας και οφειλών στην εφαρμογή · restore συλλόγου δημιουργεί τον ίδιο club id αν λείπει |
 | `TeamSuite_2026-09-23_00-22-49.zip` | 2026-09-23 | Εφαρμογή γονέα `/app/parent`: είσοδος μόνο γονέα, PWA/Android TWA, ειδοποιήσεις ανακοινώσεων/ακυρώσεων/οφειλών |
 | `TeamSuite_2026-09-21_15-13-04.zip` | 2026-09-21 | Προσωπικό: ρόλοι Καθαρίστρια και Μάγειρας/Μαγείρισσα · Ισοζύγιο Print με επιλογή «μόνο εισπράξεις και έσοδα» για PDF |
 | `TeamSuite_2026-09-17_15-02-23.zip` | 2026-09-17 | Ισοζύγιο: report εισπράξεων ανά ημερομηνία και τρόπο πληρωμής με Excel/CSV · σαφής λειτουργία καρτέλας Αναφορές · μόνιμη διαγραφή προτύπων χρεώσεων μέσω cloud tombstone · βελτιωμένη εμφάνιση ανάλυσης Εσόδων/Εξόδων |

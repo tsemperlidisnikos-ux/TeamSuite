@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  coachUserIdsForAnnouncement,
+  coachUserIdsForClass,
   parentUserIdsForAnnouncement,
   parentUserIdsForAthletes,
   parentUserIdsForClass,
@@ -10,6 +12,19 @@ const users = [
   { id: 'p2', role: 'parent', active: true },
   { id: 'p3', role: 'parent', active: false },
   { id: 'admin', role: 'admin', active: true },
+  { id: 'cu1', role: 'coach', active: true, coachId: 'coach1' },
+  { id: 'cu2', role: 'coach', active: true, coachId: 'coach2' },
+  { id: 'cu3', role: 'coach', active: false, coachId: 'coach1' },
+];
+
+const coaches = [
+  { id: 'coach1', sport: 'Μπάσκετ', active: true },
+  { id: 'coach2', sport: 'Βόλεϊ', active: true },
+];
+
+const classRows = [
+  { id: 'c1', sport: 'Μπάσκετ', coachId: 'coach1' },
+  { id: 'c2', sport: 'Βόλεϊ', coachId: 'coach2' },
 ];
 
 const parentLinks = [
@@ -94,5 +109,58 @@ describe('parentUserIdsForAnnouncement', () => {
         users,
       }),
     ).toEqual([]);
+  });
+});
+
+describe('coachUserIdsForAnnouncement', () => {
+  it('targets active coaches when the announcement includes coaches', () => {
+    expect(
+      coachUserIdsForAnnouncement({
+        announcement: {
+          status: 'published',
+          audienceRoles: ['coaches'],
+          classIds: [],
+          recipientIds: [],
+        },
+        coaches,
+        users,
+      }).sort(),
+    ).toEqual(['cu1', 'cu2']);
+  });
+
+  it('limits to a named coach recipient', () => {
+    expect(
+      coachUserIdsForAnnouncement({
+        announcement: {
+          status: 'published',
+          audienceRoles: ['coaches'],
+          classIds: [],
+          recipientIds: [{ kind: 'coach', id: 'coach2' }],
+        },
+        coaches,
+        users,
+      }),
+    ).toEqual(['cu2']);
+  });
+
+  it('skips parent-only announcements', () => {
+    expect(
+      coachUserIdsForAnnouncement({
+        announcement: {
+          status: 'published',
+          audienceRoles: ['parents'],
+          classIds: [],
+          recipientIds: [],
+        },
+        coaches,
+        users,
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe('coachUserIdsForClass', () => {
+  it('returns the active coach user of the class', () => {
+    expect(coachUserIdsForClass({ classId: 'c1', classes: classRows, users })).toEqual(['cu1']);
   });
 });

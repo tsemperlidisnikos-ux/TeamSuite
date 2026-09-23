@@ -263,8 +263,12 @@ export function AppLayout() {
     const { persistLocalStateToCloudBeforeLogout } = await import('../../data/clubSync');
     await persistLocalStateToCloudBeforeLogout();
     logout();
-    const { isParentAppMode, parentAppPath } = await import('../../utils/parentApp');
-    navigate(isParentAppMode() ? parentAppPath() : '/login', { replace: true });
+    const { detectPortalAppKind, parentAppPath, coachAppPath } = await import('../../utils/parentApp');
+    const portal = detectPortalAppKind();
+    navigate(
+      portal === 'coach' ? coachAppPath() : portal === 'parent' ? parentAppPath() : '/login',
+      { replace: true },
+    );
   }
 
   async function handleAppLogoChange(event: ChangeEvent<HTMLInputElement>) {

@@ -5,6 +5,7 @@ import * as emailService from '../api/services/emailService';
 import * as smsService from '../api/services/smsService';
 import * as feeChargesService from '../api/services/feeChargesService';
 import * as vivaService from '../api/services/vivaService';
+import * as pushService from '../api/services/pushService';
 import { getSession } from '../auth/auth';
 import { getClubById, getClubSms, getClubSmtp, getClubViva } from '../auth/clubs';
 import { Button } from '../components/ui/Button';
@@ -375,17 +376,14 @@ export function FeesPage() {
       setError('Δεν βρέθηκε σύλλογος.');
       return;
     }
-    if (!row.email.includes('@') && !row.phone?.trim()) {
-      setError(
-        `Ο ${row.athleteName} δεν έχει email ούτε τηλέφωνο γονέα/αθλητή. Συμπληρώστε τα στο προφίλ.`,
-      );
-      return;
-    }
 
     const smtp = getClubSmtp(clubId);
     const sms = getClubSms(clubId);
-    if (!smtp.enabled && !sms.enabled) {
-      setError('Ενεργοποιήστε SMTP (Email) ή SMS στις Ρυθμίσεις για υπενθυμίσεις.');
+    const parentIds = pushService.athleteParentUserIds([row.athleteId]);
+    if (!smtp.enabled && !sms.enabled && parentIds.length === 0) {
+      setError(
+        'Ενεργοποιήστε Email/SMS στις Ρυθμίσεις, ή ζητήστε από τον γονέα να ανοίξει την εφαρμογή.',
+      );
       return;
     }
 
@@ -423,9 +421,19 @@ export function FeesPage() {
       });
       if (smsSend.success) channels.push(`SMS ${row.phone}`);
     }
+    if (parentIds.length > 0) {
+      const push = await pushService.sendParentPush({
+        clubId,
+        userIds: parentIds,
+        title: emailBody.subject,
+        body: `Οφειλή ${formatCurrency(row.balance)} για ${row.athleteName}. Ανοίξτε την εφαρμογή για πληρωμή.`,
+        url: '/app/parent?tab=payments',
+      });
+      if (push.sent > 0) channels.push('εφαρμογή γονέα');
+    }
     setSaving(false);
     if (channels.length === 0) {
-      setError('Αποτυχία αποστολής υπενθύμισης (email/SMS).');
+      setError('Αποτυχία αποστολής υπενθύμισης (email/SMS/εφαρμογή).');
       return;
     }
 
@@ -443,13 +451,7 @@ export function FeesPage() {
       setError('Δεν βρέθηκε σύλλογος.');
       return;
     }
-    const smtp = getClubSmtp(clubId);
-    const sms = getClubSms(clubId);
-    if (!smtp.enabled && !sms.enabled) {
-      setError('Ενεργοποιήστε SMTP (Email) ή SMS στις Ρυθμίσεις.');
-      return;
-    }
-    if (!confirm('Αποστολή υπενθυμίσεων οφειλών (email/SMS) σε όσους πληρούν τις προϋποθέσεις σήμερα;')) {
+    if (!confirm('Αποστολή υπενθυμίσεων οφειλών (email/SMS/εφαρμογή) σε όσους πληρούν τις προϋποθέσεις σήμερα;')) {
       return;
     }
     const result = await feeChargesService.runDueFeeReminders(clubId);
@@ -1068,10 +1070,10 @@ export function FeesPage() {
       >
         <div className="stack-md">
           <p className="muted">
-            Αθλητές με οφειλή μετά τις ημέρες υπενθύμισης. Η «Υπενθύμιση» στέλνει email μέσω SMTP
-            (Ρυθμίσεις → Email) με ποσό, ημέρες καθυστέρησης και σύνδεσμο σύνδεσης για πληρωμή στο
-            portal γονέα{getClubViva(clubId)?.enabled ? ' / Viva' : ''}. Στην είσοδο admin
-            τρέχει και αυτόματη αποστολή (το πολύ 1 email / αθλητή / ημέρα).
+            Αθλητές με οφειλή μετά τις ημέρες υπενθύμισης. Η «Υπενθύμιση» στέλνει email, SMS και
+            ειδοποίηση στην εφαρμογή γονέα, με σύνδεσμο πληρωμής
+            {getClubViva(clubId)?.enabled ? ' (Viva)' : ''}. Στην είσοδο γραμματείας τρέχει και
+            αυτόματη αποστολή (το πολύ 1 φορά / αθλητή / ημέρα).
           </p>
           {reminders.length === 0 ? (
             <p className="muted">Δεν υπάρχουν οφειλές προς υπενθύμιση αυτή τη στιγμή.</p>

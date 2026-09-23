@@ -2296,6 +2296,12 @@ td.row-actions {
   gap: 0.65rem;
 }
 
+.parent-app-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .dashboard-kpi-row {
   margin-bottom: 0.25rem;
 }

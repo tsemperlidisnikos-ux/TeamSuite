@@ -313,6 +313,7 @@ const SHOWCASE: Record<string, Partial<Student>> = {
     city: 'Πειραιάς',
     registrationNumber: 'REG-1004',
     healthCardStatus: 'Ληγμένη',
+    healthCardExpires: '2026-08-15',
     uniformSize: 'L',
     comments: 'Οφειλή μήνα — υπενθύμιση',
   },
@@ -349,6 +350,7 @@ const SHOWCASE: Record<string, Partial<Student>> = {
     registrationNumber: 'REG-2001',
     uniformSize: 'M',
     seasonTicket: true,
+    healthCardExpires: '2026-10-10',
   },
   demo_ath_b2: {
     firstName: 'Αναστασία',

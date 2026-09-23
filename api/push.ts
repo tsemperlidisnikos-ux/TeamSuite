@@ -7,6 +7,7 @@ import {
   requestAddress,
 } from './lib/serverStore.js';
 import {
+  loadClubSubscriptions,
   removeSubscription,
   resolveVapidKeys,
   sendWebPush,
@@ -32,6 +33,18 @@ function canSendPush(role: string | undefined): boolean {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const op = resolveOp(req);
+
+  if (req.method === 'GET' && op === 'subscribers') {
+    const clubId = String(req.query.clubId ?? '').trim();
+    if (!(await assertClubTenantAccess(req, res, clubId))) return;
+    const auth = getSyncAuthContext(req);
+    if (!auth.viaSecret && !canSendPush(auth.claims?.role)) {
+      return res.status(403).json({ ok: false, error: 'Δεν επιτρέπεται λίστα ειδοποιήσεων.' });
+    }
+    const rows = await loadClubSubscriptions(clubId);
+    const userIds = [...new Set(rows.map((row) => row.userId).filter(Boolean))];
+    return res.status(200).json({ ok: true, userIds });
+  }
 
   if (req.method === 'GET' && (op === 'vapid' || op === '')) {
     if (!(await allowRateLimit(`push-vapid:${requestAddress(req)}`, 40, 300))) {

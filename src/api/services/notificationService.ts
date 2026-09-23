@@ -205,22 +205,40 @@ export async function sendAnnouncementParentPush(input: {
   sportCategories?: string;
   teamsLabel?: string;
 }) {
-  const userIds = pushService.announcementParentUserIds({
+  const audience = {
     audienceRoles: input.audienceRoles,
     classIds: input.classIds,
     recipientIds: input.recipientIds,
     sportCategories: input.sportCategories,
     teamsLabel: input.teamsLabel,
-    status: 'published',
-  });
-  if (userIds.length === 0) return { sent: 0 };
-  return pushService.sendParentPush({
-    clubId: input.clubId,
-    userIds,
-    title: input.title,
-    body: input.message,
-    url: '/app/parent',
-  });
+    status: 'published' as const,
+  };
+  const parentIds = pushService.announcementParentUserIds(audience);
+  const coachIds = pushService.announcementCoachUserIds(audience);
+  let sent = 0;
+  if (parentIds.length > 0) {
+    sent += (
+      await pushService.sendParentPush({
+        clubId: input.clubId,
+        userIds: parentIds,
+        title: input.title,
+        body: input.message,
+        url: '/app/parent',
+      })
+    ).sent;
+  }
+  if (coachIds.length > 0) {
+    sent += (
+      await pushService.sendParentPush({
+        clubId: input.clubId,
+        userIds: coachIds,
+        title: input.title,
+        body: input.message,
+        url: '/app/coach',
+      })
+    ).sent;
+  }
+  return { sent };
 }
 
 export async function notifyAbsenceByEmail(input: {
@@ -326,6 +344,16 @@ export async function notifyClassSessionMessage(input: {
       title: subject,
       body: text,
       url: '/app/parent?tab=schedule',
+    });
+  }
+  const coachIds = pushService.classCoachUserIds(input.classId);
+  if (coachIds.length > 0) {
+    await pushService.sendParentPush({
+      clubId: input.clubId,
+      userIds: coachIds,
+      title: subject,
+      body: text,
+      url: '/app/coach',
     });
   }
   return { success: true as const, data: { sent, skipped }, error: null };

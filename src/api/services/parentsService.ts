@@ -12,6 +12,7 @@ import type { ParentAthleteLink, Student } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import { studentClassIds } from '../../utils/studentClasses';
 import { collapseDuplicateSurname, composeGivenAndSurname, motherFullName } from '../../utils/greekSurname';
+import { studentContactPhones } from './smsService';
 
 export type ParentLinkRow = {
   linkId: string;
@@ -40,6 +41,7 @@ export type ParentDirectoryRow = {
   parentUserId: string | null;
   linkIds: string[];
   classIds: string[];
+  phones: string[];
   isMother?: boolean;
 };
 
@@ -101,6 +103,7 @@ function attachLinkedParent(
       parentUserId: parent.id,
       linkIds: linkId ? [linkId] : [],
       classIds: athlete?.classId ? [athlete.classId] : [],
+      phones: [],
     });
     return;
   }
@@ -147,6 +150,7 @@ function upsertGuardian(
       parentUserId: null,
       linkIds: [],
       classIds: studentClassIds(opts.athlete),
+      phones: [],
       isMother: Boolean(opts.isMother),
     });
     return;
@@ -253,6 +257,16 @@ export async function listParentDirectory(clubId: string) {
       }
       if (row.linkIds.length > 0 && user.active) row.status = 'active';
       else row.status = 'pending';
+    }
+
+    for (const row of map.values()) {
+      const phones = new Set<string>();
+      for (const athlete of row.athletes) {
+        const student = studentById.get(athlete.id);
+        if (!student) continue;
+        for (const phone of studentContactPhones(student)) phones.add(phone);
+      }
+      row.phones = [...phones];
     }
 
     return [...map.values()].sort((a, b) => a.fullName.localeCompare(b.fullName, 'el'));

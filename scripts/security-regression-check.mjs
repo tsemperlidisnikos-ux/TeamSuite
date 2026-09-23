@@ -34,6 +34,7 @@ assert.match(email, /Πολλά αιτήματα email/, 'email sending must be 
 assert.match(push, /assertClubTenantAccess/, 'push subscribe/send must be tenant scoped');
 assert.match(push, /Πολλά αιτήματα αποστολής ειδοποιήσεων/, 'push send must be rate limited');
 assert.match(push, /Δεν επιτρέπεται αποστολή ειδοποιήσεων/, 'parents must not send push to others');
+assert.match(push, /op === 'subscribers'/, 'staff can list push subscribers for adoption');
 assert.match(durableKv, /kvSetIfAbsent/, 'settlement claims must use an atomic Redis set-if-absent');
 assert.match(serverStore, /Settlement requires orderCode/, 'settlement validation must reject incomplete identifiers');
 assert.match(serverStore, /deletedExpenseIds/, 'mirror merge must preserve expense tombstones');

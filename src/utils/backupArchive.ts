@@ -1,11 +1,11 @@
 import { getUsers, type AppUser } from '../auth/auth';
-import { getClubById, getClubs, isMaskedOrBlankSecret, type Club } from '../auth/clubs';
+import { getClubById, getClubs, isMaskedOrBlankSecret, saveClubs, type Club } from '../auth/clubs';
 import { isQuotaError, stripHeavyMedia } from '../data/mediaStrip';
 import { exportAllClubsData, getData } from '../data/repository';
 import { loadStore } from '../data/store';
 import { loadPlatformConfig } from '../platform/platformConfig';
 import type { AppData } from '../types';
-import { localDateTimeIso } from './dates';
+import { localDateIso, localDateTimeIso } from './dates';
 import {
   backupActiveAthletesSuffix,
   backupDateTimeStamp,
@@ -490,6 +490,50 @@ export function assertPlatformScopedRestore(payload: BackupPayload): void {
 /** Club ids present in a backup (hints for Platform Admin). */
 export function listBackupClubIds(payload: BackupPayload): string[] {
   return clubIdsInPayload(payload);
+}
+
+export const RESTORE_CLUB_FROM_FILE = '__from_file__';
+
+/** Club record stored in a club-only backup (same id as the source). */
+export function clubRecordFromBackup(payload: BackupPayload): Club | null {
+  const identity = describeBackupClub(payload);
+  const id = identity.sourceClubId?.trim();
+  if (!id) return null;
+  const named = payload.clubs?.find((c) => c.id === id) ?? payload.clubs?.[0];
+  if (named?.id) {
+    return { ...named, id };
+  }
+  return {
+    id,
+    name: identity.sourceClubName || id,
+    city: '',
+    phone: '',
+    adminUserId: '',
+    createdAt: localDateIso(),
+    athleteLicenseLimit: 10,
+    athleteLicenseUsed: identity.activeStudentCount,
+  };
+}
+
+/**
+ * If the backup's club is missing locally, create it with the **same id**
+ * (do not invent a new empty club).
+ */
+export function ensureClubFromBackup(payload: BackupPayload): {
+  clubId: string;
+  clubName: string;
+  created: boolean;
+} {
+  const record = clubRecordFromBackup(payload);
+  if (!record) {
+    throw new Error('Το backup δεν περιέχει αναγνωριστικό συλλόγου για δημιουργία.');
+  }
+  const existing = getClubById(record.id);
+  if (existing) {
+    return { clubId: existing.id, clubName: existing.name, created: false };
+  }
+  saveClubs([...getClubs(), record]);
+  return { clubId: record.id, clubName: record.name, created: true };
 }
 
 /**

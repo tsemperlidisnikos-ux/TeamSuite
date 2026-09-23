@@ -2,6 +2,8 @@ import { getUsers } from '../../auth/auth';
 import { getData } from '../../data/repository';
 import { syncAuthHeaders } from '../syncAuth';
 import {
+  coachUserIdsForAnnouncement,
+  coachUserIdsForClass,
   parentUserIdsForAnnouncement,
   parentUserIdsForAthletes,
   parentUserIdsForClass,
@@ -109,6 +111,17 @@ export async function unsubscribeParentPush(clubId: string): Promise<void> {
   }).catch(() => undefined);
 }
 
+export async function listPushSubscriberIds(clubId: string): Promise<string[]> {
+  if (!clubId) return [];
+  const response = await fetch(`/api/push?op=subscribers&clubId=${encodeURIComponent(clubId)}`, {
+    method: 'GET',
+    headers: syncAuthHeaders(false),
+  });
+  const json = await readJson(response);
+  const ids = Array.isArray(json.userIds) ? json.userIds.map((id) => String(id)) : [];
+  return [...new Set(ids.filter(Boolean))];
+}
+
 export async function sendParentPush(input: PushSendInput): Promise<{ sent: number }> {
   const userIds = [...new Set(input.userIds.filter(Boolean))];
   if (!input.clubId || userIds.length === 0) return { sent: 0 };
@@ -133,6 +146,7 @@ function liveUsers() {
     id: user.id,
     role: user.role,
     active: user.active,
+    coachId: user.coachId,
   }));
 }
 
@@ -176,6 +190,38 @@ export function athleteParentUserIds(athleteIds: string[]): string[] {
   return parentUserIdsForAthletes({
     athleteIds,
     parentLinks: data.parentLinks ?? [],
+    users: liveUsers(),
+  });
+}
+
+export function announcementCoachUserIds(input: {
+  audienceRoles?: AnnouncementInput['audienceRoles'];
+  classIds?: AnnouncementInput['classIds'];
+  recipientIds?: AnnouncementInput['recipientIds'];
+  status?: AnnouncementInput['status'];
+  sportCategories?: string;
+  teamsLabel?: string;
+}): string[] {
+  const data = getData();
+  return coachUserIdsForAnnouncement({
+    announcement: {
+      status: input.status ?? 'published',
+      audienceRoles: input.audienceRoles ?? [],
+      classIds: input.classIds ?? [],
+      recipientIds: input.recipientIds ?? [],
+      sportCategories: input.sportCategories ?? '',
+      teamsLabel: input.teamsLabel ?? '',
+    },
+    coaches: data.coaches ?? [],
+    users: liveUsers(),
+  });
+}
+
+export function classCoachUserIds(classId: string): string[] {
+  const data = getData();
+  return coachUserIdsForClass({
+    classId,
+    classes: data.classes ?? [],
     users: liveUsers(),
   });
 }

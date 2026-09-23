@@ -19,3 +19,13 @@ powershell -ExecutionPolicy Bypass -File "C:\TeamSuite\scripts\build-android-par
 ```
 
 Στο κινητό: επιτρέψτε εγκατάσταση από άγνωστες πηγές και ανοίξτε το APK. Στο Chrome μπορείτε επίσης να ανοίξετε `/app/parent` και «Προσθήκη στην αρχική οθόνη».
+
+## Προπονητές
+
+Αρχείο: `C:\TeamSuite_backup\TeamSuite-Pronohtes.apk` — ανοίγει `https://teamsuite-seven.vercel.app/app/coach`
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "C:\TeamSuite\scripts\build-android-coach-apk.ps1"
+```
+
+Στο κινητό: επιτρέψτε εγκατάσταση από άγνωστες πηγές και ανοίξτε το APK. Στο Chrome / Safari μπορείτε επίσης να ανοίξετε `/app/coach` και «Προσθήκη στην αρχική οθόνη».

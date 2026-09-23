@@ -1,6 +1,13 @@
-import { useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { CircleHelp, Download, Eye, FileText, Plus, Pencil, Search, SquarePen, Trash2, Upload } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { CircleHelp, Download, Eye, FileText, Plus, Pencil, Search, Send, SquarePen, Trash2, Upload } from 'lucide-react';
 import * as coachesService from '../api/services/coachesService';
+import * as pushService from '../api/services/pushService';
+import { sendClubEmail } from '../api/services/emailService';
+import { sendClubSms, viberChatUrl } from '../api/services/smsService';
+import { getSession, getUsers } from '../auth/auth';
+import { getClubById, getClubSms, getClubSmtp } from '../auth/clubs';
+import { getPreviewClubId } from '../platform/platformConfig';
+import { coachAppUrl, portalAppInviteText } from '../utils/parentApp';
 import { SpreadsheetImportHelpModal } from '../components/SpreadsheetImportHelpModal';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -148,6 +155,41 @@ export function CoachesPage() {
   const [importing, setImporting] = useState(false);
   const [importHelpOpen, setImportHelpOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [pushIds, setPushIds] = useState<Set<string>>(() => new Set());
+  const [pushFilter, setPushFilter] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [shareMessage, setShareMessage] = useState('');
+  const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
+  const club = clubId ? getClubById(clubId) : null;
+  const appUrl = coachAppUrl();
+  const inviteText = portalAppInviteText({
+    clubName: club?.name ?? 'TeamSuite',
+    kind: 'coach',
+    url: appUrl,
+  });
+
+  function coachUserId(coachId: string, email: string): string | null {
+    const users = getUsers();
+    const byId = users.find((user) => user.role === 'coach' && user.coachId === coachId);
+    if (byId) return byId.id;
+    const needle = email.trim().toLowerCase();
+    if (!needle) return null;
+    return users.find((user) => user.role === 'coach' && user.email.trim().toLowerCase() === needle)?.id ?? null;
+  }
+
+  useEffect(() => {
+    if (!clubId) {
+      setPushIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    void pushService.listPushSubscriberIds(clubId).then((ids) => {
+      if (!cancelled) setPushIds(new Set(ids));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [clubId, data.coaches]);
 
   const listSportOptions = useMemo(
     () =>
@@ -166,6 +208,9 @@ export function CoachesPage() {
         if (statusFilter === 'active' && !coach.active) return false;
         if (statusFilter === 'inactive' && coach.active) return false;
         if (sportFilter && !clubSportsMatch(coach.sport, sportFilter)) return false;
+        const userId = coachUserId(coach.id, coach.email);
+        if (pushFilter === 'on' && !(userId && pushIds.has(userId))) return false;
+        if (pushFilter === 'off' && userId && pushIds.has(userId)) return false;
         if (!q) return true;
         const hay = `${coach.lastName} ${coach.firstName} ${coach.email} ${coach.phone} ${coach.sport ?? ''} ${coach.ggaCode ?? ''}`.toLowerCase();
         return hay.includes(q);
@@ -173,7 +218,76 @@ export function CoachesPage() {
       .sort((a, b) =>
         `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
       );
-  }, [data.coaches, query, sportFilter, statusFilter]);
+  }, [data.coaches, query, sportFilter, statusFilter, pushFilter, pushIds]);
+
+  const withPush = data.coaches.filter((coach) => {
+    const userId = coachUserId(coach.id, coach.email);
+    return Boolean(userId && pushIds.has(userId));
+  }).length;
+  const withoutPush = data.coaches.filter((coach) => {
+    if (!coach.active) return false;
+    const userId = coachUserId(coach.id, coach.email);
+    return Boolean(userId && !pushIds.has(userId));
+  });
+
+  async function sendCoachAppInvite(coach: Coach): Promise<string[]> {
+    if (!clubId) return [];
+    const channels: string[] = [];
+    const smtp = getClubSmtp(clubId);
+    if (smtp.enabled && coach.email.includes('@')) {
+      const mail = await sendClubEmail({
+        clubId,
+        to: coach.email,
+        subject: `Εφαρμογή προπονητή — ${club?.name ?? 'TeamSuite'}`,
+        text: inviteText,
+      });
+      if (mail.success) channels.push(`email ${coach.email}`);
+    }
+    const sms = getClubSms(clubId);
+    if (sms.enabled && coach.phone.trim()) {
+      const sent = await sendClubSms({
+        clubId,
+        to: coach.phone,
+        text: inviteText,
+      });
+      if (sent.success) channels.push(`SMS ${coach.phone}`);
+    }
+    return channels;
+  }
+
+  async function handleSendCoachAppLink(coach: Coach) {
+    setInviting(true);
+    setShareMessage('');
+    const channels = await sendCoachAppInvite(coach);
+    setInviting(false);
+    if (channels.length > 0) {
+      setShareMessage(`Στάλθηκε σύνδεσμος εφαρμογής (${channels.join(', ')}).`);
+      return;
+    }
+    if (coach.phone.trim()) {
+      window.open(viberChatUrl(coach.phone, inviteText), '_blank');
+      setShareMessage('Άνοιξε Viber για αποστολή. Αν δεν στάλθηκε SMS/email, αντιγράψτε και τον σύνδεσμο.');
+      return;
+    }
+    void navigator.clipboard?.writeText(appUrl);
+    setShareMessage('Δεν υπάρχει SMS/email. Ο σύνδεσμος αντιγράφηκε για αποστολή με το χέρι.');
+  }
+
+  async function handleRemindCoachesWithoutPush() {
+    if (withoutPush.length === 0) {
+      setShareMessage('Όλοι οι ενεργοί προπονητές με λογαριασμό έχουν ειδοποιήσεις.');
+      return;
+    }
+    if (!confirm(`Να σταλεί υπενθύμιση σε ${withoutPush.length} προπονητές χωρίς ειδοποιήσεις;`)) return;
+    setInviting(true);
+    let sent = 0;
+    for (const coach of withoutPush) {
+      const channels = await sendCoachAppInvite(coach);
+      if (channels.length) sent += 1;
+    }
+    setInviting(false);
+    setShareMessage(`Υπενθύμιση: στάλθηκε σε ${sent} από ${withoutPush.length}.`);
+  }
 
   function toggleSelected(id: string) {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -380,6 +494,44 @@ export function CoachesPage() {
         }
       />
 
+      {shareMessage ? <p className="settings-success">{shareMessage}</p> : null}
+
+      <section className="panel parent-app-share">
+        <p>
+          <strong>Εφαρμογή προπονητή:</strong>{' '}
+          <a href={appUrl} target="_blank" rel="noreferrer">
+            {appUrl}
+          </a>
+        </p>
+        <p className="muted">
+          {withPush} από {data.coaches.filter((coach) => coachUserId(coach.id, coach.email)).length}{' '}
+          προπονητές με λογαριασμό ενεργοποίησαν ειδοποιήσεις. Στείλτε SMS/email ή Viber· στο κινητό:
+          προσθήκη στην αρχική οθόνη και μετά «Ενεργοποίηση ειδοποιήσεων».
+        </p>
+        <div className="parent-app-share-actions">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              void navigator.clipboard?.writeText(appUrl).then(
+                () => setShareMessage('Ο σύνδεσμος αντιγράφηκε.'),
+                () => setShareMessage(appUrl),
+              );
+            }}
+          >
+            Αντιγραφή συνδέσμου
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={inviting || withoutPush.length === 0}
+            onClick={() => void handleRemindCoachesWithoutPush()}
+          >
+            <Send size={16} /> Υπενθύμιση χωρίς ειδοποιήσεις ({withoutPush.length})
+          </Button>
+        </div>
+      </section>
+
       <div className="toolbar">
         <label className="search-field">
           <Search size={16} />
@@ -414,6 +566,18 @@ export function CoachesPage() {
             <option value="">Όλα</option>
             <option value="active">Ενεργός</option>
             <option value="inactive">Ανενεργός</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Ειδοποιήσεις app</span>
+          <select
+            className="field-input"
+            value={pushFilter}
+            onChange={(e) => setPushFilter(e.target.value)}
+          >
+            <option value="">Όλα</option>
+            <option value="on">Ενεργές</option>
+            <option value="off">Χωρίς ειδοποιήσεις</option>
           </select>
         </label>
         <Button
@@ -494,6 +658,7 @@ export function CoachesPage() {
                 <th>Email</th>
                 <th>Τηλέφωνο</th>
                 <th>Κατάσταση</th>
+                <th>Εφαρμογή</th>
                 <th>Πρόσληψη</th>
                 <th>Τμήματα</th>
                 <th></th>
@@ -562,9 +727,27 @@ export function CoachesPage() {
                         {coach.active ? 'Ενεργός' : 'Ανενεργός'}
                       </span>
                     </td>
+                    <td>
+                      {(() => {
+                        const userId = coachUserId(coach.id, coach.email);
+                        if (userId && pushIds.has(userId)) {
+                          return <span className="badge badge-active">Ειδοποιήσεις</span>;
+                        }
+                        if (userId) return <span className="muted">Χωρίς ειδοποιήσεις</span>;
+                        return <span className="muted">Χωρίς λογαριασμό</span>;
+                      })()}
+                    </td>
                     <td>{formatDate(coach.hireDate)}</td>
                     <td>{assigned.map((c) => c.name).join(', ') || '—'}</td>
                     <td className="row-actions">
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        disabled={inviting}
+                        onClick={() => void handleSendCoachAppLink(coach)}
+                      >
+                        Σύνδεσμος app
+                      </button>
                       <button
                         type="button"
                         className="btn btn-ghost"

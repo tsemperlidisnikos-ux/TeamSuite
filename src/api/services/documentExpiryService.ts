@@ -13,10 +13,21 @@ export type DocumentExpiryRow = {
   status: 'expired' | 'soon' | 'ok';
 };
 
-function daysUntil(dateIso: string, today = localDateIso()): number {
+export function daysUntil(dateIso: string, today = localDateIso()): number {
   const a = new Date(`${today}T12:00:00`);
   const b = new Date(`${dateIso}T12:00:00`);
   return Math.round((b.getTime() - a.getTime()) / 86_400_000);
+}
+
+export function classifyExpiry(
+  expiresAt: string,
+  today = localDateIso(),
+  withinDays = 45,
+): { daysLeft: number; status: DocumentExpiryRow['status'] } {
+  const daysLeft = daysUntil(expiresAt, today);
+  const status: DocumentExpiryRow['status'] =
+    daysLeft < 0 ? 'expired' : daysLeft <= withinDays ? 'soon' : 'ok';
+  return { daysLeft, status };
 }
 
 export function deriveHealthCardStatus(expiresAt?: string | null): string {
@@ -55,9 +66,7 @@ function pushExpiry(
 ) {
   const value = (expiresAt ?? '').trim();
   if (!value) return;
-  const daysLeft = daysUntil(value);
-  const status: DocumentExpiryRow['status'] =
-    daysLeft < 0 ? 'expired' : daysLeft <= withinDays ? 'soon' : 'ok';
+  const { daysLeft, status } = classifyExpiry(value, localDateIso(), withinDays);
   if (!includeOk && status === 'ok') return;
   rows.push({
     athleteId: _student.id,

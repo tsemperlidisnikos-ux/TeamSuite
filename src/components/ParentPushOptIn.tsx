@@ -16,7 +16,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export function ParentPushOptIn() {
+export function ParentPushOptIn({ kind = 'parent' }: { kind?: 'parent' | 'coach' }) {
   const session = getSession();
   const clubId = session?.clubId ?? null;
   const [pushState, setPushState] = useState<'idle' | 'on' | 'off' | 'busy'>('idle');
@@ -81,7 +81,8 @@ export function ParentPushOptIn() {
       ) : null}
       {ios && !canInstall ? (
         <p className="parent-app-tool-hint">
-          iPhone: Safari → Κοινοποίηση → «Προσθήκη στην οθόνη Αφετηρίας».
+          iPhone: Safari → Κοινοποίηση → «Προσθήκη στην οθόνη Αφετηρίας»
+          {kind === 'coach' ? ' (εφαρμογή προπονητή).' : '.'}
         </p>
       ) : null}
       {pushService.pushSupported() ? (

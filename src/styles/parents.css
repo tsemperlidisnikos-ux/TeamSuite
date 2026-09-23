@@ -226,6 +226,8 @@
 .parents-menu-wrap {
   position: relative;
   display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .parents-menu-btn {

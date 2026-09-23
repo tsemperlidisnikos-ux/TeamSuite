@@ -28,13 +28,20 @@ import {
   getAppLogoUrl,
   getAppName,
 } from '../platform/platformConfig';
-import { applyParentChrome, isParentAppMode, parentAppPath } from '../utils/parentApp';
-import { DEMO_PARENT_EMAIL, DEMO_PASSWORD } from '../auth/demoCredentials';
+import {
+  applyPortalChrome,
+  coachAppPath,
+  detectPortalAppKind,
+  parentAppPath,
+  type PortalAppKind,
+} from '../utils/parentApp';
+import { DEMO_COACH_EMAIL, DEMO_PARENT_EMAIL, DEMO_PASSWORD } from '../auth/demoCredentials';
 
 const REMEMBER_KEY = 'academyhub-login-remember-email-v1';
 
-function homeForRole(role?: string, parentApp = false) {
-  if (parentApp) return parentAppPath();
+function homeForRole(role?: string, portal?: PortalAppKind | null) {
+  if (portal === 'parent') return parentAppPath();
+  if (portal === 'coach') return coachAppPath();
   if (role === 'platform_admin') return '/platform';
   return '/';
 }
@@ -48,13 +55,26 @@ function splitAppName(name: string): { title: string; accent: string } {
   return { title: trimmed, accent: '' };
 }
 
-export function LoginPage({ parentApp = false }: { parentApp?: boolean }) {
+export function LoginPage({
+  parentApp = false,
+  portalApp,
+}: {
+  parentApp?: boolean;
+  portalApp?: PortalAppKind;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const from = (location.state as { from?: string; idleLogout?: boolean } | null)?.from;
   const idleLogout = Boolean((location.state as { idleLogout?: boolean } | null)?.idleLogout);
-  const isParentApp = parentApp || isParentAppMode() || searchParams.get('app') === 'parent';
+  const portal: PortalAppKind | null =
+    portalApp ?? (parentApp ? 'parent' : detectPortalAppKind()) ??
+    (searchParams.get('app') === 'parent' || searchParams.get('app') === 'coach'
+      ? (searchParams.get('app') as PortalAppKind)
+      : null);
+  const isParentApp = portal === 'parent';
+  const isCoachApp = portal === 'coach';
+  const isPortalApp = isParentApp || isCoachApp;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -85,13 +105,18 @@ export function LoginPage({ parentApp = false }: { parentApp?: boolean }) {
     return import.meta.env.DEV ? 'ready' : 'guest';
   });
   const brand = useMemo(
-    () => (isParentApp ? { title: 'TeamSuite', accent: 'Γονείς' } : splitAppName(appName)),
-    [appName, isParentApp],
+    () =>
+      isParentApp
+        ? { title: 'TeamSuite', accent: 'Γονείς' }
+        : isCoachApp
+          ? { title: 'TeamSuite', accent: 'Προπονητές' }
+          : splitAppName(appName),
+    [appName, isParentApp, isCoachApp],
   );
 
   useEffect(() => {
-    if (isParentApp) applyParentChrome();
-  }, [isParentApp]);
+    if (portal) applyPortalChrome(portal);
+  }, [portal]);
 
   const demoHint = useMemo(() => getDemoLoginHint(), []);
   const demoRoles = useMemo(() => getDemoRoleHints(), []);
@@ -99,12 +124,16 @@ export function LoginPage({ parentApp = false }: { parentApp?: boolean }) {
 
   const heroTagline = isParentApp
     ? 'Πρόγραμμα, πληρωμές και ανακοινώσεις των παιδιών σας — στο κινητό.'
-    : 'Η ολοκληρωμένη πλατφόρμα διαχείρισης για αθλητικούς οργανισμούς και ομάδες.';
+    : isCoachApp
+      ? 'Πρόγραμμα, παρουσίες και ανακοινώσεις των τμημάτων σας — στο κινητό.'
+      : 'Η ολοκληρωμένη πλατφόρμα διαχείρισης για αθλητικούς οργανισμούς και ομάδες.';
 
   const cardSubtitle = showReset
     ? 'Ορίστε νέο κωδικό για τον λογαριασμό σας.'
     : isParentApp
       ? 'Συνδεθείτε με τον λογαριασμό γονέα που σας έδωσε ο σύλλογος.'
+      : isCoachApp
+        ? 'Συνδεθείτε με τον λογαριασμό προπονητή που σας έδωσε ο σύλλογος.'
       : appearance === 'graphite-ember'
         ? 'Συνδεθείτε για να συνεχίσετε.'
         : 'Εισαγάγετε τα διαπιστευτήριά σας για να συνεχίσετε.';
@@ -234,7 +263,25 @@ export function LoginPage({ parentApp = false }: { parentApp?: boolean }) {
         </div>
       );
     }
-    return <Navigate to={homeForRole(role, isParentApp)} replace />;
+    if (isCoachApp && role && role !== 'coach') {
+      return (
+        <div className="parent-app-wrong-role">
+          <h1>Αυτή η εφαρμογή είναι για προπονητές</h1>
+          <p>Συνδεθήκατε με λογαριασμό συλλόγου. Για τη γραμματεία χρησιμοποιήστε την κανονική είσοδο.</p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              logout();
+              setSessionBoot('guest');
+            }}
+          >
+            Έξοδος
+          </button>
+        </div>
+      );
+    }
+    return <Navigate to={homeForRole(role, portal)} replace />;
   }
 
   async function completeLogin(result: Awaited<ReturnType<typeof login>>) {
@@ -298,6 +345,11 @@ export function LoginPage({ parentApp = false }: { parentApp?: boolean }) {
               runLowStockSecretariatNotice(result.data!.clubId!),
             )
             .catch(() => undefined);
+          void import('../api/services/healthCardNoticeService')
+            .then(({ notifyHealthCardExpiries }) =>
+              notifyHealthCardExpiries(result.data!.clubId!),
+            )
+            .catch(() => undefined);
         }
       }
     }
@@ -311,11 +363,21 @@ export function LoginPage({ parentApp = false }: { parentApp?: boolean }) {
       navigate(parentAppPath(), { replace: true });
       return;
     }
+    if (isCoachApp) {
+      if (result.data?.role !== 'coach') {
+        logout();
+        setError('Αυτή η εφαρμογή είναι μόνο για προπονητές. Χρησιμοποιήστε την κανονική είσοδο του συλλόγου.');
+        return;
+      }
+      navigate(coachAppPath(), { replace: true });
+      return;
+    }
     if (result.data?.role === 'platform_admin') {
       navigate('/platform', { replace: true });
       return;
     }
-    const target = from && from !== '/login' && from !== parentAppPath() ? from : '/';
+    const target =
+      from && from !== '/login' && from !== parentAppPath() && from !== coachAppPath() ? from : '/';
     navigate(target, { replace: true });
   }
 
@@ -335,13 +397,15 @@ export function LoginPage({ parentApp = false }: { parentApp?: boolean }) {
     const demo = await import('../auth/demoAccess');
     const result = isParentApp
       ? await demo.enterDemoParentPresentation()
-      : await demo.enterDemoPresentation();
+      : isCoachApp
+        ? await demo.enterDemoCoachPresentation()
+        : await demo.enterDemoPresentation();
     setDemoLoading(false);
     if (!result.success) {
       setError(result.error ?? 'Αποτυχία εισόδου DEMO');
       return;
     }
-    navigate(isParentApp ? parentAppPath() : '/', { replace: true });
+    navigate(isParentApp ? parentAppPath() : isCoachApp ? coachAppPath() : '/', { replace: true });
   }
 
   async function handleForgot() {
@@ -405,7 +469,15 @@ export function LoginPage({ parentApp = false }: { parentApp?: boolean }) {
         <form className="login-card" onSubmit={showReset ? handleReset : handleSubmit}>
           {useSplitLogin ? (
             <header className="login-card-head">
-              <h1>{showReset ? 'Νέος κωδικός' : isParentApp ? 'Σύνδεση γονέα' : 'Σύνδεση'}</h1>
+              <h1>
+                {showReset
+                  ? 'Νέος κωδικός'
+                  : isParentApp
+                    ? 'Σύνδεση γονέα'
+                    : isCoachApp
+                      ? 'Σύνδεση προπονητή'
+                      : 'Σύνδεση'}
+              </h1>
               <p>{cardSubtitle}</p>
             </header>
           ) : (
@@ -540,11 +612,17 @@ export function LoginPage({ parentApp = false }: { parentApp?: boolean }) {
                   ? 'Φόρτωση DEMO…'
                   : isParentApp
                     ? 'Δοκιμή ως γονέας (DEMO)'
+                    : isCoachApp
+                      ? 'Δοκιμή ως προπονητής (DEMO)'
                     : 'Είσοδος DEMO παρουσίασης'}
               </button>
               {isParentApp ? (
                 <p className="login-demo-hint login-demo-hint--compact">
                   DEMO γονέα: {DEMO_PARENT_EMAIL} / {DEMO_PASSWORD}
+                </p>
+              ) : isCoachApp ? (
+                <p className="login-demo-hint login-demo-hint--compact">
+                  DEMO προπονητή: {DEMO_COACH_EMAIL} / {DEMO_PASSWORD}
                 </p>
               ) : !useSplitLogin ? (
                 <div className="login-demo-block">
@@ -565,7 +643,7 @@ export function LoginPage({ parentApp = false }: { parentApp?: boolean }) {
             </>
           )}
 
-          {isParentApp ? (
+          {isPortalApp ? (
             <p className="login-footer-link">
               Είστε γραμματεία; <Link to="/login">Κανονική είσοδος TeamSuite</Link>
             </p>

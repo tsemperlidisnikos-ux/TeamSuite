@@ -43,6 +43,10 @@ import { downloadXlsx } from '../utils/xlsxDownload';
 import { clubAthletesXlsxFileName } from '../shared/clubBackupFilename';
 import { parseSpreadsheetGrid } from '../utils/xlsxParse';
 import { remainingAthleteLicenseSeats } from '../utils/athleteLicenseCap';
+import {
+  listHealthCardNoticeRows,
+  notifyHealthCardExpiries,
+} from '../api/services/healthCardNoticeService';
 
 const draftAthlete: StudentInput = {
   firstName: '',
@@ -166,6 +170,10 @@ export function StudentsPage() {
   const [appMessage, setAppMessage] = useState('');
   const [appError, setAppError] = useState('');
   const [healthCardBusyId, setHealthCardBusyId] = useState<string | null>(null);
+  const [healthNoticeBusy, setHealthNoticeBusy] = useState(false);
+  const [healthNoticeMessage, setHealthNoticeMessage] = useState('');
+  const clubId = getPreviewClubId() ?? session?.clubId ?? null;
+  const healthNoticeRows = useMemo(() => listHealthCardNoticeRows(), [data.students]);
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<'' | StudentStatus>('');
@@ -590,6 +598,42 @@ export function StudentsPage() {
           )
         }
       />
+
+      {!isDoctor && healthNoticeRows.length > 0 ? (
+        <section className="panel parent-app-share">
+          <p>
+            <strong>Κάρτες υγείας:</strong> {healthNoticeRows.filter((r) => r.status === 'expired').length}{' '}
+            ληγμένες, {healthNoticeRows.filter((r) => r.status === 'soon').length} λήγουν σε 30 ημέρες.
+          </p>
+          <p className="muted">
+            Στείλτε υπενθύμιση στους γονείς (email/SMS/εφαρμογή) και σύνοψη στη γραμματεία. Το πολύ μία
+            φορά την ημέρα ανά αθλητή.
+          </p>
+          <div className="parent-app-share-actions">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!clubId || healthNoticeBusy}
+              onClick={() => {
+                if (!clubId) return;
+                setHealthNoticeBusy(true);
+                setHealthNoticeMessage('');
+                void notifyHealthCardExpiries(clubId).then((result) => {
+                  setHealthNoticeBusy(false);
+                  setHealthNoticeMessage(
+                    `Υπενθυμίσεις καρτών: στάλθηκαν ${result.sent}, παραλείφθηκαν ${result.skipped}` +
+                      (result.staff ? `, γραμματεία ${result.staff}` : '') +
+                      '.',
+                  );
+                });
+              }}
+            >
+              <HeartPulse size={16} /> {healthNoticeBusy ? 'Αποστολή…' : 'Υπενθύμιση λήξεων'}
+            </Button>
+          </div>
+          {healthNoticeMessage ? <p className="settings-success">{healthNoticeMessage}</p> : null}
+        </section>
+      ) : null}
 
       {!isDoctor && remainingAthleteLicenseSeats(data.students) === 0 ? (
         <p className="form-error" role="status">

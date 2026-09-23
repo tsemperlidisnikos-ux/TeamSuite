@@ -69,6 +69,8 @@ import {
   confirmClubBackupRestore,
   readBackupFile,
   withTargetClubSubscriptionUnchanged,
+  ensureClubFromBackup,
+  RESTORE_CLUB_FROM_FILE,
 } from '../utils/backupArchive';
 import { syncClubAthleteLicenseUsed } from '../utils/athleteLicenseCap';
 import {
@@ -461,7 +463,9 @@ export function PlatformAdminPage() {
   const [backupItem, setBackupItem] = useState('full');
   const [academyCat, setAcademyCat] = useState('preview');
   const [academyItem, setAcademyItem] = useState('preview');
-  const [restoreClubId, setRestoreClubId] = useState(() => getClubs()[0]?.id ?? '');
+  const [restoreClubId, setRestoreClubId] = useState(
+    () => getClubs()[0]?.id ?? RESTORE_CLUB_FROM_FILE,
+  );
   const [platformRestoring, setPlatformRestoring] = useState(false);
   const [clubRestoring, setClubRestoring] = useState(false);
   const [joinFormAllClubs, setJoinFormAllClubs] = useState(true);
@@ -485,8 +489,13 @@ export function PlatformAdminPage() {
       setRestoreClubId(clubs[0].id);
       return;
     }
-    if (restoreClubId && clubs.length > 0 && !clubs.some((c) => c.id === restoreClubId)) {
-      setRestoreClubId(clubs[0]?.id ?? '');
+    if (
+      restoreClubId &&
+      restoreClubId !== RESTORE_CLUB_FROM_FILE &&
+      clubs.length > 0 &&
+      !clubs.some((c) => c.id === restoreClubId)
+    ) {
+      setRestoreClubId(clubs[0]?.id ?? RESTORE_CLUB_FROM_FILE);
     }
   }, [clubs, restoreClubId]);
 
@@ -756,22 +765,26 @@ export function PlatformAdminPage() {
   }
 
   async function applyClubBackupFile(file: File) {
-    if (!restoreClubId) {
-      flash('Επιλέξτε σύλλογο για επαναφορά.');
-      return;
-    }
     setClubRestoring(true);
     try {
-      const clubName = clubs.find((c) => c.id === restoreClubId)?.name ?? restoreClubId;
       const parsed = await readBackupFile(file);
-      const clubData = pickAppDataForRestore(parsed, restoreClubId);
+      let targetId = restoreClubId;
+      let createdFromFile = false;
+      if (!targetId || targetId === RESTORE_CLUB_FROM_FILE) {
+        const ensured = ensureClubFromBackup(parsed);
+        targetId = ensured.clubId;
+        createdFromFile = ensured.created;
+        setRestoreClubId(targetId);
+      }
+      const clubName = getClubs().find((c) => c.id === targetId)?.name ?? targetId;
+      const clubData = pickAppDataForRestore(parsed, targetId);
       if (!clubData) {
         throw new Error('Το backup δεν περιέχει δεδομένα συλλόγου για επαναφορά.');
       }
       if (
         !confirmClubBackupRestore({
           payload: parsed,
-          targetClubId: restoreClubId,
+          targetClubId: targetId,
           targetClubName: clubName,
         })
       ) {
@@ -779,42 +792,42 @@ export function PlatformAdminPage() {
       }
 
       const expectedStudents = clubData.students?.length ?? 0;
-      replaceClubData(restoreClubId, clubData);
+      replaceClubData(targetId, clubData);
 
       const backupClub =
-        parsed.clubs?.find((c) => c.id === restoreClubId) ??
+        parsed.clubs?.find((c) => c.id === targetId) ??
         (parsed.scope === 'club' && parsed.clubs?.length === 1 ? parsed.clubs[0] : undefined);
       if (backupClub) {
         const existing = getClubs();
-        const target = existing.find((c) => c.id === restoreClubId);
-        const sameClub = Boolean(parsed.sourceClubId && parsed.sourceClubId === restoreClubId);
+        const target = existing.find((c) => c.id === targetId);
+        const sameClub = Boolean(parsed.sourceClubId && parsed.sourceClubId === targetId);
         const incoming = withTargetClubSubscriptionUnchanged(
-          { ...backupClub, id: restoreClubId },
-          target ?? { ...backupClub, id: restoreClubId },
-          sameClub || !target,
+          { ...backupClub, id: targetId },
+          target ?? { ...backupClub, id: targetId },
+          sameClub || !target || createdFromFile,
         );
         const mergedOne = mergeClubsPreservingSecrets(
           [incoming],
-          existing.filter((c) => c.id === restoreClubId),
+          existing.filter((c) => c.id === targetId),
         )[0];
         if (mergedOne) {
-          saveClubs(existing.map((c) => (c.id === restoreClubId ? mergedOne : c)));
+          saveClubs(existing.map((c) => (c.id === targetId ? mergedOne : c)));
         }
       }
-      syncClubAthleteLicenseUsed(clubData.students ?? [], restoreClubId);
+      syncClubAthleteLicenseUsed(clubData.students ?? [], targetId);
 
       const sourceIds = new Set(
-        [parsed.sourceClubId, restoreClubId, ...(parsed.clubs?.map((c) => c.id) ?? [])].filter(
+        [parsed.sourceClubId, targetId, ...(parsed.clubs?.map((c) => c.id) ?? [])].filter(
           Boolean,
         ) as string[],
       );
       const incomingUsers = (parsed.users ?? [])
         .filter((u) => u.role !== 'platform_admin')
         .filter((u) => !u.clubId || sourceIds.has(u.clubId) || parsed.scope === 'club')
-        .map((u) => ({ ...u, clubId: restoreClubId }));
+        .map((u) => ({ ...u, clubId: targetId }));
       if (incomingUsers.length > 0) {
-        const others = getUsers().filter((u) => u.clubId !== restoreClubId);
-        const existingClubUsers = getUsers().filter((u) => u.clubId === restoreClubId);
+        const others = getUsers().filter((u) => u.clubId !== targetId);
+        const existingClubUsers = getUsers().filter((u) => u.clubId === targetId);
         saveUsers([
           ...others,
           ...mergeUsersPreservingPasswords(incomingUsers, existingClubUsers),
@@ -824,12 +837,13 @@ export function PlatformAdminPage() {
       setClubsTick((n) => n + 1);
       setTick((n) => n + 1);
       flash(
-        `Επαναφορά συλλόγου «${clubName}» OK` +
+        (createdFromFile ? `Δημιουργήθηκε ο σύλλογος «${clubName}» από το αρχείο. ` : '') +
+          `Επαναφορά συλλόγου «${clubName}» OK` +
           (expectedStudents ? ` (${expectedStudents} αθλητές στο αρχείο)` : '') +
           '.',
       );
       const cloud = await persistLocalStateToCloud({
-        clubIds: [restoreClubId],
+        clubIds: [targetId],
         overwriteCloud: true,
       });
       if (!cloud.success) {
@@ -1743,40 +1757,39 @@ export function PlatformAdminPage() {
                   name="restoreClubId"
                   value={restoreClubId}
                   onChange={(e) => setRestoreClubId(e.target.value)}
-                  options={
-                    clubs.length > 0
-                      ? clubs.map((c) => ({ value: c.id, label: c.name }))
-                      : [{ value: '', label: '— Δεν υπάρχουν σύλλογοι —' }]
-                  }
+                  options={[
+                    { value: RESTORE_CLUB_FROM_FILE, label: 'Δημιουργία συλλόγου από το αρχείο' },
+                    ...clubs.map((c) => ({ value: c.id, label: c.name })),
+                  ]}
                 />
                 <div className="admin-entry-actions">
                   <Button
                     type="button"
                     onClick={handleClubBackupExport}
-                    disabled={!restoreClubId}
+                    disabled={!restoreClubId || restoreClubId === RESTORE_CLUB_FROM_FILE}
                   >
                     Λήψη backup συλλόγου
                   </Button>
                 </div>
                 <form onSubmit={handleClubBackupImport} className="admin-import-form">
                   <p className="admin-entry-note">
-                    <strong>Επαναφορά συλλόγου</strong> — δέχεται club-only backup JSON. Αν το αρχείο
-                    είναι άλλου συλλόγου, απαιτείται επιβεβαίωση σε δύο βήματα (πληκτρολογήστε
-                    ΜΕΤΑΦΟΡΑ). Μετά την επαναφορά το cloud mirror του επιλεγμένου συλλόγου
-                    αντικαθίσταται.
+                    <strong>Επαναφορά συλλόγου</strong> — δέχεται club-only backup JSON. Αν ο
+                    σύλλογος λείπει τοπικά, επιλέξτε «Δημιουργία συλλόγου από το αρχείο» (ίδιο id,
+                    όχι άδειος νέος σύλλογος). Αν το αρχείο είναι άλλου υπάρχοντος συλλόγου,
+                    απαιτείται επιβεβαίωση σε δύο βήματα (ΜΕΤΑΦΟΡΑ).
                   </p>
                   <input
                     name="clubBackupFile"
                     type="file"
                     accept="application/json,.json"
-                    disabled={clubRestoring || !restoreClubId}
+                    disabled={clubRestoring}
                   />
                   <Button
                     type="submit"
                     variant="secondary"
-                    disabled={clubRestoring || !restoreClubId}
+                    disabled={clubRestoring}
                   >
-                    {clubRestoring ? 'Επαναφορά…' : 'Επαναφορά στον επιλεγμένο σύλλογο'}
+                    {clubRestoring ? 'Επαναφορά…' : 'Επαναφορά συλλόγου'}
                   </Button>
                 </form>
               </div>

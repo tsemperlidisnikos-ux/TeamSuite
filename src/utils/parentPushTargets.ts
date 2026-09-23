@@ -1,7 +1,8 @@
-import { announcementVisibleToParent } from './announcementAudience';
+import { announcementVisibleToCoach, announcementVisibleToParent } from './announcementAudience';
 import type { Announcement } from '../types';
 
-export type PushUser = { id: string; role?: string; active?: boolean };
+export type PushUser = { id: string; role?: string; active?: boolean; coachId?: string | null };
+export type PushCoach = { id: string; sport?: string | null; active?: boolean };
 export type PushLink = { parentUserId: string; athleteId: string };
 export type PushStudent = {
   id: string;
@@ -97,4 +98,36 @@ export function parentUserIdsForAnnouncement(input: {
     }
   }
   return uniqueIds(ids);
+}
+
+export function coachUserIdsForAnnouncement(input: {
+  announcement: AudienceAnnouncement;
+  coaches: PushCoach[];
+  users: PushUser[];
+}): string[] {
+  const coaches = input.coaches.filter((coach) => coach.active !== false);
+  const ids: string[] = [];
+  for (const user of input.users) {
+    if (user.role !== 'coach' || user.active === false) continue;
+    const coach = coaches.find((row) => row.id === user.coachId);
+    if (!coach) continue;
+    if (announcementVisibleToCoach(input.announcement, coach.id, coach.sport)) {
+      ids.push(user.id);
+    }
+  }
+  return uniqueIds(ids);
+}
+
+export function coachUserIdsForClass(input: {
+  classId: string;
+  classes: Array<{ id: string; coachId?: string | null }>;
+  users: PushUser[];
+}): string[] {
+  const coachId = input.classes.find((row) => row.id === input.classId)?.coachId;
+  if (!coachId) return [];
+  return uniqueIds(
+    input.users
+      .filter((user) => user.role === 'coach' && user.active !== false && user.coachId === coachId)
+      .map((user) => user.id),
+  );
 }
