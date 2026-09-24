@@ -55,6 +55,10 @@ export function parseMoneyInput(raw: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+export function formatMoneyAmount(amount: number): string {
+  return (Number(amount) || 0).toFixed(2);
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('el-GR', {
     style: 'currency',

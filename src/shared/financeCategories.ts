@@ -237,26 +237,121 @@ export function mapExpenseSubcategoryToCategory(
   return 'other';
 }
 
-export function matchExpenseTotal(details: {
+export function normalizeMatchExpenseDetails(details: {
+  sport?: string;
+  category?: string;
+  teams?: string;
+  referees?: number;
+  judges?: number;
+  commissioner?: number;
+  observer?: number;
+  doctor?: number;
+  travelAllowance?: number;
+  travelReferees?: number;
+  travelJudges?: number;
+  travelCommissioner?: number;
+  travelObserver?: number;
+  transportBus?: number;
+  transportPlane?: number;
+  transportShip?: number;
+  transportOther?: number;
+  accommodation?: number;
+  food?: number;
+}): {
+  sport: string;
+  category: string;
+  teams: string;
   referees: number;
   judges: number;
+  commissioner: number;
+  observer: number;
+  doctor: number;
   travelAllowance: number;
+  travelReferees: number;
+  travelJudges: number;
+  travelCommissioner: number;
+  travelObserver: number;
   transportBus: number;
   transportPlane: number;
   transportShip: number;
   transportOther: number;
   accommodation: number;
   food: number;
+} {
+  const travelReferees = details.travelReferees ?? 0;
+  const travelJudges = details.travelJudges ?? 0;
+  const travelCommissioner = details.travelCommissioner ?? 0;
+  const travelObserver = details.travelObserver ?? 0;
+  const breakdown = travelReferees + travelJudges + travelCommissioner + travelObserver;
+  const travelAllowance = details.travelAllowance ?? 0;
+  return {
+    sport: details.sport ?? '',
+    category: details.category ?? '',
+    teams: details.teams ?? '',
+    referees: details.referees ?? 0,
+    judges: details.judges ?? 0,
+    commissioner: details.commissioner ?? 0,
+    observer: details.observer ?? 0,
+    doctor: details.doctor ?? 0,
+    travelReferees: breakdown > 0 ? travelReferees : travelAllowance,
+    travelJudges,
+    travelCommissioner,
+    travelObserver,
+    travelAllowance: breakdown > 0 ? breakdown : travelAllowance,
+    transportBus: details.transportBus ?? 0,
+    transportPlane: details.transportPlane ?? 0,
+    transportShip: details.transportShip ?? 0,
+    transportOther: details.transportOther ?? 0,
+    accommodation: details.accommodation ?? 0,
+    food: details.food ?? 0,
+  };
+}
+
+export function matchTravelTotal(details: {
+  travelAllowance?: number;
+  travelReferees?: number;
+  travelJudges?: number;
+  travelCommissioner?: number;
+  travelObserver?: number;
+}): number {
+  const breakdown =
+    (details.travelReferees ?? 0) +
+    (details.travelJudges ?? 0) +
+    (details.travelCommissioner ?? 0) +
+    (details.travelObserver ?? 0);
+  return breakdown > 0 ? breakdown : details.travelAllowance ?? 0;
+}
+
+export function matchExpenseTotal(details: {
+  referees?: number;
+  judges?: number;
+  commissioner?: number;
+  observer?: number;
+  doctor?: number;
+  travelAllowance?: number;
+  travelReferees?: number;
+  travelJudges?: number;
+  travelCommissioner?: number;
+  travelObserver?: number;
+  transportBus?: number;
+  transportPlane?: number;
+  transportShip?: number;
+  transportOther?: number;
+  accommodation?: number;
+  food?: number;
 }): number {
   return (
-    details.referees +
-    details.judges +
-    details.travelAllowance +
-    details.transportBus +
-    details.transportPlane +
-    details.transportShip +
-    details.transportOther +
-    details.accommodation +
-    details.food
+    (details.referees ?? 0) +
+    (details.judges ?? 0) +
+    (details.commissioner ?? 0) +
+    (details.observer ?? 0) +
+    (details.doctor ?? 0) +
+    matchTravelTotal(details) +
+    (details.transportBus ?? 0) +
+    (details.transportPlane ?? 0) +
+    (details.transportShip ?? 0) +
+    (details.transportOther ?? 0) +
+    (details.accommodation ?? 0) +
+    (details.food ?? 0)
   );
 }

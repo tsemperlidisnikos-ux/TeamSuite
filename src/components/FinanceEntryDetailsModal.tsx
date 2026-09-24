@@ -3,10 +3,16 @@ import * as financeService from '../api/services/financeService';
 import { useAppData } from '../hooks/useAppData';
 import type { ExpenseInput, RevenueInput } from '../schemas';
 import { PAYMENT_METHODS } from '../shared/paymentMethods';
-import { isCanteenFinanceCategory, expenseSkipsSportAndClass } from '../shared/financeCategories';
+import {
+  isCanteenFinanceCategory,
+  expenseSkipsSportAndClass,
+  matchExpenseTotal,
+  matchTravelTotal,
+  normalizeMatchExpenseDetails,
+} from '../shared/financeCategories';
 import type { CashAccount, Expense, MatchExpenseDetails, PaymentMethod, Revenue } from '../types';
 import { sportsMatch } from '../utils/coachScope';
-import { formatCurrency, parseMoneyInput } from '../utils/labels';
+import { formatCurrency, formatMoneyAmount, parseMoneyInput } from '../utils/labels';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
@@ -31,7 +37,13 @@ const MATCH_AMOUNT_FIELDS: Array<{
     MatchExpenseDetails,
     | 'referees'
     | 'judges'
-    | 'travelAllowance'
+    | 'commissioner'
+    | 'observer'
+    | 'doctor'
+    | 'travelReferees'
+    | 'travelJudges'
+    | 'travelCommissioner'
+    | 'travelObserver'
     | 'transportBus'
     | 'transportPlane'
     | 'transportShip'
@@ -41,9 +53,15 @@ const MATCH_AMOUNT_FIELDS: Array<{
   >;
   label: string;
 }> = [
-  { key: 'referees', label: 'Διαιτητές' },
-  { key: 'judges', label: 'Κριτές' },
-  { key: 'travelAllowance', label: 'Οδοιπορικά' },
+  { key: 'referees', label: 'Έξοδα διαιτητές' },
+  { key: 'judges', label: 'Έξοδα κριτές' },
+  { key: 'commissioner', label: 'Έξοδα κομισάριου' },
+  { key: 'observer', label: 'Έξοδα παρατηρητή / Video Observer' },
+  { key: 'doctor', label: 'Έξοδα ιατρού' },
+  { key: 'travelReferees', label: 'Οδοιπορικά διαιτητές' },
+  { key: 'travelJudges', label: 'Οδοιπορικά κριτές' },
+  { key: 'travelCommissioner', label: 'Οδοιπορικά κομισάριου' },
+  { key: 'travelObserver', label: 'Οδοιπορικά παρατηρητή / Video Observer' },
   { key: 'transportBus', label: 'Λεωφορείο' },
   { key: 'transportPlane', label: 'Αεροπλάνο' },
   { key: 'transportShip', label: 'Πλοίο' },
@@ -51,6 +69,46 @@ const MATCH_AMOUNT_FIELDS: Array<{
   { key: 'accommodation', label: 'Διαμονή' },
   { key: 'food', label: 'Διατροφή' },
 ];
+
+function MoneyAmountInput({
+  value,
+  onChange,
+  min = 0,
+  disabled,
+  required,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  disabled?: boolean;
+  required?: boolean;
+}) {
+  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState(formatMoneyAmount(value));
+  return (
+    <div className="ta-amount">
+      <input
+        type="number"
+        min={min}
+        step="0.01"
+        inputMode="decimal"
+        value={focused ? draft : formatMoneyAmount(value)}
+        disabled={disabled}
+        required={required}
+        onFocus={() => {
+          setFocused(true);
+          setDraft(formatMoneyAmount(value));
+        }}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          onChange(parseMoneyInput(e.target.value));
+        }}
+        onBlur={() => setFocused(false)}
+      />
+      <span aria-hidden="true">€</span>
+    </div>
+  );
+}
 
 function Field({
   label,
@@ -175,6 +233,7 @@ function RevenueEditor({
 
   return (
     <form className="finance-entry-details-form" onSubmit={(event) => void submit(event)}>
+      <div className="finance-entry-details-scroll">
       <p className="admin-entry-note">
         <strong>Προέλευση:</strong> {source}
         {linked
@@ -339,6 +398,7 @@ function RevenueEditor({
         {entry.createdByEmail ? ` · Καταχώρηση από: ${entry.createdByEmail}` : ''}
       </p>
       {error ? <p className="form-error">{error}</p> : null}
+      </div>
       <div className="finance-entry-modal-actions">
         <Button type="button" variant="secondary" onClick={onClose}>
           Κλείσιμο
@@ -371,16 +431,18 @@ function ExpenseEditor({
   const skipSportClassFields = expenseSkipsSportAndClass(draft.subcategory ?? '');
   const { clubs, sports, classes } = useFinanceOrgOptions(draft.sport ?? '');
 
-  useEffect(() => setDraft(entry), [entry]);
+  useEffect(
+    () =>
+      setDraft(
+        entry.matchDetails
+          ? { ...entry, matchDetails: normalizeMatchExpenseDetails(entry.matchDetails) }
+          : entry,
+      ),
+    [entry],
+  );
 
   const matchTotal = useMemo(
-    () =>
-      draft.matchDetails
-        ? MATCH_AMOUNT_FIELDS.reduce(
-            (sum, field) => sum + (Number(draft.matchDetails?.[field.key]) || 0),
-            0,
-          )
-        : Number(draft.amount),
+    () => (draft.matchDetails ? matchExpenseTotal(draft.matchDetails) : Number(draft.amount)),
     [draft.amount, draft.matchDetails],
   );
 
@@ -410,7 +472,12 @@ function ExpenseEditor({
       firstName: draft.firstName ?? '',
       studentId: draft.studentId,
       notes: draft.notes ?? '',
-      matchDetails: draft.matchDetails,
+      matchDetails: draft.matchDetails
+        ? {
+            ...normalizeMatchExpenseDetails(draft.matchDetails),
+            travelAllowance: matchTravelTotal(draft.matchDetails),
+          }
+        : undefined,
       paymentMethod: draft.paymentMethod ?? '',
       accountId: draft.accountId ?? '',
       vatRate: draft.vatRate ?? 0,
@@ -427,6 +494,7 @@ function ExpenseEditor({
 
   return (
     <form className="finance-entry-details-form" onSubmit={(event) => void submit(event)}>
+      <div className="finance-entry-details-scroll">
       <p className="admin-entry-note">
         Μπορείτε να αλλάξετε ή να αδειάσετε οποιοδήποτε πεδίο και να πατήσετε «Αποθήκευση
         διόρθωσης».
@@ -446,14 +514,11 @@ function ExpenseEditor({
           />
         </Field>
         <Field label={draft.matchDetails ? 'Σύνολο αγώνα' : 'Ποσό'}>
-          <input
-            type="number"
+          <MoneyAmountInput
             min={0.01}
-            step="0.01"
-            inputMode="decimal"
             value={matchTotal}
             disabled={Boolean(draft.matchDetails)}
-            onChange={(e) => setDraft({ ...draft, amount: parseMoneyInput(e.target.value) })}
+            onChange={(amount) => setDraft({ ...draft, amount })}
             required
           />
         </Field>
@@ -507,24 +572,28 @@ function ExpenseEditor({
             </Button>
           </div>
         ) : null}
-        <Field label="Προμηθευτής">
-          <input
-            value={draft.vendor ?? ''}
-            onChange={(e) => setDraft({ ...draft, vendor: e.target.value })}
-          />
-        </Field>
-        <Field label="Επώνυμο">
-          <input
-            value={draft.surname ?? ''}
-            onChange={(e) => setDraft({ ...draft, surname: e.target.value })}
-          />
-        </Field>
-        <Field label="Όνομα">
-          <input
-            value={draft.firstName ?? ''}
-            onChange={(e) => setDraft({ ...draft, firstName: e.target.value })}
-          />
-        </Field>
+        {!draft.matchDetails ? (
+          <>
+            <Field label="Προμηθευτής">
+              <input
+                value={draft.vendor ?? ''}
+                onChange={(e) => setDraft({ ...draft, vendor: e.target.value })}
+              />
+            </Field>
+            <Field label="Επώνυμο">
+              <input
+                value={draft.surname ?? ''}
+                onChange={(e) => setDraft({ ...draft, surname: e.target.value })}
+              />
+            </Field>
+            <Field label="Όνομα">
+              <input
+                value={draft.firstName ?? ''}
+                onChange={(e) => setDraft({ ...draft, firstName: e.target.value })}
+              />
+            </Field>
+          </>
+        ) : null}
         {draft.matchDetails ? (
           <>
             <Field label="Κατηγορία αγώνα">
@@ -551,13 +620,9 @@ function ExpenseEditor({
             </Field>
             {MATCH_AMOUNT_FIELDS.map((field) => (
               <Field key={field.key} label={field.label}>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  inputMode="decimal"
+                <MoneyAmountInput
                   value={draft.matchDetails?.[field.key] ?? 0}
-                  onChange={(e) => setMatchField(field.key, parseMoneyInput(e.target.value))}
+                  onChange={(value) => setMatchField(field.key, value)}
                 />
               </Field>
             ))}
@@ -615,6 +680,7 @@ function ExpenseEditor({
         {formatCurrency(matchTotal)}
       </p>
       {error ? <p className="form-error">{error}</p> : null}
+      </div>
       <div className="finance-entry-modal-actions">
         <Button type="button" variant="secondary" onClick={onClose}>
           Κλείσιμο

@@ -281,7 +281,14 @@ export interface MatchExpenseDetails {
   teams: string;
   referees: number;
   judges: number;
+  commissioner: number;
+  observer: number;
+  doctor: number;
   travelAllowance: number;
+  travelReferees: number;
+  travelJudges: number;
+  travelCommissioner: number;
+  travelObserver: number;
   transportBus: number;
   transportPlane: number;
   transportShip: number;

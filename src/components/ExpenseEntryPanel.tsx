@@ -12,6 +12,7 @@ import {
   expenseSkipsSportAndClass,
   mapExpenseSubcategoryToCategory,
   matchExpenseTotal,
+  matchTravelTotal,
   personNameKind,
   requiresPersonName,
   usesMatchExpenseForm,
@@ -21,7 +22,7 @@ import {
   getConfiguredExpenseDescriptions,
 } from '../platform/financeCatalog';
 import { localDateIso } from '../utils/dates';
-import { formatCurrency, formatDate, parseMoneyInput } from '../utils/labels';
+import { formatCurrency, formatDate, formatMoneyAmount, parseMoneyInput } from '../utils/labels';
 import { filterOwnFinanceEntries } from '../utils/financeOwnEntries';
 import { sportsMatch } from '../utils/coachScope';
 import { studentClassIds, studentInClass } from '../utils/studentClasses';
@@ -69,6 +70,8 @@ function AmountField({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState(formatMoneyAmount(value));
   return (
     <div className="ta-amount">
       <input
@@ -77,8 +80,16 @@ function AmountField({
         min={0}
         step="0.01"
         inputMode="decimal"
-        value={value || ''}
-        onChange={(e) => onChange(parseMoneyInput(e.target.value))}
+        value={focused ? draft : formatMoneyAmount(value)}
+        onFocus={() => {
+          setFocused(true);
+          setDraft(formatMoneyAmount(value));
+        }}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          onChange(parseMoneyInput(e.target.value));
+        }}
+        onBlur={() => setFocused(false)}
       />
       <span>€</span>
     </div>
@@ -92,7 +103,14 @@ function emptyMatchDetails(): MatchExpenseDetails {
     teams: '',
     referees: 0,
     judges: 0,
+    commissioner: 0,
+    observer: 0,
+    doctor: 0,
     travelAllowance: 0,
+    travelReferees: 0,
+    travelJudges: 0,
+    travelCommissioner: 0,
+    travelObserver: 0,
     transportBus: 0,
     transportPlane: 0,
     transportShip: 0,
@@ -412,7 +430,10 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
       surname: '',
       firstName: '',
       notes,
-      matchDetails,
+      matchDetails: {
+        ...matchDetails,
+        travelAllowance: matchTravelTotal(matchDetails),
+      },
     });
     if (!ok) return;
 
@@ -536,26 +557,85 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
                 required
               />
             </TitleAnalysisRow>
-            <TitleAnalysisRow title="Έξοδα Διαιτητών" htmlFor="match-referees">
-              <AmountField
-                id="match-referees"
-                value={matchDetails.referees}
-                onChange={(v) => setMatchField('referees', v)}
-              />
+            <TitleAnalysisRow title="Έξοδα">
+              <div className="officials-group">
+                <label className="transport-item" htmlFor="match-referees">
+                  <span>Διαιτητές</span>
+                  <AmountField
+                    id="match-referees"
+                    value={matchDetails.referees}
+                    onChange={(v) => setMatchField('referees', v)}
+                  />
+                </label>
+                <label className="transport-item" htmlFor="match-judges">
+                  <span>Κριτές</span>
+                  <AmountField
+                    id="match-judges"
+                    value={matchDetails.judges}
+                    onChange={(v) => setMatchField('judges', v)}
+                  />
+                </label>
+                <label className="transport-item" htmlFor="match-commissioner">
+                  <span>Κομισάριος</span>
+                  <AmountField
+                    id="match-commissioner"
+                    value={matchDetails.commissioner}
+                    onChange={(v) => setMatchField('commissioner', v)}
+                  />
+                </label>
+                <label className="transport-item" htmlFor="match-observer">
+                  <span>Παρατηρητής / Video Observer</span>
+                  <AmountField
+                    id="match-observer"
+                    value={matchDetails.observer}
+                    onChange={(v) => setMatchField('observer', v)}
+                  />
+                </label>
+                <label className="transport-item" htmlFor="match-doctor">
+                  <span>Ιατρός</span>
+                  <AmountField
+                    id="match-doctor"
+                    value={matchDetails.doctor}
+                    onChange={(v) => setMatchField('doctor', v)}
+                  />
+                </label>
+              </div>
             </TitleAnalysisRow>
-            <TitleAnalysisRow title="Κριτών" htmlFor="match-judges">
-              <AmountField
-                id="match-judges"
-                value={matchDetails.judges}
-                onChange={(v) => setMatchField('judges', v)}
-              />
-            </TitleAnalysisRow>
-            <TitleAnalysisRow title="Οδοιπορικά" htmlFor="match-travel">
-              <AmountField
-                id="match-travel"
-                value={matchDetails.travelAllowance}
-                onChange={(v) => setMatchField('travelAllowance', v)}
-              />
+            <TitleAnalysisRow title="Οδοιπορικά">
+              <div className="officials-group officials-group--4">
+                <label className="transport-item" htmlFor="match-travel-referees">
+                  <span>Διαιτητές</span>
+                  <AmountField
+                    id="match-travel-referees"
+                    value={matchDetails.travelReferees}
+                    onChange={(v) => setMatchField('travelReferees', v)}
+                  />
+                </label>
+                <label className="transport-item" htmlFor="match-travel-judges">
+                  <span>Κριτές</span>
+                  <AmountField
+                    id="match-travel-judges"
+                    value={matchDetails.travelJudges}
+                    onChange={(v) => setMatchField('travelJudges', v)}
+                  />
+                </label>
+                <label className="transport-item" htmlFor="match-travel-commissioner">
+                  <span>Κομισάριος</span>
+                  <AmountField
+                    id="match-travel-commissioner"
+                    value={matchDetails.travelCommissioner}
+                    onChange={(v) => setMatchField('travelCommissioner', v)}
+                  />
+                </label>
+                <label className="transport-item" htmlFor="match-travel-observer">
+                  <span>Παρατηρητής / Video Observer</span>
+                  <AmountField
+                    id="match-travel-observer"
+                    value={matchDetails.travelObserver}
+                    onChange={(v) => setMatchField('travelObserver', v)}
+                  />
+                </label>
+              </div>
             </TitleAnalysisRow>
             <TitleAnalysisRow title="Μετακίνηση">
               <div className="transport-group">
