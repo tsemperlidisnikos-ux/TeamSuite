@@ -57,10 +57,9 @@ import {
   replaceData,
   resetData,
 } from '../data/repository';
+import { downloadClubBackupJson } from '../utils/clubQuickExport';
 import {
   assertPlatformScopedRestore,
-  buildClubBackupPayload,
-  clubBackupFilenamePrefix,
   downloadBackupJson,
   formatBackupError,
   mergeClubsPreservingSecrets,
@@ -700,14 +699,16 @@ export function PlatformAdminPage() {
     flash('Το πλήρες backup JSON κατέβηκε (χωρίς SMTP/Viva secrets και password hashes).');
   }
 
-  function handleClubBackupExport() {
+  async function handleClubBackupExport() {
     if (!restoreClubId) {
       flash('Επιλέξτε σύλλογο για λήψη backup.');
       return;
     }
     const club = clubs.find((c) => c.id === restoreClubId);
-    downloadBackupJson(buildClubBackupPayload(restoreClubId), clubBackupFilenamePrefix(restoreClubId));
-    flash(`Backup συλλόγου «${club?.name ?? restoreClubId}» κατέβηκε.`);
+    const { userCount } = await downloadClubBackupJson(restoreClubId);
+    flash(
+      `Backup συλλόγου «${club?.name ?? restoreClubId}» κατέβηκε (${userCount} χρήστες, χωρίς κωδικούς).`,
+    );
   }
 
   async function applyPlatformBackupFile(file: File) {
@@ -840,6 +841,7 @@ export function PlatformAdminPage() {
         (createdFromFile ? `Δημιουργήθηκε ο σύλλογος «${clubName}» από το αρχείο. ` : '') +
           `Επαναφορά συλλόγου «${clubName}» OK` +
           (expectedStudents ? ` (${expectedStudents} αθλητές στο αρχείο)` : '') +
+          (incomingUsers.length > 0 ? `, ${incomingUsers.length} χρήστες` : '') +
           '.',
       );
       const cloud = await persistLocalStateToCloud({

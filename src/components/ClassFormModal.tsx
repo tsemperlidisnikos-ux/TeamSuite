@@ -4,7 +4,7 @@ import { Button } from '../components/ui/Button';
 import { useAppData } from '../hooks/useAppData';
 import type { ClassInput } from '../schemas';
 import type { AcademyClass } from '../types';
-import { resolveCoachRecord } from '../utils/coachScope';
+import { resolveCoachForSession } from '../utils/coachScope';
 import { seasonDisplayName } from '../utils/clubSeasons';
 import { activeClubSportSelectOptions } from '../utils/clubSports';
 import { getSession } from '../auth/auth';
@@ -36,8 +36,8 @@ export function ClassFormModal({
   const session = getSession();
   const isCoach = session?.role === 'coach';
   const coach = useMemo(
-    () => resolveCoachRecord(data.coaches, session?.coachId),
-    [data.coaches, session?.coachId],
+    () => resolveCoachForSession(data.coaches, session),
+    [data.coaches, session],
   );
 
   const sportOptions = useMemo(() => {

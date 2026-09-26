@@ -1,10 +1,13 @@
 import type { AcademyClass, ClubSeason, Coach, Student } from '../types';
 import { isClassInActiveSeason } from './clubSeasons';
+import { normalizePersonKey } from './personName';
 import { normalizeSportKey } from './sport';
 
 type SessionLike = {
   role?: string | null;
   coachId?: string | null;
+  email?: string | null;
+  fullName?: string | null;
 } | null;
 
 export function resolveCoachRecord(
@@ -13,6 +16,32 @@ export function resolveCoachRecord(
 ): Coach | null {
   if (!coachId) return null;
   return (coaches ?? []).find((c) => c.id === coachId && c.active) ?? null;
+}
+
+/** Active coach card for a logged-in user: stored id, then unique email, then unique name. */
+export function resolveCoachForSession(
+  coaches: Coach[] | undefined,
+  session: SessionLike,
+): Coach | null {
+  if (!session) return null;
+  const byId = resolveCoachRecord(coaches, session.coachId);
+  if (byId) return byId;
+
+  const list = (coaches ?? []).filter((coach) => coach.active !== false);
+  const email = (session.email ?? '').trim().toLowerCase();
+  if (email) {
+    const byEmail = list.filter((coach) => (coach.email ?? '').trim().toLowerCase() === email);
+    if (byEmail.length === 1) return byEmail[0] ?? null;
+  }
+
+  const full = normalizePersonKey([session.fullName]);
+  if (!full) return null;
+  const byName = list.filter((coach) => {
+    const lastFirst = normalizePersonKey([coach.lastName, coach.firstName]);
+    const firstLast = normalizePersonKey([coach.firstName, coach.lastName]);
+    return lastFirst === full || firstLast === full;
+  });
+  return byName.length === 1 ? (byName[0] ?? null) : null;
 }
 
 /** Τμήματα ορατά στον προπονητή: ίδιο άθλημα με το προφίλ προπονητή. */
@@ -32,7 +61,7 @@ export function visibleClassesForSession(
     list = list.filter((c) => isClassInActiveSeason(c, options?.seasons));
   }
   if (session?.role !== 'coach') return list;
-  const coach = resolveCoachRecord(coaches, session.coachId);
+  const coach = resolveCoachForSession(coaches, session);
   if (!coach) return [];
   const sportKey = normalizeSportKey(coach.sport);
   if (!sportKey) return [];

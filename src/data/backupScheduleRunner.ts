@@ -1,3 +1,4 @@
+import { refreshUsersForClubBackup } from '../api/services/accountSyncService';
 import * as backendSyncService from '../api/services/backendSyncService';
 import { getSession, isPlatformAdmin } from '../auth/auth';
 import { isClubBackupScheduleDue, type ClubBackupSchedule } from '../auth/clubBackupSchedule';
@@ -157,6 +158,7 @@ async function runPerClubBackups(rule: BackupScheduleRule, clubIds: string[]) {
       ? selected
       : selected.filter((c) => c.id === session?.clubId);
 
+  await refreshUsersForClubBackup();
   for (const club of targets) {
     try {
       if (rule.mode === 'download' || rule.mode === 'both') {
@@ -199,6 +201,7 @@ async function runPerClubBackups(rule: BackupScheduleRule, clubIds: string[]) {
 
 async function runClubScheduledBackup(club: Club, schedule: ClubBackupSchedule) {
   try {
+    await refreshUsersForClubBackup();
     if (schedule.mode === 'download' || schedule.mode === 'both') {
       const name = downloadBackupJson(
         buildClubBackupPayload(club.id),

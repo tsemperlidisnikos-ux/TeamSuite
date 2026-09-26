@@ -10,6 +10,8 @@ export type ServerSessionUser = {
   fullName: string;
   role: string;
   clubId?: string | null;
+  athleteId?: string | null;
+  coachId?: string | null;
   active?: boolean;
 };
 

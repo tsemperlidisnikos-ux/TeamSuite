@@ -327,3 +327,16 @@ export async function pullAccountBundleIfNewer() {
   if (cloudAt) writeAccountUpdatedAt(cloudAt);
   return { success: true as const, pulled: true, error: null };
 }
+
+/** Pull cloud users so club backup includes admin/secretariat/coaches from other devices. */
+export async function refreshUsersForClubBackup(): Promise<boolean> {
+  try {
+    const result = await pullAccountBundle();
+    if (!result.success || !result.data || result.data.durable === false) return false;
+    applyAccountBundle(result.data, { mergeLocalUsers: true });
+    if (result.data.updatedAt) writeAccountUpdatedAt(result.data.updatedAt);
+    return true;
+  } catch {
+    return false;
+  }
+}

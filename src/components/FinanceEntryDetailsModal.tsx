@@ -50,6 +50,7 @@ const MATCH_AMOUNT_FIELDS: Array<{
     | 'transportOther'
     | 'accommodation'
     | 'food'
+    | 'otherExpenses'
   >;
   label: string;
 }> = [
@@ -68,6 +69,7 @@ const MATCH_AMOUNT_FIELDS: Array<{
   { key: 'transportOther', label: 'Άλλη μετακίνηση' },
   { key: 'accommodation', label: 'Διαμονή' },
   { key: 'food', label: 'Διατροφή' },
+  { key: 'otherExpenses', label: 'Λοιπά έξοδα' },
 ];
 
 function MoneyAmountInput({
@@ -626,6 +628,13 @@ function ExpenseEditor({
                 />
               </Field>
             ))}
+            <Field label="Λοιπά έξοδα — τι αφορά" full>
+              <input
+                value={draft.matchDetails.otherExpensesNote ?? ''}
+                onChange={(e) => setMatchField('otherExpensesNote', e.target.value)}
+                placeholder="Τι αφορά το έξοδο"
+              />
+            </Field>
           </>
         ) : null}
         <Field label="Τρόπος πληρωμής">

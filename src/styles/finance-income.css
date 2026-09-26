@@ -158,6 +158,24 @@
   flex: 1;
 }
 
+.other-expense-row {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, 12rem) minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+  width: 100%;
+}
+
+.other-expense-row .ta-amount {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .other-expense-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .ta-amount span {
   font-weight: 700;
   color: var(--muted);

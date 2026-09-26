@@ -183,6 +183,68 @@ export function buildBackupPayload(): BackupPayload {
   });
 }
 
+export type ClubBackupUserSource = {
+  coaches?: Array<{ id: string; email?: string | null }>;
+  staff?: Array<{ email?: string | null }>;
+  students?: Array<{
+    id: string;
+    email?: string | null;
+    fatherEmail?: string | null;
+    motherEmail?: string | null;
+  }>;
+};
+
+function normalizeBackupEmail(email: string | null | undefined): string {
+  return (email ?? '').trim().toLowerCase();
+}
+
+function clubDirectoryEmails(data: ClubBackupUserSource | null | undefined): Set<string> {
+  const emails = new Set<string>();
+  const add = (value?: string | null) => {
+    const email = normalizeBackupEmail(value);
+    if (email) emails.add(email);
+  };
+  for (const coach of data?.coaches ?? []) add(coach.email);
+  for (const staff of data?.staff ?? []) add(staff.email);
+  for (const student of data?.students ?? []) {
+    add(student.email);
+    add(student.fatherEmail);
+    add(student.motherEmail);
+  }
+  return emails;
+}
+
+/** Λογαριασμοί του συλλόγου: clubId, σύνδεση προπονητή/αθλητή, ή email καρτέλας. */
+export function collectClubUsersForBackup(
+  clubId: string,
+  users: AppUser[] = getUsers(),
+  data?: ClubBackupUserSource | null,
+): AppUser[] {
+  const clubData = data ?? exportAllClubsData()[clubId] ?? null;
+  const coachIds = new Set((clubData?.coaches ?? []).map((coach) => coach.id));
+  const athleteIds = new Set((clubData?.students ?? []).map((student) => student.id));
+  const emails = clubDirectoryEmails(clubData);
+  const seen = new Set<string>();
+  const collected: AppUser[] = [];
+
+  for (const user of users) {
+    if (!user?.id || user.role === 'platform_admin') continue;
+    const sameClub = user.clubId === clubId;
+    const unscoped = user.clubId == null || user.clubId === '';
+    const linked =
+      unscoped &&
+      ((user.coachId && coachIds.has(user.coachId)) ||
+        (user.athleteId && athleteIds.has(user.athleteId)) ||
+        emails.has(normalizeBackupEmail(user.email)));
+    if (!sameClub && !linked) continue;
+    if (seen.has(user.id)) continue;
+    seen.add(user.id);
+    collected.push({ ...user, clubId });
+  }
+
+  return collected;
+}
+
 /** Backup μόνο για έναν σύλλογο (δεδομένα χρήστη/tenant) — χωρίς platformConfig/άλλους. */
 export function buildClubBackupPayload(clubId: string): BackupPayload {
   const all = exportAllClubsData();
@@ -195,7 +257,7 @@ export function buildClubBackupPayload(clubId: string): BackupPayload {
     appData: clubData,
     appDataByClub: clubData ? { [clubId]: clubData } : {},
     clubs: club ? [club] : [],
-    users: getUsers().filter((u) => u.clubId === clubId),
+    users: collectClubUsersForBackup(clubId, getUsers(), clubData),
   });
 }
 

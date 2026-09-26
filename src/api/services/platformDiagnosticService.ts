@@ -18,7 +18,8 @@ import {
   saveBackupSchedules,
   type AcademyModuleId,
 } from '../../platform/platformConfig';
-import type { AppData } from '../../types';
+import type { AppData, Coach } from '../../types';
+import { resolveCoachForSession } from '../../utils/coachScope';
 import { appDataWeight } from '../../data/mediaStrip';
 import { studentClassIds } from '../../utils/studentClasses';
 import { hydrateAllClubMirrorsFromCloud, persistLocalStateToCloud } from '../../data/clubSync';
@@ -872,28 +873,14 @@ function ensureBackupSchedulesEnabled(): boolean {
   return true;
 }
 
-function personKey(parts: string[]): string {
-  return parts
-    .map((p) => p.trim().toLowerCase())
-    .filter(Boolean)
-    .join(' ')
-    .replace(/\s+/g, ' ');
-}
-
 function resolveCoachLink(
-  coaches: Array<{ id: string; firstName: string; lastName: string }>,
+  coaches: Array<{ id: string; firstName: string; lastName: string; email?: string | null; active?: boolean }>,
   user: AppUser,
 ): string | null {
   const current = user.coachId?.trim() || '';
   if (current && coaches.some((c) => c.id === current)) return current;
-  const full = personKey([user.fullName ?? '']);
-  if (!full) return null;
-  const matches = coaches.filter((c) => {
-    const a = personKey([c.lastName, c.firstName]);
-    const b = personKey([c.firstName, c.lastName]);
-    return a === full || b === full;
-  });
-  return matches.length === 1 ? matches[0]!.id : null;
+  const resolved = resolveCoachForSession(coaches as Coach[], user);
+  return resolved?.id ?? null;
 }
 
 function repairOrphanUserLinks(): { coaches: number; athletes: number } {

@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { CircleHelp, Download, Eye, FileText, Plus, Pencil, Search, Send, SquarePen, Trash2, Upload } from 'lucide-react';
 import * as coachesService from '../api/services/coachesService';
+import {
+  ensureCoachPortalLogin,
+  formatPortalLoginMessage,
+} from '../api/services/portalLoginService';
 import * as pushService from '../api/services/pushService';
 import { sendClubEmail } from '../api/services/emailService';
 import { sendClubSms, viberChatUrl } from '../api/services/smsService';
@@ -159,14 +163,34 @@ export function CoachesPage() {
   const [pushFilter, setPushFilter] = useState('');
   const [inviting, setInviting] = useState(false);
   const [shareMessage, setShareMessage] = useState('');
+  const [issuedPasswords, setIssuedPasswords] = useState<Record<string, string>>({});
   const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
   const club = clubId ? getClubById(clubId) : null;
   const appUrl = coachAppUrl();
-  const inviteText = portalAppInviteText({
-    clubName: club?.name ?? 'TeamSuite',
-    kind: 'coach',
-    url: appUrl,
-  });
+
+  function inviteTextFor(email?: string, password?: string) {
+    return portalAppInviteText({
+      clubName: club?.name ?? 'TeamSuite',
+      kind: 'coach',
+      url: appUrl,
+      email,
+      password,
+    });
+  }
+
+  async function provisionCoachLogin(coach: Coach) {
+    if (!clubId) return null;
+    const login = await ensureCoachPortalLogin({
+      clubId,
+      coachId: coach.id,
+      fullName: `${coach.lastName} ${coach.firstName}`.trim(),
+      email: coach.email,
+    });
+    if (login?.created && login.password) {
+      setIssuedPasswords((prev) => ({ ...prev, [coach.id]: login.password! }));
+    }
+    return login;
+  }
 
   function coachUserId(coachId: string, email: string): string | null {
     const users = getUsers();
@@ -239,7 +263,7 @@ export function CoachesPage() {
         clubId,
         to: coach.email,
         subject: `Εφαρμογή προπονητή — ${club?.name ?? 'TeamSuite'}`,
-        text: inviteText,
+        text: inviteTextFor(coach.email, issuedPasswords[coach.id]),
       });
       if (mail.success) channels.push(`email ${coach.email}`);
     }
@@ -248,7 +272,7 @@ export function CoachesPage() {
       const sent = await sendClubSms({
         clubId,
         to: coach.phone,
-        text: inviteText,
+        text: inviteTextFor(coach.email, issuedPasswords[coach.id]),
       });
       if (sent.success) channels.push(`SMS ${coach.phone}`);
     }
@@ -265,7 +289,7 @@ export function CoachesPage() {
       return;
     }
     if (coach.phone.trim()) {
-      window.open(viberChatUrl(coach.phone, inviteText), '_blank');
+      window.open(viberChatUrl(coach.phone, inviteTextFor(coach.email, issuedPasswords[coach.id])), '_blank');
       setShareMessage('Άνοιξε Viber για αποστολή. Αν δεν στάλθηκε SMS/email, αντιγράψτε και τον σύνδεσμο.');
       return;
     }
@@ -389,13 +413,20 @@ export function CoachesPage() {
     const result = editing
       ? await coachesService.updateCoach(editing.id, form)
       : await coachesService.createCoach(form);
-    setSaving(false);
-    if (!result.success) {
+    if (!result.success || !result.data) {
+      setSaving(false);
       setError(result.error ?? 'Σφάλμα');
       return;
     }
+    const login = await provisionCoachLogin(result.data);
+    setSaving(false);
     setOpen(false);
     refresh();
+    if (login) {
+      setShareMessage(formatPortalLoginMessage([login], appUrl, 'προπονητή'));
+    } else if (!result.data.email.includes('@')) {
+      setShareMessage('Ο προπονητής αποθηκεύτηκε. Συμπληρώστε email για λογαριασμό εφαρμογής.');
+    }
   }
 
   async function handleDelete(id: string) {
@@ -461,19 +492,27 @@ export function CoachesPage() {
           '\n\nΣυνέχεια;',
       );
       if (!ok) return;
+      const loginNotes: string[] = [];
       for (const action of plan.actions) {
         const result =
           action.mode === 'create'
             ? await coachesService.createCoach(action.input)
             : await coachesService.updateCoach(action.existingId!, action.input);
-        if (!result.success) {
+        if (!result.success || !result.data) {
           window.alert(result.error ?? `Αποτυχία εισαγωγής: ${action.label}`);
           refresh();
           return;
         }
+        const login = await provisionCoachLogin(result.data);
+        if (login?.created && login.password) {
+          loginNotes.push(`${login.email} / ${login.password}`);
+        }
       }
       refresh();
-      window.alert(`Η εισαγωγή ολοκληρώθηκε (${creates} νέοι, ${updates} ενημερώσεις).`);
+      const loginSummary = loginNotes.length
+        ? `\n\nΝέοι λογαριασμοί εφαρμογής:\n${loginNotes.join('\n')}`
+        : '';
+      window.alert(`Η εισαγωγή ολοκληρώθηκε (${creates} νέοι, ${updates} ενημερώσεις).${loginSummary}`);
     } catch (err) {
       window.alert(err instanceof Error ? err.message : 'Αποτυχία ανάγνωσης αρχείου.');
     } finally {
@@ -876,6 +915,7 @@ export function CoachesPage() {
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
+              hint="Με έγκυρο email δημιουργείται αυτόματα λογαριασμός για την εφαρμογή προπονητή."
             />
             <Input
               label="Τηλέφωνο"

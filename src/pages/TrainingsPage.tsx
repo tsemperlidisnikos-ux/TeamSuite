@@ -12,7 +12,7 @@ import type { Training } from '../types';
 import {
   classIdsOf,
   isClassInCoachScope,
-  resolveCoachRecord,
+  resolveCoachForSession,
   sportsMatch,
   visibleClassesForSession,
 } from '../utils/coachScope';
@@ -65,8 +65,8 @@ export function TrainingsPage() {
   const session = getSession();
   const isCoach = session?.role === 'coach';
   const coach = useMemo(
-    () => resolveCoachRecord(data.coaches, session?.coachId),
-    [data.coaches, session?.coachId],
+    () => resolveCoachForSession(data.coaches, session),
+    [data.coaches, session],
   );
   const visibleClasses = useMemo(
     () => visibleClassesForSession(data.classes, data.coaches, session, { seasons: data.clubSeasons }),

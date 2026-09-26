@@ -326,6 +326,8 @@ export async function login(
         role: remote.data.user.role as UserRole,
         active: true,
         clubId: remote.data.user.clubId ?? null,
+        athleteId: remote.data.user.athleteId ?? null,
+        coachId: remote.data.user.coachId ?? null,
         password: await hashPassword(normalizedPassword),
       };
       saveUsers([local, ...users.filter((u) => u.id !== local!.id)]);
@@ -342,6 +344,8 @@ export async function login(
         role: remote.data.user.role as UserRole,
         active: true,
         clubId: remote.data.user.clubId ?? null,
+        athleteId: remote.data.user.athleteId ?? local.athleteId ?? null,
+        coachId: remote.data.user.coachId ?? local.coachId ?? null,
         password: nextPassword,
       };
       saveUsers(next);

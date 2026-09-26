@@ -4,6 +4,10 @@ import { Check, CircleHelp, Download, FileImage, Plus, Pencil, SquarePen, Trash2
 import * as publicClubCloudService from '../api/services/publicClubCloudService';
 import * as registrationApplicationsService from '../api/services/registrationApplicationsService';
 import * as studentsService from '../api/services/studentsService';
+import {
+  ensureStudentParentLogins,
+  formatPortalLoginMessage,
+} from '../api/services/portalLoginService';
 import { getSession, isPlatformAdmin } from '../auth/auth';
 import { getClubById } from '../auth/clubs';
 import { AthletesIcon } from '../components/icons/AthletesIcon';
@@ -19,6 +23,7 @@ import type { Gender, RegistrationApplication, RegistrationApplicationKind, Stud
 import { formatJoinExtrasText } from '../shared/publicJoinExtras';
 import { formatAmkaForViewer } from '../utils/amkaAccess';
 import { guardianDisplayName } from '../utils/greekSurname';
+import { parentAppUrl } from '../utils/parentApp';
 import { localDateIso } from '../utils/dates';
 import {
   classIdsOf,
@@ -439,6 +444,11 @@ export function StudentsPage() {
     if (!result.success || !result.data) {
       window.alert(result.error ?? 'Αποτυχία δημιουργίας αθλητή');
       return;
+    }
+    if (clubId) {
+      const logins = await ensureStudentParentLogins(clubId, result.data);
+      const note = formatPortalLoginMessage(logins, parentAppUrl(), 'γονέα');
+      if (note) window.alert(note);
     }
     refresh();
     navigate(`/athletes/${result.data.id}`, { state: { editing: true } });

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Bell,
@@ -9,13 +9,13 @@ import {
 } from 'lucide-react';
 import { upsertAttendance, absenceReasonLabel } from '../api/services/attendanceService';
 import * as notificationService from '../api/services/notificationService';
-import { getSession } from '../auth/auth';
+import { getSession, updateUser } from '../auth/auth';
 import { Button } from '../components/ui/Button';
 import { useAppData } from '../hooks/useAppData';
 import { announcementVisibleToCoach } from '../utils/announcementAudience';
 import {
   classIdsOf,
-  resolveCoachRecord,
+  resolveCoachForSession,
   visibleClassesForSession,
 } from '../utils/coachScope';
 import { localDateIso } from '../utils/dates';
@@ -42,8 +42,8 @@ export function CoachPortalPage() {
   const [notifyAbsence, setNotifyAbsence] = useState(false);
 
   const coach = useMemo(
-    () => resolveCoachRecord(data.coaches, session?.coachId),
-    [data.coaches, session?.coachId],
+    () => resolveCoachForSession(data.coaches, session),
+    [data.coaches, session],
   );
 
   const myClasses = useMemo(
@@ -53,8 +53,16 @@ export function CoachPortalPage() {
 
   const classIds = useMemo(() => classIdsOf(myClasses), [myClasses]);
 
-  const linkMissing = Boolean(session && !session.coachId);
-  const linkBroken = Boolean(session?.coachId && !coach);
+  useEffect(() => {
+    const current = getSession();
+    if (!current || current.role !== 'coach' || !coach) return;
+    if (current.coachId === coach.id) return;
+    updateUser(current.id, { coachId: coach.id });
+  }, [coach]);
+
+  const rosterReady = (data.coaches ?? []).length > 0;
+  const linkMissing = Boolean(session && rosterReady && !coach && !session.coachId);
+  const linkBroken = Boolean(session && rosterReady && !coach && session.coachId);
 
   const [classId, setClassId] = useState('');
   const activeClassId = classId && classIds.has(classId) ? classId : myClasses[0]?.id ?? '';
@@ -199,6 +207,12 @@ export function CoachPortalPage() {
         </div>
       </header>
 
+      {session && !coach && !rosterReady ? (
+        <section className="panel cport-card">
+          <p>Φόρτωση καρτέλας προπονητή…</p>
+        </section>
+      ) : null}
+
       {linkMissing ? (
         <section className="panel cport-card">
           <p className="form-error">
@@ -216,7 +230,7 @@ export function CoachPortalPage() {
         </section>
       ) : null}
 
-      {!linkMissing && !linkBroken ? (
+      {coach ? (
         <>
           {missingAttendance.length > 0 ? (
             <section className="panel cport-card cport-remind">

@@ -9,7 +9,7 @@ import { Button } from '../components/ui/Button';
 import { useAppData } from '../hooks/useAppData';
 import type { ClassInput } from '../schemas';
 import type { AcademyClass } from '../types';
-import { classIdsOf, resolveCoachRecord, visibleClassesForSession } from '../utils/coachScope';
+import { classIdsOf, resolveCoachForSession, visibleClassesForSession } from '../utils/coachScope';
 import {
   classGenderLabels,
   classToFormInput,
@@ -71,8 +71,8 @@ export function ClassesPage() {
   const session = getSession();
   const isCoach = session?.role === 'coach';
   const coach = useMemo(
-    () => resolveCoachRecord(data.coaches, session?.coachId),
-    [data.coaches, session?.coachId],
+    () => resolveCoachForSession(data.coaches, session),
+    [data.coaches, session],
   );
 
   const [tab, setTab] = useState<'active' | 'inactive'>('active');

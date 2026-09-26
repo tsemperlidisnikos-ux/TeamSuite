@@ -104,8 +104,14 @@ export function portalAppInviteText(input: {
   clubName: string;
   kind: PortalAppKind;
   url: string;
+  email?: string;
+  password?: string;
 }): string {
   const who = input.kind === 'parent' ? 'γονέα' : 'προπονητή';
   const club = input.clubName.trim() || 'TeamSuite';
-  return `${club}: εφαρμογή ${who} TeamSuite. Ανοίξτε ${input.url} Στο κινητό: προσθήκη στην αρχική οθόνη και ενεργοποίηση ειδοποιήσεων.`;
+  const login =
+    input.email && input.password
+      ? ` Είσοδος: ${input.email} Κωδικός: ${input.password}.`
+      : '';
+  return `${club}: εφαρμογή ${who} TeamSuite.${login} Ανοίξτε ${input.url} Στο κινητό: προσθήκη στην αρχική οθόνη και ενεργοποίηση ειδοποιήσεων.`;
 }

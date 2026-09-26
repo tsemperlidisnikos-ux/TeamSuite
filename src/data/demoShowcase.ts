@@ -1107,6 +1107,8 @@ export function buildDemoShowcaseData(now = new Date()): AppData {
           transportOther: 0,
           accommodation: 0,
           food: 140,
+          otherExpenses: 0,
+          otherExpensesNote: '',
         },
       },
       {

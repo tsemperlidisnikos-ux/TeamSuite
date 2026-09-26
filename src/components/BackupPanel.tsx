@@ -34,11 +34,9 @@ import {
 } from '../data/repository';
 import { isDemoClubName, markDemoShowcaseApplied } from '../data/demoShowcase';
 import { getPreviewClubId } from '../platform/platformConfig';
+import { downloadClubBackupJson } from '../utils/clubQuickExport';
 import {
   assertClubScopedRestore,
-  buildClubBackupPayload,
-  clubBackupFilenamePrefix,
-  downloadBackupJson,
   formatBackupError,
   pickAppDataForRestore,
   confirmClubBackupRestore,
@@ -61,9 +59,9 @@ export function BackupPanel() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [fileLabel, setFileLabel] = useState('Δεν επιλέχθηκε κανένα αρχείο.');
-  const [syncing, setSyncing] = useState<'push' | 'pull' | 'accountPush' | 'accountPull' | null>(
-    null,
-  );
+  const [syncing, setSyncing] = useState<
+    'push' | 'pull' | 'accountPush' | 'accountPull' | 'export' | null
+  >(null);
   const [restoring, setRestoring] = useState(false);
   const [, setClubTick] = useState(0);
   const onceDefaults = defaultOnceDateTime();
@@ -130,15 +128,25 @@ export function BackupPanel() {
     setMessage(ok);
   }
 
-  function handleBackupExport() {
+  async function handleBackupExport() {
     const activeClubId = resolveTargetClubId();
     setClubTick((n) => n + 1);
     if (!activeClubId) {
       setError('Δεν βρέθηκε σύλλογος για backup. Κάντε login και ξαναδοκιμάστε.');
       return;
     }
-    downloadBackupJson(buildClubBackupPayload(activeClubId), clubBackupFilenamePrefix(activeClubId));
-    flash('Το backup JSON κατέβηκε (μόνο δεδομένα αυτού του συλλόγου).');
+    setSyncing('export');
+    try {
+      const { userCount } = await downloadClubBackupJson(activeClubId);
+      flash(
+        `Το backup JSON κατέβηκε (δεδομένα και ${userCount} χρήστες αυτού του συλλόγου, χωρίς κωδικούς).`,
+      );
+    } catch (err) {
+      setMessage('');
+      setError(formatBackupError(err));
+    } finally {
+      setSyncing(null);
+    }
   }
 
   async function handlePushMirror() {
@@ -408,7 +416,9 @@ export function BackupPanel() {
 
       flash(
         `Επαναφορά OK στον σύλλογο «${getClubById(activeClubId)?.name ?? activeClubId}»: ` +
-          `${gotStudents} αθλητές, ${verify.classes?.length ?? 0} τμήματα. Αποθηκεύτηκε στο cloud. Ανανέωση…`,
+          `${gotStudents} αθλητές, ${verify.classes?.length ?? 0} τμήματα` +
+          `${incomingUsers.length > 0 ? `, ${incomingUsers.length} χρήστες` : ''}` +
+          `. Αποθηκεύτηκε στο cloud. Ανανέωση…`,
       );
       window.setTimeout(() => {
         window.location.reload();
@@ -437,7 +447,7 @@ export function BackupPanel() {
       <header className="settings-backup-head">
         <h3>Αντίγραφα ασφαλείας</h3>
         <p className="lede">
-          Backup και επαναφορά <strong>μόνο</strong> των δεδομένων του ενεργού συλλόγου
+          Backup και επαναφορά <strong>μόνο</strong> των δεδομένων και χρηστών του ενεργού συλλόγου
           {club ? (
             <>
               {' '}
@@ -453,13 +463,19 @@ export function BackupPanel() {
           <div className="settings-form-row-label settings-backup-copy">
             <strong>Λήψη backup συλλόγου</strong>
             <p>
-              Κατεβάστε JSON με αθλητές, τμήματα, οικονομικά κ.λπ. του συλλόγου σας. Χρησιμοποιείται
-              και για μεταφορά μεταξύ συσκευών (localhost ↔ Vercel).
+              Κατεβάστε JSON με αθλητές, τμήματα, οικονομικά και λογαριασμούς χρηστών (διαχειριστής,
+              γραμματεία, προπονητές κ.ά.) του συλλόγου σας. Οι κωδικοί δεν περιλαμβάνονται.
+              Χρησιμοποιείται και για μεταφορά μεταξύ συσκευών (localhost ↔ Vercel).
             </p>
           </div>
           <div className="settings-form-row-content settings-backup-panel">
-            <Button type="button" className="settings-backup-action" onClick={handleBackupExport}>
-              Λήψη JSON
+            <Button
+              type="button"
+              className="settings-backup-action"
+              onClick={() => void handleBackupExport()}
+              disabled={syncing !== null}
+            >
+              {syncing === 'export' ? 'Λήψη…' : 'Λήψη JSON'}
             </Button>
           </div>
         </div>

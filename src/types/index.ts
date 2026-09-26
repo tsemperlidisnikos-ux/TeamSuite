@@ -295,6 +295,8 @@ export interface MatchExpenseDetails {
   transportOther: number;
   accommodation: number;
   food: number;
+  otherExpenses: number;
+  otherExpensesNote: string;
 }
 
 export interface Expense {

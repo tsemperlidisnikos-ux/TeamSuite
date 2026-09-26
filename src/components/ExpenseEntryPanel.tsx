@@ -117,6 +117,8 @@ function emptyMatchDetails(): MatchExpenseDetails {
     transportOther: 0,
     accommodation: 0,
     food: 0,
+    otherExpenses: 0,
+    otherExpensesNote: '',
   };
 }
 
@@ -686,6 +688,22 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
                 value={matchDetails.food}
                 onChange={(v) => setMatchField('food', v)}
               />
+            </TitleAnalysisRow>
+            <TitleAnalysisRow title="Λοιπά έξοδα" htmlFor="match-other-expenses">
+              <div className="other-expense-row">
+                <AmountField
+                  id="match-other-expenses"
+                  value={matchDetails.otherExpenses}
+                  onChange={(v) => setMatchField('otherExpenses', v)}
+                />
+                <input
+                  id="match-other-expenses-note"
+                  type="text"
+                  value={matchDetails.otherExpensesNote}
+                  onChange={(e) => setMatchField('otherExpensesNote', e.target.value)}
+                  placeholder="Τι αφορά το έξοδο"
+                />
+              </div>
             </TitleAnalysisRow>
             <TitleAnalysisRow title="Σύνολο αγώνα">
               <strong className="ta-total">{formatCurrency(matchTotal)}</strong>

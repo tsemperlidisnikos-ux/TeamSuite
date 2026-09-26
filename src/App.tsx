@@ -6,6 +6,7 @@ import { RequireModule } from './auth/RequireModule';
 import { RequireAthletesOrOwnProfile } from './auth/RequireAthletesOrOwnProfile';
 import { RequirePlatformAdmin } from './auth/RequirePlatformAdmin';
 import { AppLayout } from './components/layout/AppLayout';
+import { AppUpdateBanner } from './components/AppUpdateBanner';
 import { ConsentBanner } from './components/ConsentBanner';
 import { LocaleProvider } from './i18n/LocaleContext';
 import { getPreviewClubId } from './platform/platformConfig';
@@ -154,6 +155,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <LocaleProvider>
+      <AppUpdateBanner />
       <ConsentBanner />
       <Suspense fallback={<PageFallback />}>
         <Routes>

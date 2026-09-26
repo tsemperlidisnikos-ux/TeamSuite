@@ -70,4 +70,11 @@ describe('match expense officials totals', () => {
     expect(normalized.doctor).toBe(0);
     expect(matchExpenseTotal(normalized)).toBe(65);
   });
+
+  it('includes Λοιπά έξοδα in the match total', () => {
+    expect(matchExpenseTotal({ food: 10, otherExpenses: 7.5 })).toBe(17.5);
+    expect(normalizeMatchExpenseDetails({ otherExpenses: 12, otherExpensesNote: 'Νερά' }).otherExpensesNote).toBe(
+      'Νερά',
+    );
+  });
 });

@@ -18,6 +18,10 @@ import {
   Users,
 } from 'lucide-react';
 import * as studentsService from '../api/services/studentsService';
+import {
+  ensureStudentParentLogins,
+  formatPortalLoginMessage,
+} from '../api/services/portalLoginService';
 import * as feeChargesService from '../api/services/feeChargesService';
 import * as progressReportsService from '../api/services/progressReportsService';
 import * as amkaAuditService from '../api/services/amkaAuditService';
@@ -67,6 +71,7 @@ import {
   visibleClassesForSession,
 } from '../utils/coachScope';
 import { studentClassIds, studentInAnyClass } from '../utils/studentClasses';
+import { parentAppUrl } from '../utils/parentApp';
 import { studentCoachNames } from '../utils/studentCoaches';
 import { studentSports, normalizeStudentSports } from '../utils/studentSports';
 import { activeClubSportSelectOptions } from '../utils/clubSports';
@@ -862,7 +867,13 @@ export function AthleteProfilePage() {
     if (result.data) {
       setForm(toForm(result.data, discountCatalog));
     }
-    setSavedOk('Αποθηκεύτηκε');
+    let savedNote = 'Αποθηκεύτηκε';
+    if (profileClubId && result.data) {
+      const logins = await ensureStudentParentLogins(profileClubId, result.data);
+      const loginNote = formatPortalLoginMessage(logins, parentAppUrl(), 'γονέα');
+      if (loginNote) savedNote = `${savedNote}\n\n${loginNote}`;
+    }
+    setSavedOk(savedNote);
     if (amkaAllowed && session) {
       const athleteName = `${payload.lastName} ${payload.firstName}`.trim();
       if (amkaValue !== previousAmka) {

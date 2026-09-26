@@ -204,6 +204,8 @@ const matchExpenseDetailsSchema = z.object({
   transportOther: z.coerce.number().min(0).default(0),
   accommodation: z.coerce.number().min(0).default(0),
   food: z.coerce.number().min(0).default(0),
+  otherExpenses: z.coerce.number().min(0).default(0),
+  otherExpensesNote: z.string().default(''),
 });
 
 export const expenseSchema = z.object({

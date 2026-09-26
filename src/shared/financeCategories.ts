@@ -257,6 +257,8 @@ export function normalizeMatchExpenseDetails(details: {
   transportOther?: number;
   accommodation?: number;
   food?: number;
+  otherExpenses?: number;
+  otherExpensesNote?: string;
 }): {
   sport: string;
   category: string;
@@ -277,6 +279,8 @@ export function normalizeMatchExpenseDetails(details: {
   transportOther: number;
   accommodation: number;
   food: number;
+  otherExpenses: number;
+  otherExpensesNote: string;
 } {
   const travelReferees = details.travelReferees ?? 0;
   const travelJudges = details.travelJudges ?? 0;
@@ -304,6 +308,8 @@ export function normalizeMatchExpenseDetails(details: {
     transportOther: details.transportOther ?? 0,
     accommodation: details.accommodation ?? 0,
     food: details.food ?? 0,
+    otherExpenses: details.otherExpenses ?? 0,
+    otherExpensesNote: details.otherExpensesNote ?? '',
   };
 }
 
@@ -339,6 +345,7 @@ export function matchExpenseTotal(details: {
   transportOther?: number;
   accommodation?: number;
   food?: number;
+  otherExpenses?: number;
 }): number {
   return (
     (details.referees ?? 0) +
@@ -352,6 +359,7 @@ export function matchExpenseTotal(details: {
     (details.transportShip ?? 0) +
     (details.transportOther ?? 0) +
     (details.accommodation ?? 0) +
-    (details.food ?? 0)
+    (details.food ?? 0) +
+    (details.otherExpenses ?? 0)
   );
 }

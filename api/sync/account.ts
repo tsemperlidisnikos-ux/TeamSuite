@@ -161,6 +161,14 @@ function canManageAccountUser(
   if (jwt?.role === 'platform_admin') return true;
   if (targetRole === 'platform_admin') return false;
   if (jwt?.role === 'admin' && jwt.clubId && jwt.clubId === targetClubId) return true;
+  if (
+    jwt?.role === 'secretariat' &&
+    jwt.clubId &&
+    jwt.clubId === targetClubId &&
+    (targetRole === 'coach' || targetRole === 'parent')
+  ) {
+    return true;
+  }
   if (auth.viaSecret && !jwt) return true;
   return false;
 }
@@ -1078,6 +1086,8 @@ function publicUser(user: BundleUser) {
     fullName: user.fullName,
     role: user.role,
     clubId: user.clubId ?? null,
+    athleteId: user.athleteId ?? null,
+    coachId: user.coachId ?? null,
     active: user.active !== false,
   };
 }

@@ -192,9 +192,14 @@ export function ParentsPage() {
     }
     setOpen(false);
     setMessage(
-      inviteOnly || !athleteId
-        ? 'Η πρόσκληση καταχωρήθηκε (εκκρεμεί ενεργοποίηση).'
-        : 'Ο γονέας συνδέθηκε με τον αθλητή.',
+      [
+        inviteOnly || !athleteId
+          ? 'Δημιουργήθηκε λογαριασμός γονέα.'
+          : 'Ο γονέας συνδέθηκε με τον αθλητή.',
+        `Email: ${email}`,
+        `Κωδικός: ${password}`,
+        `Εφαρμογή: ${appUrl}`,
+      ].join(' '),
     );
     refresh();
     await loadRows();

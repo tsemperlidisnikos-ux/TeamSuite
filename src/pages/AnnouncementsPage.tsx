@@ -38,7 +38,7 @@ import {
 } from '../utils/announcementAudience';
 import {
   classIdsOf,
-  resolveCoachRecord,
+  resolveCoachForSession,
   sportsMatch,
   visibleClassesForSession,
   visibleStudentsForSession,
@@ -272,7 +272,7 @@ export function AnnouncementsPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const coach = resolveCoachRecord(data.coaches, session?.coachId);
+    const coach = resolveCoachForSession(data.coaches, session);
     const athlete =
       session?.role === 'athlete' && session.athleteId
         ? data.students.find((s) => s.id === session.athleteId)

@@ -319,7 +319,7 @@ export function AppLayout() {
 
   function handleClubLogoQuickExport() {
     if (!clubId || !canQuickClubExport) return;
-    downloadClubBackupJsonAndAthletesXlsx(clubId);
+    void downloadClubBackupJsonAndAthletesXlsx(clubId);
   }
 
   return (

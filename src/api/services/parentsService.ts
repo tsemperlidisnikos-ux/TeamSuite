@@ -339,7 +339,7 @@ export async function inviteParent(input: InviteParentInput) {
         password: hashed,
         fullName,
         role: 'parent',
-        active: false,
+        active: true,
         clubId: input.clubId,
         permissions: null,
       } satisfies AppUser;
@@ -348,7 +348,7 @@ export async function inviteParent(input: InviteParentInput) {
       saveUsers(
         users.map((u) =>
           u.id === parent!.id
-            ? { ...u, fullName, password: hashed, role: 'parent' as const, active: false }
+            ? { ...u, fullName, password: hashed, role: 'parent' as const, active: true }
             : u,
         ),
       );

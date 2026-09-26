@@ -1,7 +1,34 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
 const DEV_API_ORIGIN = 'https://teamsuite-seven.vercel.app'
+const APP_BUILD_ID =
+  (process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || '').slice(0, 12) ||
+  `dev-${Date.now()}`
+
+function appVersionPlugin(): Plugin {
+  const payload = JSON.stringify({
+    buildId: APP_BUILD_ID,
+    builtAt: new Date().toISOString(),
+  })
+  return {
+    name: 'app-version',
+    configureServer(server) {
+      server.middlewares.use('/app-version.json', (_req, res) => {
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Cache-Control', 'no-store')
+        res.end(payload)
+      })
+    },
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'app-version.json',
+        source: payload,
+      })
+    },
+  }
+}
 
 /** Vercel `api/*.ts` handlers are not frontend modules. Do not parse them as CSS/JS. */
 function skipVercelApiAsFrontend() {
@@ -23,7 +50,10 @@ function skipVercelApiAsFrontend() {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), skipVercelApiAsFrontend()],
+  define: {
+    __APP_BUILD_ID__: JSON.stringify(APP_BUILD_ID),
+  },
+  plugins: [react(), skipVercelApiAsFrontend(), appVersionPlugin()],
   server: {
     proxy: {
       '/api': {
