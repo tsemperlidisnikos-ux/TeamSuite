@@ -40,6 +40,7 @@ import { canAccessAmka, formatAmkaForViewer } from '../utils/amkaAccess';
 import { sportsMatch } from '../utils/coachScope';
 import { studentClassIds } from '../utils/studentClasses';
 import { studentHasSport } from '../utils/studentSports';
+import { MEMBERS_SPORT_FILTER, MEMBERS_SPORT_LABEL } from '../utils/clubMembers';
 
 function toReceiptDate(isoOrEmpty: string): string {
   const raw = (isoOrEmpty || localDateIso()).trim();
@@ -52,9 +53,11 @@ function formatReceiptAmount(value: number): string {
   return (Number(value) || 0).toFixed(2).replace('.', ',');
 }
 
-function athleteAddress(athlete: Student | null | undefined): string {
-  if (!athlete) return '';
-  return [athlete.address, athlete.postalCode, athlete.city].filter(Boolean).join(', ');
+function partyAddress(
+  person: { address?: string; postalCode?: string; city?: string } | null | undefined,
+): string {
+  if (!person) return '';
+  return [person.address, person.postalCode, person.city].filter(Boolean).join(', ');
 }
 
 const MONTHS = [
@@ -234,7 +237,11 @@ export function TransactionsPage() {
     refresh();
   }, [refresh]);
 
-  const selected = data.students.find((s) => s.id === selectedId) ?? null;
+  const selectedStudent = data.students.find((s) => s.id === selectedId) ?? null;
+  const selectedMember =
+    (data.clubMembers ?? []).find((m) => m.id === selectedId) ?? null;
+  const selected = selectedStudent ?? selectedMember;
+  const showingMembers = sport === MEMBERS_SPORT_FILTER;
   const receiptBooks = useMemo(
     () =>
       seriesOptions(data.receiptNumberRanges, data.receiptIssues, data.receiptNextBySeries),
@@ -341,6 +348,7 @@ export function TransactionsPage() {
   }, [data.sports, data.classes, data.students]);
 
   const filteredAthletes = useMemo(() => {
+    if (sport === MEMBERS_SPORT_FILTER) return [];
     const q = query.trim().toLowerCase();
     return data.students.filter((s) => {
       if (s.status === 'inactive') return false;
@@ -361,14 +369,31 @@ export function TransactionsPage() {
     });
   }, [data.students, data.classes, query, sport, amkaAllowed]);
 
+  const filteredMembers = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return [...(data.clubMembers ?? [])]
+      .filter((member) => member.active !== false)
+      .filter((member) => {
+        if (!q) return true;
+        const hay = `${member.lastName} ${member.firstName} ${member.city} ${member.email} ${member.phone}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .sort((a, b) =>
+        `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
+      );
+  }, [data.clubMembers, query]);
+
   useEffect(() => {
     if (!selectedId) return;
-    if (!filteredAthletes.some((s) => s.id === selectedId)) {
+    const visible = showingMembers
+      ? filteredMembers.some((member) => member.id === selectedId)
+      : filteredAthletes.some((s) => s.id === selectedId);
+    if (!visible) {
       setSelectedId(null);
       setEditingId(null);
       applyNewForm('');
     }
-  }, [filteredAthletes, selectedId, seasonStart]);
+  }, [showingMembers, filteredMembers, filteredAthletes, selectedId, seasonStart]);
 
   const selectedTx = useMemo(
     () =>
@@ -438,15 +463,18 @@ export function TransactionsPage() {
     }));
   }
 
-  function selectAthlete(athlete: Student) {
-    setSelectedId(athlete.id);
+  function selectParty(party: { id: string }) {
+    setSelectedId(party.id);
     setEditingId(null);
-    applyNewForm(athlete.id);
+    applyNewForm(party.id);
     setReceiptSeries('');
     setError('');
   }
 
   function startEdit(tx: AthleteTransaction) {
+    if ((data.clubMembers ?? []).some((member) => member.id === tx.athleteId)) {
+      setSport(MEMBERS_SPORT_FILTER);
+    }
     setSelectedId(tx.athleteId);
     setEditingId(tx.id);
     const series =
@@ -664,8 +692,11 @@ export function TransactionsPage() {
     setSaving(false);
 
     if (lastPayload.type === 'payment' && saved && monthsToSave.length === 1) {
-      const athlete =
-        data.students.find((s) => s.id === lastPayload.athleteId) ?? selected ?? null;
+      const student =
+        data.students.find((s) => s.id === lastPayload.athleteId) ?? null;
+      const member =
+        (data.clubMembers ?? []).find((row) => row.id === lastPayload.athleteId) ?? null;
+      const payee = student ?? member ?? selected ?? null;
       const monthLabel = t(MONTHS.find((m) => m.value === lastPayload.month)?.label ?? '');
       setReceiptDraft({
         date: toReceiptDate(saved.createdAt.slice(0, 10)),
@@ -676,16 +707,16 @@ export function TransactionsPage() {
             ? String(receiptNumberToIssue)
             : '',
         amount: formatReceiptAmount(lastPayload.amount),
-        receivedFrom: athlete
-          ? `${athlete.lastName} ${athlete.firstName}`.trim()
+        receivedFrom: payee
+          ? `${payee.lastName} ${payee.firstName}`.trim()
           : '',
-        address: athleteAddress(athlete),
+        address: partyAddress(payee),
         amountWords: amountToGreekWords(lastPayload.amount),
         reason:
           lastPayload.comments?.trim() ||
           (monthLabel ? `Συνδρομή ${monthLabel} ${lastPayload.year}` : ''),
       });
-      setReceiptAthlete(athlete);
+      setReceiptAthlete(student);
       setReceiptTransactionId(saved.id);
       setReceiptOpen(true);
     }
@@ -704,7 +735,7 @@ export function TransactionsPage() {
       <header className="tx-page-header">
         <div>
           <h1>{t('Συναλλαγές')}</h1>
-          <p>{t('Χρεώσεις, πληρωμές και υπόλοιπα αθλητών ανά σεζόν.')}</p>
+          <p>{t('Χρεώσεις, πληρωμές και υπόλοιπα αθλητών και μελών ανά σεζόν.')}</p>
         </div>
         <span className="tx-page-icon">
           <ArrowLeftRight size={20} />
@@ -715,7 +746,7 @@ export function TransactionsPage() {
         <div className="tx-left">
           <section className="tx-panel">
             <PanelHeader
-              title={`Αθλητές · ${seasonStart}-${seasonStart + 1}`}
+              title={`${showingMembers ? MEMBERS_SPORT_LABEL : t('Αθλητές')} · ${seasonStart}-${seasonStart + 1}`}
               onPrev={() => changeSeason(seasonStart - 1)}
               onNext={() => changeSeason(seasonStart + 1)}
             />
@@ -728,6 +759,7 @@ export function TransactionsPage() {
                   onChange={(e) => setSport(e.target.value)}
                 >
                   <option value="">{t('Όλα τα αθλήματα')}</option>
+                  <option value={MEMBERS_SPORT_FILTER}>{MEMBERS_SPORT_LABEL}</option>
                   {sportOptions.map((name) => (
                     <option key={name} value={name}>
                       {name}
@@ -739,39 +771,72 @@ export function TransactionsPage() {
             <div className="tx-table-wrap tx-table-wrap--athletes">
               <table className="tx-table">
                 <thead>
-                  <tr>
-                    <th>ΑΜΚΑ</th>
-                    <th>{t('Αρ. Δελτίου')}</th>
-                    <th>{t('Επώνυμο')}</th>
-                    <th>{t('Όνομα')}</th>
-                    <th>{t('Πατρώνυμο')}</th>
-                    <th>{t('Ημ. Γέννησης')}</th>
-                    <th>{t('Υπόλοιπο σεζόν')}</th>
-                  </tr>
+                  {showingMembers ? (
+                    <tr>
+                      <th>{t('Επώνυμο')}</th>
+                      <th>{t('Όνομα')}</th>
+                      <th>{t('Πόλη')}</th>
+                      <th>{t('Email')}</th>
+                      <th>{t('Τηλέφωνο')}</th>
+                      <th>{t('Υπόλοιπο σεζόν')}</th>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <th>ΑΜΚΑ</th>
+                      <th>{t('Αρ. Δελτίου')}</th>
+                      <th>{t('Επώνυμο')}</th>
+                      <th>{t('Όνομα')}</th>
+                      <th>{t('Πατρώνυμο')}</th>
+                      <th>{t('Ημ. Γέννησης')}</th>
+                      <th>{t('Υπόλοιπο σεζόν')}</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
-                  {filteredAthletes.map((athlete) => {
-                    const balance = athleteSeasonBalance(
-                      athlete.id,
-                      transactions,
-                      seasonStart,
-                    );
-                    return (
-                      <tr
-                        key={athlete.id}
-                        className={selectedId === athlete.id ? 'is-selected' : ''}
-                        onClick={() => selectAthlete(athlete)}
-                      >
-                        <td>{formatAmkaForViewer(athlete.amka, amkaAllowed)}</td>
-                        <td>{athlete.registrationNumber || '—'}</td>
-                        <td>{athlete.lastName}</td>
-                        <td>{athlete.firstName}</td>
-                        <td>{athlete.fatherFirstName || '—'}</td>
-                        <td>{athlete.birthDate ? formatDate(athlete.birthDate) : '—'}</td>
-                        <td className="tx-balance-cell">{balance.toFixed(2)} €</td>
-                      </tr>
-                    );
-                  })}
+                  {showingMembers
+                    ? filteredMembers.map((member) => {
+                        const balance = athleteSeasonBalance(
+                          member.id,
+                          transactions,
+                          seasonStart,
+                        );
+                        return (
+                          <tr
+                            key={member.id}
+                            className={selectedId === member.id ? 'is-selected' : ''}
+                            onClick={() => selectParty(member)}
+                          >
+                            <td>{member.lastName}</td>
+                            <td>{member.firstName}</td>
+                            <td>{member.city || '—'}</td>
+                            <td>{member.email || '—'}</td>
+                            <td>{member.phone || '—'}</td>
+                            <td className="tx-balance-cell">{balance.toFixed(2)} €</td>
+                          </tr>
+                        );
+                      })
+                    : filteredAthletes.map((athlete) => {
+                        const balance = athleteSeasonBalance(
+                          athlete.id,
+                          transactions,
+                          seasonStart,
+                        );
+                        return (
+                          <tr
+                            key={athlete.id}
+                            className={selectedId === athlete.id ? 'is-selected' : ''}
+                            onClick={() => selectParty(athlete)}
+                          >
+                            <td>{formatAmkaForViewer(athlete.amka, amkaAllowed)}</td>
+                            <td>{athlete.registrationNumber || '—'}</td>
+                            <td>{athlete.lastName}</td>
+                            <td>{athlete.firstName}</td>
+                            <td>{athlete.fatherFirstName || '—'}</td>
+                            <td>{athlete.birthDate ? formatDate(athlete.birthDate) : '—'}</td>
+                            <td className="tx-balance-cell">{balance.toFixed(2)} €</td>
+                          </tr>
+                        );
+                      })}
                 </tbody>
               </table>
             </div>
@@ -780,10 +845,13 @@ export function TransactionsPage() {
                 className="tx-search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={t('Αναζήτηση αθλητών...')}
+                placeholder={
+                  showingMembers ? t('Αναζήτηση μελών...') : t('Αναζήτηση αθλητών...')
+                }
               />
               <span>
-                {filteredAthletes.length} {t('Εγγραφές')}
+                {(showingMembers ? filteredMembers.length : filteredAthletes.length)}{' '}
+                {t('Εγγραφές')}
               </span>
             </div>
           </section>
@@ -809,7 +877,11 @@ export function TransactionsPage() {
                     }
                     readOnly
                     disabled
-                    placeholder={t('Επιλέξτε αθλητή από τη λίστα')}
+                    placeholder={
+                      showingMembers
+                        ? t('Επιλέξτε μέλος από τη λίστα')
+                        : t('Επιλέξτε αθλητή από τη λίστα')
+                    }
                   />
                 </label>
 

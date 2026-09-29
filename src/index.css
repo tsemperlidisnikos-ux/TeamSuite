@@ -4609,6 +4609,22 @@ html[data-appearance] .settings-backup-schedule-status {
   width: min(840px, 100%);
 }
 
+.members-modal {
+  width: min(640px, 100%);
+  max-height: min(88vh, 760px);
+  overflow: auto;
+}
+
+.members-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.members-modal-grid .is-full {
+  grid-column: 1 / -1;
+}
+
 .facility-modal {
   width: min(560px, 100%);
 }

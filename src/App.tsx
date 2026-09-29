@@ -80,6 +80,9 @@ const ClassProfilePage = lazy(() =>
 const ParentsPage = lazy(() =>
   import('./pages/ParentsPage').then((m) => ({ default: m.ParentsPage })),
 );
+const MembersPage = lazy(() =>
+  import('./pages/MembersPage').then((m) => ({ default: m.MembersPage })),
+);
 const TrainingsPage = lazy(() =>
   import('./pages/TrainingsPage').then((m) => ({ default: m.TrainingsPage })),
 );
@@ -240,6 +243,14 @@ export default function App() {
                 element={
                   <RequireModule moduleId="parents">
                     <ParentsPage />
+                  </RequireModule>
+                }
+              />
+              <Route
+                path="members"
+                element={
+                  <RequireModule moduleId="members">
+                    <MembersPage />
                   </RequireModule>
                 }
               />

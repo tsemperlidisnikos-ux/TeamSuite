@@ -45,6 +45,7 @@ export function applyContentCollections(
 ): void {
   const deletedCoaches = unionIdSet(local.deletedCoachIds, cloud.deletedCoachIds);
   const deletedStaff = unionIdSet(local.deletedStaffIds, cloud.deletedStaffIds);
+  const deletedMembers = unionIdSet(local.deletedClubMemberIds, cloud.deletedClubMemberIds);
   const deletedAssoc = unionIdSet(local.deletedAssociationIds, cloud.deletedAssociationIds);
   const deletedFacilities = unionIdSet(local.deletedFacilityIds, cloud.deletedFacilityIds);
   const deletedSports = unionIdSet(local.deletedSportIds, cloud.deletedSportIds);
@@ -64,6 +65,12 @@ export function applyContentCollections(
 
   target.coaches = mergeByIdPreferringUpdatedAt(local.coaches, cloud.coaches, deletedCoaches, preferLocal);
   target.staff = mergeByIdPreferringUpdatedAt(local.staff, cloud.staff, deletedStaff, preferLocal);
+  target.clubMembers = mergeByIdPreferringUpdatedAt(
+    local.clubMembers,
+    cloud.clubMembers,
+    deletedMembers,
+    preferLocal,
+  );
   target.associations = mergeByIdPreferringUpdatedAt(
     local.associations,
     cloud.associations,
@@ -161,6 +168,7 @@ export function applyContentCollections(
   const cap = FINANCE_TOMBSTONE_CAP;
   target.deletedCoachIds = [...deletedCoaches].slice(-cap);
   target.deletedStaffIds = [...deletedStaff].slice(-cap);
+  target.deletedClubMemberIds = [...deletedMembers].slice(-cap);
   target.deletedAssociationIds = [...deletedAssoc].slice(-cap);
   target.deletedFacilityIds = [...deletedFacilities].slice(-cap);
   target.deletedSportIds = [...deletedSports].slice(-cap);
@@ -192,6 +200,7 @@ function hasLocalOnlyIds(localIds: string[] | undefined, cloudIds: string[] | un
 export function localContentNeedsPush(local: AppData, cloud: AppData): boolean {
   if (hasLocalOnlyRows(local.coaches, cloud.coaches)) return true;
   if (hasLocalOnlyRows(local.staff, cloud.staff)) return true;
+  if (hasLocalOnlyRows(local.clubMembers, cloud.clubMembers)) return true;
   if (hasLocalOnlyRows(local.associations, cloud.associations)) return true;
   if (hasLocalOnlyRows(local.facilities, cloud.facilities)) return true;
   if (hasLocalOnlyRows(local.sports, cloud.sports)) return true;
@@ -207,6 +216,7 @@ export function localContentNeedsPush(local: AppData, cloud: AppData): boolean {
   if (hasLocalOnlyRows(local.partnerOffers, cloud.partnerOffers)) return true;
   if (hasLocalOnlyIds(local.deletedCoachIds, cloud.deletedCoachIds)) return true;
   if (hasLocalOnlyIds(local.deletedStaffIds, cloud.deletedStaffIds)) return true;
+  if (hasLocalOnlyIds(local.deletedClubMemberIds, cloud.deletedClubMemberIds)) return true;
   if (hasLocalOnlyIds(local.deletedAnnouncementIds, cloud.deletedAnnouncementIds)) return true;
   if (hasLocalOnlyIds(local.deletedRegistrationApplicationIds, cloud.deletedRegistrationApplicationIds)) {
     return true;
@@ -234,6 +244,7 @@ function byIdJson(rows: Array<{ id: string }> | undefined): string {
 export function contentCollectionsChanged(a: AppData, b: AppData): boolean {
   if (byIdJson(a.coaches) !== byIdJson(b.coaches)) return true;
   if (byIdJson(a.staff) !== byIdJson(b.staff)) return true;
+  if (byIdJson(a.clubMembers) !== byIdJson(b.clubMembers)) return true;
   if (byIdJson(a.announcements) !== byIdJson(b.announcements)) return true;
   if (byIdJson(a.registrationApplications) !== byIdJson(b.registrationApplications)) return true;
   if (byIdJson(a.facilities) !== byIdJson(b.facilities)) return true;

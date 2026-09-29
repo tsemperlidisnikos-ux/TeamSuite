@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { FilePenLine, Trash2 } from 'lucide-react';
 import {
+  ATHLETE_INCOME_DESCRIPTIONS,
   ATHLETE_INCOME_SUBCATEGORY,
   ensureAthletePaymentRevenuesSynced,
 } from '../api/services/athletePaymentRevenueBridge';
@@ -27,8 +28,14 @@ import { PAYMENT_METHODS } from '../shared/paymentMethods';
 import { localDateIso } from '../utils/dates';
 import { formatCurrency, formatDate, formatMonthYearNumeric, parseMoneyInput } from '../utils/labels';
 import { filterOwnFinanceEntries } from '../utils/financeOwnEntries';
+import {
+  filterFinanceEntries,
+  financeDescriptionOptions,
+  sumFinanceEntryAmounts,
+} from '../utils/financeEntrySearch';
 import type { PaymentMethod, Revenue } from '../types';
 import { FinanceEntryDetailsModal } from './FinanceEntryDetailsModal';
+import { FinanceEntryListToolbar } from './FinanceEntryListToolbar';
 
 const today = () => localDateIso();
 
@@ -83,6 +90,9 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedRevenue, setSelectedRevenue] = useState<Revenue | null>(null);
+  const [descriptionFilter, setDescriptionFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
     const matched = ensureLegacyPaymentsMatched();
@@ -123,15 +133,22 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
   const sports = useMemo(() => (data.sports ?? []).filter((s) => s.active), [data.sports]);
 
   const registryPeople = useMemo(() => {
+    if (nameKind === 'members') {
+      return [...(data.clubMembers ?? [])]
+        .filter((member) => member.active !== false)
+        .sort((a, b) =>
+          `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
+        );
+    }
     if (nameKind !== 'athletes') return [];
     return [...data.students]
       .filter((s) => s.status !== 'inactive')
       .sort((a, b) =>
         `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
       );
-  }, [data.students, nameKind]);
+  }, [data.students, data.clubMembers, nameKind]);
 
-  const filteredRevenues = useMemo(
+  const subcategoryRevenues = useMemo(
     () =>
       [...filterOwnFinanceEntries(data.revenues)]
         .filter((r) => (r.subcategory || '') === subcategory)
@@ -139,10 +156,38 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
     [data.revenues, subcategory],
   );
 
-  const subcategoryTotal = filteredRevenues.reduce((sum, r) => sum + r.amount, 0);
+  const descriptionOptions = useMemo(() => {
+    const configured = isAthletePayments
+      ? [...ATHLETE_INCOME_DESCRIPTIONS, ...descriptions]
+      : descriptions;
+    return financeDescriptionOptions(configured, subcategoryRevenues);
+  }, [descriptions, isAthletePayments, subcategoryRevenues]);
+
+  const filteredRevenues = useMemo(
+    () =>
+      filterFinanceEntries(subcategoryRevenues, {
+        description: descriptionFilter,
+        dateFrom,
+        dateTo,
+      }),
+    [subcategoryRevenues, descriptionFilter, dateFrom, dateTo],
+  );
+
+  const subcategoryTotal = sumFinanceEntryAmounts(filteredRevenues);
+  const printFilterHint = [
+    subcategory,
+    descriptionFilter.trim() ? descriptionFilter.trim() : '',
+    dateFrom ? `από ${formatDate(dateFrom)}` : '',
+    dateTo ? `έως ${formatDate(dateTo)}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   function handleSubcategoryChange(next: string) {
     setSubcategory(next);
+    setDescriptionFilter('');
+    setDateFrom('');
+    setDateTo('');
     setDescription('');
     setStudentId('');
     setSurname('');
@@ -155,6 +200,17 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
 
   function handleRegistrySelect(id: string) {
     setStudentId(id);
+    if (nameKind === 'members') {
+      const member = (data.clubMembers ?? []).find((row) => row.id === id);
+      if (!member) {
+        setSurname('');
+        setFirstName('');
+        return;
+      }
+      setSurname(member.lastName);
+      setFirstName(member.firstName);
+      return;
+    }
     const student = data.students.find((s) => s.id === id);
     if (!student) {
       setSurname('');
@@ -262,7 +318,7 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
           </p>
         </div>
         <div className="stat-pill">
-          <span>Σύνολο υποκατηγορίας</span>
+          <span>Σύνολο φίλτρου</span>
           <strong>{formatCurrency(subcategoryTotal)}</strong>
         </div>
       </div>
@@ -356,10 +412,11 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
                     </option>
                   ))}
                 </select>
-                {nameKind === 'members' || registryPeople.length === 0 ? (
+                {registryPeople.length === 0 ? (
                   <p className="ta-hint ta-hint--warn">
-                    Δεν υπάρχουν καταχωρήσεις στο μητρώο. Προσθέστε από τη σελίδα Μητρώο ή
-                    συμπληρώστε χειροκίνητα.
+                    {nameKind === 'members'
+                      ? 'Δεν υπάρχουν καταχωρήσεις μελών. Προσθέστε από τη σελίδα Μέλη ή συμπληρώστε χειροκίνητα.'
+                      : 'Δεν υπάρχουν καταχωρήσεις στο μητρώο. Προσθέστε από τη σελίδα Μητρώο ή συμπληρώστε χειροκίνητα.'}
                   </p>
                 ) : null}
               </TitleAnalysisRow>
@@ -518,67 +575,97 @@ export function IncomeEntryPanel({ onSaved }: { onSaved: () => void }) {
 
       {error ? <p className="form-error">{error}</p> : null}
 
-      <div className="income-entry-list">
-        {filteredRevenues.length === 0 ? (
-          <p className="income-entry-empty">
-            {isAthletePayments
-              ? 'Δεν υπάρχουν ακόμη πληρωμές αθλητών για εμφάνιση ως έσοδα.'
-              : 'Δεν υπάρχουν εγγραφές ακόμη.'}
+      <div id="finance-entries-print-area">
+        <div className="finance-entry-print-head">
+          <h2>Έσοδα</h2>
+          <p>
+            {printFilterHint} · {filteredRevenues.length} εγγραφές · σύνολο{' '}
+            {formatCurrency(subcategoryTotal)}
           </p>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Ημερομηνία</th>
-                <th>Περιγραφή</th>
-                <th>Σωματείο</th>
-                <th>Άθλημα</th>
-                <th>Περίοδος</th>
-                <th>Ποσό</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRevenues.map((rev) => (
-                <tr key={rev.id}>
-                  <td>{formatDate(rev.date)}</td>
-                  <td>
-                    {rev.description}
-                    {rev.surname ? ` — ${rev.surname} ${rev.firstName}` : ''}
-                  </td>
-                  <td>{rev.clubName || '—'}</td>
-                  <td>{rev.sport || '—'}</td>
-                  <td>
-                    {rev.subscriptionPeriod
-                      ? formatMonthYearNumeric(rev.subscriptionPeriod)
-                      : '—'}
-                  </td>
-                  <td>{formatCurrency(rev.amount)}</td>
-                  <td className="row-actions">
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      aria-label="Προβολή και διόρθωση εσόδου"
-                      title="Ανάλυση / Διόρθωση"
-                      onClick={() => setSelectedRevenue(rev)}
-                    >
-                      <FilePenLine size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      aria-label="Διαγραφή"
-                      disabled={deletingId === rev.id}
-                      onClick={() => void handleDelete(rev)}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
+        </div>
+        <FinanceEntryListToolbar
+          kind="income"
+          descriptions={descriptionOptions}
+          description={descriptionFilter}
+          onDescriptionChange={setDescriptionFilter}
+          dateFrom={dateFrom}
+          onDateFromChange={setDateFrom}
+          dateTo={dateTo}
+          onDateToChange={setDateTo}
+          resultCount={filteredRevenues.length}
+          total={subcategoryTotal}
+        />
+        <div className="income-entry-list">
+          {filteredRevenues.length === 0 ? (
+            <p className="income-entry-empty">
+              {subcategoryRevenues.length === 0
+                ? isAthletePayments
+                  ? 'Δεν υπάρχουν ακόμη πληρωμές αθλητών για εμφάνιση ως έσοδα.'
+                  : 'Δεν υπάρχουν εγγραφές ακόμη.'
+                : 'Δεν βρέθηκαν καταχωρήσεις για το φίλτρο.'}
+            </p>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Ημερομηνία</th>
+                  <th>Περιγραφή</th>
+                  <th>Σωματείο</th>
+                  <th>Άθλημα</th>
+                  <th>Περίοδος</th>
+                  <th>Ποσό</th>
+                  <th className="no-print"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody>
+                {filteredRevenues.map((rev) => (
+                  <tr key={rev.id}>
+                    <td>{formatDate(rev.date)}</td>
+                    <td>
+                      {rev.description}
+                      {rev.surname ? ` — ${rev.surname} ${rev.firstName}` : ''}
+                    </td>
+                    <td>{rev.clubName || '—'}</td>
+                    <td>{rev.sport || '—'}</td>
+                    <td>
+                      {rev.subscriptionPeriod
+                        ? formatMonthYearNumeric(rev.subscriptionPeriod)
+                        : '—'}
+                    </td>
+                    <td>{formatCurrency(rev.amount)}</td>
+                    <td className="row-actions no-print">
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        aria-label="Προβολή και διόρθωση εσόδου"
+                        title="Ανάλυση / Διόρθωση"
+                        onClick={() => setSelectedRevenue(rev)}
+                      >
+                        <FilePenLine size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        aria-label="Διαγραφή"
+                        disabled={deletingId === rev.id}
+                        onClick={() => void handleDelete(rev)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="finance-entry-total-row">
+                  <td colSpan={5}>Σύνολο</td>
+                  <td>{formatCurrency(subcategoryTotal)}</td>
+                  <td className="no-print"></td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
       </div>
       <FinanceEntryDetailsModal
         kind="revenue"

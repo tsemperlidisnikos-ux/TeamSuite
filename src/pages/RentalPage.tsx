@@ -5,7 +5,7 @@ export function RentalPage() {
   return (
     <div className="stack-lg prints-page">
       <PageHeader
-        title="Ενοικίαση"
+        title="Ενοικίαση - Διαθεσιμότητα γηπέδων"
         subtitle="Διαθεσιμότητα γηπέδων, κρατήσεις γραμματείας και δημόσιο link."
       />
       <div className="page-panel">

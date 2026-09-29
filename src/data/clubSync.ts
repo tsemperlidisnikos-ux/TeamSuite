@@ -557,6 +557,7 @@ function localHasUnsyncedEdits(local: AppData, cloud: AppData): boolean {
   if (hasLocalOnlyRows(local.classes, cloud.classes)) return true;
   if (hasLocalOnlyRows(local.coaches, cloud.coaches)) return true;
   if (hasLocalOnlyRows(local.staff, cloud.staff)) return true;
+  if (hasLocalOnlyRows(local.clubMembers, cloud.clubMembers)) return true;
   if (hasLocalOnlyRows(local.transactions, cloud.transactions)) return true;
   if (hasLocalOnlyRows(local.revenues, cloud.revenues)) return true;
   if (hasLocalOnlyRows(local.expenses, cloud.expenses)) return true;

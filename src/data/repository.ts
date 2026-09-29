@@ -64,6 +64,7 @@ function ensureCollections(data: AppData): boolean {
   if (!data.deletedMatchIds) data.deletedMatchIds = [];
   if (!data.deletedCoachIds) data.deletedCoachIds = [];
   if (!data.deletedStaffIds) data.deletedStaffIds = [];
+  if (!data.deletedClubMemberIds) data.deletedClubMemberIds = [];
   if (!data.deletedAssociationIds) data.deletedAssociationIds = [];
   if (!data.deletedFacilityIds) data.deletedFacilityIds = [];
   if (!data.deletedSportIds) data.deletedSportIds = [];
@@ -80,6 +81,7 @@ function ensureCollections(data: AppData): boolean {
   if (!data.suppressedFeeChargeKeys) data.suppressedFeeChargeKeys = [];
   if (!data.trainings) data.trainings = structuredClone(seedData.trainings);
   if (!data.staff) data.staff = structuredClone(seedData.staff);
+  if (!data.clubMembers) data.clubMembers = structuredClone(seedData.clubMembers);
   if (!data.associations) data.associations = structuredClone(seedData.associations);
   if (!data.facilities) data.facilities = structuredClone(seedData.facilities ?? []);
   if (!data.sports) data.sports = structuredClone(seedData.sports);

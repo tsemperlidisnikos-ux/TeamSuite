@@ -24,9 +24,15 @@ import {
 import { localDateIso } from '../utils/dates';
 import { formatCurrency, formatDate, formatMoneyAmount, parseMoneyInput } from '../utils/labels';
 import { filterOwnFinanceEntries } from '../utils/financeOwnEntries';
+import {
+  filterFinanceEntries,
+  financeDescriptionOptions,
+  sumFinanceEntryAmounts,
+} from '../utils/financeEntrySearch';
 import { sportsMatch } from '../utils/coachScope';
 import { studentClassIds, studentInClass } from '../utils/studentClasses';
 import { FinanceEntryDetailsModal } from './FinanceEntryDetailsModal';
+import { FinanceEntryListToolbar } from './FinanceEntryListToolbar';
 
 const today = () => localDateIso();
 
@@ -142,6 +148,9 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [descriptionFilter, setDescriptionFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const isMatch = usesMatchExpenseForm(subcategory);
   const isCoachExpense = subcategory === 'ΠΡΟΠΟΝΗΤΕΣ / ΓΥΜΝΑΣΤΕΣ';
@@ -243,7 +252,7 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
     showPersonFields,
   ]);
 
-  const filteredExpenses = useMemo(
+  const subcategoryExpenses = useMemo(
     () =>
       [...filterOwnFinanceEntries(data.expenses)]
         .filter((e) => (e.subcategory || '') === subcategory)
@@ -251,10 +260,36 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
     [data.expenses, subcategory],
   );
 
-  const subcategoryTotal = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const descriptionOptions = useMemo(
+    () => financeDescriptionOptions(descriptions, subcategoryExpenses),
+    [descriptions, subcategoryExpenses],
+  );
+
+  const filteredExpenses = useMemo(
+    () =>
+      filterFinanceEntries(subcategoryExpenses, {
+        description: descriptionFilter,
+        dateFrom,
+        dateTo,
+      }),
+    [subcategoryExpenses, descriptionFilter, dateFrom, dateTo],
+  );
+
+  const subcategoryTotal = sumFinanceEntryAmounts(filteredExpenses);
+  const printFilterHint = [
+    subcategory,
+    descriptionFilter.trim() ? descriptionFilter.trim() : '',
+    dateFrom ? `από ${formatDate(dateFrom)}` : '',
+    dateTo ? `έως ${formatDate(dateTo)}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   function handleSubcategoryChange(next: string) {
     setSubcategory(next);
+    setDescriptionFilter('');
+    setDateFrom('');
+    setDateTo('');
     setDescription('');
     setStudentId('');
     setSurname('');
@@ -467,7 +502,7 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
           </p>
         </div>
         <div className="stat-pill">
-          <span>Σύνολο υποκατηγορίας</span>
+          <span>Σύνολο φίλτρου</span>
           <strong>{formatCurrency(subcategoryTotal)}</strong>
         </div>
       </div>
@@ -979,59 +1014,91 @@ export function ExpenseEntryPanel({ onSaved }: { onSaved: () => void }) {
         </form>
       )}
 
-      <div className="income-entry-list">
-        {filteredExpenses.length === 0 ? (
-          <p className="income-entry-empty">Δεν υπάρχουν εγγραφές ακόμη.</p>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Ημερομηνία</th>
-                <th>Περιγραφή</th>
-                <th>Σωματείο</th>
-                <th>Άθλημα</th>
-                <th>Τμήμα</th>
-                <th>Ποσό</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredExpenses.map((exp) => (
-                <tr key={exp.id}>
-                  <td>{formatDate(exp.date)}</td>
-                  <td>
-                    {exp.description}
-                    {exp.surname ? ` — ${exp.surname} ${exp.firstName}` : ''}
-                  </td>
-                  <td>{exp.clubName || '—'}</td>
-                  <td>{exp.sport || '—'}</td>
-                  <td>{exp.className || '—'}</td>
-                  <td>{formatCurrency(exp.amount)}</td>
-                  <td className="row-actions">
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      aria-label="Προβολή και διόρθωση εξόδου"
-                      title="Ανάλυση / Διόρθωση"
-                      onClick={() => setSelectedExpense(exp)}
-                    >
-                      <FilePenLine size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      aria-label="Διαγραφή"
-                      disabled={deletingId === exp.id}
-                      onClick={() => void handleDelete(exp.id)}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
+      <div id="finance-entries-print-area">
+        <div className="finance-entry-print-head">
+          <h2>Έξοδα</h2>
+          <p>
+            {printFilterHint} · {filteredExpenses.length} εγγραφές · σύνολο{' '}
+            {formatCurrency(subcategoryTotal)}
+          </p>
+        </div>
+        <FinanceEntryListToolbar
+          kind="expense"
+          descriptions={descriptionOptions}
+          description={descriptionFilter}
+          onDescriptionChange={setDescriptionFilter}
+          dateFrom={dateFrom}
+          onDateFromChange={setDateFrom}
+          dateTo={dateTo}
+          onDateToChange={setDateTo}
+          resultCount={filteredExpenses.length}
+          total={subcategoryTotal}
+        />
+        <div className="income-entry-list">
+          {filteredExpenses.length === 0 ? (
+            <p className="income-entry-empty">
+              {subcategoryExpenses.length === 0
+                ? 'Δεν υπάρχουν εγγραφές ακόμη.'
+                : 'Δεν βρέθηκαν καταχωρήσεις για το φίλτρο.'}
+            </p>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Ημερομηνία</th>
+                  <th>Περιγραφή</th>
+                  <th>Σωματείο</th>
+                  <th>Άθλημα</th>
+                  <th>Τμήμα</th>
+                  <th>Ποσό</th>
+                  <th className="no-print"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody>
+                {filteredExpenses.map((exp) => (
+                  <tr key={exp.id}>
+                    <td>{formatDate(exp.date)}</td>
+                    <td>
+                      {exp.description}
+                      {exp.surname ? ` — ${exp.surname} ${exp.firstName}` : ''}
+                    </td>
+                    <td>{exp.clubName || '—'}</td>
+                    <td>{exp.sport || '—'}</td>
+                    <td>{exp.className || '—'}</td>
+                    <td>{formatCurrency(exp.amount)}</td>
+                    <td className="row-actions no-print">
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        aria-label="Προβολή και διόρθωση εξόδου"
+                        title="Ανάλυση / Διόρθωση"
+                        onClick={() => setSelectedExpense(exp)}
+                      >
+                        <FilePenLine size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        aria-label="Διαγραφή"
+                        disabled={deletingId === exp.id}
+                        onClick={() => void handleDelete(exp.id)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="finance-entry-total-row">
+                  <td colSpan={5}>Σύνολο</td>
+                  <td>{formatCurrency(subcategoryTotal)}</td>
+                  <td className="no-print"></td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
       </div>
       <FinanceEntryDetailsModal
         kind="expense"

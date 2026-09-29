@@ -12,6 +12,7 @@ const ID_COLLECTION_KEYS = [
   'transactions',
   'trainings',
   'staff',
+  'clubMembers',
   'associations',
   'facilities',
   'sports',

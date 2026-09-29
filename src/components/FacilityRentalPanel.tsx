@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ClipboardCopy, Code2, Download, ExternalLink, ImagePlus, Trash2 } from 'lucide-react';
+import { ClipboardCopy, Code2, Download, ExternalLink, ImagePlus, Pencil, Trash2 } from 'lucide-react';
 import * as rentalBookingsService from '../api/services/rentalBookingsService';
 import * as facilitiesService from '../api/services/facilitiesService';
 import { getSession, isPlatformAdmin } from '../auth/auth';
@@ -194,6 +194,10 @@ export function FacilityRentalPanel() {
   const [collectBooking, setCollectBooking] = useState<RentalBooking | null>(null);
   const [collectMethod, setCollectMethod] = useState<'cash' | 'card'>('cash');
   const [collecting, setCollecting] = useState(false);
+  const [editingBooking, setEditingBooking] = useState<RentalBooking | null>(null);
+  const [editForm, setEditForm] = useState<RentalBookingInput | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
   const [saving, setSaving] = useState(false);
   const [booking, setBooking] = useState(false);
   const [message, setMessage] = useState('');
@@ -280,6 +284,25 @@ export function FacilityRentalPanel() {
     [data.rentalBookings],
   );
   const uncollectedTotal = uncollected.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+  const editFacility = editForm
+    ? facilities.find((facility) => facility.id === editForm.facilityId) ?? null
+    : null;
+  const editRule = editFacility
+    ? ruleForFacility(draft, editFacility.id, editFacility)
+    : null;
+  const editBaseAmount =
+    editForm && editRule
+      ? bookingAmount(
+          editRule,
+          editForm.startTime,
+          editForm.endTime,
+          editForm.courtShare,
+        ) + lockerRoomFeeAmount(editRule, editForm.useLockerRoom)
+      : 0;
+  const editAmount = Math.max(
+    0,
+    Math.round((editBaseAmount - Number(editForm?.specialDiscount ?? 0)) * 100) / 100,
+  );
 
   useEffect(() => {
     if (searchParams.get('tab') === 'bookings') setPanelTab('bookings');
@@ -537,6 +560,54 @@ export function FacilityRentalPanel() {
       setError(result.error ?? 'Αποτυχία ακύρωσης.');
       return;
     }
+    refresh();
+  }
+
+  function openBookingEdit(row: RentalBooking) {
+    setEditingBooking(row);
+    setEditForm({
+      facilityId: row.facilityId,
+      date: row.date,
+      startTime: row.startTime,
+      endTime: row.endTime,
+      courtShare: row.courtShare,
+      useLockerRoom: Boolean(row.useLockerRoom),
+      customerName: row.customerName,
+      customerPhone: row.customerPhone,
+      customerEmail: row.customerEmail ?? '',
+      notes: row.notes ?? '',
+      amount: row.amount,
+      specialDiscount: Number(row.specialDiscount) || 0,
+      paidNow: false,
+    });
+    setEditError('');
+  }
+
+  function closeBookingEdit() {
+    if (editSaving) return;
+    setEditingBooking(null);
+    setEditForm(null);
+    setEditError('');
+  }
+
+  async function saveBookingEdit() {
+    if (!editingBooking || !editForm) return;
+    setEditSaving(true);
+    setEditError('');
+    setMessage('');
+    const result = await rentalBookingsService.updateRentalBooking(editingBooking.id, {
+      ...editForm,
+      amount: editAmount,
+      useLockerRoom: Boolean(editForm.useLockerRoom && editRule?.lockerRoomAvailable),
+    });
+    setEditSaving(false);
+    if (!result.success) {
+      setEditError(result.error ?? 'Αποτυχία ενημέρωσης κράτησης.');
+      return;
+    }
+    setMessage('Η κράτηση ενημερώθηκε.');
+    setEditingBooking(null);
+    setEditForm(null);
     refresh();
   }
 
@@ -1299,6 +1370,16 @@ export function FacilityRentalPanel() {
                           {t('Απόδειξη')}
                         </Button>
                       ) : null}
+                      {row.status !== 'pending_payment' ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => openBookingEdit(row)}
+                        >
+                          <Pencil size={14} />
+                          {t('Επεξεργασία')}
+                        </Button>
+                      ) : null}
                       <Button type="button" variant="ghost" onClick={() => void cancelBooking(row.id)}>
                         {t('Ακύρωση')}
                       </Button>
@@ -1312,6 +1393,168 @@ export function FacilityRentalPanel() {
       </div>
       </>
       ) : null}
+
+      <Modal
+        open={Boolean(editingBooking && editForm)}
+        title="Επεξεργασία κράτησης"
+        onClose={closeBookingEdit}
+        wide
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={editSaving}
+              onClick={closeBookingEdit}
+            >
+              Άκυρο
+            </Button>
+            <Button
+              type="button"
+              disabled={editSaving || !editForm}
+              onClick={() => void saveBookingEdit()}
+            >
+              {editSaving ? 'Αποθήκευση…' : 'Αποθήκευση αλλαγών'}
+            </Button>
+          </>
+        }
+      >
+        {editForm ? (
+          <>
+          {editError ? <p className="form-error">{editError}</p> : null}
+          <div className="rental-edit-grid">
+            <label className="field">
+              <span className="field-label">Ημερομηνία</span>
+              <input
+                className="field-input"
+                type="date"
+                value={editForm.date}
+                onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Γήπεδο</span>
+              <select
+                className="field-input"
+                value={editForm.facilityId}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    facilityId: e.target.value,
+                    useLockerRoom: false,
+                  })
+                }
+              >
+                {facilities.map((facility) => (
+                  <option key={facility.id} value={facility.id}>
+                    {facility.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">Ώρα έναρξης</span>
+              <input
+                className="field-input"
+                type="time"
+                value={editForm.startTime}
+                onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Ώρα λήξης</span>
+              <input
+                className="field-input"
+                type="time"
+                value={editForm.endTime}
+                onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Τμήμα γηπέδου</span>
+              <select
+                className="field-input"
+                value={editForm.courtShare}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    courtShare: e.target.value === 'half' ? 'half' : 'full',
+                  })
+                }
+              >
+                <option value="full">Ολόκληρο γήπεδο</option>
+                <option value="half">Μισό γήπεδο</option>
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">Ειδική έκπτωση (€)</span>
+              <input
+                className="field-input"
+                type="number"
+                min={0}
+                step="0.01"
+                value={editForm.specialDiscount || ''}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    specialDiscount: parseMoneyInput(e.target.value),
+                  })
+                }
+              />
+            </label>
+            {editRule?.lockerRoomAvailable ? (
+              <label className="checkbox-row rental-edit-locker">
+                <input
+                  type="checkbox"
+                  checked={Boolean(editForm.useLockerRoom)}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, useLockerRoom: e.target.checked })
+                  }
+                />
+                Χρήση αποδυτηρίου
+              </label>
+            ) : null}
+            <div className="field rental-edit-total">
+              <span className="field-label">Τελικό κόστος</span>
+              <strong>{formatCurrency(editAmount)}</strong>
+            </div>
+            <label className="field rental-edit-wide">
+              <span className="field-label">Ονοματεπώνυμο</span>
+              <input
+                className="field-input"
+                value={editForm.customerName}
+                onChange={(e) => setEditForm({ ...editForm, customerName: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Τηλέφωνο</span>
+              <input
+                className="field-input"
+                value={editForm.customerPhone}
+                onChange={(e) => setEditForm({ ...editForm, customerPhone: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Email</span>
+              <input
+                className="field-input"
+                type="email"
+                value={editForm.customerEmail}
+                onChange={(e) => setEditForm({ ...editForm, customerEmail: e.target.value })}
+              />
+            </label>
+            <label className="field rental-edit-wide">
+              <span className="field-label">Σημείωση</span>
+              <input
+                className="field-input"
+                value={editForm.notes}
+                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+              />
+            </label>
+          </div>
+          </>
+        ) : null}
+      </Modal>
 
       <Modal
         open={Boolean(collectBooking)}

@@ -343,6 +343,21 @@ export interface Training {
   updatedAt?: number;
 }
 
+export interface ClubMember {
+  id: string;
+  lastName: string;
+  firstName: string;
+  address: string;
+  postalCode: string;
+  city: string;
+  prefecture: string;
+  email: string;
+  phone: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt?: number;
+}
+
 export interface StaffMember {
   id: string;
   fullName: string;
@@ -864,6 +879,7 @@ export interface AppData {
   deletedMatchIds?: string[];
   deletedCoachIds?: string[];
   deletedStaffIds?: string[];
+  deletedClubMemberIds?: string[];
   deletedAssociationIds?: string[];
   deletedFacilityIds?: string[];
   deletedSportIds?: string[];
@@ -881,6 +897,7 @@ export interface AppData {
   suppressedFeeChargeKeys?: string[];
   trainings: Training[];
   staff: StaffMember[];
+  clubMembers: ClubMember[];
   associations: Association[];
   facilities: Facility[];
   sports: SportItem[];

@@ -305,6 +305,23 @@ export const associationSchema = z.object({
 
 export type AssociationInput = z.infer<typeof associationSchema>;
 
+export const clubMemberSchema = z.object({
+  lastName: z.string().min(2, 'Το επώνυμο είναι υποχρεωτικό'),
+  firstName: z.string().min(2, 'Το όνομα είναι υποχρεωτικό'),
+  address: z.string().optional().default(''),
+  postalCode: z.string().optional().default(''),
+  city: z.string().optional().default(''),
+  prefecture: z.string().optional().default(''),
+  email: z
+    .union([z.literal(''), z.string().email('Μη έγκυρο email')])
+    .optional()
+    .default(''),
+  phone: z.string().optional().default(''),
+  active: z.coerce.boolean().default(true),
+});
+
+export type ClubMemberInput = z.infer<typeof clubMemberSchema>;
+
 export const FACILITY_TIME_LAYOUT_IDS = [
   '08:00-00:00-15',
   '08:00-00:00-30',

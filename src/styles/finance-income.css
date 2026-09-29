@@ -201,6 +201,73 @@
   margin-top: 1rem;
 }
 
+.finance-entry-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem 0.75rem;
+  margin: 0.35rem 0 0.15rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.finance-entry-search {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.2rem;
+  flex: 1 1 16rem;
+  min-width: 12rem;
+  margin: 0;
+}
+
+.finance-entry-search-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.finance-entry-search select {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+.finance-entry-date {
+  min-width: 9.5rem;
+  margin: 0;
+}
+
+.finance-entry-toolbar-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-left: auto;
+}
+
+.finance-entry-toolbar-meta span {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.finance-entry-print-head {
+  display: none;
+}
+
+.finance-entry-total-row td {
+  font-weight: 800;
+  background: var(--bg);
+}
+
 .income-entry-list {
   margin-top: 0.25rem;
 }
@@ -996,6 +1063,41 @@
 
   body.printing-finance-balance-collections .balance-summary,
   body.printing-finance-balance-collections .balance-table-block--expenses {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  body.printing-finance-entries * {
+    visibility: hidden !important;
+  }
+
+  body.printing-finance-entries #finance-entries-print-area,
+  body.printing-finance-entries #finance-entries-print-area * {
+    visibility: visible !important;
+  }
+
+  body.printing-finance-entries #finance-entries-print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    margin: 0;
+  }
+
+  body.printing-finance-entries .finance-entry-print-head {
+    display: block;
+    margin-bottom: 0.85rem;
+  }
+
+  body.printing-finance-entries .finance-entry-print-head h2 {
+    margin: 0 0 0.25rem;
+  }
+
+  body.printing-finance-entries .finance-entry-print-head p {
+    margin: 0;
+  }
+
+  body.printing-finance-entries .finance-entry-toolbar,
+  body.printing-finance-entries .no-print {
     display: none !important;
     visibility: hidden !important;
   }

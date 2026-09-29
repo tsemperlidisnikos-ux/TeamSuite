@@ -3,7 +3,7 @@ import { DEFAULT_TERMS_OF_USE_HTML } from '../shared/termsDefaults';
 import { localDateIso } from '../utils/dates';
 
 /** Bump to re-seed DEMO clubs after showcase content changes. */
-export const DEMO_SHOWCASE_VERSION = 5;
+export const DEMO_SHOWCASE_VERSION = 6;
 
 const APPLIED_KEY = 'academyhub-demo-showcase-applied-v1';
 const ATHLETES_PER_CLASS = 16;
@@ -808,6 +808,34 @@ export function buildDemoShowcaseData(now = new Date()): AppData {
         teamLabel: coach.sport,
       })),
     ],
+    clubMembers: [
+      {
+        id: 'demo_member_1',
+        lastName: 'Καραγιάννης',
+        firstName: 'Παναγιώτης',
+        address: 'Ηρώων Πολυτεχνείου 12',
+        postalCode: '18531',
+        city: 'Πειραιάς',
+        prefecture: 'Αττικής',
+        email: 'p.karagiannis@demo.sportsuite.local',
+        phone: '2105550101',
+        active: true,
+        createdAt: daysFromToday(-200, now),
+      },
+      {
+        id: 'demo_member_2',
+        lastName: 'Δελή',
+        firstName: 'Μαρίνα',
+        address: 'Κηφισίας 88',
+        postalCode: '15125',
+        city: 'Μαρούσι',
+        prefecture: 'Αττικής',
+        email: 'm.deli@demo.sportsuite.local',
+        phone: '2105550102',
+        active: true,
+        createdAt: daysFromToday(-150, now),
+      },
+    ],
     students,
     trainings,
     attendance,
@@ -948,6 +976,18 @@ export function buildDemoShowcaseData(now = new Date()): AppData {
         comments: 'Πληρωμή συνδρομής βόλεϊ',
         createdAt: daysFromToday(-8, now),
         allocatesChargeId: 'demo_txn_10',
+      },
+      {
+        id: 'demo_txn_member_1',
+        athleteId: 'demo_member_1',
+        amount: 80,
+        receiptNumber: 'R-M101',
+        type: 'charge',
+        month,
+        year,
+        paymentMethod: '',
+        comments: 'Συνδρομή μέλους',
+        createdAt: daysFromToday(-12, now),
       },
     ],
     revenues: [

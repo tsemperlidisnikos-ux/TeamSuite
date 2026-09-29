@@ -281,6 +281,87 @@ export async function createRecurringRentalBookings(
   });
 }
 
+export async function updateRentalBooking(id: string, input: RentalBookingInput) {
+  return apiClient(async () => {
+    const parsed = rentalBookingInputSchema.parse(input);
+    const current = (getData().rentalBookings ?? []).find((item) => item.id === id);
+    if (!current) throw new Error('Η κράτηση δεν βρέθηκε.');
+    if (current.status === 'cancelled') throw new Error('Η κράτηση έχει ακυρωθεί.');
+    if (current.status === 'pending_payment') {
+      throw new Error('Η κράτηση περιμένει online πληρωμή και δεν μπορεί να αλλάξει ακόμη.');
+    }
+    if (isRentalBookingCollected(current)) {
+      assertFinanceMonthOpen(current.paidOn || current.createdAt.slice(0, 10));
+    }
+
+    const facility = (getData().facilities ?? []).find((item) => item.id === parsed.facilityId);
+    if (!facility || !facility.active) throw new Error('Το γήπεδο δεν βρέθηκε.');
+
+    let updated: RentalBooking | undefined;
+    mutateData((data) => {
+      const list = data.rentalBookings ?? [];
+      const index = list.findIndex((item) => item.id === id);
+      if (index === -1) throw new Error('Η κράτηση δεν βρέθηκε.');
+
+      const sourceWithoutCurrent: AppData = {
+        ...data,
+        rentalBookings: list.filter((item) => item.id !== id),
+      };
+      const courtShare = parsed.courtShare === 'half' ? 'half' : 'full';
+      const check = slotIsFree(
+        sourceWithoutCurrent,
+        facility,
+        parsed.date,
+        parsed.startTime,
+        parsed.endTime,
+        courtShare,
+      );
+      if (!check.ok) throw new Error(check.reason);
+
+      const rule = ruleForFacility(data.rentalSettings, facility.id, facility);
+      const useLockerRoom = Boolean(parsed.useLockerRoom && rule.lockerRoomAvailable);
+      const baseAmount =
+        bookingAmount(rule, parsed.startTime, parsed.endTime, courtShare) +
+        lockerRoomFeeAmount(rule, useLockerRoom);
+      const discount = Math.max(0, parsed.specialDiscount ?? 0);
+      const amount = Math.max(0, Math.round((baseAmount - discount) * 100) / 100);
+
+      updated = {
+        ...list[index],
+        facilityId: facility.id,
+        facilityName: facility.name,
+        date: parsed.date,
+        startTime: parsed.startTime,
+        endTime: parsed.endTime,
+        courtShare,
+        useLockerRoom,
+        customerName: parsed.customerName.trim(),
+        customerPhone: parsed.customerPhone.trim(),
+        customerEmail: (parsed.customerEmail ?? '').trim(),
+        notes: parsed.notes ?? '',
+        amount,
+        specialDiscount: discount,
+        updatedAt: Date.now(),
+      };
+      list[index] = updated;
+      data.rentalBookings = list;
+      upsertRentalBookingRevenueInData(data, updated);
+    });
+
+    await publishClubOpsSlice();
+    const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
+    if (clubId) {
+      try {
+        await publishRentalOccupancy(clubId);
+      } catch {
+        /* η τοπική αλλαγή μένει και θα συγχρονιστεί στο επόμενο push */
+      }
+    }
+    if (!updated) throw new Error('Αποτυχία ενημέρωσης κράτησης.');
+    return updated;
+  });
+}
+
 export async function cancelRentalBooking(id: string) {
   return apiClient(async () => {
     let updated: RentalBooking | undefined;

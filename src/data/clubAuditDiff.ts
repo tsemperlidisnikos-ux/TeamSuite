@@ -79,6 +79,7 @@ const TRACKED: Array<{ key: keyof AppData; label: string }> = [
   { key: 'classes', label: 'τμήματα' },
   { key: 'coaches', label: 'προπονητές' },
   { key: 'staff', label: 'προσωπικό' },
+  { key: 'clubMembers', label: 'μέλη' },
   { key: 'transactions', label: 'συναλλαγές' },
   { key: 'revenues', label: 'έσοδα' },
   { key: 'expenses', label: 'έξοδα' },
