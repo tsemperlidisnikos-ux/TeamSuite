@@ -72,11 +72,20 @@ export function listActiveFacilities(facilities: Facility[] | undefined | null):
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'el'));
 }
 
+export function normalizeFacilityName(value: unknown): string {
+  return String(value ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('el-GR');
+}
+
 export function resolveFacilityForLocation(
   facilities: Facility[] | undefined | null,
   location: string | undefined | null,
 ): Facility | null {
-  const name = String(location ?? '').trim().toLowerCase();
+  const name = normalizeFacilityName(location);
   if (!name) return null;
-  return (facilities ?? []).find((item) => item.name.trim().toLowerCase() === name) ?? null;
+  return (facilities ?? []).find((item) => normalizeFacilityName(item.name) === name) ?? null;
 }

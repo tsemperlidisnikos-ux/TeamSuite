@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { collectClubUsersForBackup, type ClubBackupUserSource } from '../src/utils/backupArchive';
+import {
+  collectClubUsersForBackup,
+  prepareClubDataForBackup,
+  type ClubBackupUserSource,
+} from '../src/utils/backupArchive';
 import type { AppUser } from '../src/auth/auth';
+import type { AppData } from '../src/types';
 
 function user(partial: Partial<AppUser> & Pick<AppUser, 'id' | 'role'>): AppUser {
   return {
@@ -73,5 +78,34 @@ describe('collectClubUsersForBackup', () => {
       'coach-login',
       'staff-login',
     ]);
+  });
+});
+
+describe('prepareClubDataForBackup', () => {
+  it('keeps club members and their deletion tombstones in club backups', () => {
+    const source = {
+      clubMembers: [
+        {
+          id: 'member-1',
+          lastName: 'Παπαδόπουλος',
+          firstName: 'Νίκος',
+          address: 'Οδός 1',
+          postalCode: '11111',
+          city: 'Αθήνα',
+          prefecture: 'Αττικής',
+          email: 'member@club.test',
+          phone: '2100000000',
+          active: true,
+          createdAt: '2026-09-29',
+        },
+      ],
+      deletedClubMemberIds: ['member-deleted'],
+    } as AppData;
+
+    const prepared = prepareClubDataForBackup(source);
+
+    expect(prepared.clubMembers).toEqual(source.clubMembers);
+    expect(prepared.deletedClubMemberIds).toEqual(['member-deleted']);
+    expect(prepared.clubMembers).not.toBe(source.clubMembers);
   });
 });

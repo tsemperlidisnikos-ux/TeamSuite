@@ -35,6 +35,55 @@ export type RentalOccupancySource = {
   rentalBookings?: RentalBooking[];
 };
 
+export type RentalMediaRemovals = {
+  facilityPhotoIds?: string[];
+  heroImage?: boolean;
+};
+
+function publicMediaUrl(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? '';
+  return trimmed && !trimmed.startsWith('data:') ? trimmed : null;
+}
+
+/**
+ * Keeps durable public image URLs when a stale device publishes an occupancy
+ * slice without media. Explicit removals are carried separately because a
+ * missing image and an intentional deletion are otherwise indistinguishable.
+ */
+export function canonicalizePublicRentalMedia(
+  previous: RentalOccupancySource,
+  incoming: RentalOccupancySource,
+  removals: RentalMediaRemovals = {},
+): RentalOccupancySource {
+  const previousFacilities = new Map(
+    (previous.facilities ?? []).map((facility) => [facility.id, facility]),
+  );
+  const removedFacilityIds = new Set(removals.facilityPhotoIds ?? []);
+  const facilities = incoming.facilities?.map((facility) => ({
+    ...facility,
+    photoUrl: removedFacilityIds.has(facility.id)
+      ? null
+      : publicMediaUrl(facility.photoUrl) ??
+        publicMediaUrl(previousFacilities.get(facility.id)?.photoUrl),
+  }));
+  const incomingSettings = incoming.rentalSettings;
+  const previousSettings = previous.rentalSettings;
+
+  return {
+    ...incoming,
+    facilities,
+    rentalSettings: incomingSettings
+      ? {
+          ...incomingSettings,
+          heroImageUrl: removals.heroImage
+            ? null
+            : publicMediaUrl(incomingSettings.heroImageUrl) ??
+              publicMediaUrl(previousSettings?.heroImageUrl),
+        }
+      : incomingSettings,
+  };
+}
+
 export type OccupancyBlock = {
   startMin: number;
   endMin: number;

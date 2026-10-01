@@ -137,9 +137,9 @@ export function BackupPanel() {
     }
     setSyncing('export');
     try {
-      const { userCount } = await downloadClubBackupJson(activeClubId);
+      const { userCount, memberCount } = await downloadClubBackupJson(activeClubId);
       flash(
-        `Το backup JSON κατέβηκε (δεδομένα και ${userCount} χρήστες αυτού του συλλόγου, χωρίς κωδικούς).`,
+        `Το backup JSON κατέβηκε (${memberCount} μέλη μητρώου και ${userCount} χρήστες αυτού του συλλόγου, χωρίς κωδικούς).`,
       );
     } catch (err) {
       setMessage('');
@@ -379,6 +379,7 @@ export function BackupPanel() {
       }
 
       const expectedStudents = clubData.students?.length ?? 0;
+      const expectedMembers = clubData.clubMembers?.length ?? 0;
       replaceClubData(activeClubId, clubData);
       syncClubAthleteLicenseUsed(clubData.students ?? [], activeClubId);
       const incomingUsers = (parsed.users ?? [])
@@ -396,10 +397,16 @@ export function BackupPanel() {
 
       const verify = getClubData(activeClubId);
       const gotStudents = verify.students?.length ?? 0;
+      const gotMembers = verify.clubMembers?.length ?? 0;
 
       if (expectedStudents > 0 && gotStudents === 0) {
         throw new Error(
           'Η εγγραφή ολοκληρώθηκε αλλά τα δεδομένα δεν διαβάστηκαν πίσω. Καθαρίστε τα δεδομένα ιστότοπου και δοκιμάστε ξανά.',
+        );
+      }
+      if (expectedMembers > 0 && gotMembers !== expectedMembers) {
+        throw new Error(
+          `Η επαναφορά των μελών δεν ολοκληρώθηκε (${gotMembers}/${expectedMembers}). Δοκιμάστε ξανά χωρίς να κάνετε logout.`,
         );
       }
 

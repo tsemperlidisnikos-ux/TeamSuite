@@ -132,15 +132,18 @@
 }
 
 .prog-day-lane-heads span {
+  display: flex;
   min-width: 0;
-  padding: 0.22rem 0.18rem 0.28rem;
+  min-height: 2.8rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.32rem 0.18rem 0.38rem;
   font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.15;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
   border-left: 1px solid rgba(255, 255, 255, 0.1);
   opacity: 0.92;
 }

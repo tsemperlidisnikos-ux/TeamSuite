@@ -15,7 +15,8 @@ export function DailyTillPanel() {
   const [date, setDate] = useState(localDateIso);
   const till = useMemo(() => buildDailyTill(data, date), [data, date]);
   const gap = Math.round((till.collectionsTotal - till.receiptsTotal) * 100) / 100;
-  const incomeGap = Math.round((till.collectionsTotal - till.incomeTotal) * 100) / 100;
+  const linkedIncomeGap =
+    Math.round((till.collectionsTotal - till.linkedIncomeTotal) * 100) / 100;
 
   return (
     <section className="panel daily-till">
@@ -48,14 +49,26 @@ export function DailyTillPanel() {
       <div className="stats-grid cols-4">
         <StatCard
           icon={Banknote}
-          label="Εισπράξεις"
+          label="Εισπράξεις συνδρομών / ενοικιάσεων"
           value={formatCurrency(till.collectionsTotal)}
           hint={`${till.collectionCount} κινήσεις`}
           tone="positive"
         />
         <StatCard
           icon={Wallet}
-          label="Έσοδα οικονομικών"
+          label="Συνδεδεμένα έσοδα"
+          value={formatCurrency(till.linkedIncomeTotal)}
+          hint="Από συνδρομές / ενοικιάσεις"
+        />
+        <StatCard
+          icon={Wallet}
+          label="Λοιπά έσοδα Οικονομικών"
+          value={formatCurrency(till.otherIncomeTotal)}
+          hint="Ενισχύσεις, χορηγίες και άλλα"
+        />
+        <StatCard
+          icon={Wallet}
+          label="Σύνολο εσόδων ημέρας"
           value={formatCurrency(till.incomeTotal)}
           hint={`${till.incomeCount} εγγραφές`}
         />
@@ -74,10 +87,12 @@ export function DailyTillPanel() {
         />
       </div>
 
-      {Math.abs(incomeGap) > 0.05 ? (
+      {Math.abs(linkedIncomeGap) > 0.05 ? (
         <p className="form-error">
-          Οι εισπράξεις διαφέρουν από τα έσοδα Οικονομικών κατά {formatCurrency(incomeGap)} (
-          {formatDate(date)}).
+          {linkedIncomeGap > 0
+            ? `Λείπουν ${formatCurrency(linkedIncomeGap)} από τα συνδεδεμένα έσοδα συνδρομών/ενοικιάσεων`
+            : `Τα συνδεδεμένα έσοδα συνδρομών/ενοικιάσεων υπερβαίνουν τις εισπράξεις κατά ${formatCurrency(Math.abs(linkedIncomeGap))}`}{' '}
+          ({formatDate(date)}).
         </p>
       ) : null}
 
@@ -89,7 +104,9 @@ export function DailyTillPanel() {
                 <th>Τρόπος</th>
                 <th>Εισπράξεις</th>
                 <th>Κινήσεις</th>
-                <th>Έσοδα οικονομικών</th>
+                <th>Συνδεδεμένα έσοδα</th>
+                <th>Λοιπά έσοδα</th>
+                <th>Σύνολο εσόδων</th>
               </tr>
             </thead>
             <tbody>
@@ -98,6 +115,8 @@ export function DailyTillPanel() {
                   <td>{row.label}</td>
                   <td>{formatCurrency(row.collections)}</td>
                   <td>{row.collectionCount || '—'}</td>
+                  <td>{formatCurrency(row.linkedIncome)}</td>
+                  <td>{formatCurrency(row.otherIncome)}</td>
                   <td>{formatCurrency(row.income)}</td>
                 </tr>
               ))}

@@ -26,6 +26,7 @@ export async function createFacility(input: FacilityInput) {
       ...parsed,
       id: createId('facility'),
       photoUrl,
+      updatedAt: Date.now(),
     };
     mutateData((data) => {
       if (!data.facilities) data.facilities = [];
@@ -59,13 +60,17 @@ export async function updateFacility(id: string, input: FacilityInput) {
         ...data.facilities[index],
         ...parsed,
         photoUrl: photoUrl === undefined ? data.facilities[index].photoUrl ?? null : photoUrl,
+        updatedAt: Date.now(),
       };
       data.facilities[index] = updated;
     });
     const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
     if (clubId) {
       try {
-        await publishRentalOccupancy(clubId);
+        await publishRentalOccupancy(
+          clubId,
+          parsed.photoUrl === null ? { facilityPhotoIds: [id] } : undefined,
+        );
       } catch {
         /* ignore */
       }

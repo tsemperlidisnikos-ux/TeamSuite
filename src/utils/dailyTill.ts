@@ -17,6 +17,8 @@ export type TillMethodRow = {
   label: string;
   collections: number;
   collectionCount: number;
+  linkedIncome: number;
+  otherIncome: number;
   income: number;
 };
 
@@ -31,6 +33,8 @@ export type DailyTill = {
   collectionsTotal: number;
   collectionCount: number;
   incomeTotal: number;
+  linkedIncomeTotal: number;
+  otherIncomeTotal: number;
   incomeCount: number;
   receiptsTotal: number;
   receiptsCount: number;
@@ -75,17 +79,24 @@ export function buildDailyTill(data: AppData, date: string): DailyTill {
       label: methodLabel(key),
       collections: 0,
       collectionCount: 0,
+      linkedIncome: 0,
+      otherIncome: 0,
       income: 0,
     });
   }
 
-  const bump = (key: TillMethodKey, amount: number, kind: 'collections' | 'income') => {
+  const bump = (
+    key: TillMethodKey,
+    amount: number,
+    kind: 'collections' | 'linkedIncome' | 'otherIncome',
+  ) => {
     const row = methods.get(key)!;
     const money = roundMoney(amount);
     if (kind === 'collections') {
       row.collections = roundMoney(row.collections + money);
       row.collectionCount += 1;
     } else {
+      row[kind] = roundMoney(row[kind] + money);
       row.income = roundMoney(row.income + money);
     }
   };
@@ -134,10 +145,15 @@ export function buildDailyTill(data: AppData, date: string): DailyTill {
     (row) => isoDate(row.date) === day && row.paymentStatus !== 'pending',
   );
   let incomeTotal = 0;
+  let linkedIncomeTotal = 0;
+  let otherIncomeTotal = 0;
   for (const row of incomes) {
     const amount = roundMoney(row.amount);
+    const linked = Boolean(row.linkedTransactionId || row.linkedRentalBookingId);
     incomeTotal = roundMoney(incomeTotal + amount);
-    bump(methodKey(row.paymentMethod), amount, 'income');
+    if (linked) linkedIncomeTotal = roundMoney(linkedIncomeTotal + amount);
+    else otherIncomeTotal = roundMoney(otherIncomeTotal + amount);
+    bump(methodKey(row.paymentMethod), amount, linked ? 'linkedIncome' : 'otherIncome');
   }
 
   const issuedRows = normalizeReceiptIssues(data.receiptIssues)
@@ -161,12 +177,14 @@ export function buildDailyTill(data: AppData, date: string): DailyTill {
     collectionsTotal,
     collectionCount,
     incomeTotal,
+    linkedIncomeTotal,
+    otherIncomeTotal,
     incomeCount: incomes.length,
     receiptsTotal,
     receiptsCount: validReceipts.length,
     receiptsVoided: issuedRows.length - validReceipts.length,
     methods: METHOD_ORDER.map((key) => methods.get(key)!).filter(
-      (row) => row.collectionCount > 0 || row.income > 0,
+      (row) => row.collectionCount > 0 || row.linkedIncome > 0 || row.otherIncome > 0,
     ),
     missingReceipts,
     uncollectedToday,

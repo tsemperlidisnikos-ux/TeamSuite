@@ -21,7 +21,11 @@ import {
 import { localDateIso } from '../utils/dates';
 import { dayNames } from '../utils/labels';
 import { listActiveClubSportNames } from '../utils/clubSports';
-import { listActiveFacilities, resolveFacilityForLocation } from '../utils/facilityHours';
+import {
+  listActiveFacilities,
+  normalizeFacilityName,
+  resolveFacilityForLocation,
+} from '../utils/facilityHours';
 import { normalizeSportKey } from '../utils/sport';
 
 const HOUR_START = 8;
@@ -149,8 +153,14 @@ function collectScheduleLanes(
   blocks: GridBlock[],
 ): string[] {
   const active = listActiveFacilities(facilities);
-  const lanes: string[] = active.map((item) => item.name);
-  const known = new Set(lanes.map((name) => name.trim().toLowerCase()));
+  const lanes: string[] = [];
+  const known = new Set<string>();
+  active.forEach((item) => {
+    const key = normalizeFacilityName(item.name);
+    if (!key || known.has(key)) return;
+    known.add(key);
+    lanes.push(item.name);
+  });
   const extras: string[] = [];
   let needsEmpty = false;
   for (const block of blocks) {
@@ -159,10 +169,11 @@ function collectScheduleLanes(
       needsEmpty = true;
       continue;
     }
-    if (known.has(loc.toLowerCase())) continue;
+    const key = normalizeFacilityName(loc);
+    if (known.has(key)) continue;
     const resolved = resolveFacilityForLocation(facilities, loc);
-    if (resolved && known.has(resolved.name.trim().toLowerCase())) continue;
-    if (!extras.some((name) => name.toLowerCase() === loc.toLowerCase())) extras.push(loc);
+    if (resolved && known.has(normalizeFacilityName(resolved.name))) continue;
+    if (!extras.some((name) => normalizeFacilityName(name) === key)) extras.push(loc);
   }
   extras.sort((a, b) => a.localeCompare(b, 'el'));
   lanes.push(...extras);
@@ -180,12 +191,14 @@ function laneIndexForLocation(
     const empty = lanes.indexOf('Χωρίς γήπεδο');
     return empty >= 0 ? empty : 0;
   }
-  const exact = lanes.findIndex((name) => name.toLowerCase() === loc.toLowerCase());
+  const exact = lanes.findIndex(
+    (name) => normalizeFacilityName(name) === normalizeFacilityName(loc),
+  );
   if (exact >= 0) return exact;
   const resolved = resolveFacilityForLocation(facilities, loc);
   if (resolved) {
     const byFacility = lanes.findIndex(
-      (name) => name.toLowerCase() === resolved.name.trim().toLowerCase(),
+      (name) => normalizeFacilityName(name) === normalizeFacilityName(resolved.name),
     );
     if (byFacility >= 0) return byFacility;
   }

@@ -199,6 +199,7 @@ export function FacilityRentalPanel() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [heroRemovalRequested, setHeroRemovalRequested] = useState(false);
   const [booking, setBooking] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -344,15 +345,20 @@ export function FacilityRentalPanel() {
     setError('');
     setMessage('');
     try {
-      const result = await rentalBookingsService.saveRentalSettings({
-        ...draft,
-        photoLook: 'g',
-        rules: facilities.map((facility) => ruleOf(facility)),
-      });
+      const result = await rentalBookingsService.saveRentalSettings(
+        {
+          ...draft,
+          photoLook: 'g',
+          rules: facilities.map((facility) => ruleOf(facility)),
+        },
+        { removeHeroImage: heroRemovalRequested },
+      );
       if (!result.success) {
         setError(result.error ?? 'Αποτυχία αποθήκευσης.');
         return;
       }
+      if (result.data) setDraft(result.data);
+      setHeroRemovalRequested(false);
       setMessage('Οι ρυθμίσεις ενοικίασης αποθηκεύτηκαν.');
       refresh();
     } finally {
@@ -377,6 +383,7 @@ export function FacilityRentalPanel() {
     try {
       const dataUrl = await readCoverFile(file);
       setDraft((prev) => ({ ...prev, heroImageUrl: dataUrl }));
+      setHeroRemovalRequested(false);
       setError('');
       setMessage('Η φωτογραφία δημόσιου link ενημερώθηκε — πατήστε Αποθήκευση διαθεσιμότητας.');
     } catch (err) {
@@ -791,6 +798,7 @@ export function FacilityRentalPanel() {
                 variant="secondary"
                 onClick={() => {
                   setDraft((prev) => ({ ...prev, heroImageUrl: null }));
+                  setHeroRemovalRequested(true);
                   setMessage('Η φωτογραφία αφαιρέθηκε — πατήστε Αποθήκευση διαθεσιμότητας.');
                 }}
               >

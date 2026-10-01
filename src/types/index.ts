@@ -425,6 +425,8 @@ export interface RentalSettings {
   publicEnabled: boolean;
   notes: string;
   rules: FacilityRentalRule[];
+  /** Χρόνος τελευταίας αλλαγής για ασφαλή συγχώνευση μεταξύ συσκευών. */
+  updatedAt?: number;
   /** Κεφαλίδα δημόσιου link ενοικίασης. */
   heroImageUrl?: string | null;
   /** Στυλ καρτών γηπέδου στη δημόσια σελίδα (Cinematic). */

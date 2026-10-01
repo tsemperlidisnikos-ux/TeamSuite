@@ -1,7 +1,7 @@
 import { getUsers, type AppUser } from '../auth/auth';
 import { getClubById, getClubs, isMaskedOrBlankSecret, saveClubs, type Club } from '../auth/clubs';
 import { isQuotaError, stripHeavyMedia } from '../data/mediaStrip';
-import { exportAllClubsData, getData } from '../data/repository';
+import { exportAllClubsData, getClubData, getData } from '../data/repository';
 import { loadStore } from '../data/store';
 import { loadPlatformConfig } from '../platform/platformConfig';
 import type { AppData } from '../types';
@@ -245,10 +245,18 @@ export function collectClubUsersForBackup(
   return collected;
 }
 
+/** Ρητή διατήρηση του μητρώου μελών και των tombstones του σε κάθε club backup. */
+export function prepareClubDataForBackup(data: AppData): AppData {
+  return {
+    ...structuredClone(data),
+    clubMembers: structuredClone(data.clubMembers ?? []),
+    deletedClubMemberIds: [...(data.deletedClubMemberIds ?? [])],
+  };
+}
+
 /** Backup μόνο για έναν σύλλογο (δεδομένα χρήστη/tenant) — χωρίς platformConfig/άλλους. */
 export function buildClubBackupPayload(clubId: string): BackupPayload {
-  const all = exportAllClubsData();
-  const clubData = all[clubId];
+  const clubData = prepareClubDataForBackup(getClubData(clubId));
   const club = getClubs().find((c) => c.id === clubId);
   return redactBackupPayload({
     exportedAt: localDateTimeIso(),

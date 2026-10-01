@@ -629,13 +629,17 @@ function pickNonEmptyMediaUrl(
   return null;
 }
 
-function mergeRentalSettings(
+export function mergeRentalSettings(
   local: AppData['rentalSettings'] | undefined,
   cloud: AppData['rentalSettings'] | undefined,
   preferLocal: boolean,
 ): AppData['rentalSettings'] {
-  const primary = preferLocal ? local : cloud;
-  const secondary = preferLocal ? cloud : local;
+  const localUpdatedAt = Number(local?.updatedAt) || 0;
+  const cloudUpdatedAt = Number(cloud?.updatedAt) || 0;
+  const newestIsLocal =
+    localUpdatedAt === cloudUpdatedAt ? preferLocal : localUpdatedAt > cloudUpdatedAt;
+  const primary = newestIsLocal ? local : cloud;
+  const secondary = newestIsLocal ? cloud : local;
   return {
     ...emptyRentalSettings(),
     ...secondary,

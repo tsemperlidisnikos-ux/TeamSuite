@@ -11,12 +11,14 @@ import { downloadXlsx } from './xlsxDownload';
 export async function downloadClubBackupJson(clubId: string): Promise<{
   filename: string;
   userCount: number;
+  memberCount: number;
 }> {
   await refreshUsersForClubBackup();
   const payload = buildClubBackupPayload(clubId);
   return {
     filename: downloadBackupJson(payload, clubBackupFilenamePrefix(clubId)),
     userCount: payload.users?.length ?? 0,
+    memberCount: payload.appData?.clubMembers?.length ?? 0,
   };
 }
 

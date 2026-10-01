@@ -50,6 +50,7 @@ import * as joinFormSnapshotAdminService from '../api/services/joinFormSnapshotA
 import { optimizeLogoDataUrl } from '../utils/clubLogoFile';
 import {
   createId,
+  getClubData,
   getData,
   mutateData,
   replaceAllClubsData,
@@ -705,9 +706,9 @@ export function PlatformAdminPage() {
       return;
     }
     const club = clubs.find((c) => c.id === restoreClubId);
-    const { userCount } = await downloadClubBackupJson(restoreClubId);
+    const { userCount, memberCount } = await downloadClubBackupJson(restoreClubId);
     flash(
-      `Backup συλλόγου «${club?.name ?? restoreClubId}» κατέβηκε (${userCount} χρήστες, χωρίς κωδικούς).`,
+      `Backup συλλόγου «${club?.name ?? restoreClubId}» κατέβηκε (${memberCount} μέλη μητρώου, ${userCount} χρήστες, χωρίς κωδικούς).`,
     );
   }
 
@@ -793,7 +794,14 @@ export function PlatformAdminPage() {
       }
 
       const expectedStudents = clubData.students?.length ?? 0;
+      const expectedMembers = clubData.clubMembers?.length ?? 0;
       replaceClubData(targetId, clubData);
+      const restoredMembers = getClubData(targetId).clubMembers?.length ?? 0;
+      if (expectedMembers > 0 && restoredMembers !== expectedMembers) {
+        throw new Error(
+          `Η επαναφορά των μελών δεν ολοκληρώθηκε (${restoredMembers}/${expectedMembers}).`,
+        );
+      }
 
       const backupClub =
         parsed.clubs?.find((c) => c.id === targetId) ??
@@ -841,6 +849,7 @@ export function PlatformAdminPage() {
         (createdFromFile ? `Δημιουργήθηκε ο σύλλογος «${clubName}» από το αρχείο. ` : '') +
           `Επαναφορά συλλόγου «${clubName}» OK` +
           (expectedStudents ? ` (${expectedStudents} αθλητές στο αρχείο)` : '') +
+          (expectedMembers ? `, ${expectedMembers} μέλη μητρώου` : '') +
           (incomingUsers.length > 0 ? `, ${incomingUsers.length} χρήστες` : '') +
           '.',
       );

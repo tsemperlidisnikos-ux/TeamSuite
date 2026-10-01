@@ -27,13 +27,16 @@ import {
 import { publishClubOpsSlice } from './clubOpsSyncService';
 import { assertFinanceMonthOpen } from './financePeriodService';
 
-export async function publishRentalOccupancy(clubId: string) {
+export async function publishRentalOccupancy(
+  clubId: string,
+  mediaRemovals?: { facilityPhotoIds?: string[]; heroImage?: boolean },
+) {
   const data = resolveActiveClubId() === clubId ? getData() : getClubData(clubId);
   const occupancy = occupancySliceForPublic(data);
   const response = await fetch('/api/public-rent', {
     method: 'PUT',
     headers: syncAuthHeaders(),
-    body: JSON.stringify({ clubId, occupancy }),
+    body: JSON.stringify({ clubId, occupancy, mediaRemovals }),
   });
   if (response.status === 503) return;
   const json = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };
@@ -68,7 +71,10 @@ async function emailRentalCustomer(clubId: string, booking: RentalBooking, kind:
   }
 }
 
-export async function saveRentalSettings(input: RentalSettings) {
+export async function saveRentalSettings(
+  input: RentalSettings,
+  options?: { removeHeroImage?: boolean },
+) {
   return apiClient(async () => {
     const parsed = rentalSettingsSchema.parse(input);
     const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
@@ -90,6 +96,7 @@ export async function saveRentalSettings(input: RentalSettings) {
       data.rentalSettings = {
         publicEnabled: parsed.publicEnabled,
         notes: parsed.notes ?? '',
+        updatedAt: Date.now(),
         heroImageUrl:
           heroImageUrl === undefined ? data.rentalSettings?.heroImageUrl ?? null : heroImageUrl,
         photoLook: 'g',
@@ -103,7 +110,11 @@ export async function saveRentalSettings(input: RentalSettings) {
         })),
       };
     });
-    if (clubId) await publishRentalOccupancy(clubId);
+    if (clubId) {
+      await publishRentalOccupancy(clubId, {
+        heroImage: Boolean(options?.removeHeroImage),
+      });
+    }
     return getData().rentalSettings ?? emptyRentalSettings();
   });
 }

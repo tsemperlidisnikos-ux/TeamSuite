@@ -24,6 +24,7 @@ import {
   ruleForFacility,
   slotIsFree,
   bookingAmount,
+  canonicalizePublicRentalMedia,
   lockerRoomFeeAmount,
 } from '../src/shared/facilityRentalAvailability.js';
 import type {
@@ -323,6 +324,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = (req.body ?? {}) as {
       clubId?: string;
       occupancy?: RentalOccupancySource;
+      mediaRemovals?: {
+        facilityPhotoIds?: string[];
+        heroImage?: boolean;
+      };
     };
     const clubId = String(body.clubId ?? '').trim();
     if (!clubId) return res.status(400).json({ ok: false, error: 'clubId required' });
@@ -330,11 +335,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const occupancy = body.occupancy && typeof body.occupancy === 'object' ? body.occupancy : null;
     if (!occupancy) return res.status(400).json({ ok: false, error: 'occupancy required' });
     const saved = await saveMirrorWithRetry(clubId, (prev) => {
-      const merged = mergeOpsSliceIntoPayload(prev, occupancy as Record<string, unknown>);
+      const safeOccupancy = canonicalizePublicRentalMedia(prev, occupancy, body.mediaRemovals);
+      const merged = mergeOpsSliceIntoPayload(prev, safeOccupancy as Record<string, unknown>);
       return {
         ...merged,
-        facilities: occupancy.facilities ?? prev.facilities,
-        rentalSettings: occupancy.rentalSettings ?? prev.rentalSettings,
+        facilities: safeOccupancy.facilities ?? prev.facilities,
+        rentalSettings: safeOccupancy.rentalSettings ?? prev.rentalSettings,
       };
     });
     if (saved.ok === false) {

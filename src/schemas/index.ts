@@ -362,6 +362,7 @@ export type RentalBookingInput = z.infer<typeof rentalBookingInputSchema>;
 export const rentalSettingsSchema = z.object({
   publicEnabled: z.boolean().default(false),
   notes: z.string().optional().default(''),
+  updatedAt: z.number().nonnegative().optional(),
   heroImageUrl: z.string().nullable().optional(),
   photoLook: z
     .enum(['g', 'h', 'i'])
