@@ -376,6 +376,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const slug = String(req.query.slug ?? '').trim().toLowerCase();
     if (!slug) return res.status(400).json({ ok: false, error: 'slug required' });
+    res.setHeader(
+      'Cache-Control',
+      'public, max-age=0, s-maxage=15, stale-while-revalidate=30',
+    );
     const club = await resolveBySlug(slug);
     if (!club) {
       return res.status(404).json({ ok: false, error: 'Ο σύνδεσμος δεν βρέθηκε.' });

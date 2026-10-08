@@ -185,16 +185,23 @@ export function CalendarPage() {
     if (!clubId) return;
     const scopedClubId = clubId;
     let cancelled = false;
+    let pulling = false;
     async function pullRentals() {
-      const result = await rentalBookingsService.pullRemoteRentalBookings(scopedClubId);
-      if (!cancelled && result.merged > 0) refresh();
+      if (pulling || document.visibilityState !== 'visible') return;
+      pulling = true;
+      try {
+        const result = await rentalBookingsService.pullRemoteRentalBookings(scopedClubId);
+        if (!cancelled && result.merged > 0) refresh();
+      } finally {
+        pulling = false;
+      }
     }
     void pullRentals();
     const onVisible = () => {
       if (document.visibilityState === 'visible') void pullRentals();
     };
     document.addEventListener('visibilitychange', onVisible);
-    const timer = window.setInterval(() => void pullRentals(), 20_000);
+    const timer = window.setInterval(() => void pullRentals(), 60_000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);

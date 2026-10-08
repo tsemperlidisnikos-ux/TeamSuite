@@ -306,6 +306,43 @@ export async function kvDel(key: string): Promise<void> {
   }
 }
 
+/** Removes dated KV entries such as `${prefix}YYYY-MM-DD:...` older than cutoff. */
+export async function kvDeleteDatedEntriesBefore(
+  keyPrefix: string,
+  cutoffDate: string,
+): Promise<number> {
+  const redis = redisClient();
+  if (redis) {
+    const keys = await redis.keys(`${keyPrefix}*`);
+    const expired = keys.filter((key) => {
+      const date = key.slice(keyPrefix.length).match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+      return Boolean(date && date < cutoffDate);
+    });
+    for (const key of expired) await redis.del(key);
+    return expired.length;
+  }
+
+  if (!isBlobConfigured()) return 0;
+  const safePrefix = keyPrefix
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  const pathnamePrefix = `teamsuite-kv/${safePrefix}`;
+  const auth = blobAuth();
+  const expiredUrls: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await list({ prefix: pathnamePrefix, cursor, limit: 1000, ...auth });
+    for (const blob of page.blobs) {
+      const date = blob.pathname.match(/(\d{4}-\d{2}-\d{2})/)?.[1];
+      if (date && date < cutoffDate) expiredUrls.push(blob.url);
+    }
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  if (expiredUrls.length > 0) await del(expiredUrls, auth);
+  return expiredUrls.length;
+}
+
 export async function kvIncrementWithExpiry(key: string, windowSeconds: number): Promise<number | null> {
   const redis = redisClient();
   if (!redis) return null;

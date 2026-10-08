@@ -1844,6 +1844,11 @@ async function dispatchAccount(req: VercelRequest, res: VercelResponse) {
         error: 'Δεν βρέθηκε cloud account. Ο Platform Admin πρέπει να κάνει Push από Backup.',
       });
     }
+    const since = String(req.query.since ?? '').trim();
+    if (since && since === bundle.updatedAt) {
+      res.setHeader('Cache-Control', 'private, no-store');
+      return res.status(304).end();
+    }
     const auth = getSyncAuthContext(req);
     // Tenant JWT: scoped users/clubs without password hashes or payment secrets.
     // platform_admin JWT or server-side sync secret: full bundle for admin restore.

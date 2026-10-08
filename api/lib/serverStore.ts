@@ -3,6 +3,7 @@ import {
   durableKvBackend,
   isDurableKvEnabled,
   kvDel,
+  kvDeleteDatedEntriesBefore,
   kvExists,
   kvGet,
   kvIncrementWithExpiry,
@@ -208,6 +209,7 @@ const PUBLIC_CLUB_PREFIX = 'ss360:public-club:';
 const NOTIFY_PREFIX = 'ss360:notify:';
 const PENDING_APPS_PREFIX = 'ss360:pending-apps:';
 const SNAPSHOT_PREFIX = 'ss360:backup-snap:';
+const SNAPSHOT_RETENTION_DAYS = 30;
 const UNDO_SNAPSHOT_PREFIX = 'ss360:undo-snap:';
 const UNDO_SNAPSHOT_MAX_PER_CLUB = 30;
 const ACCOUNT_BUNDLE_KEY = 'ss360:account-bundle';
@@ -1026,6 +1028,7 @@ export async function snapshotAllMirrors(): Promise<{
   dateKey: string;
   clubs: string[];
   durable: boolean;
+  deletedSnapshots: number;
 }> {
   const dateKey = new Date().toISOString().slice(0, 10);
   const keys = await listMirrorKeys();
@@ -1060,7 +1063,22 @@ export async function snapshotAllMirrors(): Promise<{
     });
   }
 
-  return { dateKey, clubs, durable };
+  const cutoff = new Date(Date.now() - SNAPSHOT_RETENTION_DAYS * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  let deletedSnapshots = 0;
+  if (durable) {
+    deletedSnapshots = await kvDeleteDatedEntriesBefore(SNAPSHOT_PREFIX, cutoff);
+  } else {
+    for (const key of Object.keys(memory().mirrors)) {
+      const date = key.match(/__snap__(\d{4}-\d{2}-\d{2})$/)?.[1];
+      if (!date || date >= cutoff) continue;
+      delete memory().mirrors[key];
+      deletedSnapshots += 1;
+    }
+  }
+
+  return { dateKey, clubs, durable, deletedSnapshots };
 }
 
 /** Immutable point-in-time mirror captured immediately before a Platform Admin undo. */

@@ -25,6 +25,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!(await assertClubTenantAccess(req, res, clubId))) return;
     const mirror = await loadMirror(clubId);
     if (!mirror) return res.status(404).json({ ok: false, error: 'No mirror for club' });
+    const since = String(req.query.since ?? '').trim();
+    if (since && since === mirror.updatedAt) {
+      res.setHeader('Cache-Control', 'private, no-store');
+      return res.status(304).end();
+    }
     return res.status(200).json({
       ok: true,
       durable: isDurableStoreEnabled(),

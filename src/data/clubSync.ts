@@ -114,7 +114,7 @@ function rememberWriteConflict(clubId: string, local: AppData, cloud: AppData): 
 type AutoSyncMap = Record<string, boolean>;
 type LastSyncMap = Record<string, string>;
 
-let pushTimer: ReturnType<typeof setTimeout> | null = null;
+const pushTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 let pulling = false;
 let lastPullAttemptAt = 0;
 let pushQueue: Promise<unknown> = Promise.resolve();
@@ -275,17 +275,18 @@ function clearClubMirrorDirty(clubId: string): void {
   emitClubSyncStatus();
 }
 
-const LIVE_PUSH_MS = 1_200;
+const LIVE_PUSH_MS = 15_000;
 
-/** Κάθε αποθήκευση συλλόγου: άμεσο μικρό club-ops, πλήρες mirror λίγο μετά (χωρίς να παγώνει το κουμπί). */
+/** Άμεσο μικρό club-ops και ομαδοποιημένο πλήρες mirror 15s μετά. */
 export function scheduleClubMirrorPush(clubId?: string | null): void {
   const id = clubId ?? resolveActiveClubId();
   if (!id || id === '_default' || !isAutoSyncEnabled(id)) return;
   markClubMirrorDirty(id);
   void import('../api/services/clubOpsSyncService').then((m) => m.publishClubOpsSlice(id));
 
-  if (pushTimer) clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => {
+  if (pushTimers[id]) clearTimeout(pushTimers[id]);
+  pushTimers[id] = setTimeout(() => {
+    delete pushTimers[id];
     void flushClubMirrorPush(id);
   }, LIVE_PUSH_MS);
 }
@@ -319,9 +320,9 @@ export async function flushClubMirrorPush(
     return { success: true as const, data: null, error: null };
   }
 
-  if (pushTimer) {
-    clearTimeout(pushTimer);
-    pushTimer = null;
+  if (pushTimers[id]) {
+    clearTimeout(pushTimers[id]);
+    delete pushTimers[id];
   }
 
   const run = async () => {
@@ -733,7 +734,13 @@ export async function reconcileClubRoster(clubId?: string | null) {
     return { success: true as const, pulled: false, uploaded: 0, error: null };
   }
 
-  const result = await backendSyncService.pullClubMirror(id);
+  const dirty = isClubMirrorDirty(id);
+  const result = await backendSyncService.pullClubMirror(id, {
+    since: dirty ? null : getLastSyncAt(id),
+  });
+  if (result.success && result.data?.notModified) {
+    return { success: true as const, pulled: false, uploaded: 0, error: null };
+  }
   if (!result.success || !result.data?.payload) {
     const msg = result.error ?? '';
     if (isMissingMirrorError(msg)) {
@@ -757,7 +764,6 @@ export async function reconcileClubRoster(clubId?: string | null) {
     cloudHasMissingLocalStudents(local, cloud) ||
     (cloud.students?.length ?? 0) > (local.students?.length ?? 0) ||
     activeStudentCount(cloud) > activeStudentCount(local);
-  const dirty = isClubMirrorDirty(id);
   const cloudAt = result.data.updatedAt ?? new Date().toISOString();
   const mergedLive = mergeClubSnapshots(local, cloud, {
     preferLocal: dirty,

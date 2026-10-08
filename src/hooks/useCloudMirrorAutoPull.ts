@@ -2,24 +2,31 @@ import { useEffect } from 'react';
 import { pullAccountBundleIfNewer, scheduleAccountBundlePush } from '../api/services/accountSyncService';
 import { pullClubMirrorIfNewer } from '../data/clubSync';
 
-const POLL_INTERVAL_MS = 1_000;
+const POLL_INTERVAL_MS = 60_000;
 const INITIAL_DELAY_MS = 250;
 
 /**
  * Live cloud sync while the app is open:
  * - club AppData (αθλητές, σωματεία, οικονομικές εγγραφές)
  * - account bundle (κατηγορίες εσόδων/εξόδων, users, clubs)
- * Polls every ~1s and on tab focus. Skips DEMO.
+ * Polls every 60s and immediately on tab focus. Local edits still push immediately.
+ * Skips DEMO.
  */
 export function useCloudMirrorAutoPull(clubId: string | null | undefined) {
   useEffect(() => {
     let cancelled = false;
+    let pullInFlight = false;
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
     async function runPull() {
-      if (cancelled || document.visibilityState !== 'visible') return;
-      await pullAccountBundleIfNewer();
-      if (clubId) await pullClubMirrorIfNewer(clubId);
+      if (cancelled || pullInFlight || document.visibilityState !== 'visible') return;
+      pullInFlight = true;
+      try {
+        await pullAccountBundleIfNewer();
+        if (clubId) await pullClubMirrorIfNewer(clubId);
+      } finally {
+        pullInFlight = false;
+      }
     }
 
     function onVisibility() {

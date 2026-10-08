@@ -22,6 +22,7 @@ export type AccountBundlePayload = {
   } | null;
   updatedAt?: string | null;
   durable?: boolean;
+  notModified?: boolean;
 };
 
 function syncErrorMessage(json: { error?: string }, fallback: string) {
@@ -127,11 +128,24 @@ export async function removeCloudUser(userId: string) {
   });
 }
 
-export async function pullAccountBundle() {
+export async function pullAccountBundle(opts?: { since?: string | null }) {
   return apiClient(async () => {
-    const response = await fetch('/api/sync/account', {
+    const params = new URLSearchParams();
+    if (opts?.since) params.set('since', opts.since);
+    const response = await fetch(`/api/sync/account${params.size ? `?${params.toString()}` : ''}`, {
       headers: syncAuthHeaders(false),
     });
+    if (response.status === 304) {
+      return {
+        users: [],
+        clubs: [],
+        platformConfig: null,
+        platformBranding: null,
+        updatedAt: opts?.since ?? null,
+        durable: true,
+        notModified: true as const,
+      } satisfies AccountBundlePayload;
+    }
     const json = await parseSyncJson<{
       ok?: boolean;
       error?: string;
@@ -158,6 +172,7 @@ export async function pullAccountBundle() {
       platformBranding: json.platformBranding ?? null,
       updatedAt: json.updatedAt ?? null,
       durable: json.durable !== false,
+      notModified: false as const,
     } satisfies AccountBundlePayload;
   });
 }
@@ -304,7 +319,10 @@ export async function pullAccountBundleIfNewer() {
     await flushAccountBundlePush();
   }
 
-  const result = await pullAccountBundle();
+  const result = await pullAccountBundle({ since: readAccountUpdatedAt() });
+  if (result.success && result.data?.notModified) {
+    return { success: true as const, pulled: false, error: null };
+  }
   if (!result.success || !result.data || result.data.durable === false) {
     return {
       success: result.success,

@@ -1,4 +1,4 @@
-import { apiClient } from '../apiClient';
+import { apiClient, type ApiResult } from '../apiClient';
 import { syncAuthHeaders } from '../syncAuth';
 import { getClubData } from '../../data/repository';
 import { stripHeavyMedia } from '../../data/mediaStrip';
@@ -74,11 +74,40 @@ export async function pushClubMirror(
   });
 }
 
-export async function pullClubMirror(clubId: string) {
-  return apiClient(async () => {
-    const response = await fetch(`/api/sync/mirror?clubId=${encodeURIComponent(clubId)}`, {
+type LoadedClubMirror = {
+  updatedAt: string | null;
+  durable: boolean;
+  payload: AppData;
+  notModified: false;
+};
+
+type UnchangedClubMirror = {
+  updatedAt: string | null;
+  durable: true;
+  payload: null;
+  notModified: true;
+};
+
+export function pullClubMirror(clubId: string): Promise<ApiResult<LoadedClubMirror>>;
+export function pullClubMirror(
+  clubId: string,
+  opts: { since?: string | null },
+): Promise<ApiResult<LoadedClubMirror | UnchangedClubMirror>>;
+export function pullClubMirror(clubId: string, opts?: { since?: string | null }) {
+  return apiClient<LoadedClubMirror | UnchangedClubMirror>(async () => {
+    const params = new URLSearchParams({ clubId });
+    if (opts?.since) params.set('since', opts.since);
+    const response = await fetch(`/api/sync/mirror?${params.toString()}`, {
       headers: syncAuthHeaders(false),
     });
+    if (response.status === 304) {
+      return {
+        updatedAt: opts?.since ?? null,
+        durable: true,
+        payload: null,
+        notModified: true as const,
+      };
+    }
     const json = (await response.json()) as {
       ok?: boolean;
       error?: string;
@@ -109,6 +138,7 @@ export async function pullClubMirror(clubId: string) {
       updatedAt: json.updatedAt ?? null,
       durable: json.durable !== false,
       payload,
+      notModified: false as const,
     };
   });
 }
