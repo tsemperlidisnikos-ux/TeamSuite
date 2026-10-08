@@ -372,8 +372,10 @@ export type PlatformConfig = {
   registryKinds: string[];
   seasons: string[];
   appLogoUrl?: string | null;
-  /** Λογότυπο εφαρμογής (κεφαλίδα SS) ανά σύλλογο. Override του appLogoUrl. */
+  /** Λογότυπο εφαρμογής (εικονίδιο κεφαλίδας) ανά σύλλογο. Override του appLogoUrl. */
   clubAppLogos?: Record<string, string>;
+  /** Όνομα πριν το «Suite» στην κεφαλίδα, ανά σύλλογο. */
+  clubHeaderTitles?: Record<string, string>;
   /**
    * PDF κάρτας υγείας ανά άθλημα (κλειδί = κανονικό όνομα καταλόγου).
    * Κενό pdfUrl = ενσωματωμένο πρότυπο (μπάσκετ / βόλεϊ ανά layout).
@@ -514,6 +516,17 @@ function sanitizeClubAppLogos(value: unknown): Record<string, string> {
   return out;
 }
 
+function sanitizeClubHeaderTitles(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const out: Record<string, string> = {};
+  for (const [id, title] of Object.entries(value as Record<string, unknown>)) {
+    const key = String(id ?? '').trim();
+    const label = typeof title === 'string' ? title.trim() : '';
+    if (key && label) out[key] = label;
+  }
+  return out;
+}
+
 export function defaultPlatformConfig(): PlatformConfig {
   const seed = getFinanceCatalogSeed();
   return {
@@ -529,6 +542,7 @@ export function defaultPlatformConfig(): PlatformConfig {
     seasons: ['2025–2026', '2026–2027'],
     appLogoUrl: null,
     clubAppLogos: {},
+    clubHeaderTitles: {},
     healthCardTemplatesBySport: {},
     appName: 'TeamSuite',
     appearanceTheme: 'ocean-slate',
@@ -684,6 +698,7 @@ export function loadPlatformConfig(): PlatformConfig {
           ),
           appLogoUrl: parsed.appLogoUrl ?? base.appLogoUrl,
           clubAppLogos: sanitizeClubAppLogos(parsed.clubAppLogos),
+          clubHeaderTitles: sanitizeClubHeaderTitles(parsed.clubHeaderTitles),
           healthCardTemplatesBySport: sanitizeHealthCardTemplatesBySport(
             parsed.healthCardTemplatesBySport,
           ),
@@ -730,6 +745,7 @@ export function loadPlatformConfig(): PlatformConfig {
       appearanceTheme: sanitizeAppearanceTheme(parsed.appearanceTheme),
       appearanceThemeByClub: sanitizeAppearanceThemesByClub(parsed.appearanceThemeByClub),
       clubAppLogos: sanitizeClubAppLogos(parsed.clubAppLogos),
+      clubHeaderTitles: sanitizeClubHeaderTitles(parsed.clubHeaderTitles),
       healthCardTemplatesBySport: sanitizeHealthCardTemplatesBySport(
         parsed.healthCardTemplatesBySport,
       ),
@@ -822,6 +838,24 @@ export function updateClubAppLogo(clubId: string, logoUrl: string | null): Platf
   if (!logoUrl?.trim()) delete clubAppLogos[clubId];
   else clubAppLogos[clubId] = logoUrl.trim();
   const next = { ...current, clubAppLogos };
+  savePlatformConfig(next);
+  return next;
+}
+
+/** Προσαρμοσμένο όνομα κεφαλίδας ανά σύλλογο (πριν το «Suite»). */
+export function getClubHeaderTitle(clubId?: string | null): string | null {
+  if (!clubId) return null;
+  const title = (loadPlatformConfig().clubHeaderTitles?.[clubId] ?? '').trim();
+  return title || null;
+}
+
+export function updateClubHeaderTitle(clubId: string, title: string | null): PlatformConfig {
+  const current = loadPlatformConfig();
+  const clubHeaderTitles = { ...(current.clubHeaderTitles ?? {}) };
+  const trimmed = (title ?? '').trim();
+  if (!trimmed) delete clubHeaderTitles[clubId];
+  else clubHeaderTitles[clubId] = trimmed;
+  const next = { ...current, clubHeaderTitles };
   savePlatformConfig(next);
   return next;
 }

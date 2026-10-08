@@ -271,7 +271,7 @@ const ACADEMY_DRILL: AdminDrillCategory[] = [
     icon: Monitor,
     items: [
       { id: 'preview', label: 'Preview συλλόγου', icon: Monitor },
-      { id: 'clubLogo', label: 'Λογότυπο ανά σύλλογο', icon: Image },
+      { id: 'clubLogo', label: 'Κεφαλίδα ανά σύλλογο', icon: Image },
       { id: 'associations', label: 'Ομάδες σωματείου', icon: Landmark },
     ],
   },
@@ -445,6 +445,7 @@ export function PlatformAdminPage() {
   const [catalogClubId, setCatalogClubId] = useState(() => getClubs()[0]?.id ?? '');
   useCloudMirrorAutoPull(catalogClubId || clubs[0]?.id || null);
   const clubLogoFileRef = useRef<HTMLInputElement>(null);
+  const [clubHeaderTitleDraft, setClubHeaderTitleDraft] = useState('');
   const [clubRole, setClubRole] = useState<ClubRole>('admin');
   const [message, setMessage] = useState('');
   const [newIncomeCategory, setNewIncomeCategory] = useState('');
@@ -498,6 +499,14 @@ export function PlatformAdminPage() {
       setRestoreClubId(clubs[0]?.id ?? RESTORE_CLUB_FROM_FILE);
     }
   }, [clubs, restoreClubId]);
+
+  useEffect(() => {
+    if (!catalogClubId) {
+      setClubHeaderTitleDraft('');
+      return;
+    }
+    setClubHeaderTitleDraft((config.clubHeaderTitles?.[catalogClubId] ?? '').trim());
+  }, [catalogClubId, config.clubHeaderTitles]);
 
   const selectedClub: Club | undefined = clubs.find((c) => c.id === catalogClubId);
   const previewClubId = getPreviewClubId();
@@ -1962,43 +1971,85 @@ export function PlatformAdminPage() {
           <AdminRow
             drillId="clubLogo"
             activeDrill={academyItem}
-            title="Λογότυπο εφαρμογής ανά σύλλογο"
-            description="Διαφορετικό εικονίδιο SS στην κεφαλίδα για κάθε σύλλογο. Το λογότυπο συλλόγου (αποδείξεις, Ρυθμίσεις) ορίζεται χωριστά από τον σύλλογο."
+            title="Κεφαλίδα ανά σύλλογο"
+            description="Όνομα στην κεφαλίδα (πριν το Suite) και προαιρετικό λογότυπο εφαρμογής. Ορίζονται μόνο από Platform Admin. Αν μείνει κενό το όνομα, χρησιμοποιείται το όνομα συλλόγου."
             entry={
               <div className="entry-form admin-entry">
-                <input
-                  ref={clubLogoFileRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
-                  hidden
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                    const file = event.target.files?.[0];
-                    event.target.value = '';
-                    if (!file || !catalogClubId) return;
-                    void (async () => {
-                      try {
-                        flash('Ανέβασμα λογότυπου εφαρμογής στο cloud…');
-                        const dataUrl = await optimizeLogoDataUrl(file);
-                        const { publishClubAppLogo } = await import(
+                <label className="field">
+                  <span>Όνομα στην κεφαλίδα</span>
+                  <input
+                    value={clubHeaderTitleDraft}
+                    onChange={(e) => setClubHeaderTitleDraft(e.target.value)}
+                    placeholder="π.χ. Apollon Patras"
+                    disabled={!catalogClubId}
+                  />
+                </label>
+                <div className="admin-entry-actions">
+                  <Button
+                    type="button"
+                    disabled={!catalogClubId}
+                    onClick={() => {
+                      if (!catalogClubId) return;
+                      void (async () => {
+                        const { publishClubHeaderTitle } = await import(
                           '../api/services/platformBrandingService'
                         );
-                        const result = await publishClubAppLogo(catalogClubId, dataUrl);
+                        const result = await publishClubHeaderTitle(
+                          catalogClubId,
+                          clubHeaderTitleDraft.trim() || null,
+                        );
                         if (!result.success || !result.data) {
-                          flash(result.error ?? 'Αποτυχία αποθήκευσης λογότυπου εφαρμογής.');
+                          flash(result.error ?? 'Αποτυχία αποθήκευσης ονόματος.');
                           return;
                         }
                         setConfig(result.data);
-                        flash('Το λογότυπο εφαρμογής αποθηκεύτηκε για τον επιλεγμένο σύλλογο.');
-                      } catch (err) {
-                        flash(
-                          err instanceof Error
-                            ? err.message
-                            : 'Αποτυχία αποθήκευσης λογότυπου εφαρμογής.',
-                        );
+                        flash('Το όνομα κεφαλίδας αποθηκεύτηκε.');
+                      })();
+                    }}
+                  >
+                    Αποθήκευση ονόματος
+                  </Button>
+                </div>
+                <label className="field">
+                  <span>Αρχείο λογότυπου εφαρμογής</span>
+                  <input
+                    ref={clubLogoFileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                    disabled={!catalogClubId}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = '';
+                      if (!file) return;
+                      if (!catalogClubId) {
+                        flash('Επιλέξτε πρώτα σύλλογο.');
+                        return;
                       }
-                    })();
-                  }}
-                />
+                      void (async () => {
+                        try {
+                          flash('Ανέβασμα λογότυπου εφαρμογής στο cloud…');
+                          const dataUrl = await optimizeLogoDataUrl(file);
+                          const { publishClubAppLogo } = await import(
+                            '../api/services/platformBrandingService'
+                          );
+                          const result = await publishClubAppLogo(catalogClubId, dataUrl);
+                          if (!result.success || !result.data) {
+                            flash(result.error ?? 'Αποτυχία αποθήκευσης λογότυπου.');
+                            return;
+                          }
+                          setConfig(result.data);
+                          flash('Το λογότυπο εφαρμογής αποθηκεύτηκε για τον επιλεγμένο σύλλογο.');
+                        } catch (err) {
+                          flash(
+                            err instanceof Error
+                              ? err.message
+                              : 'Αποτυχία αποθήκευσης λογότυπου.',
+                          );
+                        }
+                      })();
+                    }}
+                  />
+                </label>
                 <label className="field">
                   <span>Σύλλογος</span>
                   <select
@@ -2014,13 +2065,6 @@ export function PlatformAdminPage() {
                   </select>
                 </label>
                 <div className="admin-entry-actions">
-                  <Button
-                    type="button"
-                    disabled={!catalogClubId}
-                    onClick={() => clubLogoFileRef.current?.click()}
-                  >
-                    Ανέβασμα λογότυπου εφαρμογής
-                  </Button>
                   <Button
                     type="button"
                     variant="secondary"
@@ -2049,14 +2093,11 @@ export function PlatformAdminPage() {
             records={
               <RecordsTable>
                 {clubs.map((club) => {
-                  const perClub = (config.clubAppLogos?.[club.id] ?? '').trim();
+                  const customTitle = (config.clubHeaderTitles?.[club.id] ?? '').trim();
+                  const title = customTitle || club.name;
                   return (
                     <RecordsRow key={club.id} title={club.name}>
-                      {perClub ? (
-                        <img className="admin-club-logo-thumb" src={perClub} alt="" />
-                      ) : (
-                        'Καθολικό logo εφαρμογής / SS'
-                      )}
+                      {title} Suite
                     </RecordsRow>
                   );
                 })}

@@ -825,8 +825,8 @@ html[data-appearance='graphite-ember'] .platform-admin-page .btn-red {
 }
 
 html[data-appearance='graphite-ember'] .preview-banner {
-  background: #140c08;
-  color: #f4f7fb;
+  background: var(--chrome-1);
+  color: var(--chrome-fg);
   border-bottom: 1px solid rgba(232, 93, 44, 0.35);
 }
 
@@ -2937,8 +2937,8 @@ html[data-appearance='graphite-ember'] .settings-hint {
 
 html[data-appearance='graphite-ember'] .admin-board-header,
 html[data-appearance='graphite-ember'] .preview-banner {
-  background: #16181c;
-  color: #f4eee8;
+  background: var(--chrome-1);
+  color: var(--chrome-fg);
 }
 
 html[data-appearance='graphite-ember'] .admin-board {

@@ -549,8 +549,9 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.65rem 1rem;
-  background: #17362e;
-  color: #e9f7f0;
+  background: var(--chrome-1);
+  color: var(--chrome-fg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .preview-banner strong {
@@ -558,7 +559,7 @@
 }
 
 .preview-banner span {
-  opacity: 0.8;
+  color: var(--chrome-muted);
   font-size: 0.85rem;
 }
 

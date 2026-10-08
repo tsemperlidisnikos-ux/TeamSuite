@@ -3,6 +3,7 @@ import {
   loadPlatformConfig,
   updateAppLogo,
   updateClubAppLogo,
+  updateClubHeaderTitle,
   type PlatformConfig,
 } from '../../platform/platformConfig';
 import { pushAccountBundle } from './accountSyncService';
@@ -98,6 +99,28 @@ export async function publishClubAppLogo(
       throw new Error(
         pushed.error ??
           'Το logo αποθηκεύτηκε τοπικά, αλλά όχι στο cloud. Κάντε Push από Backup.',
+      );
+    }
+    return config;
+  });
+}
+
+/**
+ * Όνομα κεφαλίδας (πριν το «Suite») για έναν σύλλογο.
+ */
+export async function publishClubHeaderTitle(
+  clubId: string,
+  title: string | null,
+): Promise<ApiResult<PlatformConfig>> {
+  return apiClient(async () => {
+    const id = clubId.trim();
+    if (!id) throw new Error('Απαιτείται σύλλογος.');
+    const config = updateClubHeaderTitle(id, title);
+    const pushed = await pushAccountBundle();
+    if (!pushed.success) {
+      throw new Error(
+        pushed.error ??
+          'Το όνομα αποθηκεύτηκε τοπικά, αλλά όχι στο cloud. Κάντε Push από Backup.',
       );
     }
     return config;

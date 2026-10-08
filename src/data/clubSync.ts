@@ -275,19 +275,28 @@ function clearClubMirrorDirty(clubId: string): void {
   emitClubSyncStatus();
 }
 
-const LIVE_PUSH_MS = 15_000;
+/**
+ * Ισορροπία: γρήγορο sync χωρίς υπερβολικά Vercel writes.
+ * - ops slice: άμεσα (ελαφρύ)
+ * - πλήρες mirror: κάθε ~4s μετά την τελευταία αλλαγή
+ */
+const LIVE_PUSH_MS = 4_000;
 
-/** Άμεσο μικρό club-ops και ομαδοποιημένο πλήρες mirror 15s μετά. */
+/**
+ * Τοπικό cache για UI· ανθεκτική αποθήκευση στον server με σύντομο coalesce.
+ */
 export function scheduleClubMirrorPush(clubId?: string | null): void {
   const id = clubId ?? resolveActiveClubId();
-  if (!id || id === '_default' || !isAutoSyncEnabled(id)) return;
+  if (!id || id === '_default') return;
+  if (!isAutoSyncEnabled(id)) setAutoSyncEnabled(id, true);
   markClubMirrorDirty(id);
+  // Ελαφρύ live patch αμέσως (οικονομικά / πρόγραμμα / αποδείξεις κ.λπ.).
   void import('../api/services/clubOpsSyncService').then((m) => m.publishClubOpsSlice(id));
 
   if (pushTimers[id]) clearTimeout(pushTimers[id]);
   pushTimers[id] = setTimeout(() => {
     delete pushTimers[id];
-    void flushClubMirrorPush(id);
+    void flushClubMirrorPush(id, { force: true });
   }, LIVE_PUSH_MS);
 }
 

@@ -443,6 +443,7 @@ export function mutateData(updater: (data: AppData) => void): AppData {
   cache = data;
   cacheClubId = resolveActiveClubId();
   stampLocalWrite(data);
+  // Τοπικό cache για UI· άμεσα schedule push στον server (βλ. scheduleClubMirrorPush).
   saveStore(data);
   notifyAppDataChanged();
   scheduleClubMirrorPush(cacheClubId);

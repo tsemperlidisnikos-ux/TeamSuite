@@ -29,9 +29,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
-  type ChangeEvent,
   type ComponentType,
   type SVGProps,
 } from 'react';
@@ -39,18 +37,20 @@ import { getSession, getUserById, isPlatformAdmin, logout, roleLabels } from '..
 import { getClubById, ensureSessionClub } from '../../auth/clubs';
 import { AthletesIcon } from '../icons/AthletesIcon';
 import { TrainingsIcon } from '../icons/TrainingsIcon';
+import headerBrandIcon from '../../assets/header-brand-icon.png';
 import {
   ACADEMY_MODULES,
   applyAppearanceThemeForClub,
   endPreview,
   getAcademyModulesForClub,
-  getAppLogoUrlForClub,
   getAppName,
+  getClubHeaderTitle,
   getPreviewClubId,
   userCanAccessModule,
   type AcademyModuleId,
 } from '../../platform/platformConfig';
 import { useAppData } from '../../hooks/useAppData';
+
 import { useCloudMirrorAutoPull } from '../../hooks/useCloudMirrorAutoPull';
 import { useT } from '../../i18n/LocaleContext';
 import { downloadClubBackupJsonAndAthletesXlsx } from '../../utils/clubQuickExport';
@@ -63,9 +63,6 @@ import {
   resolveClubWriteConflict,
 } from '../../data/clubSync';
 import * as publicClubCloudService from '../../api/services/publicClubCloudService';
-import { publishAppLogo, publishClubAppLogo } from '../../api/services/platformBrandingService';
-import { optimizeLogoDataUrl } from '../../utils/clubLogoFile';
-
 type NavIcon = LucideIcon | ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;
 
 const academyItems: Array<{
@@ -118,7 +115,6 @@ export function AppLayout() {
   const [open, setOpen] = useState(false);
   const [clubTick, setClubTick] = useState(0);
   const [platformTick, setPlatformTick] = useState(0);
-  const [logoError, setLogoError] = useState('');
   const navigate = useNavigate();
   const session = getSession();
   const previewClubId = getPreviewClubId();
@@ -129,9 +125,15 @@ export function AppLayout() {
   }, [clubId, clubTick, previewClubId, session]);
   const appName = getAppName();
   const clubLogoUrl = club?.logoUrl?.trim() || '';
-  const appLogoUrl = useMemo(() => getAppLogoUrlForClub(clubId), [platformTick, clubId]);
-  const appLogoInputRef = useRef<HTMLInputElement>(null);
-  const canUploadAppLogo = isPlatformAdmin();
+  /** Εικονίδιο πριν το όνομα — σταθερό brand icon. */
+  const headerIconSrc = headerBrandIcon;
+  const headerClubName = useMemo(() => {
+    const custom = getClubHeaderTitle(clubId);
+    if (custom) return custom;
+    const fromClub = club?.name?.trim();
+    if (fromClub) return fromClub;
+    return appName.replace(/\s*Suite$/i, '').trim() || 'TeamSuite';
+  }, [appName, club?.name, clubId, platformTick]);
 
   const [usersTick, setUsersTick] = useState(0);
   const { data: appData } = useAppData();
@@ -273,26 +275,6 @@ export function AppLayout() {
     );
   }
 
-  async function handleAppLogoChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file || !canUploadAppLogo) return;
-    setLogoError('');
-    try {
-      const dataUrl = await optimizeLogoDataUrl(file);
-      const result = clubId
-        ? await publishClubAppLogo(clubId, dataUrl)
-        : await publishAppLogo(dataUrl);
-      if (!result.success) {
-        setLogoError(result.error ?? 'Αποτυχία αποθήκευσης logo εφαρμογής.');
-        return;
-      }
-      setPlatformTick((n) => n + 1);
-    } catch (err) {
-      setLogoError(err instanceof Error ? err.message : 'Αποτυχία αποθήκευσης logo εφαρμογής.');
-    }
-  }
-
   const canQuickClubExport =
     Boolean(clubId) &&
     (session?.role === 'admin' ||
@@ -336,51 +318,23 @@ export function AppLayout() {
           >
             <Menu size={18} />
           </button>
-
-          <input
-            ref={appLogoInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
-            hidden
-            onChange={(e) => void handleAppLogoChange(e)}
-          />
-          <button
-            type="button"
-            className={`app-logo-btn ${appLogoUrl ? 'app-logo-btn--full' : ''} ${canUploadAppLogo ? 'is-editable' : ''}`}
-            onClick={() => {
-              if (canUploadAppLogo) appLogoInputRef.current?.click();
-            }}
-            aria-label={
-              canUploadAppLogo
-                ? clubId
-                  ? t('Αλλαγή λογότυπου εφαρμογής για αυτόν τον σύλλογο')
-                  : t('Αλλαγή λογότυπου εφαρμογής')
-                : appName
-            }
-            title={
-              canUploadAppLogo
-                ? clubId
-                  ? t('Platform Admin: λογότυπο εφαρμογής μόνο για αυτόν τον σύλλογο')
-                  : t('Platform Admin: καθολικό λογότυπο εφαρμογής')
-                : appName
-            }
-          >
-            {appLogoUrl ? (
-              <img src={appLogoUrl} alt={appName} />
-            ) : (
-              <span className="brand-mark">SS</span>
-            )}
-          </button>
-          {session?.role === 'athlete' || session?.role === 'coach' || logoError ? (
+          {session?.role === 'athlete' || session?.role === 'coach' ? (
             <div>
               {session?.role === 'athlete' ? (
                 <span className="app-header-portal">ATHLETE PORTAL</span>
-              ) : session?.role === 'coach' ? (
+              ) : (
                 <span className="app-header-portal">COACH PORTAL</span>
-              ) : null}
-              {logoError ? <em className="app-logo-error">{logoError}</em> : null}
+              )}
             </div>
           ) : null}
+        </div>
+
+        <div className="app-header-title" aria-label={`${headerClubName} Suite`}>
+          <span className="app-header-title-icon" aria-hidden>
+            <img src={headerIconSrc} alt="" />
+          </span>
+          <span className="app-header-title-name">{headerClubName}</span>
+          <span className="app-header-title-suite">Suite</span>
         </div>
 
         {headerGreeting ? <p className="app-header-greeting">{t(headerGreeting)}</p> : null}
@@ -452,14 +406,6 @@ export function AppLayout() {
           ) : null}
 
           <nav className="side-nav">
-            <p className="nav-section">
-              {session?.role === 'athlete' ||
-              session?.role === 'coach' ||
-              session?.role === 'parent' ||
-              session?.role === 'doctor'
-                ? t('Μενού')
-                : t('Ακαδημία')}
-            </p>
             {visibleAcademy.map((item) => (
               <NavLink
                 key={item.to}
@@ -482,7 +428,6 @@ export function AppLayout() {
                 ) : null}
               </NavLink>
             ))}
-            {visibleProvisions.length > 0 ? <p className="nav-section">{t('Παροχές')}</p> : null}
             {visibleProvisions.map((item) => (
               <NavLink
                 key={item.to}

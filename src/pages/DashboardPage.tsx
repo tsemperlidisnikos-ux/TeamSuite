@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, HeartPulse, Layers, Banknote, Percent, UserCog, AlertTriangle, Receipt } from 'lucide-react';
+import { ClipboardList, HeartPulse, Layers, Banknote, AlertTriangle } from 'lucide-react';
 import { getSession } from '../auth/auth';
 import { AthletesIcon } from '../components/icons/AthletesIcon';
 import { Button } from '../components/ui/Button';
@@ -8,8 +8,10 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { getAccountBalances } from '../api/services/cashAccountsService';
 import { clubOutstandingOwed } from '../api/services/feeChargesService';
+import { getClubById } from '../auth/clubs';
+import { getPreviewClubId } from '../platform/platformConfig';
 import { useAppData } from '../hooks/useAppData';
-import type { Coach, Student } from '../types';
+import type { Student } from '../types';
 import { formatAmkaForViewer } from '../utils/amkaAccess';
 import { guardianDisplayName } from '../utils/greekSurname';
 import { localDateIso } from '../utils/dates';
@@ -17,7 +19,6 @@ import { openAthleteHealthCardPreview } from '../utils/healthCardPreview';
 import { formatCurrency, studentStatusLabels } from '../utils/labels';
 import { athleteHealthCardValid, isClassListedActive } from '../utils/classHelpers';
 import { getActiveSeason, seasonDisplayName } from '../utils/clubSeasons';
-import { studentClassIds, studentInClass } from '../utils/studentClasses';
 import { studentSports } from '../utils/studentSports';
 import { clubSportsMatch, listActiveClubSportNames } from '../utils/clubSports';
 import { listLowStockProducts } from '../utils/warehouseStock';
@@ -33,11 +34,6 @@ import {
 } from '../utils/financeOwnEntries';
 
 type SportBucket = { key: string; label: string };
-
-function pathWithSport(path: string, sportKey: string | null): string {
-  if (!sportKey) return path;
-  return `${path}?sport=${encodeURIComponent(sportKey)}`;
-}
 
 function createdOnLocalDay(iso: string, day: string): boolean {
   const parsed = new Date(iso);
@@ -227,95 +223,6 @@ export function DashboardPage() {
     [data.classes, data.clubSeasons, today],
   );
 
-  const dashboardClassNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const cls of dashboardClasses) {
-      map.set(cls.id, cls.name);
-    }
-    return map;
-  }, [dashboardClasses]);
-
-  function classesForSport(sportKey: string | null) {
-    return dashboardClasses
-      .filter((cls) => {
-        if (!sportKey) return true;
-        return matchesSport(cls.sport, sportKey);
-      })
-      .sort((a, b) => a.name.localeCompare(b.name, 'el'));
-  }
-
-  function statsForSport(sportKey: string | null) {
-    const students = data.students.filter((student) => {
-      if (!sportKey) return true;
-      return matchesSport(resolveStudentSport(student, classSportById), sportKey);
-    });
-    const coaches = data.coaches.filter((coach: Coach) => {
-      if (!sportKey) return true;
-      return matchesSport(coach.sport, sportKey);
-    });
-    const classes = classesForSport(sportKey);
-
-    const studentIds = new Set(students.map((s) => s.id));
-    const activeStudents = students.filter((s) => s.status === 'active').length;
-    const activeCoaches = coaches.filter((c) => c.active !== false).length;
-
-    const ownOnly = sessionSeesOnlyOwnFinance();
-    const fromTransactions = ownOnly
-      ? 0
-      : (data.transactions ?? [])
-          .filter(
-            (t) =>
-              t.type === 'payment' &&
-              createdOnLocalDay(t.createdAt, today) &&
-              (!sportKey || studentIds.has(t.athleteId)),
-          )
-          .reduce((sum, t) => sum + t.amount, 0);
-
-    const fromAthleteRevenues = filterOwnFinanceEntries(data.revenues)
-      .filter((r) => {
-        if (r.linkedTransactionId) return false;
-        if (r.date !== today || r.paymentStatus !== 'paid') return false;
-        if (!sportKey) return true;
-        if (r.sport && matchesSport(r.sport, sportKey)) return true;
-        if (r.studentId && studentIds.has(r.studentId)) return true;
-        if (r.linkedRentalBookingId || r.subcategory === 'ΕΝΟΙΚΙΑΣΗ ΓΗΠΕΔΟΥ') {
-          if (!sportKey) return true;
-          return Boolean(r.sport && matchesSport(r.sport, sportKey));
-        }
-        if (r.studentId || r.surname || r.firstName) {
-          if (r.sport && matchesSport(r.sport, sportKey)) return true;
-          return false;
-        }
-        return !sportKey;
-      })
-      .reduce((sum, r) => sum + r.amount, 0);
-
-    return {
-      activeStudents,
-      totalStudents: students.length,
-      activeCoaches,
-      totalCoaches: coaches.length,
-      classCount: classes.length,
-      dailyAthletePayments: fromTransactions + fromAthleteRevenues,
-    };
-  }
-
-  const showBySport = sports.length > 1;
-  const sportRows: Array<{ key: string; label: string | null; sportKey: string | null }> =
-    showBySport
-      ? sports.map((sport) => ({
-          key: sport.key,
-          label: sport.label,
-          sportKey: sport.key,
-        }))
-      : [
-          {
-            key: 'all',
-            label: sports[0]?.label ?? null,
-            sportKey: sports[0]?.key ?? null,
-          },
-        ];
-
   const moneyStrip = useMemo(() => {
     const ownRevenues = filterOwnFinanceEntries(data.revenues).filter(
       (r) => r.paymentStatus === 'paid',
@@ -408,6 +315,119 @@ export function DashboardPage() {
     today,
   ]);
 
+  const dashboardClub = getClubById(getPreviewClubId() ?? session?.clubId ?? '');
+  const sportSummaryRows = useMemo(() => {
+    const ownOnly = sessionSeesOnlyOwnFinance();
+    const monthPrefix = today.slice(0, 7);
+    const rows = sports.map((sport) => ({
+      key: sport.key,
+      label: sport.label,
+      students: data.students.filter((student) =>
+        matchesSport(resolveStudentSport(student, classSportById), sport.key)),
+      classes: dashboardClasses.filter((cls) => matchesSport(cls.sport, sport.key)),
+      coaches: data.coaches.filter((coach) =>
+        coach.active !== false && matchesSport(coach.sport, sport.key)),
+    }));
+    const withoutSport = {
+      key: '',
+      label: 'Χωρίς άθλημα',
+      students: data.students.filter(
+        (student) => !resolveStudentSport(student, classSportById).trim(),
+      ),
+      classes: dashboardClasses.filter((cls) => !String(cls.sport ?? '').trim()),
+      coaches: data.coaches.filter(
+        (coach) => coach.active !== false && !String(coach.sport ?? '').trim(),
+      ),
+    };
+
+    return [...rows, withoutSport].map((row) => {
+      const studentIds = new Set(row.students.map((student) => student.id));
+      const transactionCollections = ownOnly
+        ? 0
+        : (data.transactions ?? [])
+            .filter(
+              (transaction) =>
+                transaction.type === 'payment' &&
+                String(transaction.createdAt || '').slice(0, 7) === monthPrefix &&
+                studentIds.has(transaction.athleteId),
+            )
+            .reduce((sum, transaction) => sum + transaction.amount, 0);
+      const revenueCollections = filterOwnFinanceEntries(data.revenues)
+        .filter((revenue) => {
+          if (
+            revenue.paymentStatus !== 'paid' ||
+            revenue.linkedTransactionId ||
+            revenue.date.slice(0, 7) !== monthPrefix
+          ) {
+            return false;
+          }
+          if (revenue.studentId) return studentIds.has(revenue.studentId);
+          return row.key
+            ? matchesSport(revenue.sport, row.key)
+            : !String(revenue.sport ?? '').trim();
+        })
+        .reduce((sum, revenue) => sum + revenue.amount, 0);
+
+      return {
+        ...row,
+        activeAthletes: row.students.filter((student) => student.status === 'active').length,
+        monthCollections: transactionCollections + revenueCollections,
+        outstanding: ownOnly
+          ? 0
+          : clubOutstandingOwed(row.students, data.transactions ?? []),
+      };
+    });
+  }, [
+    sports,
+    data.students,
+    data.coaches,
+    data.transactions,
+    data.revenues,
+    dashboardClasses,
+    classSportById,
+    today,
+  ]);
+  const sportSummaryTotals = useMemo(
+    () =>
+      sportSummaryRows.reduce(
+        (totals, row) => ({
+          activeAthletes: totals.activeAthletes + row.activeAthletes,
+          classes: totals.classes + row.classes.length,
+          coaches: totals.coaches + row.coaches.length,
+          monthCollections: totals.monthCollections + row.monthCollections,
+          outstanding: totals.outstanding + row.outstanding,
+        }),
+        { activeAthletes: 0, classes: 0, coaches: 0, monthCollections: 0, outstanding: 0 },
+      ),
+    [sportSummaryRows],
+  );
+  const dailyTill = useMemo(() => buildDailyTill(data, today), [data, today]);
+  const dailyRentalCollections = useMemo(
+    () =>
+      (data.rentalBookings ?? [])
+        .filter(
+          (booking) =>
+            isRentalBookingCollected(booking) && rentalRevenueDate(booking) === today,
+        )
+        .reduce((sum, booking) => sum + (Number(booking.amount) || 0), 0),
+    [data.rentalBookings, today],
+  );
+  const visibleSportRows = useMemo(
+    () =>
+      sportSummaryRows.filter(
+        (row) =>
+          row.key !== '' ||
+          row.activeAthletes > 0 ||
+          row.classes.length > 0 ||
+          row.coaches.length > 0 ||
+          row.monthCollections > 0 ||
+          row.outstanding > 0,
+      ),
+    [sportSummaryRows],
+  );
+  const licenseLimit = dashboardClub?.athleteLicenseLimit ?? 0;
+  const parentAutoApprove = Boolean(dashboardClub?.publicRegistration?.autoApprove);
+
   const lowStock = useMemo(() => listLowStockProducts(data.products), [data.products]);
   const showLowStock =
     lowStock.length > 0 &&
@@ -438,8 +458,8 @@ export function DashboardPage() {
         title="Επισκόπηση"
         subtitle={
           activeSeason
-            ? `Διαχείριση ακαδημίας · τρέχουσα σεζόν ${seasonDisplayName(activeSeason)}`
-            : 'Διαχείριση ακαδημίας σε μία οθόνη.'
+            ? `Τρέχουσα σεζόν ${seasonDisplayName(activeSeason)}`
+            : 'Σύνοψη συλλόγου'
         }
       />
 
@@ -465,60 +485,101 @@ export function DashboardPage() {
         </Link>
       ) : null}
 
-      <div className="stats-grid cols-5 dashboard-kpi-row">
+      <div className="stats-grid cols-4 dashboard-kpi-row">
         <StatCard
           label="Ενεργοί αθλητές"
           value={String(adminKpis.activeAthletes)}
-          hint="Κατάσταση active"
+          hint="Στον σύλλογο"
           icon={AthletesIcon}
         />
         <StatCard
-          label="Παρουσία μήνα"
-          value={adminKpis.attendancePct !== null ? `${adminKpis.attendancePct}%` : '—'}
-          hint={
-            adminKpis.attendancePct !== null
-              ? 'Από καταχωρημένες παρουσίες'
-              : 'Χωρίς καταχωρήσεις'
+          label="Άδειες πακέτου"
+          value={
+            licenseLimit
+              ? `${adminKpis.activeAthletes} / ${licenseLimit}`
+              : String(adminKpis.activeAthletes)
           }
-          icon={Percent}
+          hint={licenseLimit ? 'Ενεργοί / όριο πακέτου' : 'Δεν έχει οριστεί όριο'}
+          icon={Layers}
           tone={
-            adminKpis.attendancePct !== null && adminKpis.attendancePct >= 80
-              ? 'positive'
-              : adminKpis.attendancePct !== null && adminKpis.attendancePct < 60
-                ? 'warn'
-                : 'default'
+            licenseLimit > 0 && adminKpis.activeAthletes >= licenseLimit ? 'warn' : 'default'
           }
         />
         <StatCard
-          label="Εκκρεμείς οφειλές"
-          value={formatCurrency(moneyStrip.outstanding)}
-          hint="Ανοιχτές χρεώσεις αθλητών · ανάλυση στις Συνδρομές"
-          icon={Banknote}
-          tone={moneyStrip.outstanding > 0 ? 'warn' : 'positive'}
-          to="/fees"
-        />
-        <StatCard
-          label="Ταμείο vs αποδείξεις"
-          value={formatCurrency(Math.max(0, adminKpis.tillReceiptGap))}
+          label="Έγκριση γονέα"
+          value={parentAutoApprove ? 'Ναι' : 'Όχι'}
           hint={
-            adminKpis.tillReceiptGap > 0.05
-              ? `${adminKpis.tillMissingReceipts} εισπράξεις χωρίς απόδειξη σήμερα`
-              : adminKpis.tillCollections > 0
-                ? 'Σε συμφωνία σήμερα'
-                : 'Χωρίς εισπράξεις σήμερα'
+            parentAutoApprove
+              ? 'Αυτόματη έγκριση ενεργή'
+              : 'Καμία αίτηση σε αναμονή'
           }
-          icon={Receipt}
-          tone={adminKpis.tillReceiptGap > 0.05 ? 'warn' : 'positive'}
-          to="/finance"
+          icon={ClipboardList}
         />
         <StatCard
           label="Αιτήσεις εγγραφής"
           value={String(adminKpis.pendingRegs)}
-          hint="Εκκρεμεί έγκριση"
+          hint="Σε αναμονή"
           icon={ClipboardList}
           tone={adminKpis.pendingRegs > 0 ? 'warn' : 'default'}
         />
       </div>
+
+      <section className="panel dashboard-summary-panel">
+        <div className="panel-head">
+          <div>
+            <h2>Ανά άθλημα</h2>
+            <p>Σύνοψη ενεργών αθλητών και στελέχωσης</p>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Άθλημα</th>
+                <th>Ενεργοί αθλητές</th>
+                <th>Τμήματα</th>
+                <th>Προπονητές</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleSportRows.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="muted">
+                    Δεν υπάρχουν δεδομένα αθλημάτων.
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {visibleSportRows.map((row) => (
+                    <tr key={row.key || 'without-sport'}>
+                      <td>
+                        <strong>{row.label}</strong>
+                      </td>
+                      <td>{row.activeAthletes}</td>
+                      <td>{row.classes.length}</td>
+                      <td>{row.coaches.length}</td>
+                    </tr>
+                  ))}
+                  <tr className="dashboard-total-row">
+                    <td>
+                      <strong>Σύνολο</strong>
+                    </td>
+                    <td>
+                      <strong>{sportSummaryTotals.activeAthletes}</strong>
+                    </td>
+                    <td>
+                      <strong>{sportSummaryTotals.classes}</strong>
+                    </td>
+                    <td>
+                      <strong>{sportSummaryTotals.coaches}</strong>
+                    </td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="money-strip money-strip-4" aria-label="Οικονομική σύνοψη">
         <div className="money-strip-item">
@@ -530,7 +591,7 @@ export function DashboardPage() {
           <strong>{formatCurrency(moneyStrip.outstanding)}</strong>
         </Link>
         <Link to="/finance" className="money-strip-item is-accent">
-          <span>Έσοδα σήμερα</span>
+          <span>Έσοδα ημέρας</span>
           <strong>{formatCurrency(moneyStrip.dailyIncome)}</strong>
         </Link>
         <div className="money-strip-item is-accent">
@@ -539,157 +600,86 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {sportRows.map((row) => {
-        const stats = statsForSport(row.sportKey);
-        const classes = classesForSport(row.sportKey);
-                const athletes = data.students
-          .filter((s) => s.status !== 'inactive')
-          .filter((s) => {
-            if (!row.sportKey) return true;
-            return matchesSport(resolveStudentSport(s, classSportById), row.sportKey);
-          })
-          .sort((a, b) =>
-            `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'el'),
-          );
-        const classesScroll = classes.length > 5;
-        const athletesScroll = athletes.length > 5;
-
-        return (
-          <section key={row.key} className="dashboard-sport-block">
-            {row.label ? <h2 className="dashboard-sport-title">{row.label}</h2> : null}
-            <div className="stats-grid cols-4">
-              <StatCard
-                label="Ενεργοί αθλητές"
-                value={String(stats.activeStudents)}
-                hint={`${stats.totalStudents} συνολικά`}
-                icon={AthletesIcon}
-              />
-              <StatCard
-                label="Προπονητές"
-                value={String(stats.activeCoaches)}
-                hint={`${stats.totalCoaches} συνολικά`}
-                icon={UserCog}
-              />
-              <StatCard
-                label="Τμήματα"
-                value={String(stats.classCount)}
-                hint={`${stats.activeStudents} ενεργοί αθλητές`}
-                icon={Layers}
-              />
-              <StatCard
-                label="Ημερίσια Έσοδα"
-                value={formatCurrency(stats.dailyAthletePayments)}
-                hint="Πληρωμές αθλητών και ενοικιάσεις σήμερα"
-                icon={Banknote}
-                tone="positive"
-              />
+      <div className="grid-2 dashboard-bottom-grid">
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <h2>Οικονομικά ανά άθλημα</h2>
+              <p>Τρέχων μήνας</p>
             </div>
-
-            <div className="grid-2">
-              <article className="panel">
-                <div className="panel-head">
-                  <h2>Τμήματα{row.label ? ` · ${row.label}` : ''}</h2>
-                  <Link to={pathWithSport('/classes', row.sportKey)} className="text-link">
-                    Διαχείριση →
-                  </Link>
-                </div>
-                <div className={classesScroll ? 'table-wrap dashboard-preview-scroll' : 'table-wrap'}>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Όνομα</th>
-                        <th>Ηλικίες</th>
-                        <th>Αθλητές</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {classes.length === 0 ? (
-                        <tr>
-                          <td colSpan={3} className="muted">
-                            Δεν υπάρχουν ενεργά τμήματα τρέχουσας σεζόν.
-                          </td>
-                        </tr>
-                      ) : (
-                        classes.map((cls) => {
-                          const count = data.students.filter(
-                            (s) => studentInClass(s, cls.id) && s.status !== 'inactive',
-                          ).length;
-                          return (
-                            <tr key={cls.id}>
-                              <td>
-                                <strong>{cls.name}</strong>
-                                {!showBySport && cls.sport ? (
-                                  <div className="muted">{cls.sport}</div>
-                                ) : null}
-                              </td>
-                              <td>{cls.ageGroup || '—'}</td>
-                              <td>{count}</td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </article>
-
-              <article className="panel">
-                <div className="panel-head">
-                  <h2>Κατάσταση αθλητών{row.label ? ` · ${row.label}` : ''}</h2>
-                  <Link to={pathWithSport('/athletes', row.sportKey)} className="text-link">
-                    Όλοι →
-                  </Link>
-                </div>
-                {athletes.length === 0 ? (
-                  <p className="muted">Δεν υπάρχουν ενεργοί αθλητές.</p>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Άθλημα</th>
+                  <th>Εισπράξεις μήνα</th>
+                  <th>Ανοιχτές οφειλές</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleSportRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="muted">
+                      Δεν υπάρχουν οικονομικά ανά άθλημα.
+                    </td>
+                  </tr>
                 ) : (
-                  <div className={athletesScroll ? 'table-wrap dashboard-preview-scroll' : 'table-wrap'}>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Επώνυμο</th>
-                          <th>Όνομα</th>
-                          <th>Τμήμα</th>
-                          <th>Κατάσταση</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {athletes.map((student) => {
-                          const names = studentClassIds(student)
-                            .map((id) => dashboardClassNameById.get(id))
-                            .filter(Boolean);
-                          const clsLabel = names.join(', ') || 'Χωρίς τμήμα';
-                          return (
-                            <tr key={student.id}>
-                              <td>
-                                <strong>{student.lastName}</strong>
-                              </td>
-                              <td>
-                                <strong>{student.firstName}</strong>
-                              </td>
-                              <td>{clsLabel}</td>
-                              <td>
-                                <span className={`badge badge-${student.status}`}>
-                                  {studentStatusLabels[student.status]}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  <>
+                    {visibleSportRows.map((row) => (
+                      <tr key={`${row.key || 'without-sport'}-finance`}>
+                        <td>
+                          <strong>{row.label}</strong>
+                        </td>
+                        <td>{formatCurrency(row.monthCollections)}</td>
+                        <td>{formatCurrency(row.outstanding)}</td>
+                      </tr>
+                    ))}
+                    <tr className="dashboard-total-row">
+                      <td>
+                        <strong>Σύνολο</strong>
+                      </td>
+                      <td>
+                        <strong>{formatCurrency(sportSummaryTotals.monthCollections)}</strong>
+                      </td>
+                      <td>
+                        <strong>{formatCurrency(sportSummaryTotals.outstanding)}</strong>
+                      </td>
+                    </tr>
+                  </>
                 )}
-                <div className="quick-links">
-                  <Link to={pathWithSport('/schedule', row.sportKey)}>Πρόγραμμα</Link>
-                  <Link to={pathWithSport('/attendance', row.sportKey)}>Παρουσίες</Link>
-                  <Link to={pathWithSport('/classes', row.sportKey)}>Τμήματα</Link>
-                </div>
-              </article>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <h2>Ταμείο ημέρας</h2>
+              <p>{today}</p>
             </div>
-          </section>
-        );
-      })}
+            <Banknote size={20} aria-hidden />
+          </div>
+          <div className="dashboard-till-list">
+            <div>
+              <span>Εισπράξεις ημέρας</span>
+              <strong>{formatCurrency(dailyTill.collectionsTotal)}</strong>
+            </div>
+            <div>
+              <span>Έσοδα ημέρας</span>
+              <strong>{formatCurrency(dailyTill.incomeTotal)}</strong>
+            </div>
+            <div>
+              <span>Ενοικιάσεις ημέρας</span>
+              <strong>{formatCurrency(dailyRentalCollections)}</strong>
+            </div>
+          </div>
+          <Link to="/finance" className="dashboard-finance-link">
+            Οικονομικά →
+          </Link>
+        </section>
+      </div>
     </div>
   );
 }

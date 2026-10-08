@@ -32,7 +32,7 @@
   --brand-button-shadow: 0 10px 24px rgba(13, 115, 119, 0.28);
   --font-body: 'Manrope', sans-serif;
   --font-display: 'Sora', sans-serif;
-  --app-header-h-token: 80px;
+  --app-header-h-token: 108px;
   font-family: var(--font-body);
   color: var(--ink);
   background: var(--bg);
@@ -76,7 +76,7 @@ html[data-appearance='ocean-slate'] {
   --brand-button-shadow: 0 10px 22px rgba(42, 155, 181, 0.28);
   --font-body: 'Manrope', sans-serif;
   --font-display: 'Sora', sans-serif;
-  --app-header-h-token: 80px;
+  --app-header-h-token: 108px;
   --table-head-bg: #e8eef4;
   --table-row-hover: rgba(42, 155, 181, 0.07);
   --field-bg: #ffffff;
@@ -116,7 +116,7 @@ html[data-appearance='graphite-ember'] {
   --brand-button-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
   --font-body: 'DM Sans', 'Manrope', sans-serif;
   --font-display: 'DM Sans', 'Sora', sans-serif;
-  --app-header-h-token: 80px;
+  --app-header-h-token: 108px;
   --table-head-bg: #22252c;
   --table-row-hover: rgba(232, 93, 44, 0.08);
   --field-bg: #16181c;
@@ -156,7 +156,7 @@ html[data-appearance='aegean-navy'] {
   --brand-button-shadow: 0 10px 22px rgba(42, 155, 181, 0.28);
   --font-body: 'Manrope', sans-serif;
   --font-display: 'Sora', sans-serif;
-  --app-header-h-token: 80px;
+  --app-header-h-token: 108px;
   --table-head-bg: #e8eef4;
   --table-row-hover: rgba(42, 155, 181, 0.07);
   --field-bg: #ffffff;
@@ -196,7 +196,7 @@ html[data-appearance='ivory-club'] {
   --brand-button-shadow: 0 10px 22px rgba(92, 26, 36, 0.28);
   --font-body: 'Manrope', sans-serif;
   --font-display: 'Sora', sans-serif;
-  --app-header-h-token: 80px;
+  --app-header-h-token: 108px;
   --table-head-bg: #f0e6d8;
   --table-row-hover: rgba(122, 36, 48, 0.07);
   --field-bg: #fffaf3;
@@ -262,10 +262,67 @@ strong {
 }
 
 .app-header-brand {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 0.95rem;
   min-width: 0;
+}
+
+.app-header-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  max-width: min(72vw, 44rem);
+  text-align: center;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.app-header-title-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 125px;
+  height: 125px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.app-header-title-icon img {
+  width: 125px;
+  height: 125px;
+  object-fit: contain;
+  display: block;
+  background: transparent;
+  pointer-events: none;
+}
+
+.app-header-title-name {
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 2.5vw, 1.9rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-header-title-suite {
+  color: #4db8ff;
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 2.5vw, 1.9rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  flex-shrink: 0;
 }
 
 .app-header-brand strong {
@@ -318,15 +375,15 @@ strong {
 }
 
 .app-logo-btn .brand-mark {
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   border-radius: 16px;
-  font-size: 1.15rem;
+  font-size: 1.2rem;
 }
 
 .app-logo-btn img {
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   object-fit: contain;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.08);
@@ -334,13 +391,13 @@ strong {
 }
 
 .app-logo-btn--full img {
-  width: auto;
-  height: auto;
-  max-height: 52px;
-  max-width: min(280px, 52vw);
-  border-radius: 0;
-  background: transparent;
-  padding: 0;
+  width: 72px;
+  height: 72px;
+  max-height: 72px;
+  max-width: 72px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.2rem;
 }
 
 .admin-club-logo-thumb {
@@ -348,6 +405,26 @@ strong {
   max-height: 72px;
   max-width: min(280px, 100%);
   object-fit: contain;
+}
+
+.admin-header-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+}
+
+.admin-header-preview em {
+  font-style: normal;
+  color: #2f8fd8;
+}
+
+.admin-club-logo-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 6px;
+  flex-shrink: 0;
 }
 
 .app-logo-error {
@@ -404,7 +481,7 @@ strong {
 .app-header-user strong {
   display: block;
   font-family: var(--font-display);
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 650;
   line-height: 1.2;
   white-space: nowrap;
@@ -416,7 +493,7 @@ strong {
 .app-header-user span {
   display: block;
   margin-top: 0.15rem;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   color: var(--chrome-muted);
 }
 
@@ -430,6 +507,7 @@ strong {
 }
 
 .app-header-greeting {
+  display: none;
   margin: 0;
   flex: 1;
   min-width: 0;
@@ -510,7 +588,7 @@ strong {
 .side-nav {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.12rem;
 }
 
 .nav-section {
@@ -562,7 +640,7 @@ button.sidebar-club-logo:focus-visible {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  padding: 0.55rem 0.75rem;
+  padding: 0.38rem 0.75rem;
   border-radius: 12px;
   font-size: 1.05rem;
   color: color-mix(in srgb, var(--chrome-fg) 78%, transparent);
@@ -2395,6 +2473,60 @@ td.row-actions {
   margin-bottom: 0.25rem;
 }
 
+.dashboard-summary-panel {
+  margin-bottom: 0.25rem;
+}
+
+.dashboard-total-row td {
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 88%, var(--brand) 12%);
+}
+
+.dashboard-bottom-grid {
+  align-items: start;
+}
+
+.dashboard-till-list {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.15rem 0 0.85rem;
+}
+
+.dashboard-till-list > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.dashboard-till-list > div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.dashboard-till-list span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.dashboard-till-list strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-finance-link {
+  display: inline-flex;
+  margin-top: 0.35rem;
+  font-weight: 600;
+  color: var(--brand);
+  text-decoration: none;
+}
+
+.dashboard-finance-link:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 1100px) {
   .stats-grid.cols-5 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3298,7 +3430,7 @@ html[data-appearance] .settings-backup-schedule-status {
 
 @media (max-width: 860px) {
   .app-frame {
-    --app-header-h: 84px;
+    --app-header-h: 113px;
   }
 
   .app-header {
@@ -3307,9 +3439,29 @@ html[data-appearance] .settings-backup-schedule-status {
     padding: 0.65rem 0.9rem;
   }
 
+  .app-header-title {
+    max-width: min(70vw, 22rem);
+    gap: 0.4rem;
+  }
+
+  .app-header-title-name,
+  .app-header-title-suite {
+    font-size: 1.18rem;
+  }
+
+  .app-header-title-icon,
+  .app-header-title-icon img {
+    width: 96px;
+    height: 96px;
+  }
+
+  .app-logo-btn .brand-mark,
+  .app-logo-btn img,
   .app-logo-btn--full img {
-    max-height: 40px;
-    max-width: min(200px, 48vw);
+    width: 56px;
+    height: 56px;
+    max-height: 56px;
+    max-width: 56px;
   }
 
   .app-header-user {
@@ -3318,7 +3470,7 @@ html[data-appearance] .settings-backup-schedule-status {
   }
 
   .app-header-user strong {
-    font-size: 0.92rem;
+    font-size: 1.02rem;
   }
 
   .app-header-greeting {
