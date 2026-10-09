@@ -124,9 +124,14 @@ export function resolveAnnouncementEmails(
   const emails: Array<string | undefined | null> = [];
   const sport = (input.sportCategories ?? '').trim();
 
-  const wholeClub = roles.size === 0 && recipients.length === 0 && (input.classIds ?? []).length === 0;
-  const wantAthletes = wholeClub || roles.has('athletes') || idsOf(recipients, 'athlete').length > 0;
-  const wantParents = wholeClub || roles.has('parents') || idsOf(recipients, 'parent').length > 0;
+  const hasClassScope = (input.classIds ?? []).length > 0;
+  // Επιλογή τμήματος = παραλήπτες τα μέλη του τμήματος (αθλητές + emails γονέων),
+  // ακόμα κι αν δεν τσεκαρίστηκαν οι ρόλοι «Αθλητές» / «Γονείς».
+  const wholeClub = roles.size === 0 && recipients.length === 0 && !hasClassScope;
+  const wantAthletes =
+    wholeClub || hasClassScope || roles.has('athletes') || idsOf(recipients, 'athlete').length > 0;
+  const wantParents =
+    wholeClub || hasClassScope || roles.has('parents') || idsOf(recipients, 'parent').length > 0;
   const wantCoaches = wholeClub || roles.has('coaches') || idsOf(recipients, 'coach').length > 0;
   const wantStaff = wholeClub || roles.has('staff') || idsOf(recipients, 'staff').length > 0;
 
@@ -178,11 +183,6 @@ export function resolveAnnouncementEmails(
   return uniqueEmails(emails);
 }
 
-function newTrackToken(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
-  return `trk_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
 export async function sendAnnouncementEmails(input: {
   clubId: string;
   announcementId: string;
@@ -190,38 +190,29 @@ export async function sendAnnouncementEmails(input: {
   message: string;
   emails: string[];
 }) {
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const sent: string[] = [];
   const failed: Array<{ email: string; error: string }> = [];
-  const tokens: Array<{ email: string; token: string }> = [];
   const sentAt = new Date().toISOString();
 
   for (const to of input.emails) {
-    const token = newTrackToken();
-    const trackUrl = origin
-      ? `${origin}/api/email-track?t=${encodeURIComponent(token)}&click=1`
-      : '';
-    const pixel = origin
-      ? `<img src="${origin}/api/email-track?t=${encodeURIComponent(token)}" width="1" height="1" alt="" style="display:none;width:1px;height:1px;border:0" />`
-      : '';
-    const cta = trackUrl
-      ? `<p style="margin:24px 0 8px"><a href="${trackUrl}" style="display:inline-block;padding:12px 18px;background:#0f766e;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Άνοιγμα ανακοίνωσης</a></p><p style="font-size:12px;color:#64748b"><a href="${trackUrl}" style="color:#0f766e">${escapeHtml(trackUrl)}</a></p>`
-      : '';
-    const textBody = trackUrl
-      ? `${input.title}\n\n${input.message}\n\nΆνοιγμα ανακοίνωσης: ${trackUrl}`
-      : `${input.title}\n\n${input.message}`;
-    const result = await sendClubEmail({
-      clubId: input.clubId,
-      to,
-      subject: `Ανακοίνωση: ${input.title}`,
-      text: textBody,
-      html: `<h2>${escapeHtml(input.title)}</h2><p>${escapeHtml(input.message).replace(/\n/g, '<br/>')}</p>${cta}${pixel}`,
-    });
-    if (result.success) {
-      sent.push(to);
-      tokens.push({ email: to, token });
-    } else {
-      failed.push({ email: to, error: result.error ?? 'Αποτυχία' });
+    try {
+      const result = await sendClubEmail({
+        clubId: input.clubId,
+        to,
+        subject: `Ανακοίνωση: ${input.title}`,
+        text: `${input.title}\n\n${input.message}`,
+        html: `<h2>${escapeHtml(input.title)}</h2><p>${escapeHtml(input.message).replace(/\n/g, '<br/>')}</p>`,
+      });
+      if (result.success) {
+        sent.push(to);
+      } else {
+        failed.push({ email: to, error: result.error ?? 'Αποτυχία' });
+      }
+    } catch (err) {
+      failed.push({
+        email: to,
+        error: err instanceof Error ? err.message : 'Αποτυχία',
+      });
     }
   }
 
@@ -233,7 +224,6 @@ export async function sendAnnouncementEmails(input: {
       body: JSON.stringify({
         clubId: input.clubId,
         announcementId: input.announcementId,
-        tokens,
         sent,
         failed,
       }),

@@ -23,6 +23,7 @@ import * as announcementsService from '../api/services/announcementsService';
 import * as notificationService from '../api/services/notificationService';
 import { getSession } from '../auth/auth';
 import { Button } from '../components/ui/Button';
+import { resolveActiveClubId } from '../data/store';
 import { useAppData } from '../hooks/useAppData';
 import type { AnnouncementInput } from '../schemas';
 import type {
@@ -97,9 +98,15 @@ function htmlToPlain(html: string): string {
   return (el.innerText || el.textContent || '').trim();
 }
 
+function activeClubIdForEmail(): string | null {
+  const id = resolveActiveClubId();
+  return id && id !== '_default' ? id : null;
+}
+
 export function AnnouncementsPage() {
   const { data, refresh } = useAppData();
   const session = getSession();
+  const clubId = activeClubIdForEmail();
   const composeRef = useRef<HTMLElement | null>(null);
   const messageRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -109,7 +116,6 @@ export function AnnouncementsPage() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [sendEmail, setSendEmail] = useState(true);
-  const [extraEmails, setExtraEmails] = useState('');
   const [emailNotice, setEmailNotice] = useState('');
 
   const [audienceFilter, setAudienceFilter] = useState('');
@@ -127,7 +133,6 @@ export function AnnouncementsPage() {
   }, [session?.fullName]);
 
   useEffect(() => {
-    const clubId = session?.clubId;
     if (!clubId) return;
     void notificationService.refreshAnnouncementEmailOpens(clubId).then((result) => {
       if (result.success && result.updated > 0) refresh();
@@ -138,12 +143,19 @@ export function AnnouncementsPage() {
       });
     }, 60_000);
     return () => window.clearInterval(id);
-  }, [session?.clubId, refresh]);
+  }, [clubId, refresh]);
 
-  const visibleClasses = useMemo(
-    () => visibleClassesForSession(data.classes, data.coaches, session, { seasons: data.clubSeasons }),
-    [data.classes, data.coaches, data.clubSeasons, session],
-  );
+  const visibleClasses = useMemo(() => {
+    const active = visibleClassesForSession(data.classes, data.coaches, session, {
+      seasons: data.clubSeasons,
+    });
+    if (active.length > 0) return active;
+    // Αν δεν υπάρχει ενεργή σεζόν / seasonId, μην κρύβεις όλα τα τμήματα από την επιλογή.
+    return visibleClassesForSession(data.classes, data.coaches, session, {
+      seasons: data.clubSeasons,
+      onlyActiveSeason: false,
+    });
+  }, [data.classes, data.coaches, data.clubSeasons, session]);
   const allowedClassIds = useMemo(() => classIdsOf(visibleClasses), [visibleClasses]);
 
   const coachOptions = useMemo(() => {
@@ -351,7 +363,6 @@ export function AnnouncementsPage() {
     });
     setScheduleMode('now');
     setSendEmail(true);
-    setExtraEmails('');
     setError('');
     setEmailNotice('');
     setPickerOpen(null);
@@ -387,7 +398,9 @@ export function AnnouncementsPage() {
     });
     setClassesEnabled((item.classIds ?? []).length > 0);
     setScheduleMode(item.visibleFrom ? 'later' : 'now');
+    setSendEmail(false);
     setError('');
+    setEmailNotice('');
     setPickerOpen(null);
     setPickerQuery('');
     composeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -569,6 +582,7 @@ export function AnnouncementsPage() {
 
     setSaving(true);
     setError('');
+    setEmailNotice('');
 
     const priority = 'normal' as const;
     const roles = form.audienceRoles ?? [];
@@ -615,89 +629,111 @@ export function AnnouncementsPage() {
       visibleFrom: scheduleMode === 'later' ? form.visibleFrom || '' : '',
     };
 
-    const result = editing
-      ? await announcementsService.updateAnnouncement(editing.id, payload)
-      : await announcementsService.createAnnouncement(payload);
+    const wantEmail = status === 'published' && sendEmail;
+    const emailsForSend = wantEmail
+      ? [...new Set(notificationService.resolveAnnouncementEmails(payload))]
+      : [];
 
-    if (!result.success) {
+    if (wantEmail && emailsForSend.length === 0) {
       setSaving(false);
-      setError(result.error ?? 'Σφάλμα αποθήκευσης');
+      setError(
+        'Ενεργή «Αποστολή και με email», αλλά δεν βρέθηκαν παραλήπτες με email στο ακροατήριο.',
+      );
       return;
     }
 
+    if (wantEmail && !clubId) {
+      setSaving(false);
+      setError(
+        'Δεν βρέθηκε ενεργός σύλλογος για αποστολή email. Αν είστε Platform Admin, επιλέξτε σύλλογο (preview) πρώτα.',
+      );
+      return;
+    }
+
+    if (wantEmail && emailsForSend.length > 0) {
+      if (!confirm(`Θα σταλεί email σε ${emailsForSend.length} παραλήπτη/ες. Συνέχεια;`)) {
+        setSaving(false);
+        return;
+      }
+    }
+
     let emailFeedback = '';
-    if (status === 'published' && !editing) {
-      const clubId = session?.clubId;
-      if (clubId) {
-        if (sendEmail) {
-          const resolved = notificationService.resolveAnnouncementEmails(payload);
-          const extras = notificationService.parseEmailList(extraEmails);
-          const emails = [...new Set([...resolved, ...extras])];
-          if (emails.length === 0) {
-            setSaving(false);
-            refresh();
-            setError(
-              'Η ανακοίνωση αποθηκεύτηκε, αλλά δεν βρέθηκαν emails παραληπτών. ' +
-                'Επιλέξτε άτομα από το ακροατήριο που έχουν email, ή συμπληρώστε «Επιπλέον emails».',
-            );
-            setEmailNotice('');
-            return;
-          }
-          const createdId = result.data?.id;
-          if (!createdId) {
-            setSaving(false);
-            refresh();
-            setError('Η ανακοίνωση αποθηκεύτηκε, αλλά δεν βρέθηκε id για tracking email.');
-            return;
-          }
+    try {
+      const result = editing
+        ? await announcementsService.updateAnnouncement(editing.id, payload)
+        : await announcementsService.createAnnouncement(payload);
+
+      if (!result.success) {
+        setError(result.error ?? 'Σφάλμα αποθήκευσης');
+        return;
+      }
+
+      const announcementId = result.data?.id ?? editing?.id;
+
+      if (status === 'published' && clubId) {
+        if (wantEmail && announcementId) {
           const mailResult = await notificationService.sendAnnouncementEmails({
             clubId,
-            announcementId: createdId,
+            announcementId,
             title: payload.title,
             message: payload.message,
-            emails,
+            emails: emailsForSend,
           });
           const sent = mailResult.data?.sent ?? [];
           const failed = mailResult.data?.failed ?? [];
           if (mailResult.data?.emailStats) {
             await announcementsService.saveAnnouncementEmailStats(
-              createdId,
+              announcementId,
               mailResult.data.emailStats,
             );
           }
           if (sent.length === 0) {
-            setSaving(false);
-            refresh();
             setError(
               `Η ανακοίνωση αποθηκεύτηκε, αλλά κανένα email δεν στάλθηκε. ${
-                failed[0]?.error ?? 'Ελέγξτε SMTP / ιστορικό αποστολών.'
+                failed[0]?.error ?? 'Ελέγξτε SMTP / Ρυθμίσεις → Email → ιστορικό αποστολών.'
               }`,
             );
-            setEmailNotice('');
+            refresh();
             return;
           }
           emailFeedback =
             failed.length === 0
               ? `Στάλθηκε email σε ${sent.length} παραλήπτη/ες.`
-              : `Στάλθηκε σε ${sent.length}, απέτυχαν ${failed.length} (${failed[0]?.email}: ${failed[0]?.error}).`;
+              : `Στάλθηκε σε ${sent.length}, απέτυχαν ${failed.length} (${failed
+                  .slice(0, 2)
+                  .map((f) => `${f.email}: ${f.error}`)
+                  .join(' · ')}).`;
+        } else if (wantEmail && !announcementId) {
+          setError('Η ανακοίνωση αποθηκεύτηκε, αλλά δεν βρέθηκε id για αποστολή email.');
+          refresh();
+          return;
         }
-        await notificationService.sendAnnouncementParentPush({
-          clubId,
-          title: payload.title,
-          message: payload.message,
-          audienceRoles: payload.audienceRoles,
-          classIds: payload.classIds,
-          recipientIds: payload.recipientIds,
-          sportCategories: payload.sportCategories,
-          teamsLabel: payload.teamsLabel,
-        });
-      }
-    }
 
-    setSaving(false);
-    resetCompose();
-    if (emailFeedback) setEmailNotice(emailFeedback);
-    refresh();
+        try {
+          await notificationService.sendAnnouncementParentPush({
+            clubId,
+            title: payload.title,
+            message: payload.message,
+            audienceRoles: payload.audienceRoles,
+            classIds: payload.classIds,
+            recipientIds: payload.recipientIds,
+            sportCategories: payload.sportCategories,
+            teamsLabel: payload.teamsLabel,
+          });
+        } catch {
+          /* push optional */
+        }
+      }
+
+      resetCompose();
+      if (emailFeedback) setEmailNotice(emailFeedback);
+      refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Σφάλμα αποστολής ανακοίνωσης');
+      refresh();
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDelete(id: string) {
@@ -898,7 +934,13 @@ export function AnnouncementsPage() {
                             row.hint.toLowerCase().includes(q),
                         );
                         if (rows.length === 0) {
-                          return <p className="ann-hint">Δεν βρέθηκαν τμήματα.</p>;
+                          return (
+                            <p className="ann-hint">
+                              {(data.classes ?? []).length === 0
+                                ? 'Δεν υπάρχουν τμήματα στον σύλλογο.'
+                                : 'Δεν βρέθηκαν τμήματα με τα τρέχοντα φίλτρα αθλήματος/σωματείου.'}
+                            </p>
+                          );
                         }
                         return rows.map((row) => {
                           const checked = (form.classIds ?? []).includes(row.id);
@@ -1009,36 +1051,19 @@ export function AnnouncementsPage() {
               ) : null}
             </div>
 
-            {!editing ? (
-              <div className="ann-email-block">
-                <label className="ann-email-check">
-                  <input
-                    type="checkbox"
-                    checked={sendEmail}
-                    onChange={(e) => setSendEmail(e.target.checked)}
-                  />
-                  <span>Αποστολή και με email</span>
-                </label>
-                <p className="ann-hint">
-                  Στέλνει στα emails των επιλεγμένων γονέων/αθλητών/προπονητών/προσωπικού — όχι
-                  αυτόματα στο email της δοκιμής SMTP.
-                </p>
-                {sendEmail ? (
-                  <label className="ann-field">
-                    <span className="ann-label">Επιπλέον emails (προαιρετικό)</span>
-                    <input
-                      type="text"
-                      value={extraEmails}
-                      placeholder="π.χ. nikos@gmail.com"
-                      onChange={(e) => setExtraEmails(e.target.value)}
-                    />
-                    <span className="ann-hint">
-                      Χωρίστε με κόμμα αν είναι πολλά. Χρήσιμο για δοκιμή στο ίδιο email με το SMTP test.
-                    </span>
-                  </label>
-                ) : null}
-              </div>
-            ) : null}
+            <div className="ann-email-block">
+              <label className="ann-email-check">
+                <input
+                  type="checkbox"
+                  checked={sendEmail}
+                  onChange={(e) => setSendEmail(e.target.checked)}
+                />
+                <span>Αποστολή και με email</span>
+              </label>
+              {editing ? (
+                <p className="ann-hint">Σε επεξεργασία πρέπει να ξανατσεκάρετε για επαναποστολή.</p>
+              ) : null}
+            </div>
           </aside>
         </div>
 
@@ -1115,7 +1140,6 @@ export function AnnouncementsPage() {
                 {pageRows.map((item) => {
                   const stats = item.emailStats;
                   const received = stats?.sentCount ?? 0;
-                  const read = stats?.openedCount ?? 0;
                   return (
                     <tr key={item.id}>
                       <td>
@@ -1152,21 +1176,18 @@ export function AnnouncementsPage() {
                           <div
                             className="ann-email-stats"
                             title={
-                              [
-                                'Άνοιξαν = κλικ στον σύνδεσμο στο email (δουλεύει και χωρίς εικόνες).',
-                                ...(stats.recipients ?? []).map((r) => {
-                                  const open = r.openedAt
-                                    ? `άνοιξε ${new Date(r.openedAt).toLocaleString('el-GR')}`
-                                    : r.status === 'sent'
+                              (stats.recipients ?? [])
+                                .map((r) => {
+                                  const detail =
+                                    r.status === 'sent'
                                       ? 'στάλθηκε'
                                       : `αποτυχία: ${r.error ?? '—'}`;
-                                  return `${r.email}: ${open}`;
-                                }),
-                              ].join('\n')
+                                  return `${r.email}: ${detail}`;
+                                })
+                                .join('\n') ?? ''
                             }
                           >
                             <span>Έλαβαν {received}</span>
-                            <span>Άνοιξαν {read}</span>
                           </div>
                         ) : (
                           <span className="ann-hint">—</span>
