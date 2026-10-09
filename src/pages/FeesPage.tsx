@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Bell, Plus, Receipt } from 'lucide-react';
-import * as emailService from '../api/services/emailService';
-import * as smsService from '../api/services/smsService';
 import * as feeChargesService from '../api/services/feeChargesService';
 import * as vivaService from '../api/services/vivaService';
-import * as pushService from '../api/services/pushService';
 import { getSession } from '../auth/auth';
-import { getClubById, getClubSms, getClubSmtp, getClubViva } from '../auth/clubs';
+import { getClubById, getClubViva } from '../auth/clubs';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -371,100 +368,6 @@ export function FeesPage() {
     );
     refresh();
   }
-  async function handleSendReminder(row: feeChargesService.DebtReminderRow) {
-    if (!clubId) {
-      setError('Δεν βρέθηκε σύλλογος.');
-      return;
-    }
-
-    const smtp = getClubSmtp(clubId);
-    const sms = getClubSms(clubId);
-    const parentIds = pushService.athleteParentUserIds([row.athleteId]);
-    if (!smtp.enabled && !sms.enabled && parentIds.length === 0) {
-      setError(
-        'Ενεργοποιήστε Email/SMS στις Ρυθμίσεις, ή ζητήστε από τον γονέα να ανοίξει την εφαρμογή.',
-      );
-      return;
-    }
-
-    const club = getClubById(clubId);
-    const viva = getClubViva(clubId);
-    const emailBody = feeChargesService.buildDebtReminderEmail({
-      clubName: club?.name ?? 'TeamSuite',
-      athleteName: row.athleteName,
-      balance: row.balance,
-      daysOverdue: row.daysOverdue,
-      payUrl: feeChargesService.feePaymentLoginUrl(),
-      vivaEnabled: Boolean(viva?.enabled),
-    });
-
-    setSaving(true);
-    setError('');
-    const channels: string[] = [];
-    if (smtp.enabled && row.email.includes('@')) {
-      const send = await emailService.sendClubEmail({
-        clubId,
-        to: row.email,
-        subject: emailBody.subject,
-        text: emailBody.text,
-        html: emailBody.html,
-        athleteId: row.athleteId,
-      });
-      if (send.success) channels.push(`email ${row.email}`);
-    }
-    if (sms.enabled && row.phone?.trim()) {
-      const smsSend = await smsService.sendClubSms({
-        clubId,
-        to: row.phone,
-        text: `${emailBody.subject}\n${emailBody.text}`.slice(0, 480),
-        athleteId: row.athleteId,
-      });
-      if (smsSend.success) channels.push(`SMS ${row.phone}`);
-    }
-    if (parentIds.length > 0) {
-      const push = await pushService.sendParentPush({
-        clubId,
-        userIds: parentIds,
-        title: emailBody.subject,
-        body: `Οφειλή ${formatCurrency(row.balance)} για ${row.athleteName}. Ανοίξτε την εφαρμογή για πληρωμή.`,
-        url: '/app/parent?tab=payments',
-      });
-      if (push.sent > 0) channels.push('εφαρμογή γονέα');
-    }
-    setSaving(false);
-    if (channels.length === 0) {
-      setError('Αποτυχία αποστολής υπενθύμισης (email/SMS/εφαρμογή).');
-      return;
-    }
-
-    await feeChargesService.logDebtReminder({
-      athleteId: row.athleteId,
-      amount: row.balance,
-      note: `Υπενθύμιση (${channels.join(', ')}) · ${formatCurrency(row.balance)}`,
-    });
-    setMessage(`Στάλθηκε υπενθύμιση στον/στην ${row.athleteName} (${channels.join(', ')}).`);
-    refresh();
-  }
-
-  async function handleSendAllReminders() {
-    if (!clubId) {
-      setError('Δεν βρέθηκε σύλλογος.');
-      return;
-    }
-    if (!confirm('Αποστολή υπενθυμίσεων οφειλών (email/SMS/εφαρμογή) σε όσους πληρούν τις προϋποθέσεις σήμερα;')) {
-      return;
-    }
-    const result = await feeChargesService.runDueFeeReminders(clubId);
-    if (!result.success) {
-      setError(result.error ?? 'Αποτυχία μαζικής υπενθύμισης');
-      return;
-    }
-    setMessage(
-      `Υπενθυμίσεις: στάλθηκαν ${result.data?.sent ?? 0}, παραλείφθηκαν ${result.data?.skipped ?? 0}.`,
-    );
-    refresh();
-  }
-
   async function handleVivaPay(athleteId: string, amount: number, athleteName: string, email: string) {
     if (!clubId) return;
     setPayingId(athleteId);
@@ -610,11 +513,8 @@ export function FeesPage() {
                     <Button
                       type="button"
                       variant="secondary"
-                      disabled={saving}
-                      onClick={() => {
-                        const row = feeChargesService.debtReminderRowForAthlete(athlete.id);
-                        if (row) void handleSendReminder(row);
-                      }}
+                      disabled
+                      title="Οι υπενθυμίσεις οφειλής είναι απενεργοποιημένες"
                     >
                       {t('Υπενθύμιση')}
                     </Button>
@@ -1070,23 +970,16 @@ export function FeesPage() {
       >
         <div className="stack-md">
           <p className="muted">
-            Αθλητές με οφειλή μετά τις ημέρες υπενθύμισης. Η «Υπενθύμιση» στέλνει email, SMS και
-            ειδοποίηση στην εφαρμογή γονέα, με σύνδεσμο πληρωμής
-            {getClubViva(clubId)?.enabled ? ' (Viva)' : ''}. Στην είσοδο γραμματείας τρέχει και
-            αυτόματη αποστολή (το πολύ 1 φορά / αθλητή / ημέρα).
+            Αθλητές με οφειλή μετά τις ημέρες υπενθύμισης. Η αποστολή υπενθύμισης προς γονείς
+            (email, SMS και εφαρμογή) είναι απενεργοποιημένη.
           </p>
           {reminders.length === 0 ? (
             <p className="muted">Δεν υπάρχουν οφειλές προς υπενθύμιση αυτή τη στιγμή.</p>
           ) : (
             <>
               <div className="admin-entry-actions" style={{ marginBottom: '0.75rem' }}>
-                <Button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void handleSendAllReminders()}
-                >
-                  Αποστολή όλων (
-                  {reminders.filter((r) => r.email.includes('@') || r.phone?.trim()).length})
+                <Button type="button" disabled title="Απενεργοποιημένο">
+                  Αποστολή όλων (απενεργοποιημένη)
                 </Button>
               </div>
             <div className="table-wrap">
@@ -1116,7 +1009,7 @@ export function FeesPage() {
                       </td>
                       <td>{formatDate(row.oldestChargeDate)}</td>
                       <td className="row-actions">
-                        <Button type="button" onClick={() => void handleSendReminder(row)}>
+                        <Button type="button" disabled title="Απενεργοποιημένο">
                           Υπενθύμιση
                         </Button>
                       </td>

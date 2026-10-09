@@ -1,7 +1,7 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
 import { resolveActiveClubId } from '../../data/store';
-import { getClubById, getClubSms, getClubSmtp } from '../../auth/clubs';
+import { getClubById } from '../../auth/clubs';
 import { feeChargeTemplateSchema, type FeeChargeTemplateInput } from '../../schemas';
 import type {
   AthleteTransaction,
@@ -19,9 +19,6 @@ import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { normalizeSportKey } from '../../utils/sport';
 import { studentHasNoClass, studentInClass } from '../../utils/studentClasses';
 import { studentHasSport } from '../../utils/studentSports';
-import { sendClubEmail } from './emailService';
-import { sendClubSms } from './smsService';
-
 export const FEE_SEASON_MONTHS = [
   { month: 8, label: 'Αύγ' },
   { month: 9, label: 'Σεπ' },
@@ -922,127 +919,13 @@ export async function runDueFeeGenerations() {
 }
 
 /**
- * Αυτόματη αποστολή υπενθυμίσεων οφειλών (1 φορά / αθλητή / ημέρα).
- * Απαιτεί ενεργό SMTP ή SMS συλλόγου.
+ * Υπενθυμίσεις οφειλής προς γονείς απενεργοποιημένες πλήρως
+ * (email / SMS / push εφαρμογής).
  */
-export async function runDueFeeReminders(clubId: string) {
-  return apiClient(async () => {
-    if (!clubId) {
-      return { sent: 0, skipped: 0, reason: 'no-club' as const };
-    }
-    const smtp = getClubSmtp(clubId);
-    const sms = getClubSms(clubId);
-    if (!smtp.enabled && !sms.enabled) {
-      const { sendParentPush, athleteParentUserIds } = await import('./pushService');
-      const due = listDebtReminders();
-      const parentIds = athleteParentUserIds(due.map((row) => row.athleteId));
-      if (parentIds.length > 0) {
-        const club = getClubById(clubId);
-        await sendParentPush({
-          clubId,
-          userIds: parentIds,
-          title: `Υπενθύμιση οφειλής — ${club?.name ?? 'TeamSuite'}`,
-          body: 'Υπάρχει ανοιχτή οφειλή. Ανοίξτε την εφαρμογή γονέα για πληρωμή.',
-          url: '/app/parent?tab=payments',
-        });
-        return { sent: parentIds.length, skipped: 0, reason: 'ok' as const };
-      }
-      return { sent: 0, skipped: 0, reason: 'smtp-disabled' as const };
-    }
-
-    const today = localDateIso();
-    const logs = getData().feeReminderLogs ?? [];
-    const rows = listDebtReminders().filter(
-      (row) => (smtp.enabled && row.email.includes('@')) || (sms.enabled && row.phone.trim()),
-    );
-    if (rows.length === 0) {
-      return { sent: 0, skipped: 0, reason: 'none-due' as const };
-    }
-
-    const club = getClubById(clubId);
-    const { listReadyOnlineProviders } = await import('./onlineCheckoutService');
-    const payUrl = feePaymentLoginUrl();
-    const clubName = club?.name ?? 'TeamSuite';
-    const vivaEnabled = listReadyOnlineProviders(clubId).length > 0;
-
-    let sent = 0;
-    let skipped = 0;
-
-    for (const row of rows) {
-      const alreadyToday = logs.some(
-        (log) =>
-          log.athleteId === row.athleteId &&
-          log.createdAt.slice(0, 10) === today,
-      );
-      if (alreadyToday) {
-        skipped += 1;
-        continue;
-      }
-
-      const emailBody = buildDebtReminderEmail({
-        clubName,
-        athleteName: row.athleteName,
-        balance: row.balance,
-        daysOverdue: row.daysOverdue,
-        payUrl,
-        vivaEnabled,
-      });
-
-      let delivered = false;
-      const channels: string[] = [];
-      if (smtp.enabled && row.email.includes('@')) {
-        const send = await sendClubEmail({
-          clubId,
-          to: row.email,
-          subject: emailBody.subject,
-          text: emailBody.text,
-          html: emailBody.html,
-          athleteId: row.athleteId,
-        });
-        if (send.success) {
-          delivered = true;
-          channels.push(`email ${row.email}`);
-        }
-      }
-      if (sms.enabled && row.phone.trim()) {
-        const smsText = `Υπενθύμιση οφειλής ${clubName}: ${row.athleteName} · ${formatCurrencyLocal(row.balance)}. ${payUrl}`;
-        const smsSend = await sendClubSms({
-          clubId,
-          to: row.phone,
-          text: smsText,
-          athleteId: row.athleteId,
-        });
-        if (smsSend.success) {
-          delivered = true;
-          channels.push(`SMS ${row.phone}`);
-        }
-      }
-
-      if (!delivered) {
-        skipped += 1;
-        continue;
-      }
-
-      await logDebtReminder({
-        athleteId: row.athleteId,
-        amount: row.balance,
-        note: `Αυτόματη υπενθύμιση (${channels.join(', ')}) · ${formatCurrencyLocal(row.balance)}`,
-      });
-      sent += 1;
-    }
-
-    const { sendParentPush, athleteParentUserIds } = await import('./pushService');
-    const parentIds = athleteParentUserIds(rows.map((row) => row.athleteId));
-    if (parentIds.length > 0) {
-      await sendParentPush({
-        clubId,
-        userIds: parentIds,
-        title: `Υπενθύμιση οφειλής — ${clubName}`,
-        body: 'Υπάρχει ανοιχτή οφειλή. Ανοίξτε την εφαρμογή γονέα για πληρωμή.',
-        url: '/app/parent?tab=payments',
-      });
-    }
-
-    return { sent, skipped, reason: 'ok' as const };
-  });
+export async function runDueFeeReminders(_clubId: string) {
+  return apiClient(async () => ({
+    sent: 0,
+    skipped: 0,
+    reason: 'disabled' as const,
+  }));
 }

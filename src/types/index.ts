@@ -496,6 +496,22 @@ export interface AnnouncementRecipient {
 export type AnnouncementPriority = 'low' | 'normal' | 'high' | 'urgent';
 export type AnnouncementStatus = 'draft' | 'published';
 
+export interface AnnouncementEmailRecipientStat {
+  email: string;
+  status: 'sent' | 'failed';
+  sentAt?: string;
+  openedAt?: string | null;
+  error?: string;
+}
+
+export interface AnnouncementEmailStats {
+  sentCount: number;
+  failedCount: number;
+  openedCount: number;
+  recipients: AnnouncementEmailRecipientStat[];
+  updatedAt?: string;
+}
+
 export interface Announcement {
   id: string;
   title: string;
@@ -516,6 +532,8 @@ export interface Announcement {
   audienceRoles?: AnnouncementAudienceRole[];
   classIds?: string[];
   recipientIds?: AnnouncementRecipient[];
+  /** SMTP delivery + open tracking for «Αποστολή και με email». */
+  emailStats?: AnnouncementEmailStats;
   updatedAt?: number;
 }
 

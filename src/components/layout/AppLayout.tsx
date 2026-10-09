@@ -463,7 +463,7 @@ export function AppLayout() {
           ) : null}
           <main className="page page--flush-top">
             {writeConflict ? (
-              <div className="ops-alert-banner is-warn" role="status">
+              <div className="ops-alert-banner is-warn" role="status" data-write-conflict>
                 <p>
                   Ο/Η <strong>{writeConflict.cloudByName}</strong> αποθήκευσε στο cloud στις{' '}
                   {new Date(writeConflict.cloudAt).toLocaleString('el-GR')}. Οι αλλαγές σε αυτόν

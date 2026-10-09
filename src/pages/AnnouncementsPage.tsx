@@ -108,7 +108,9 @@ export function AnnouncementsPage() {
   const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('now');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [sendEmail, setSendEmail] = useState(false);
+  const [sendEmail, setSendEmail] = useState(true);
+  const [extraEmails, setExtraEmails] = useState('');
+  const [emailNotice, setEmailNotice] = useState('');
 
   const [audienceFilter, setAudienceFilter] = useState('');
   const [query, setQuery] = useState('');
@@ -123,6 +125,20 @@ export function AnnouncementsPage() {
       createdBy: session?.fullName || 'Διαχειριστής',
     }));
   }, [session?.fullName]);
+
+  useEffect(() => {
+    const clubId = session?.clubId;
+    if (!clubId) return;
+    void notificationService.refreshAnnouncementEmailOpens(clubId).then((result) => {
+      if (result.success && result.updated > 0) refresh();
+    });
+    const id = window.setInterval(() => {
+      void notificationService.refreshAnnouncementEmailOpens(clubId).then((result) => {
+        if (result.success && result.updated > 0) refresh();
+      });
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [session?.clubId, refresh]);
 
   const visibleClasses = useMemo(
     () => visibleClassesForSession(data.classes, data.coaches, session, { seasons: data.clubSeasons }),
@@ -334,8 +350,10 @@ export function AnnouncementsPage() {
       status: 'published',
     });
     setScheduleMode('now');
-    setSendEmail(false);
+    setSendEmail(true);
+    setExtraEmails('');
     setError('');
+    setEmailNotice('');
     setPickerOpen(null);
     setPickerQuery('');
     setClassesEnabled(false);
@@ -607,19 +625,61 @@ export function AnnouncementsPage() {
       return;
     }
 
+    let emailFeedback = '';
     if (status === 'published' && !editing) {
       const clubId = session?.clubId;
       if (clubId) {
         if (sendEmail) {
-          const emails = notificationService.resolveAnnouncementEmails(payload);
-          if (emails.length > 0) {
-            await notificationService.sendAnnouncementEmails({
-              clubId,
-              title: payload.title,
-              message: payload.message,
-              emails,
-            });
+          const resolved = notificationService.resolveAnnouncementEmails(payload);
+          const extras = notificationService.parseEmailList(extraEmails);
+          const emails = [...new Set([...resolved, ...extras])];
+          if (emails.length === 0) {
+            setSaving(false);
+            refresh();
+            setError(
+              'Η ανακοίνωση αποθηκεύτηκε, αλλά δεν βρέθηκαν emails παραληπτών. ' +
+                'Επιλέξτε άτομα από το ακροατήριο που έχουν email, ή συμπληρώστε «Επιπλέον emails».',
+            );
+            setEmailNotice('');
+            return;
           }
+          const createdId = result.data?.id;
+          if (!createdId) {
+            setSaving(false);
+            refresh();
+            setError('Η ανακοίνωση αποθηκεύτηκε, αλλά δεν βρέθηκε id για tracking email.');
+            return;
+          }
+          const mailResult = await notificationService.sendAnnouncementEmails({
+            clubId,
+            announcementId: createdId,
+            title: payload.title,
+            message: payload.message,
+            emails,
+          });
+          const sent = mailResult.data?.sent ?? [];
+          const failed = mailResult.data?.failed ?? [];
+          if (mailResult.data?.emailStats) {
+            await announcementsService.saveAnnouncementEmailStats(
+              createdId,
+              mailResult.data.emailStats,
+            );
+          }
+          if (sent.length === 0) {
+            setSaving(false);
+            refresh();
+            setError(
+              `Η ανακοίνωση αποθηκεύτηκε, αλλά κανένα email δεν στάλθηκε. ${
+                failed[0]?.error ?? 'Ελέγξτε SMTP / ιστορικό αποστολών.'
+              }`,
+            );
+            setEmailNotice('');
+            return;
+          }
+          emailFeedback =
+            failed.length === 0
+              ? `Στάλθηκε email σε ${sent.length} παραλήπτη/ες.`
+              : `Στάλθηκε σε ${sent.length}, απέτυχαν ${failed.length} (${failed[0]?.email}: ${failed[0]?.error}).`;
         }
         await notificationService.sendAnnouncementParentPush({
           clubId,
@@ -636,6 +696,7 @@ export function AnnouncementsPage() {
 
     setSaving(false);
     resetCompose();
+    if (emailFeedback) setEmailNotice(emailFeedback);
     refresh();
   }
 
@@ -949,19 +1010,40 @@ export function AnnouncementsPage() {
             </div>
 
             {!editing ? (
-              <label className="ann-email-check">
-                <input
-                  type="checkbox"
-                  checked={sendEmail}
-                  onChange={(e) => setSendEmail(e.target.checked)}
-                />
-                <span>Αποστολή και με email</span>
-              </label>
+              <div className="ann-email-block">
+                <label className="ann-email-check">
+                  <input
+                    type="checkbox"
+                    checked={sendEmail}
+                    onChange={(e) => setSendEmail(e.target.checked)}
+                  />
+                  <span>Αποστολή και με email</span>
+                </label>
+                <p className="ann-hint">
+                  Στέλνει στα emails των επιλεγμένων γονέων/αθλητών/προπονητών/προσωπικού — όχι
+                  αυτόματα στο email της δοκιμής SMTP.
+                </p>
+                {sendEmail ? (
+                  <label className="ann-field">
+                    <span className="ann-label">Επιπλέον emails (προαιρετικό)</span>
+                    <input
+                      type="text"
+                      value={extraEmails}
+                      placeholder="π.χ. nikos@gmail.com"
+                      onChange={(e) => setExtraEmails(e.target.value)}
+                    />
+                    <span className="ann-hint">
+                      Χωρίστε με κόμμα αν είναι πολλά. Χρήσιμο για δοκιμή στο ίδιο email με το SMTP test.
+                    </span>
+                  </label>
+                ) : null}
+              </div>
             ) : null}
           </aside>
         </div>
 
         {error ? <p className="form-error">{error}</p> : null}
+        {emailNotice ? <p className="ann-email-success">{emailNotice}</p> : null}
 
         <div className="ann-compose-actions">
           <button
@@ -1023,6 +1105,7 @@ export function AnnouncementsPage() {
                 <tr>
                   <th>Τίτλος</th>
                   <th>Ακροατήριο</th>
+                  <th>Email</th>
                   <th>Δημοσίευση</th>
                   <th>Δημιουργός</th>
                   <th />
@@ -1030,6 +1113,9 @@ export function AnnouncementsPage() {
               </thead>
               <tbody>
                 {pageRows.map((item) => {
+                  const stats = item.emailStats;
+                  const received = stats?.sentCount ?? 0;
+                  const read = stats?.openedCount ?? 0;
                   return (
                     <tr key={item.id}>
                       <td>
@@ -1060,6 +1146,31 @@ export function AnnouncementsPage() {
                             </span>
                           ) : null}
                         </div>
+                      </td>
+                      <td>
+                        {stats ? (
+                          <div
+                            className="ann-email-stats"
+                            title={
+                              [
+                                'Άνοιξαν = κλικ στον σύνδεσμο στο email (δουλεύει και χωρίς εικόνες).',
+                                ...(stats.recipients ?? []).map((r) => {
+                                  const open = r.openedAt
+                                    ? `άνοιξε ${new Date(r.openedAt).toLocaleString('el-GR')}`
+                                    : r.status === 'sent'
+                                      ? 'στάλθηκε'
+                                      : `αποτυχία: ${r.error ?? '—'}`;
+                                  return `${r.email}: ${open}`;
+                                }),
+                              ].join('\n')
+                            }
+                          >
+                            <span>Έλαβαν {received}</span>
+                            <span>Άνοιξαν {read}</span>
+                          </div>
+                        ) : (
+                          <span className="ann-hint">—</span>
+                        )}
                       </td>
                       <td>{formatDate(item.visibleFrom || item.createdAt)}</td>
                       <td>{item.createdBy || 'Διαχειριστής'}</td>

@@ -62,7 +62,36 @@ export async function updateAnnouncement(id: string, input: AnnouncementInput) {
     mutateData((data) => {
       const index = data.announcements.findIndex((a) => a.id === id);
       if (index === -1) throw new Error('Η ανακοίνωση δεν βρέθηκε');
-      updated = toAnnouncement(parsed, id, data.announcements[index].createdAt);
+      const prev = data.announcements[index];
+      updated = {
+        ...toAnnouncement(parsed, id, prev.createdAt),
+        emailStats: prev.emailStats,
+      };
+      data.announcements[index] = updated;
+    });
+    void publishClubOpsSlice();
+    return updated!;
+  });
+}
+
+export async function saveAnnouncementEmailStats(
+  id: string,
+  emailStats: NonNullable<Announcement['emailStats']>,
+) {
+  return apiClient(() => {
+    let updated: Announcement | undefined;
+    mutateData((data) => {
+      const index = data.announcements.findIndex((a) => a.id === id);
+      if (index === -1) throw new Error('Η ανακοίνωση δεν βρέθηκε');
+      updated = {
+        ...data.announcements[index],
+        emailStats: {
+          ...emailStats,
+          openedCount: emailStats.recipients.filter((r) => r.openedAt).length,
+          updatedAt: new Date().toISOString(),
+        },
+        updatedAt: Date.now(),
+      };
       data.announcements[index] = updated;
     });
     void publishClubOpsSlice();

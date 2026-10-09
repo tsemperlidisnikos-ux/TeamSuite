@@ -1055,12 +1055,39 @@
   outline: none;
 }
 
+.ann-email-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
 .ann-email-check {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   color: var(--ink);
   font-weight: 650;
+}
+
+.ann-email-success {
+  margin: 0.65rem 0 0;
+  color: #0f766e;
+  font-weight: 650;
+  font-size: 0.92rem;
+}
+
+.ann-email-stats {
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--ink);
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.ann-email-stats span:last-child {
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .ann-hint {

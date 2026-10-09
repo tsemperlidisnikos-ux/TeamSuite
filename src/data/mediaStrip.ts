@@ -1,8 +1,28 @@
 import type { AppData } from '../types';
 
-/** Drop base64 payloads so AppData fits in localStorage. */
+const MAX_EMBEDDED_STRING = 80_000;
+
+function slimDeep(value: unknown, depth = 0): unknown {
+  if (depth > 12 || value == null) return value;
+  if (typeof value === 'string') {
+    if (value.startsWith('data:')) return value.startsWith('data:image') ? '' : '';
+    if (value.length > MAX_EMBEDDED_STRING) return `${value.slice(0, 2_000)}…[truncated]`;
+    return value;
+  }
+  if (Array.isArray(value)) return value.map((item) => slimDeep(item, depth + 1));
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = slimDeep(child, depth + 1);
+    }
+    return out;
+  }
+  return value;
+}
+
+/** Drop base64 payloads so AppData fits in localStorage / Vercel sync limits. */
 export function stripHeavyMedia(data: AppData): AppData {
-  return {
+  const base: AppData = {
     ...data,
     photos: (data.photos ?? []).map((p) => ({
       ...p,
@@ -36,6 +56,7 @@ export function stripHeavyMedia(data: AppData): AppData {
         }
       : data.rentalSettings,
   };
+  return slimDeep(base) as AppData;
 }
 
 export function appDataWeight(data: AppData | null | undefined): number {

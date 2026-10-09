@@ -819,13 +819,15 @@ export async function saveMirror(
     };
   }
 
+  const { slimMirrorPayload } = await import('./mirrorPayloadSlim.js');
   const mergedPayload = existing
     ? mergeMirrorPayloadPreservingRoster(existing.payload, payload)
     : payload;
+  const slimmedPayload = slimMirrorPayload(mergedPayload);
 
   const record: MirrorRecord = {
     updatedAt: new Date().toISOString(),
-    payload: mergedPayload,
+    payload: slimmedPayload,
   };
   if (!isDurableKvEnabled()) {
     memory().mirrors[clubId] = record;

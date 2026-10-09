@@ -335,9 +335,6 @@ export function LoginPage({
         /* best-effort role defaults */
       }
       if (result.data?.clubId) {
-        void import('../api/services/feeChargesService')
-          .then(({ runDueFeeReminders }) => runDueFeeReminders(result.data!.clubId!))
-          .catch(() => undefined);
         const role = result.data?.role;
         if (role === 'admin' || role === 'secretariat' || role === 'platform_admin') {
           void import('../api/services/warehouseNoticeService')

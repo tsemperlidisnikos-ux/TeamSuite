@@ -123,6 +123,8 @@ type ClubSyncProgress = { percent: number; inFlight: boolean };
 
 const syncProgressByClub: Record<string, ClubSyncProgress> = {};
 const syncProgressTimers: Record<string, ReturnType<typeof setInterval>> = {};
+const syncProgressWatchdogs: Record<string, ReturnType<typeof setTimeout>> = {};
+const SYNC_PROGRESS_TIMEOUT_MS = 60_000;
 
 export function getClubSyncProgress(clubId?: string | null): ClubSyncProgress {
   const id = clubId ?? resolveActiveClubId();
@@ -140,9 +142,15 @@ function setClubSyncProgress(clubId: string, percent: number, inFlight: boolean)
 
 function stopClubSyncProgressTimer(clubId: string): void {
   const timer = syncProgressTimers[clubId];
-  if (!timer) return;
-  clearInterval(timer);
-  delete syncProgressTimers[clubId];
+  if (timer) {
+    clearInterval(timer);
+    delete syncProgressTimers[clubId];
+  }
+  const watchdog = syncProgressWatchdogs[clubId];
+  if (watchdog) {
+    clearTimeout(watchdog);
+    delete syncProgressWatchdogs[clubId];
+  }
 }
 
 function beginClubSyncProgress(clubId: string): void {
@@ -154,11 +162,26 @@ function beginClubSyncProgress(clubId: string): void {
     const step = current < 30 ? 8 : current < 60 ? 4 : 2;
     setClubSyncProgress(clubId, Math.min(90, current + step), true);
   }, 300);
+  syncProgressWatchdogs[clubId] = setTimeout(() => {
+    if (!syncProgressByClub[clubId]?.inFlight) return;
+    endClubSyncProgress(clubId, false);
+    setLastSyncError(clubId, 'Η αποστολή πήρε πολύ ώρα. Κλικ για επανάληψη.');
+  }, SYNC_PROGRESS_TIMEOUT_MS);
 }
 
 function endClubSyncProgress(clubId: string, ok: boolean): void {
   stopClubSyncProgressTimer(clubId);
   setClubSyncProgress(clubId, ok ? 100 : 0, false);
+}
+
+/** Ξεκόλλημα UI: καθαρίζει error/stale conflict και ξαναστέλνει. */
+export async function recoverClubServerSync(clubId: string) {
+  pruneStaleClubWriteConflict(clubId);
+  clearLastSyncError(clubId);
+  if (syncProgressByClub[clubId]?.inFlight) {
+    endClubSyncProgress(clubId, false);
+  }
+  return flushClubMirrorPush(clubId, { force: true });
 }
 
 const MIN_PULL_GAP_MS = 400;
@@ -251,6 +274,30 @@ export function isClubMirrorDirty(clubId: string): boolean {
 export function getLastSyncError(clubId: string): string | null {
   const msg = readMap<Record<string, string>>(LAST_ERROR_KEY)[clubId];
   return msg?.trim() || null;
+}
+
+/** Σύγκρουση revision / άλλος χρήστης — δεν πρέπει να μένει μόνιμο κόκκινο στο Server badge. */
+export function isMirrorConflictError(message: string | null | undefined): boolean {
+  if (!message?.trim()) return false;
+  const m = message.toLowerCase();
+  return (
+    message.includes('Άλλος χρήστης αποθήκευσε') ||
+    m.includes('mirror conflict') ||
+    m.includes('write conflict') ||
+    (m.includes('conflict') && (m.includes('newer revision') || m.includes('cloud')))
+  );
+}
+
+export function clearLastSyncError(clubId: string): void {
+  setLastSyncError(clubId, null);
+}
+
+/** Καθαρίζει κολλημένο conflict όταν δεν υπάρχουν πλέον τοπικές εκκρεμότητες. */
+export function pruneStaleClubWriteConflict(clubId: string): void {
+  if (!getClubWriteConflict(clubId)) return;
+  if (isClubMirrorDirty(clubId)) return;
+  clearClubWriteConflict(clubId);
+  setLastSyncError(clubId, null);
 }
 
 function setLastSyncError(clubId: string, message: string | null): void {
@@ -388,6 +435,7 @@ async function pushClubAndAccounts(
     const cloud = pull.data.payload;
     if (shouldHoldWriteConflict(id, local, cloud)) {
       rememberWriteConflict(id, local, cloud);
+      setLastSyncError(id, null);
       return {
         success: false as const,
         data: null,
@@ -405,6 +453,18 @@ async function pushClubAndAccounts(
     });
   }
 
+  // Μετά από αποτυχημένα merge-retries: ίδια συσκευή / race με ops slice → overwrite.
+  if (
+    !result.success &&
+    isMirrorConflictError(result.error) &&
+    !getClubWriteConflict(id)
+  ) {
+    result = await backendSyncService.pushClubMirror(id, {
+      baseUpdatedAt: null,
+      keepalive: opts?.keepalive,
+    });
+  }
+
   await maybePushAccountBundle(opts?.keepalive);
   if (result.success) {
     setLastSyncAt(id, result.data?.updatedAt ?? new Date().toISOString());
@@ -412,7 +472,11 @@ async function pushClubAndAccounts(
     clearClubWriteConflict(id);
     setLastSyncError(id, null);
   } else if (result.error) {
-    setLastSyncError(id, result.error);
+    // Η σύγκρουση έχει δικό της UI — μην κρατάμε μόνιμο κόκκινο από «Mirror conflict».
+    const isConflict =
+      isMirrorConflictError(result.error) || Boolean(getClubWriteConflict(id));
+    if (!isConflict) setLastSyncError(id, result.error);
+    else setLastSyncError(id, null);
   }
   return result;
 }
@@ -1006,6 +1070,7 @@ export async function resolveClubWriteConflict(
 ) {
   const id = clubId;
   clearClubWriteConflict(id);
+  setLastSyncError(id, null);
   const { getClubData, replaceClubData } = await import('./repository');
   const pull = await backendSyncService.pullClubMirror(id);
   const local = getClubData(id);
@@ -1020,6 +1085,7 @@ export async function resolveClubWriteConflict(
     replaceClubData(id, applyCloudClubData(local, cloud), { skipCloudPush: true });
     setLastSyncAt(id, pull.data?.updatedAt ?? new Date().toISOString());
     clearClubMirrorDirty(id);
+    setLastSyncError(id, null);
     return { success: true as const, error: null };
   }
 
@@ -1029,10 +1095,12 @@ export async function resolveClubWriteConflict(
   markClubMirrorDirty(id);
   const pushed = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: null });
   if (!pushed.success) {
+    setLastSyncError(id, pushed.error ?? 'Αποτυχία αποστολής');
     return { success: false as const, error: pushed.error ?? 'Αποτυχία αποστολής' };
   }
   setLastSyncAt(id, pushed.data?.updatedAt ?? new Date().toISOString());
   clearClubMirrorDirty(id);
+  setLastSyncError(id, null);
   return { success: true as const, error: null };
 }
 

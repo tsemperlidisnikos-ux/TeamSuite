@@ -471,6 +471,20 @@ strong {
   white-space: nowrap;
   overflow: visible;
   text-overflow: unset;
+  align-self: center;
+}
+
+/* Μην κληρονομούν τα styles του .app-header-user span (display:block κ.λπ.). */
+.app-header-user .club-sync-status span {
+  display: inline-flex;
+  margin: 0;
+  font-size: inherit;
+  color: inherit;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: unset;
+  max-width: none;
 }
 
 .app-header-user-meta {
@@ -5726,64 +5740,93 @@ html[data-appearance] .settings-backup-schedule-status {
 }
 
 .club-sync-status {
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
   color: #fff;
+  line-height: 1;
+  font: inherit;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .club-sync-status:disabled {
   cursor: default;
 }
 
-.club-sync-meter {
-  --p: 100;
-  width: 3.75rem;
-  height: 1.4rem;
-  border-radius: 999px;
-  border: 2px solid #5eead4;
-  background:
-    linear-gradient(#5eead4 0 0) left / calc(var(--p) * 1%) 100% no-repeat,
-    #111;
-  display: grid;
-  place-items: center;
-}
-
-.club-sync-pct {
-  display: flex;
+.club-sync-server {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  color: #fff;
-  font-size: 0.68rem;
-  font-weight: 750;
-  letter-spacing: -0.02em;
+  gap: 0.4rem;
+  min-height: 1.65rem;
+  padding: 0.28rem 0.75rem 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(0, 0, 0, 0.35);
+  color: #f4f8fb;
+  box-sizing: border-box;
+}
+
+.club-sync-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.28);
+  flex-shrink: 0;
+  display: block;
+}
+
+.club-sync-label {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   line-height: 1;
-  text-align: center;
-  text-shadow: 0 0 3px #000, 0 1px 1px #000;
+  transform: none;
+  text-shadow: none;
 }
 
-.club-sync-status.is-warn {
-  background: transparent;
+.club-sync-status.is-ok .club-sync-dot {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.28);
 }
 
-.club-sync-status.is-warn .club-sync-meter {
-  border-color: #f87171;
-  background:
-    linear-gradient(#f87171 0 0) left / calc(var(--p) * 1%) 100% no-repeat,
-    #111;
+.club-sync-status.is-pending .club-sync-dot {
+  background: #eab308;
+  box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.28);
 }
 
-.club-sync-status.is-busy .club-sync-meter {
-  border-color: #5eead4;
-  background:
-    linear-gradient(#5eead4 0 0) left / calc(var(--p) * 1%) 100% no-repeat,
-    #111;
+.club-sync-status.is-busy .club-sync-dot {
+  background: #2dd4bf;
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.28);
+  animation: club-sync-pulse 1s ease-in-out infinite;
+}
+
+.club-sync-status.is-warn .club-sync-dot {
+  background: #f87171;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.3);
+}
+
+.club-sync-status.is-warn .club-sync-server {
+  border-color: rgba(248, 113, 113, 0.55);
+}
+
+@keyframes club-sync-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
 }
 
 .ap-euro-field {
