@@ -1085,9 +1085,97 @@
   white-space: nowrap;
 }
 
+.ann-email-stats-btn {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ann-email-stats-btn:hover span:first-child {
+  text-decoration: underline;
+}
+
 .ann-email-stats span:last-child {
   color: var(--muted);
   font-weight: 600;
+}
+
+.ann-email-stats span.is-failed {
+  color: #b91c1c;
+}
+
+.ann-email-stats-hint {
+  color: #1d4ed8 !important;
+  font-weight: 650 !important;
+  font-size: 0.78rem !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ann-email-report {
+  display: grid;
+  gap: 1rem;
+}
+
+.ann-email-report-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.ann-email-report-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.95rem;
+}
+
+.ann-email-report-block h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.9rem;
+}
+
+.ann-email-report-block ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.ann-email-report-block li {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface, #fff) 88%, #fee2e2);
+  font-size: 0.85rem;
+}
+
+.ann-email-report-block li span {
+  color: #991b1b;
+  font-size: 0.8rem;
+}
+
+.ann-email-report-sent li {
+  background: color-mix(in srgb, var(--surface, #fff) 90%, #dcfce7);
+  color: var(--ink);
+}
+
+.ann-email-report-resent {
+  border: 1px solid color-mix(in srgb, #16a34a 35%, transparent);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  background: color-mix(in srgb, var(--surface, #fff) 92%, #bbf7d0);
+}
+
+.ann-email-report-resent h3 {
+  color: #166534;
 }
 
 .ann-hint {

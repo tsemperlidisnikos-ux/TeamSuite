@@ -183,36 +183,69 @@ export function resolveAnnouncementEmails(
   return uniqueEmails(emails);
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function deliverAnnouncementEmail(input: {
+  clubId: string;
+  to: string;
+  title: string;
+  message: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const result = await sendClubEmail({
+      clubId: input.clubId,
+      to: input.to,
+      subject: `Ανακοίνωση: ${input.title}`,
+      text: `${input.title}\n\n${input.message}`,
+      html: `<h2>${escapeHtml(input.title)}</h2><p>${escapeHtml(input.message).replace(/\n/g, '<br/>')}</p>`,
+    });
+    if (result.success) return { ok: true };
+    return { ok: false, error: result.error ?? 'Αποτυχία' };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Αποτυχία' };
+  }
+}
+
 export async function sendAnnouncementEmails(input: {
   clubId: string;
   announcementId: string;
   title: string;
   message: string;
   emails: string[];
+  /** Extra automatic retries for failures (default 1 = άμεση επαναπροσπάθεια). */
+  retryFailedPasses?: number;
 }) {
   const sent: string[] = [];
-  const failed: Array<{ email: string; error: string }> = [];
+  let failed: Array<{ email: string; error: string }> = [];
   const sentAt = new Date().toISOString();
+  const retryPasses = Math.max(0, input.retryFailedPasses ?? 1);
 
   for (const to of input.emails) {
-    try {
-      const result = await sendClubEmail({
+    const result = await deliverAnnouncementEmail({
+      clubId: input.clubId,
+      to,
+      title: input.title,
+      message: input.message,
+    });
+    if (result.ok) sent.push(to);
+    else failed.push({ email: to, error: result.error });
+  }
+
+  for (let pass = 0; pass < retryPasses && failed.length > 0; pass += 1) {
+    await sleep(1500);
+    const retryList = [...failed];
+    failed = [];
+    for (const row of retryList) {
+      const result = await deliverAnnouncementEmail({
         clubId: input.clubId,
-        to,
-        subject: `Ανακοίνωση: ${input.title}`,
-        text: `${input.title}\n\n${input.message}`,
-        html: `<h2>${escapeHtml(input.title)}</h2><p>${escapeHtml(input.message).replace(/\n/g, '<br/>')}</p>`,
+        to: row.email,
+        title: input.title,
+        message: input.message,
       });
-      if (result.success) {
-        sent.push(to);
-      } else {
-        failed.push({ email: to, error: result.error ?? 'Αποτυχία' });
-      }
-    } catch (err) {
-      failed.push({
-        email: to,
-        error: err instanceof Error ? err.message : 'Αποτυχία',
-      });
+      if (result.ok) sent.push(row.email);
+      else failed.push({ email: row.email, error: result.error });
     }
   }
 
@@ -265,7 +298,146 @@ export async function sendAnnouncementEmails(input: {
   };
 }
 
-/** Συγχρονίζει opens από το cloud στο τοπικό announcement.emailStats. */
+/** Επαναποστολή μόνο στα emails που απέτυχαν στην τελευταία αποστολή. */
+export async function resendFailedAnnouncementEmails(input: {
+  clubId: string;
+  announcementId: string;
+  title: string;
+  message: string;
+  previousStats: NonNullable<import('../../types').Announcement['emailStats']>;
+}) {
+  const failedEmails = [
+    ...new Set(
+      (input.previousStats.recipients ?? [])
+        .filter((r) => r.status === 'failed')
+        .map((r) => r.email.trim().toLowerCase())
+        .filter((e) => e.includes('@')),
+    ),
+  ];
+  if (failedEmails.length === 0) {
+    return {
+      success: true as const,
+      data: {
+        sent: [] as string[],
+        failed: [] as Array<{ email: string; error: string }>,
+        emailStats: input.previousStats,
+        resentCount: 0,
+      },
+      error: null,
+    };
+  }
+
+  const round = await sendAnnouncementEmails({
+    clubId: input.clubId,
+    announcementId: input.announcementId,
+    title: input.title,
+    message: input.message,
+    emails: failedEmails,
+    retryFailedPasses: 1,
+  });
+
+  const byEmail = new Map(
+    (input.previousStats.recipients ?? []).map((r) => [r.email.trim().toLowerCase(), { ...r }]),
+  );
+  for (const row of round.data?.emailStats.recipients ?? []) {
+    byEmail.set(row.email.trim().toLowerCase(), row);
+  }
+  const recipients = [...byEmail.values()];
+  const sentCount = recipients.filter((r) => r.status === 'sent').length;
+  const failedCount = recipients.filter((r) => r.status === 'failed').length;
+  const emailStats = {
+    sentCount,
+    failedCount,
+    openedCount: recipients.filter((r) => r.openedAt).length,
+    recipients,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return {
+    success: true as const,
+    data: {
+      sent: round.data?.sent ?? [],
+      failed: round.data?.failed ?? [],
+      emailStats,
+      resentCount: failedEmails.length,
+    },
+    error: null,
+  };
+}
+
+type RemoteEmailTrackStats = {
+  sentCount?: number;
+  failedCount?: number;
+  openedCount?: number;
+  opens?: Record<string, string>;
+  sent?: string[];
+  failed?: Array<{ email: string; error?: string }>;
+  updatedAt?: string;
+};
+
+function mergeEmailTrackRecipients(
+  prev: import('../../types').AnnouncementEmailRecipientStat[] | undefined,
+  remote: RemoteEmailTrackStats,
+) {
+  const opens = remote.opens ?? {};
+  const byEmail = new Map<string, import('../../types').AnnouncementEmailRecipientStat>();
+
+  for (const r of prev ?? []) {
+    const key = r.email.trim().toLowerCase();
+    if (!key) continue;
+    byEmail.set(key, {
+      ...r,
+      openedAt: opens[key] ?? r.openedAt ?? null,
+    });
+  }
+
+  for (const email of remote.sent ?? []) {
+    const key = email.trim().toLowerCase();
+    if (!key.includes('@')) continue;
+    const existing = byEmail.get(key);
+    byEmail.set(key, {
+      email: existing?.email ?? email,
+      status: 'sent',
+      sentAt: existing?.sentAt,
+      openedAt: opens[key] ?? existing?.openedAt ?? null,
+    });
+  }
+
+  const sentKeys = new Set(
+    [...byEmail.values()].filter((r) => r.status === 'sent').map((r) => r.email.trim().toLowerCase()),
+  );
+  for (const row of remote.failed ?? []) {
+    const key = String(row.email ?? '')
+      .trim()
+      .toLowerCase();
+    if (!key.includes('@') || sentKeys.has(key)) continue;
+    const existing = byEmail.get(key);
+    if (existing?.status === 'sent') continue;
+    byEmail.set(key, {
+      email: existing?.email ?? row.email,
+      status: 'failed',
+      sentAt: existing?.sentAt,
+      openedAt: null,
+      error: row.error ?? existing?.error,
+    });
+  }
+
+  return [...byEmail.values()];
+}
+
+function emailStatsFingerprint(
+  stats: NonNullable<import('../../types').Announcement['emailStats']> | undefined,
+) {
+  if (!stats) return '';
+  const failed = (stats.recipients ?? [])
+    .filter((r) => r.status === 'failed')
+    .map((r) => r.email.toLowerCase())
+    .sort()
+    .join('|');
+  return `${stats.sentCount}:${stats.failedCount}:${stats.openedCount}:${failed}:${(stats.recipients ?? []).length}`;
+}
+
+/** Συγχρονίζει opens / sent / failed από το cloud στο τοπικό announcement.emailStats. */
 export async function refreshAnnouncementEmailOpens(clubId: string) {
   const { syncAuthHeaders } = await import('../syncAuth');
   const { mutateData } = await import('../../data/repository');
@@ -276,18 +448,7 @@ export async function refreshAnnouncementEmailOpens(clubId: string) {
   if (!response.ok) return { success: false as const, updated: 0 };
   const json = (await response.json()) as {
     ok?: boolean;
-    stats?: Record<
-      string,
-      {
-        sentCount?: number;
-        failedCount?: number;
-        openedCount?: number;
-        opens?: Record<string, string>;
-        sent?: string[];
-        failed?: Array<{ email: string; error?: string }>;
-        updatedAt?: string;
-      }
-    >;
+    stats?: Record<string, RemoteEmailTrackStats>;
   };
   if (!json.ok || !json.stats) return { success: false as const, updated: 0 };
 
@@ -296,40 +457,16 @@ export async function refreshAnnouncementEmailOpens(clubId: string) {
     for (const ann of data.announcements) {
       const remote = json.stats![ann.id];
       if (!remote) continue;
-      const opens = remote.opens ?? {};
       const prev = ann.emailStats;
-      const recipients =
-        prev?.recipients?.map((r) => ({
-          ...r,
-          openedAt: opens[r.email.toLowerCase()] ?? r.openedAt ?? null,
-        })) ??
-        [
-          ...(remote.sent ?? []).map((email) => ({
-            email,
-            status: 'sent' as const,
-            openedAt: opens[email.toLowerCase()] ?? null,
-          })),
-          ...(remote.failed ?? []).map((row) => ({
-            email: row.email,
-            status: 'failed' as const,
-            openedAt: null as string | null,
-            error: row.error,
-          })),
-        ];
-      const openedCount = recipients.filter((r) => r.openedAt).length;
+      const recipients = mergeEmailTrackRecipients(prev?.recipients, remote);
       const next = {
-        sentCount: remote.sentCount ?? recipients.filter((r) => r.status === 'sent').length,
-        failedCount: remote.failedCount ?? recipients.filter((r) => r.status === 'failed').length,
-        openedCount,
+        sentCount: recipients.filter((r) => r.status === 'sent').length,
+        failedCount: recipients.filter((r) => r.status === 'failed').length,
+        openedCount: recipients.filter((r) => r.openedAt).length,
         recipients,
         updatedAt: remote.updatedAt ?? new Date().toISOString(),
       };
-      if (
-        !prev ||
-        prev.sentCount !== next.sentCount ||
-        prev.openedCount !== next.openedCount ||
-        prev.failedCount !== next.failedCount
-      ) {
+      if (emailStatsFingerprint(prev) !== emailStatsFingerprint(next)) {
         ann.emailStats = next;
         ann.updatedAt = Date.now();
         updated += 1;
@@ -337,6 +474,45 @@ export async function refreshAnnouncementEmailOpens(clubId: string) {
     }
   });
   return { success: true as const, updated };
+}
+
+/** Φέρνει sent/failed για μία ανακοίνωση από το cloud (για αναφορά αποτυχιών). */
+export async function hydrateAnnouncementEmailStats(input: {
+  clubId: string;
+  announcementId: string;
+}) {
+  const { syncAuthHeaders } = await import('../syncAuth');
+  const { getData, mutateData } = await import('../../data/repository');
+  const response = await fetch(
+    `/api/email-track?clubId=${encodeURIComponent(input.clubId)}&stats=1&announcementId=${encodeURIComponent(input.announcementId)}`,
+    { headers: syncAuthHeaders(false) },
+  );
+  if (!response.ok) return { success: false as const, emailStats: null };
+  const json = (await response.json()) as {
+    ok?: boolean;
+    stats?: Record<string, RemoteEmailTrackStats>;
+  };
+  const remote = json.stats?.[input.announcementId];
+  if (!json.ok || !remote) return { success: false as const, emailStats: null };
+
+  const prev = getData().announcements.find((a) => a.id === input.announcementId)?.emailStats;
+  const recipients = mergeEmailTrackRecipients(prev?.recipients, remote);
+  const emailStats = {
+    sentCount: recipients.filter((r) => r.status === 'sent').length,
+    failedCount: recipients.filter((r) => r.status === 'failed').length,
+    openedCount: recipients.filter((r) => r.openedAt).length,
+    recipients,
+    updatedAt: remote.updatedAt ?? new Date().toISOString(),
+  };
+
+  mutateData((data) => {
+    const ann = data.announcements.find((a) => a.id === input.announcementId);
+    if (!ann) return;
+    ann.emailStats = emailStats;
+    ann.updatedAt = Date.now();
+  });
+
+  return { success: true as const, emailStats };
 }
 
 export async function sendAnnouncementParentPush(input: {

@@ -23,6 +23,7 @@ import * as announcementsService from '../api/services/announcementsService';
 import * as notificationService from '../api/services/notificationService';
 import { getSession } from '../auth/auth';
 import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
 import { resolveActiveClubId } from '../data/store';
 import { useAppData } from '../hooks/useAppData';
 import type { AnnouncementInput } from '../schemas';
@@ -89,7 +90,7 @@ function formatDate(value: string): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function htmlToPlain(html: string): string {
@@ -117,6 +118,10 @@ export function AnnouncementsPage() {
   const [saving, setSaving] = useState(false);
   const [sendEmail, setSendEmail] = useState(true);
   const [emailNotice, setEmailNotice] = useState('');
+  const [emailReport, setEmailReport] = useState<Announcement | null>(null);
+  const [resendingFailed, setResendingFailed] = useState(false);
+  /** Emails που πέτυχαν στην τελευταία χειροκίνητη επαναποστολή (για εμφάνιση στην αναφορά). */
+  const [lastResendSent, setLastResendSent] = useState<string[]>([]);
 
   const [audienceFilter, setAudienceFilter] = useState('');
   const [query, setQuery] = useState('');
@@ -686,6 +691,15 @@ export function AnnouncementsPage() {
               announcementId,
               mailResult.data.emailStats,
             );
+            if (failed.length > 0) {
+              const saved = (await import('../data/repository')).getData().announcements.find(
+                (a) => a.id === announcementId,
+              );
+              if (saved) {
+                setLastResendSent([]);
+                setEmailReport(saved);
+              }
+            }
           }
           if (sent.length === 0) {
             setError(
@@ -699,10 +713,7 @@ export function AnnouncementsPage() {
           emailFeedback =
             failed.length === 0
               ? `Στάλθηκε email σε ${sent.length} παραλήπτη/ες.`
-              : `Στάλθηκε σε ${sent.length}, απέτυχαν ${failed.length} (${failed
-                  .slice(0, 2)
-                  .map((f) => `${f.email}: ${f.error}`)
-                  .join(' · ')}).`;
+              : `Στάλθηκε σε ${sent.length}. Απέτυχαν ${failed.length} — δείτε τη λίστα στην αναφορά.`;
         } else if (wantEmail && !announcementId) {
           setError('Η ανακοίνωση αποθηκεύτηκε, αλλά δεν βρέθηκε id για αποστολή email.');
           refresh();
@@ -740,6 +751,77 @@ export function AnnouncementsPage() {
     if (!confirm('Διαγραφή ανακοίνωσης;')) return;
     await announcementsService.deleteAnnouncement(id);
     refresh();
+  }
+
+  async function handleResendFailedEmails() {
+    if (!emailReport?.emailStats || !clubId) return;
+    const failedN = (emailReport.emailStats.recipients ?? []).filter(
+      (r) => r.status === 'failed',
+    ).length;
+    if (failedN === 0) return;
+    if (!confirm(`Επαναποστολή σε ${failedN} παραλήπτη/ες που απέτυχαν;`)) return;
+
+    setResendingFailed(true);
+    setError('');
+    setLastResendSent([]);
+    try {
+      const result = await notificationService.resendFailedAnnouncementEmails({
+        clubId,
+        announcementId: emailReport.id,
+        title: emailReport.title,
+        message: htmlToPlain(emailReport.message),
+        previousStats: emailReport.emailStats,
+      });
+      if (result.data?.emailStats) {
+        await announcementsService.saveAnnouncementEmailStats(
+          emailReport.id,
+          result.data.emailStats,
+        );
+        const newlySentList = [...(result.data.sent ?? [])];
+        const stillFailed = result.data.failed?.length ?? 0;
+        const newlySent = newlySentList.length;
+        setLastResendSent(newlySentList);
+        setEmailNotice(
+          newlySent === 0
+            ? `Επαναποστολή: κανένα email δεν στάλθηκε (απέτυχαν ακόμα ${stillFailed}).`
+            : stillFailed === 0
+              ? `Επαναποστολή OK — στάλθηκαν: ${newlySentList.join(', ')}`
+              : `Επαναποστολή: στάλθηκαν ${newlySent} (${newlySentList.join(', ')}). Απέτυχαν ακόμα ${stillFailed}.`,
+        );
+        setEmailReport({ ...emailReport, emailStats: result.data.emailStats });
+        refresh();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Αποτυχία επαναποστολής');
+    } finally {
+      setResendingFailed(false);
+    }
+  }
+
+  async function openEmailReport(item: Announcement) {
+    setLastResendSent([]);
+    setEmailReport(item);
+    if (!clubId || !item.emailStats) return;
+    const localFailed = (item.emailStats.recipients ?? []).filter(
+      (r) => r.status === 'failed',
+    ).length;
+    const needsHydrate =
+      (item.emailStats.failedCount ?? 0) > localFailed ||
+      (item.emailStats.recipients ?? []).length === 0;
+    if (!needsHydrate) return;
+    try {
+      const result = await notificationService.hydrateAnnouncementEmailStats({
+        clubId,
+        announcementId: item.id,
+      });
+      if (result.emailStats) {
+        await announcementsService.saveAnnouncementEmailStats(item.id, result.emailStats);
+        setEmailReport({ ...item, emailStats: result.emailStats });
+        refresh();
+      }
+    } catch {
+      /* keep local report */
+    }
   }
 
   function audienceRolesOf(item: Announcement): AnnouncementAudienceRole[] {
@@ -1139,7 +1221,8 @@ export function AnnouncementsPage() {
               <tbody>
                 {pageRows.map((item) => {
                   const stats = item.emailStats;
-                  const received = stats?.sentCount ?? 0;
+                  const sent = stats?.sentCount ?? 0;
+                  const failed = stats?.failedCount ?? 0;
                   return (
                     <tr key={item.id}>
                       <td>
@@ -1173,22 +1256,22 @@ export function AnnouncementsPage() {
                       </td>
                       <td>
                         {stats ? (
-                          <div
-                            className="ann-email-stats"
-                            title={
-                              (stats.recipients ?? [])
-                                .map((r) => {
-                                  const detail =
-                                    r.status === 'sent'
-                                      ? 'στάλθηκε'
-                                      : `αποτυχία: ${r.error ?? '—'}`;
-                                  return `${r.email}: ${detail}`;
-                                })
-                                .join('\n') ?? ''
-                            }
+                          <button
+                            type="button"
+                            className="ann-email-stats ann-email-stats-btn"
+                            title="Κλικ για να δείτε ποια email στάλθηκαν / απέτυχαν"
+                            onClick={() => void openEmailReport(item)}
                           >
-                            <span>Έλαβαν {received}</span>
-                          </div>
+                            <span>Στάλθηκαν {sent}</span>
+                            <span className={failed > 0 ? 'is-failed' : undefined}>
+                              Απέτυχαν {failed}
+                            </span>
+                            {failed > 0 ? (
+                              <span className="ann-email-stats-hint">Δείτε ποια απέτυχαν ›</span>
+                            ) : (
+                              <span className="ann-email-stats-hint">Λεπτομέρειες ›</span>
+                            )}
+                          </button>
                         ) : (
                           <span className="ann-hint">—</span>
                         )}
@@ -1259,6 +1342,100 @@ export function AnnouncementsPage() {
           </div>
         </div>
       </section>
+
+      <Modal
+        open={Boolean(emailReport)}
+        title="Αναφορά αποστολής email"
+        onClose={() => {
+          if (resendingFailed) return;
+          setLastResendSent([]);
+          setEmailReport(null);
+        }}
+        footer={
+          <>
+            {(emailReport?.emailStats?.failedCount ?? 0) > 0 ? (
+              <Button
+                type="button"
+                disabled={resendingFailed}
+                onClick={() => void handleResendFailedEmails()}
+              >
+                <Send size={16} />
+                {resendingFailed
+                  ? 'Επαναποστολή…'
+                  : `Επαναποστολή στους ${emailReport?.emailStats?.failedCount ?? 0} που απέτυχαν`}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={resendingFailed}
+              onClick={() => {
+                setLastResendSent([]);
+                setEmailReport(null);
+              }}
+            >
+              Κλείσιμο
+            </Button>
+          </>
+        }
+      >
+        {emailReport?.emailStats ? (
+          <div className="ann-email-report">
+            <p className="ann-email-report-title">{emailReport.title}</p>
+            <div className="ann-email-report-summary">
+              <span>
+                Στάλθηκαν:{' '}
+                <strong>{emailReport.emailStats.sentCount ?? 0}</strong>
+              </span>
+              <span>
+                Απέτυχαν:{' '}
+                <strong>{emailReport.emailStats.failedCount ?? 0}</strong>
+              </span>
+            </div>
+            {lastResendSent.length > 0 ? (
+              <div className="ann-email-report-block ann-email-report-resent">
+                <h3>Στάλθηκαν στην επαναποστολή ({lastResendSent.length})</h3>
+                <ul className="ann-email-report-sent">
+                  {lastResendSent.map((email) => (
+                    <li key={`resent-${email}`}>{email}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {(emailReport.emailStats.recipients ?? []).filter((r) => r.status === 'failed')
+              .length > 0 ? (
+              <div className="ann-email-report-block">
+                <h3>Αποτυχίες</h3>
+                <ul>
+                  {(emailReport.emailStats.recipients ?? [])
+                    .filter((r) => r.status === 'failed')
+                    .map((r) => (
+                      <li key={`fail-${r.email}`}>
+                        <strong>{r.email}</strong>
+                        <span>{r.error?.trim() || 'Άγνωστο σφάλμα'}</span>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="ann-hint">Καμία αποτυχία αποστολής.</p>
+            )}
+            {(emailReport.emailStats.recipients ?? []).filter((r) => r.status === 'sent')
+              .length > 0 ? (
+              <div className="ann-email-report-block">
+                <h3>Στάλθηκαν επιτυχώς (σύνολο)</h3>
+                <ul className="ann-email-report-sent">
+                  {(emailReport.emailStats.recipients ?? [])
+                    .filter((r) => r.status === 'sent')
+                    .map((r) => (
+                      <li key={`ok-${r.email}`}>{r.email}</li>
+                    ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

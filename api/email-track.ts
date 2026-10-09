@@ -195,16 +195,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const store = await loadStats(clubId, announcementId);
     if (Array.isArray(body.sent)) {
-      store.sent = [...new Set([...store.sent, ...body.sent.map((e) => e.trim().toLowerCase())])];
+      const newlySent = body.sent
+        .map((e) => e.trim().toLowerCase())
+        .filter((e) => e.includes('@'));
+      store.sent = [...new Set([...store.sent, ...newlySent])];
+      // Όσα πέτυχαν να μην μένουν στη λίστα αποτυχιών.
+      const sentSet = new Set(store.sent);
+      store.failed = store.failed.filter((f) => !sentSet.has(f.email.toLowerCase()));
     }
     if (Array.isArray(body.failed)) {
+      const sentSet = new Set(store.sent.map((e) => e.toLowerCase()));
       const map = new Map(store.failed.map((f) => [f.email.toLowerCase(), f]));
       for (const row of body.failed) {
         const email = String(row.email ?? '').trim().toLowerCase();
-        if (!email) continue;
+        if (!email || sentSet.has(email)) continue;
         map.set(email, { email, error: row.error });
       }
-      store.failed = [...map.values()];
+      store.failed = [...map.values()].filter((f) => !sentSet.has(f.email.toLowerCase()));
     }
     for (const row of body.tokens ?? []) {
       const email = String(row.email ?? '').trim().toLowerCase();

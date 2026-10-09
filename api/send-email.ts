@@ -6,7 +6,6 @@ import {
   getSyncAuthContext,
   loadAccountBundle,
   loadClubNotifyConfig,
-  requestAddress,
 } from './lib/serverStore.js';
 
 type Body = {
@@ -56,15 +55,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (!(await assertSyncAuthorized(req, res))) return;
-  if (!(await allowRateLimit(`email:${requestAddress(req)}`, 30, 300))) {
-    return res.status(429).json({ ok: false, error: 'Πολλά αιτήματα email. Δοκιμάστε ξανά αργότερα.' });
-  }
 
   const body = (req.body ?? {}) as Body;
   const clubId = String(body.clubId ?? '').trim();
   const auth = getSyncAuthContext(req);
   if (!clubId || (!auth.viaSecret && auth.claims?.role !== 'platform_admin' && auth.claims?.clubId !== clubId)) {
     return res.status(403).json({ ok: false, error: 'Απαιτείται έγκυρος σύλλογος αποστολής' });
+  }
+
+  // App-side throttle (όχι όριο Vercel). Ανά σύλλογο: έως 500 emails / 10 λεπτά.
+  // Πρακτικό ταβάνι συνήθως το SMTP (Gmail ~500/ημέρα προσωπικό, ~2000 Workspace).
+  if (!(await allowRateLimit(`email:club:${clubId}`, 500, 600))) {
+    return res.status(429).json({
+      ok: false,
+      error: 'Πολλά emails σε λίγο χρόνο (όριο 500 / 10 λεπτά ανά σύλλογο). Δοκιμάστε ξανά σε λίγο.',
+    });
   }
   const smtp = await resolveClubSendSmtp(clubId);
   const to = String(body.to ?? '').trim();
