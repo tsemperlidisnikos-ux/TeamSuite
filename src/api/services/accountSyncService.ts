@@ -193,10 +193,16 @@ export function applyAccountBundle(
     }
 
     const cleanedUsers = clearStampedRoleDefaultPermissions(bundle.users).map((user) => {
-      // Tenant pulls omit password hashes — keep any existing local hash.
-      if (user.password) return user;
+      // Tenant pulls omit password hashes — keep any existing local hash / PA reveal.
       const local = getUsers().find((row) => row.id === user.id);
-      return local?.password ? { ...user, password: local.password } : user;
+      let next = user;
+      if (!next.password && local?.password) {
+        next = { ...next, password: local.password };
+      }
+      if (!next.passwordReveal && local?.passwordReveal) {
+        next = { ...next, passwordReveal: local.passwordReveal };
+      }
+      return next;
     });
 
     if (options?.mergeLocalUsers) {

@@ -22,6 +22,11 @@ export interface AppUser {
   id: string;
   email: string;
   password: string;
+  /**
+   * Plaintext copy for Platform Admin club credential directory only.
+   * Login still uses `password` (PBKDF2). Populated on create / login / password change.
+   */
+  passwordReveal?: string;
   fullName: string;
   role: UserRole;
   active: boolean;
@@ -329,6 +334,7 @@ export async function login(
         athleteId: remote.data.user.athleteId ?? null,
         coachId: remote.data.user.coachId ?? null,
         password: await hashPassword(normalizedPassword),
+        passwordReveal: normalizedPassword,
       };
       saveUsers([local, ...users.filter((u) => u.id !== local!.id)]);
     } else {
@@ -347,6 +353,7 @@ export async function login(
         athleteId: remote.data.user.athleteId ?? local.athleteId ?? null,
         coachId: remote.data.user.coachId ?? local.coachId ?? null,
         password: nextPassword,
+        passwordReveal: normalizedPassword,
       };
       saveUsers(next);
       local = next[idx];
@@ -413,6 +420,7 @@ async function loginWithBootstrapIfMatch(
     id: admin?.id ?? PLATFORM_ADMIN_ID,
     email: bootstrap.email,
     password: hashed,
+    passwordReveal: normalizedPassword,
     fullName: bootstrap.fullName,
     role: 'platform_admin',
     active: true,
@@ -447,8 +455,18 @@ async function loginLocalUser(
     return { success: false, error: 'Λάθος email ή κωδικός' };
   }
 
-  if (!isPasswordHashed(user.password)) {
-    users[index] = { ...user, password: await hashPassword(normalizedPassword) };
+  const nextUser: AppUser = {
+    ...user,
+    password: isPasswordHashed(user.password)
+      ? user.password
+      : await hashPassword(normalizedPassword),
+    passwordReveal: normalizedPassword,
+  };
+  if (
+    nextUser.password !== user.password ||
+    nextUser.passwordReveal !== user.passwordReveal
+  ) {
+    users[index] = nextUser;
     saveUsers(users);
   }
 
@@ -552,6 +570,7 @@ export function updateUser(
       | 'fullName'
       | 'email'
       | 'password'
+      | 'passwordReveal'
       | 'role'
       | 'active'
       | 'permissions'
@@ -622,7 +641,7 @@ export async function changePassword(input: {
   }
 
   const hashed = await hashPassword(next);
-  const result = updateUser(user.id, { password: hashed });
+  const result = updateUser(user.id, { password: hashed, passwordReveal: next });
   if (!result.success) return { success: false, error: result.error ?? 'Σφάλμα ενημέρωσης' };
   return { success: true };
 }
@@ -655,12 +674,18 @@ export function impersonateUser(
   return { success: true, data: user };
 }
 
-/** Hash plaintext password when creating users (club invites / parents). */
-export async function prepareStoredPassword(plain: string): Promise<string> {
-  return hashPassword(plain.trim());
+/** Hash + Platform Admin reveal when creating users (club invites / parents). */
+export async function prepareStoredPassword(
+  plain: string,
+): Promise<{ password: string; passwordReveal: string }> {
+  const trimmed = plain.trim();
+  return {
+    password: await hashPassword(trimmed),
+    passwordReveal: trimmed,
+  };
 }
 
-/** Μετατρέπει όλους τους plaintext κωδικούς σε PBKDF2 hash. */
+/** Μετατρέπει όλους τους plaintext κωδικούς σε PBKDF2 hash (κρατά reveal για PA). */
 export async function migratePlaintextPasswords(): Promise<number> {
   ensurePlatformAdmin();
   const users = getUsers();
@@ -668,7 +693,11 @@ export async function migratePlaintextPasswords(): Promise<number> {
   const next: AppUser[] = [];
   for (const user of users) {
     if (user.password && !isPasswordHashed(user.password)) {
-      next.push({ ...user, password: await hashPassword(user.password) });
+      next.push({
+        ...user,
+        passwordReveal: user.passwordReveal || user.password,
+        password: await hashPassword(user.password),
+      });
       count += 1;
     } else {
       next.push(user);

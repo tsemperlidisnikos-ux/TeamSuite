@@ -11,7 +11,7 @@ import { rememberDeletedId, rememberDeletedIds } from '../../data/financeSyncMer
 import type { ParentAthleteLink, Student } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import { studentClassIds } from '../../utils/studentClasses';
-import { collapseDuplicateSurname, composeGivenAndSurname, motherFullName } from '../../utils/greekSurname';
+import { collapseDuplicateSurname, fatherFullName, motherFullName } from '../../utils/greekSurname';
 import { studentContactPhones } from './smsService';
 
 export type ParentLinkRow = {
@@ -199,7 +199,7 @@ export async function listParentDirectory(clubId: string) {
         upsertGuardian(map, {
           email: student.fatherEmail,
           fullName:
-            composeGivenAndSurname(student.fatherFirstName, student.lastName) ||
+            fatherFullName(student.fatherFirstName, student.lastName) ||
             collapseDuplicateSurname(student.guardianName || '') ||
             'Πατέρας',
           athlete,
@@ -327,7 +327,7 @@ export async function inviteParent(input: InviteParentInput) {
       throw new Error('Το email ανήκει ήδη σε άλλο ρόλο');
     }
 
-    const hashed = await prepareStoredPassword(password);
+    const credentials = await prepareStoredPassword(password);
 
     if (!parent) {
       if (users.some((u) => u.email.toLowerCase() === email)) {
@@ -336,7 +336,8 @@ export async function inviteParent(input: InviteParentInput) {
       parent = {
         id: createId('user'),
         email,
-        password: hashed,
+        password: credentials.password,
+        passwordReveal: credentials.passwordReveal,
         fullName,
         role: 'parent',
         active: true,
@@ -348,7 +349,14 @@ export async function inviteParent(input: InviteParentInput) {
       saveUsers(
         users.map((u) =>
           u.id === parent!.id
-            ? { ...u, fullName, password: hashed, role: 'parent' as const, active: true }
+            ? {
+                ...u,
+                fullName,
+                password: credentials.password,
+                passwordReveal: credentials.passwordReveal,
+                role: 'parent' as const,
+                active: true,
+              }
             : u,
         ),
       );
@@ -411,7 +419,7 @@ export async function connectParent(input: ConnectParentInput) {
       throw new Error('Το email ανήκει ήδη σε άλλο ρόλο');
     }
 
-    const hashed = await prepareStoredPassword(password);
+    const credentials = await prepareStoredPassword(password);
 
     if (!parent) {
       if (users.some((u) => u.email.toLowerCase() === email)) {
@@ -420,7 +428,8 @@ export async function connectParent(input: ConnectParentInput) {
       parent = {
         id: createId('user'),
         email,
-        password: hashed,
+        password: credentials.password,
+        passwordReveal: credentials.passwordReveal,
         fullName,
         role: 'parent',
         active: true,
@@ -434,7 +443,8 @@ export async function connectParent(input: ConnectParentInput) {
           ? {
               ...u,
               fullName,
-              password: hashed,
+              password: credentials.password,
+              passwordReveal: credentials.passwordReveal,
               active: true,
               role: 'parent' as const,
             }

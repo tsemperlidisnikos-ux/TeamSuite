@@ -563,12 +563,13 @@ export async function provisionClub(input: {
 
   const userId = `user_${Date.now()}`;
   const clubId = `club_${Date.now()}`;
-  const hashedPassword = await prepareStoredPassword(password);
+  const credentials = await prepareStoredPassword(password);
 
   const user: AppUser = {
     id: userId,
     email,
-    password: hashedPassword,
+    password: credentials.password,
+    passwordReveal: credentials.passwordReveal,
     fullName: adminFullName,
     role: 'admin',
     active: true,

@@ -49,10 +49,16 @@ export function PlatformAdminShell({
             Διαχείριση
           </Link>
           <Link
-            className={`btn btn-secondary${path.startsWith('/platform/users') ? ' is-current' : ''}`}
+            className={`btn btn-secondary${path === '/platform/users' ? ' is-current' : ''}`}
             to="/platform/users"
           >
             Χρήστες
+          </Link>
+          <Link
+            className={`btn btn-secondary${path.startsWith('/platform/club-users') ? ' is-current' : ''}`}
+            to="/platform/club-users"
+          >
+            Χρήστες συλλόγου
           </Link>
           <Link
             className={`btn btn-secondary${path.startsWith('/platform/packages') ? ' is-current' : ''}`}

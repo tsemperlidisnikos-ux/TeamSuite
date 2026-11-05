@@ -54,7 +54,7 @@ type DemoRoleUser = {
 async function upsertDemoUser(
   clubId: string,
   spec: DemoRoleUser,
-  hashedPassword: string,
+  credentials: { password: string; passwordReveal: string },
 ): Promise<void> {
   const users = getUsers();
   const index = users.findIndex(
@@ -63,7 +63,8 @@ async function upsertDemoUser(
   const next: AppUser = {
     id: spec.id,
     email: spec.email,
-    password: hashedPassword,
+    password: credentials.password,
+    passwordReveal: credentials.passwordReveal,
     fullName: spec.fullName,
     role: spec.role,
     active: true,
@@ -79,7 +80,8 @@ async function upsertDemoUser(
   copy[index] = {
     ...copy[index],
     ...next,
-    password: hashedPassword,
+    password: credentials.password,
+    passwordReveal: credentials.passwordReveal,
   };
   saveUsers(copy);
 }
@@ -120,14 +122,16 @@ export async function enterDemoPresentation(): Promise<ApiResult<AppUser>> {
   const existingHash = getUsers().find(
     (u) => u.id === DEMO_USER_ID && isPasswordHashed(u.password),
   )?.password;
-  const hashedPassword = existingHash ?? (await prepareStoredPassword(DEMO_PASSWORD));
+  const credentials = existingHash
+    ? { password: existingHash, passwordReveal: DEMO_PASSWORD }
+    : await prepareStoredPassword(DEMO_PASSWORD);
 
   await upsertDemoUser(clubId, {
     id: DEMO_USER_ID,
     email: DEMO_EMAIL,
     fullName: 'Διαχειριστής DEMO',
     role: 'admin',
-  }, hashedPassword);
+  }, credentials);
 
   await upsertDemoUser(clubId, {
     id: DEMO_COACH_USER_ID,
@@ -135,21 +139,21 @@ export async function enterDemoPresentation(): Promise<ApiResult<AppUser>> {
     fullName: 'Νίκος Παπαδόπουλος (DEMO)',
     role: 'coach',
     coachId: 'demo_coach_1',
-  }, hashedPassword);
+  }, credentials);
 
   await upsertDemoUser(clubId, {
     id: DEMO_PARENT_USER_ID,
     email: DEMO_PARENT_EMAIL,
     fullName: 'Κώστας Ιωάννου (DEMO)',
     role: 'parent',
-  }, hashedPassword);
+  }, credentials);
 
   await upsertDemoUser(clubId, {
     id: DEMO_PARENT_B_USER_ID,
     email: DEMO_PARENT_B_EMAIL,
     fullName: 'Μαρία Χριστοδούλου (DEMO)',
     role: 'parent',
-  }, hashedPassword);
+  }, credentials);
 
   const user = getUsers().find((u) => u.id === DEMO_USER_ID)!;
 

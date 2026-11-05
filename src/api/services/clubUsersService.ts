@@ -323,11 +323,13 @@ export async function inviteClubUser(input: InviteClubUserInput) {
 
     const permissions = permissionsToStoreForRole(input.role, input.permissions);
 
+    const credentials = await prepareStoredPassword(password);
     const user: AppUser = {
       id: createId('user'),
       fullName,
       email,
-      password: await prepareStoredPassword(password),
+      password: credentials.password,
+      passwordReveal: credentials.passwordReveal,
       role: input.role as UserRole,
       active: true,
       clubId: input.clubId,
@@ -383,7 +385,9 @@ export async function updateClubUser(
       if (patch.password.trim().length < 6) {
         throw new Error('Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες');
       }
-      nextPatch.password = await prepareStoredPassword(patch.password.trim());
+      const credentials = await prepareStoredPassword(patch.password.trim());
+      nextPatch.password = credentials.password;
+      nextPatch.passwordReveal = credentials.passwordReveal;
     }
     if (patch.active !== undefined) nextPatch.active = patch.active;
 

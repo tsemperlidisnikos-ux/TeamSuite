@@ -35,6 +35,9 @@ const PlatformAdminPage = lazy(() =>
 const PlatformUsersPage = lazy(() =>
   import('./pages/PlatformUsersPage').then((m) => ({ default: m.PlatformUsersPage })),
 );
+const PlatformClubUsersPage = lazy(() =>
+  import('./pages/PlatformClubUsersPage').then((m) => ({ default: m.PlatformClubUsersPage })),
+);
 const LicensePackagesPage = lazy(() =>
   import('./pages/LicensePackagesPage').then((m) => ({ default: m.LicensePackagesPage })),
 );
@@ -176,6 +179,7 @@ export default function App() {
             <Route path="platform" element={<RequirePlatformAdmin />}>
               <Route index element={<PlatformAdminPage />} />
               <Route path="users" element={<PlatformUsersPage />} />
+              <Route path="club-users" element={<PlatformClubUsersPage />} />
               <Route path="packages" element={<LicensePackagesPage />} />
             </Route>
 

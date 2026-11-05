@@ -11,7 +11,7 @@ import {
 import { createId, getData, mutateData } from '../../data/repository';
 import type { Student } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
-import { composeGivenAndSurname, collapseDuplicateSurname, motherFullName } from '../../utils/greekSurname';
+import { fatherFullName, collapseDuplicateSurname, motherFullName } from '../../utils/greekSurname';
 import { generatePortalPassword } from '../../utils/tempPassword';
 
 export type PortalLoginRole = 'coach' | 'parent';
@@ -137,10 +137,12 @@ export async function ensureCoachPortalLogin(input: {
   }
 
   const password = generatePortalPassword('pr');
+  const credentials = await prepareStoredPassword(password);
   const user: AppUser = {
     id: createId('user'),
     email,
-    password: await prepareStoredPassword(password),
+    password: credentials.password,
+    passwordReveal: credentials.passwordReveal,
     fullName,
     role: 'coach',
     active: true,
@@ -208,10 +210,12 @@ export async function ensureParentPortalLogin(input: {
   }
 
   password = generatePortalPassword('gon');
+  const credentials = await prepareStoredPassword(password);
   user = {
     id: createId('user'),
     email,
-    password: await prepareStoredPassword(password),
+    password: credentials.password,
+    passwordReveal: credentials.passwordReveal,
     fullName,
     role: 'parent',
     active: true,
@@ -262,7 +266,7 @@ export async function ensureStudentParentLogins(
 
   if (fatherEmail.includes('@')) {
     const fullName =
-      composeGivenAndSurname(student.fatherFirstName, student.lastName) ||
+      fatherFullName(student.fatherFirstName, student.lastName) ||
       collapseDuplicateSurname(student.guardianName || '') ||
       'Πατέρας';
     const row = await ensureParentPortalLogin({
