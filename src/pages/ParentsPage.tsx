@@ -22,16 +22,33 @@ const STATUS_LABELS: Record<parentsService.ParentInviteStatus, string> = {
   not_invited: 'Δεν έχει προσκληθεί',
 };
 
+function splitGivenNameFirst(fullName: string): { lastName: string; firstName: string } {
+  const tokens = fullName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (tokens.length === 0) return { lastName: '', firstName: '' };
+  if (tokens.length === 1) return { lastName: tokens[0], firstName: '' };
+  return {
+    lastName: tokens[tokens.length - 1] ?? '',
+    firstName: tokens.slice(0, -1).join(' '),
+  };
+}
+
 function exportParentsXlsx(rows: parentsService.ParentDirectoryRow[]) {
   downloadXlsx(
     'Γονείς',
-    ['Ονοματεπώνυμο', 'Αθλητές', 'Email', 'Κατάσταση'],
-    rows.map((row) => [
-      row.fullName,
-      row.athletes.map((a) => a.label).join(', '),
-      row.email || '',
-      STATUS_LABELS[row.status],
-    ]),
+    ['Επώνυμο', 'Όνομα', 'Αθλητές', 'Email', 'Κατάσταση'],
+    rows.map((row) => {
+      const parts = splitGivenNameFirst(row.fullName);
+      return [
+        parts.lastName,
+        parts.firstName,
+        row.athletes.map((a) => a.label).join(', '),
+        row.email || '',
+        STATUS_LABELS[row.status],
+      ];
+    }),
     `goneis-${new Date().toISOString().slice(0, 10)}.xlsx`,
   );
 }
@@ -432,7 +449,8 @@ export function ParentsPage() {
                       aria-label="Επιλογή όλων"
                     />
                   </th>
-                  <th>Ονοματεπώνυμο</th>
+                  <th>Επώνυμο</th>
+                  <th>Όνομα</th>
                   <th>Συνδεδεμένοι αθλητές</th>
                   <th>Email</th>
                   <th>Κατάσταση</th>
@@ -441,7 +459,9 @@ export function ParentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {pageRows.map((row) => (
+                {pageRows.map((row) => {
+                  const nameParts = splitGivenNameFirst(row.fullName);
+                  return (
                   <tr key={row.key}>
                     <td>
                       <input
@@ -452,7 +472,10 @@ export function ParentsPage() {
                       />
                     </td>
                     <td>
-                      <strong>{row.fullName}</strong>
+                      <strong>{nameParts.lastName || '—'}</strong>
+                    </td>
+                    <td>
+                      <strong>{nameParts.firstName || '—'}</strong>
                     </td>
                     <td>
                       {row.athletes.length === 0 ? (
@@ -542,7 +565,8 @@ export function ParentsPage() {
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
