@@ -845,6 +845,48 @@
   margin-bottom: 0.75rem;
 }
 
+.ann-audience-summary {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3a4f) 70%, transparent);
+  background: color-mix(in srgb, var(--panel, #142033) 88%, #000);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  font-weight: 700;
+  color: #fff;
+}
+
+.ann-audience-summary > p {
+  margin: 0;
+}
+
+.ann-audience-summary strong {
+  color: #fff;
+  font-weight: 800;
+}
+
+.ann-audience-both-list {
+  margin-top: 0.45rem;
+}
+
+.ann-audience-both-list summary {
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+}
+
+.ann-audience-both-list ol {
+  margin: 0.4rem 0 0;
+  padding-left: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.ann-audience-both-list li {
+  margin: 0.15rem 0;
+}
+
 .ann-scope-field {
   display: grid;
   gap: 0.3rem;

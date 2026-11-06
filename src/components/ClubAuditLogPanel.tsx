@@ -79,11 +79,19 @@ function previewValue(value: unknown): string {
 
 export function ClubAuditLogPanel({
   onSaved,
+  fixedClubId,
+  allowUndo = true,
 }: {
   onSaved?: (message: string) => void;
+  /** Όταν οριστεί, κλειδώνει στο συγκεκριμένο σύλλογο (π.χ. Ρυθμίσεις). */
+  fixedClubId?: string | null;
+  /** Εμφάνιση επιλογής/αναίρεσης — false για απλή προβολή. */
+  allowUndo?: boolean;
 }) {
   const clubs = useMemo(() => getClubs().filter((c) => c.id && c.id !== '_default'), []);
-  const [clubId, setClubId] = useState(clubs[0]?.id ?? PLATFORM_AUDIT_CLUB_ID);
+  const [clubId, setClubId] = useState(
+    () => fixedClubId?.trim() || clubs[0]?.id || PLATFORM_AUDIT_CLUB_ID,
+  );
   const [day, setDay] = useState(todayInputValue);
   const [query, setQuery] = useState('');
   const [actionFilter, setActionFilter] = useState<'all' | ClubAuditAction>('all');
@@ -93,8 +101,14 @@ export function ClubAuditLogPanel({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [undoing, setUndoing] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [detailEvent, setDetailEvent] = useState<ClubAuditEvent | null>(null);
   const [undoReason, setUndoReason] = useState('');
   const [confirmationReady, setConfirmationReady] = useState(false);
+  const clubLocked = Boolean(fixedClubId?.trim());
+
+  useEffect(() => {
+    if (fixedClubId?.trim()) setClubId(fixedClubId.trim());
+  }, [fixedClubId]);
 
   const load = useCallback(async () => {
     if (!clubId) return;
@@ -162,7 +176,10 @@ export function ClubAuditLogPanel({
     [events],
   );
   const canUndo = (event: ClubAuditEvent) =>
-    event.action === 'change' && Boolean(event.undo?.changes.length) && !revertedIds.has(event.id);
+    allowUndo &&
+    event.action === 'change' &&
+    Boolean(event.undo?.changes.length) &&
+    !revertedIds.has(event.id);
   const selectedEvents = events.filter((event) => selected.has(event.id) && canUndo(event));
   const selectableFiltered = filtered.filter(canUndo);
   const busy = loading || undoing;
@@ -196,21 +213,32 @@ export function ClubAuditLogPanel({
     await load();
   }
 
+  const colCount = allowUndo ? 7 : 6;
+
   return (
     <>
     <div className="entry-form admin-entry login-activity-panel">
-      <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
-        <label className="field">
-          <span className="field-label">Σύλλογος</span>
-          <select className="field-input" value={clubId} onChange={(e) => setClubId(e.target.value)}>
-            {clubs.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-            <option value={PLATFORM_AUDIT_CLUB_ID}>Πλατφόρμα (PA)</option>
-          </select>
-        </label>
+      <p className="lede">
+        Αναλυτικό ημερολόγιο κινήσεων: ημερομηνία/ώρα, χρήστης και περιγραφή κάθε αλλαγής
+        (αθλητές, συναλλαγές, παρουσίες κ.λπ.).
+      </p>
+      <div
+        className="form-grid"
+        style={{ gridTemplateColumns: clubLocked ? '1fr 1fr 1fr' : '1fr 1fr 1fr 1fr' }}
+      >
+        {clubLocked ? null : (
+          <label className="field">
+            <span className="field-label">Σύλλογος</span>
+            <select className="field-input" value={clubId} onChange={(e) => setClubId(e.target.value)}>
+              {clubs.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+              <option value={PLATFORM_AUDIT_CLUB_ID}>Πλατφόρμα (PA)</option>
+            </select>
+          </label>
+        )}
         <label className="field">
           <span className="field-label">Ημερομηνία</span>
           <input className="field-input" type="date" value={day} onChange={(e) => setDay(e.target.value)} />
@@ -251,74 +279,83 @@ export function ClubAuditLogPanel({
             Όλες οι ημέρες
           </Button>
         ) : null}
-        <Button
-          type="button"
-          variant="danger"
-          disabled={busy || selectedEvents.length === 0}
-          onClick={() => {
-            setUndoReason('');
-            setConfirmationReady(false);
-            setPreviewOpen(true);
-          }}
-        >
-          {undoing ? 'Αναίρεση…' : `Αναίρεση επιλεγμένων (${selectedEvents.length})`}
-        </Button>
+        {allowUndo ? (
+          <Button
+            type="button"
+            variant="danger"
+            disabled={busy || selectedEvents.length === 0}
+            onClick={() => {
+              setUndoReason('');
+              setConfirmationReady(false);
+              setPreviewOpen(true);
+            }}
+          >
+            {undoing ? 'Αναίρεση…' : `Αναίρεση επιλεγμένων (${selectedEvents.length})`}
+          </Button>
+        ) : null}
       </div>
       {durable === false ? (
         <p className="muted">Το cloud store δεν είναι ενεργό — οι εγγραφές μπορεί να χαθούν στο restart.</p>
       ) : null}
       <p className="muted">
-        {filtered.length} εγγραφές{day ? ` για ${day}` : ''}. Οι μη αναστρέψιμες κινήσεις
-        διατηρούνται στο ιστορικό χωρίς δυνατότητα επιλογής.
+        {filtered.length} εγγραφές{day ? ` για ${day}` : ''}. Κλικ σε γραμμή για πλήρη ανάλυση.
+        {allowUndo
+          ? ' Οι μη αναστρέψιμες κινήσεις διατηρούνται στο ιστορικό χωρίς δυνατότητα επιλογής.'
+          : ''}
       </p>
       <div className="records-table login-activity-scroll">
         <table>
           <thead>
             <tr>
-              <th>
-                <input
-                  type="checkbox"
-                  aria-label="Επιλογή όλων των αναστρέψιμων κινήσεων"
-                  checked={
-                    selectableFiltered.length > 0 &&
-                    selectableFiltered.every((event) => selected.has(event.id))
-                  }
-                  onChange={(e) =>
-                    setSelected((prev) => {
-                      const next = new Set(prev);
-                      for (const event of selectableFiltered) {
-                        if (e.target.checked) next.add(event.id);
-                        else next.delete(event.id);
-                      }
-                      return next;
-                    })
-                  }
-                />
-              </th>
-              <th>Ώρα</th>
+              {allowUndo ? (
+                <th>
+                  <input
+                    type="checkbox"
+                    aria-label="Επιλογή όλων των αναστρέψιμων κινήσεων"
+                    checked={
+                      selectableFiltered.length > 0 &&
+                      selectableFiltered.every((event) => selected.has(event.id))
+                    }
+                    onChange={(e) =>
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        for (const event of selectableFiltered) {
+                          if (e.target.checked) next.add(event.id);
+                          else next.delete(event.id);
+                        }
+                        return next;
+                      })
+                    }
+                  />
+                </th>
+              ) : null}
+              <th>Ημερομηνία / ώρα</th>
               <th>Χρήστης</th>
               <th>Κίνηση</th>
               <th>Τι έγινε</th>
-              <th>Αναίρεση</th>
+              {allowUndo ? <th>Αναίρεση</th> : null}
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6}>Δεν υπάρχουν κινήσεις για τα φίλτρα.</td>
+                <td colSpan={colCount}>Δεν υπάρχουν κινήσεις για τα φίλτρα.</td>
               </tr>
             ) : (
               filtered.map((e) => (
                 <tr key={e.id}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      aria-label={`Επιλογή κίνησης ${e.summary}`}
-                      disabled={busy || !canUndo(e)}
-                      checked={selected.has(e.id)}
-                      onChange={() => toggleSelected(e.id)}
-                    />
-                  </td>
+                  {allowUndo ? (
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`Επιλογή κίνησης ${e.summary}`}
+                        disabled={busy || !canUndo(e)}
+                        checked={selected.has(e.id)}
+                        onChange={() => toggleSelected(e.id)}
+                      />
+                    </td>
+                  ) : null}
                   <td className="login-activity-when">{formatWhen(e.at)}</td>
                   <td>
                     <div className="login-activity-name">{e.fullName}</div>
@@ -328,12 +365,19 @@ export function ClubAuditLogPanel({
                   </td>
                   <td>{actionLabel(e.action)}</td>
                   <td>{e.summary}</td>
+                  {allowUndo ? (
+                    <td>
+                      {revertedIds.has(e.id)
+                        ? 'Αναιρέθηκε'
+                        : canUndo(e)
+                          ? 'Διαθέσιμη'
+                          : e.undoReason || 'Δεν υποστηρίζεται'}
+                    </td>
+                  ) : null}
                   <td>
-                    {revertedIds.has(e.id)
-                      ? 'Αναιρέθηκε'
-                      : canUndo(e)
-                        ? 'Διαθέσιμη'
-                        : e.undoReason || 'Δεν υποστηρίζεται'}
+                    <Button type="button" variant="secondary" onClick={() => setDetailEvent(e)}>
+                      Ανάλυση
+                    </Button>
                   </td>
                 </tr>
               ))
@@ -342,6 +386,77 @@ export function ClubAuditLogPanel({
         </table>
       </div>
     </div>
+    <Modal
+      open={Boolean(detailEvent)}
+      title="Ανάλυση κίνησης"
+      wide
+      onClose={() => setDetailEvent(null)}
+      footer={
+        <Button type="button" variant="secondary" onClick={() => setDetailEvent(null)}>
+          Κλείσιμο
+        </Button>
+      }
+    >
+      {detailEvent ? (
+        <div className="audit-undo-event">
+          <p>
+            <strong>Ημερομηνία / ώρα:</strong> {formatWhen(detailEvent.at)}
+          </p>
+          <p>
+            <strong>Χρήστης:</strong> {detailEvent.fullName} · {detailEvent.email} ·{' '}
+            {roleLabels[detailEvent.role as UserRole] ?? detailEvent.role}
+          </p>
+          <p>
+            <strong>Κατηγορία:</strong> {actionLabel(detailEvent.action)}
+          </p>
+          <p>
+            <strong>Περιγραφή:</strong> {detailEvent.summary}
+          </p>
+          {detailEvent.undoReason ? (
+            <p className="muted">
+              <strong>Σημείωση αναίρεσης:</strong> {detailEvent.undoReason}
+            </p>
+          ) : null}
+          {(detailEvent.undo?.changes?.length ?? 0) > 0 ? (
+            <>
+              <p>
+                <strong>Λεπτομέρειες εγγραφών:</strong>
+              </p>
+              <ul>
+                {(detailEvent.undo?.changes ?? []).map((change, index) => {
+                  const fields = changedFields(change);
+                  return (
+                    <li key={`${detailEvent.id}-${change.collection}-${change.entityId}-${index}`}>
+                      <strong>{COLLECTION_LABELS[change.collection]}</strong>
+                      <span className="muted"> · ID {change.entityId}</span>
+                      {fields.length ? (
+                        <div className="audit-undo-fields">
+                          {fields.map((field) => (
+                            <div key={field}>
+                              <strong>{field}:</strong>{' '}
+                              {previewValue((change.before as Record<string, unknown> | null)?.[field])}
+                              {' → '}
+                              {previewValue((change.after as Record<string, unknown> | null)?.[field])}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="muted">{changeOperation(change)}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          ) : (
+            <p className="muted">
+              Δεν υπάρχουν αποθηκευμένα πεδία αναίρεσης για αυτή την κίνηση (η περιγραφή παραμένει στο
+              ιστορικό).
+            </p>
+          )}
+        </div>
+      ) : null}
+    </Modal>
     <Modal
       open={previewOpen}
       title={`Προεπισκόπηση αναίρεσης (${selectedEvents.length})`}

@@ -1,6 +1,6 @@
 # Κατάλογος Backup — TeamSuite
 
-Τελευταία ενημέρωση περιεχομένου: **2026-10-09** (κεφαλίδα ανά σύλλογο · συμπαγής επισκόπηση · cloud sync ~4s).
+Τελευταία ενημέρωση περιεχομένου: **2026-11-04** (Club JSON: password hashes + SMTP/SMS/Viva secrets για πλήρες restore).
 
 Αυτό το αρχείο ενημερώνεται κάθε φορά που αλλάζει τι περιλαμβάνει κάποιο backup, ή μετά από **BACKUP + DEPLOY** (νέα γραμμή στο ιστορικό ZIP κώδικα).
 
@@ -10,12 +10,12 @@
 
 | Ονομασία backup | Πού / πώς | Τι ακριβώς περιλαμβάνει | Τι ΔΕΝ περιλαμβάνει |
 |-----------------|-----------|-------------------------|---------------------|
-| **Club JSON** | Ρυθμίσεις → Backup → Λήψη JSON · ή Platform Admin → Backup συλλόγου · ή κλικ στο logo συλλόγου (διαχειριστής / γραμματεία / PA) | Μόνο τον ενεργό/επιλεγμένο σύλλογο: `AppData` (αθλητές, **μητρώο μελών και tombstones διαγραφών μελών**, τμήματα, πρόγραμμα, παρουσίες, οικονομικά, αποθήκη, αιτήσεις, GDPR logs εντός AppData, κ.λπ.), το record του συλλόγου (προφίλ, licenses, δημόσια εγγραφή **χωρίς** secrets), users του συλλόγου (διαχειριστής, γραμματεία, προπονητές, γονείς κ.ά.) **χωρίς** password hashes. Πριν τη λήψη γίνεται pull των cloud users ώστε να μην λείπουν λογαριασμοί άλλης συσκευής. Η επαναφορά επαληθεύει ότι αποκαταστάθηκε ο αναμενόμενος αριθμός μελών. `scope: club`. **Όνομα αρχείου:** `TeamSuite-{όνομα-συλλόγου}-YYYY-MM-DD-ΩΩ-ΛΛ (ενεργοί).json` π.χ. `TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-13-00-26 (142).json` (ελληνικοί χαρακτήρες· τελείες/κενά στο όνομα γίνονται `-`· στο τέλος οι ενεργοί αθλητές). **Κλικ logo:** το ίδιο JSON **και** Excel λίστας αθλητών. **Restore:** club Settings ή Platform Admin «Επαναφορά συλλόγου» (.json). Αν ο σύλλογος λείπει τοπικά, δημιουργείται με το **ίδιο `sourceClubId`** από το αρχείο (όχι άδειος νέος σύλλογος) | Άλλους συλλόγους, `platformConfig`, platform admins, SMTP password, SMS API key, Viva clientSecret, password hashes |
-| **Club scheduled backup** | Ρυθμίσεις → Backup → Προγραμματισμένο backup | Ίδιο με **Club JSON** (mode=λήψη JSON) ή **Cloud mirror** την ορισμένη ημερομηνία/ώρα (μία φορά) ή καθημερινά/εβδομαδιαία. Τρέχει στο browser όσο η εφαρμογή είναι ανοιχτή· αν χάθηκε η ώρα, εκτελείται στο επόμενο άνοιγμα | Secrets όπως Club JSON· δεν τρέχει με κλειστό tab |
+| **Club JSON** | Ρυθμίσεις → Backup → Λήψη JSON · ή Platform Admin → Backup συλλόγου · ή κλικ στο logo συλλόγου (διαχειριστής / γραμματεία / PA) | Μόνο τον ενεργό/επιλεγμένο σύλλογο: `AppData` (αθλητές, **μητρώο μελών και tombstones διαγραφών μελών**, τμήματα, πρόγραμμα, παρουσίες, οικονομικά, αποθήκη, αιτήσεις, GDPR logs εντός AppData, κ.λπ.), το record του συλλόγου (προφίλ, licenses, δημόσια εγγραφή) **μαζί με SMTP password, SMS API key, Viva/Stripe/Eurobank secrets**, users του συλλόγου **με PBKDF2 password hashes** ώστε μετά από επαναφορά (π.χ. TeamSuite ver.3) να λειτουργεί login, email, SMS και πληρωμές. Πριν τη λήψη γίνεται pull των cloud users ώστε να μην λείπουν λογαριασμοί άλλης συσκευής. Η επαναφορά επαληθεύει ότι αποκαταστάθηκε ο αναμενόμενος αριθμός μελών. `scope: club`. **Όνομα αρχείου:** `TeamSuite-{όνομα-συλλόγου}-YYYY-MM-DD-ΩΩ-ΛΛ (ενεργοί).json` π.χ. `TeamSuite-Α-Σ-ΑΠΟΛΛΩΝ-ΠΑΤΡΩΝ-2026-09-13-00-26 (142).json` (ελληνικοί χαρακτήρες· τελείες/κενά στο όνομα γίνονται `-`· στο τέλος οι ενεργοί αθλητές). **Κλικ logo:** το ίδιο JSON **και** Excel λίστας αθλητών. **Restore:** club Settings ή Platform Admin «Επαναφορά συλλόγου» (.json). Αν ο σύλλογος λείπει τοπικά, δημιουργείται με το **ίδιο `sourceClubId`** από το αρχείο (όχι άδειος νέος σύλλογος) | Άλλους συλλόγους, `platformConfig`, platform admins, `smtpSendLog` · **όχι** plaintext κωδικοί login (μόνο hashes) |
+| **Club scheduled backup** | Ρυθμίσεις → Backup → Προγραμματισμένο backup | Ίδιο με **Club JSON** (mode=λήψη JSON, **με** password hashes + SMTP/SMS/Viva secrets) ή **Cloud mirror** την ορισμένη ημερομηνία/ώρα (μία φορά) ή καθημερινά/εβδομαδιαία. Τρέχει στο browser όσο η εφαρμογή είναι ανοιχτή· αν χάθηκε η ώρα, εκτελείται στο επόμενο άνοιγμα | Δεν τρέχει με κλειστό tab · `smtpSendLog` δεν εξάγεται |
 | **Platform full JSON** | Platform Admin → Backup → Λήψη full backup | Όλους τους συλλόγους (`appDataByClub`), ενεργό `appData`, `users` (χωρίς hashes), `clubs` (χωρίς SMTP/SMS/Viva secrets), πλήρες `platformConfig` (modules, δικαιώματα, λογότυπα, **θέμα εμφάνισης ανά σύλλογο**, **PDF κάρτας υγείας ανά άθλημα**). `scope: platform`. **Restore:** μόνο «Επαναφορά όλης της εφαρμογής» (.json, όχι club-only αρχεία) | SMTP passwords, SMS API keys, Viva secrets, password hashes (redacted στο download) |
 | **Scheduled full (browser)** | Platform Admin → Πρόγραμμα backup → fullApp | Ίδιο με Platform full JSON αν mode=download· αν mode=cloud: push mirror **όλων** των συλλόγων | Secrets στα JSON (redacted)· δεν τρέχει αν δεν είναι ανοιχτή η εφαρμογή ως Platform Admin |
-| **Scheduled per-club (browser)** | Πρόγραμμα backup → perClub | Ανά επιλεγμένο σύλλογο: ίδιο με **Club JSON** (ή cloud mirror push) | Άλλους συλλόγους· secrets στα JSON |
-| **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) · `POST /api/sync/mirror-students` · `PUT /api/sync/club-ops` | Live `AppData` στο Blob/Redis. Κάθε αποθήκευση στέλνει άμεσα το μικρό club-ops, ενώ οι διαδοχικές αλλαγές ομαδοποιούνται σε ένα πλήρες mirror περίπου 4 δευτερόλεπτα αργότερα. Οι άλλες ανοιχτές συσκευές ελέγχουν ανά 60 δευτερόλεπτα και αμέσως όταν επανέρχεται η καρτέλα· όταν το revision δεν άλλαξε επιστρέφεται `304` χωρίς ολόκληρο το payload. Κάθε πραγματικό Pull ενώνει **όλες** τις συλλογές με `updatedAt` και tombstones, συμπεριλαμβανομένων των **διαγραμμένων προτύπων χρεώσεων** ώστε να μην επανέρχονται. Μερικό Push δεν σβήνει cloud-only γραμμές. **Αποδείξεις:** ένωση στο server. Auto sync ενεργό από προεπιλογή (opt-out) | Users/clubs/config, SMTP/Viva στο mirror |
+| **Scheduled per-club (browser)** | Πρόγραμμα backup → perClub | Ανά επιλεγμένο σύλλογο: ίδιο με **Club JSON** (με password hashes + SMTP/SMS/Viva secrets) ή cloud mirror push | Άλλους συλλόγους |
+| **Cloud mirror συλλόγου** | Ρυθμίσεις → Backup → Push/Pull mirror (ή auto sync) · `POST /api/sync/mirror-students` · `PUT /api/sync/club-ops` | Live `AppData` στο Blob/Redis. Οι αποθηκεύσεις ομαδοποιούν club-ops (~3″ debounce) και πλήρες mirror (~20″ μετά την τελευταία αλλαγή)· μεγάλα mirrors ανεβαίνουν/κατεβαίνουν με gzip + παράλληλα chunks· στο logout/κλείσιμο καρτέλας γίνεται άμεσο flush. Οι άλλες ανοιχτές συσκευές ελέγχουν ανά ~180″ και αμέσως όταν επανέρχεται η καρτέλα· όταν το revision δεν άλλαξε επιστρέφεται `304` χωρίς ολόκληρο το payload. Κάθε πραγματικό Pull ενώνει **όλες** τις συλλογές με `updatedAt` και tombstones, συμπεριλαμβανομένων των **διαγραμμένων προτύπων χρεώσεων** ώστε να μην επανέρχονται. Μερικό Push δεν σβήνει cloud-only γραμμές. **Αποδείξεις:** ένωση στο server. Auto sync ενεργό από προεπιλογή (opt-out) | Users/clubs/config, SMTP/Viva στο mirror |
 | **Cloud account bundle** | Platform Admin: Push/Pull λογαριασμοί | `users`, `clubs`, `platformConfig` στο cloud, μαζί με την καθολική εμφάνιση και τα theme overrides ανά σύλλογο. Pull/push **διατηρεί** υπάρχοντα SMTP/SMS/Viva secrets αν το εισερχόμενο έχει κενό/`********` | AppData αθλητών (αυτό είναι στο mirror) |
 | **Ημερολόγιο συλλόγου (PA)** | Platform Admin → Λειτουργία → Ημερολόγιο συλλόγου | Cloud log ανά σύλλογο: είσοδος/έξοδος και νέες καταχωρήσεις (ποιος, πότε, τι). Για ασφαλείς κατηγορίες κρατά περιορισμένα before/after δεδομένα, προεπισκόπηση και ατομική/μαζική αναίρεση με αιτιολογία. Κάθε αναίρεση προστίθεται ως νέα μόνιμη καταγραφή. Μόνο PA | Πλήρες αντίγραφο AppData· AMKA· κινήσεις πριν το deploy του μηχανισμού αναίρεσης· γενική αναίρεση οικονομικών/αποδείξεων/GDPR/external payments |
 | **Snapshot πριν από αναίρεση (PA)** | Αυτόματα πριν από κάθε ατομική/μαζική αναίρεση στο Ημερολόγιο συλλόγου | Πλήρες τρέχον cloud mirror του συγκεκριμένου συλλόγου, μαζί με αιτιολογία, Platform Admin και IDs κινήσεων. Διατηρούνται τα 30 νεότερα snapshots ανά σύλλογο. Αν αποτύχει ή δεν υπάρχει durable cloud store, η αναίρεση δεν εκτελείται | Account bundle· άλλους συλλόγους· αυτόματη επαναφορά χωρίς έλεγχο |
@@ -26,15 +26,17 @@
 
 ---
 
-## Πολιτική secrets (ισχύει σε όλα τα downloadable JSON backup)
+## Πολιτική secrets (ισχύει σε downloadable JSON backup)
 
-| Στοιχείο | Στο αρχείο backup |
-|----------|-------------------|
-| Password hashes χρηστών | Κενά (διατηρούνται τοπικά στην επαναφορά Platform Admin) |
-| SMTP password | Κενό |
-| SMS API key | Κενό |
-| Viva clientSecret | Κενό |
-| `smtpSendLog` | Δεν εξάγεται |
+| Στοιχείο | Club JSON | Platform full JSON |
+|----------|-----------|-------------------|
+| Password hashes χρηστών (PBKDF2) | **Ναι** — για restore/login (π.χ. ver.3) | Κενά (διατηρούνται τοπικά στην επαναφορά) |
+| Plaintext κωδικοί login | Ποτέ | Ποτέ |
+| SMTP password | **Ναι** — για πλήρες restore | Κενό |
+| SMS API key | **Ναι** — για πλήρες restore | Κενό |
+| Viva clientSecret | **Ναι** — για πλήρες restore | Κενό |
+| Stripe / Eurobank secretKey | **Ναι** — για πλήρες restore | Κενό |
+| `smtpSendLog` | Δεν εξάγεται | Δεν εξάγεται |
 
 **Cloud sync:** masked `********` ή κενό password **ποτέ** δεν αντικαθιστά πραγματικό App Password (τοπικά ή στο Blob notify config). Tenant GET επιστρέφει `passwordSet` (όχι `********`) ώστε η φόρμα να μην απενεργοποιεί το SMTP. `/api/send-email` χρησιμοποιεί notify config ή account-bundle SMTP.
 
@@ -44,6 +46,7 @@
 
 | Ονομασία αρχείου | Ημερομηνία | Τι περιλάμβανε (κώδικας / αλλαγές) |
 |------------------|------------|-------------------------------------|
+| `TeamSuite_2026-11-06_18-18-25.zip` | 2026-11-06 | Γρήγορη έκδοση αποδείξεων σε μεγάλους συλλόγους (`mutateDataKeys` χωρίς full structuredClone · βελτιστοποίηση receipt book / audit) · sync/ops/services ενημερώσεις · Laravel ver.3 / screen-parity prompts |
 | `TeamSuite_2026-10-09_23-01-15.zip` | 2026-10-09 | Ανακοινώσεις email: rate 500/10λ · αυτόματη + χειροκίνητη επαναποστολή σε αποτυχίες · λίστα email μετά την επαναποστολή · αναφορά «ποια απέτυχαν» με hydrate από cloud · καθαρισμός failed όταν πετύχει η αποστολή |
 | `TeamSuite_2026-10-09_17-58-34.zip` | 2026-10-09 | Ανακοινώσεις email: μόνο Έλαβαν · χωρίς σύνδεσμο «Άνοιγμα» · χωρίς επιπλέον emails · email σε αθλητές/γονείς όταν επιλέγεται τμήμα · λίστα τμημάτων με fallback χωρίς ενεργή σεζόν · clubId από ενεργό σύλλογο (PA preview) |
 | `TeamSuite_2026-10-09_15-37-55.zip` | 2026-10-09 | Chunked cloud mirror (αποφυγή 413/invalid JSON) · ανακοινώσεις: Έλαβαν/Άνοιξαν μέσω κλικ συνδέσμου (όχι μόνο pixel) · απενεργοποίηση υπενθυμίσεων οφειλών (email/SMS/push) · βελτιωμένο sync status |

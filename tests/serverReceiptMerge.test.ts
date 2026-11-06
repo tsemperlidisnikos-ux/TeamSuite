@@ -69,3 +69,60 @@ describe('cloud receipt merge', () => {
     expect(merged.deletedFeeChargeTemplateIds).toContain('fee_tpl_1');
   });
 });
+
+describe('active athlete preservation', () => {
+  it('does not demote active→inactive when incoming is not strictly newer', () => {
+    const existing = {
+      students: [
+        { id: 'a1', status: 'active', updatedAt: 100, firstName: 'Νίκος' },
+        { id: 'a2', status: 'active', updatedAt: 100, firstName: 'Μαρία' },
+      ],
+    };
+    const incoming = {
+      students: [
+        { id: 'a1', status: 'inactive', updatedAt: 100, firstName: 'Νίκος' },
+        { id: 'a2', status: 'inactive', updatedAt: 50, firstName: 'Μαρία' },
+      ],
+    };
+    const merged = mergeMirrorPayloadPreservingRoster(existing, incoming) as {
+      students: Array<{ id: string; status: string }>;
+    };
+    expect(merged.students.find((s) => s.id === 'a1')?.status).toBe('active');
+    expect(merged.students.find((s) => s.id === 'a2')?.status).toBe('active');
+  });
+
+  it('allows demotion only when incoming updatedAt is strictly newer', () => {
+    const existing = {
+      students: [{ id: 'a1', status: 'active', updatedAt: 100 }],
+    };
+    const incoming = {
+      students: [{ id: 'a1', status: 'inactive', updatedAt: 200 }],
+    };
+    const merged = mergeMirrorPayloadPreservingRoster(existing, incoming) as {
+      students: Array<{ id: string; status: string }>;
+    };
+    expect(merged.students.find((s) => s.id === 'a1')?.status).toBe('inactive');
+  });
+
+  it('circuit-breaker restores mass demotion from stale push', () => {
+    const existing = {
+      students: Array.from({ length: 20 }, (_, i) => ({
+        id: `a${i}`,
+        status: 'active',
+        updatedAt: 100,
+      })),
+    };
+    const incoming = {
+      students: Array.from({ length: 20 }, (_, i) => ({
+        id: `a${i}`,
+        status: 'inactive',
+        updatedAt: 100,
+      })),
+    };
+    const merged = mergeMirrorPayloadPreservingRoster(existing, incoming) as {
+      students: Array<{ status: string }>;
+    };
+    const actives = merged.students.filter((s) => s.status === 'active').length;
+    expect(actives).toBe(20);
+  });
+});

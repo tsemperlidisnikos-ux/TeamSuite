@@ -8,6 +8,7 @@ import {
   listDocumentExpiries,
   type DocumentExpiryRow,
 } from './documentExpiryService';
+import { preferredNotifyEmails } from '../../utils/parentNotifyEmails';
 import * as pushService from './pushService';
 
 const PARENT_KEY = 'teamsuite-healthcard-parent-v1';
@@ -99,7 +100,7 @@ export async function notifyHealthCardExpiries(clubId: string) {
     let ok = false;
 
     if (smtp.enabled) {
-      for (const to of uniqueEmails([student.motherEmail, student.fatherEmail, student.email])) {
+      for (const to of uniqueEmails(preferredNotifyEmails(student))) {
         const mail = await sendClubEmail({
           clubId,
           to,

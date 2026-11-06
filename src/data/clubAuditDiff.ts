@@ -145,6 +145,8 @@ export function buildAppDataAudit(before: AppData, after: AppData): AppDataAudit
   const changes: ClubAuditChange[] = [];
   let containsUnsafeChange = false;
   for (const { key, label } of TRACKED) {
+    // Same reference ⇒ untouched collection (mutateDataKeys / COW). Skip expensive diff.
+    if (before[key] === after[key]) continue;
     const diff = diffRows(asRows(before[key]), asRows(after[key]));
     const changed = diff.added.length > 0 || diff.removed.length > 0 || diff.updated.length > 0;
     if (changed && !UNDOABLE.has(key)) containsUnsafeChange = true;
@@ -155,7 +157,12 @@ export function buildAppDataAudit(before: AppData, after: AppData): AppDataAudit
       parts.push(`Διαγραφή (${label}): ${listNames(diff.removed, label)}`);
     }
     if (diff.updated.length) {
-      parts.push(`Ενημέρωση ${diff.updated.length} ${label}`);
+      parts.push(
+        `Ενημέρωση (${label}): ${listNames(
+          diff.updated.map((row) => row.after),
+          label,
+        )}`,
+      );
     }
     if (changed && UNDOABLE.has(key)) {
       const collection = key as UndoableAuditCollection;
@@ -178,6 +185,7 @@ export function buildAppDataAudit(before: AppData, after: AppData): AppDataAudit
     }
   }
   for (const { key, label } of OTHER_TRACKED) {
+    if (before[key] === after[key]) continue;
     if (JSON.stringify(before[key] ?? null) === JSON.stringify(after[key] ?? null)) continue;
     parts.push(`Αλλαγή (${label})`);
     containsUnsafeChange = true;
@@ -186,7 +194,7 @@ export function buildAppDataAudit(before: AppData, after: AppData): AppDataAudit
   const tooLarge = changes.length > 50 || JSON.stringify(changes).length > 120_000;
   const undoable = !containsUnsafeChange && changes.length > 0 && !tooLarge;
   return {
-    summary: parts.join(' · ').slice(0, 500),
+    summary: parts.join(' · ').slice(0, 900),
     undoable,
     undoReason: undoable
       ? null

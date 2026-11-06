@@ -16,6 +16,7 @@ import {
   putMirrorStagingChunk,
   splitBufferToBase64Chunks,
   utf8ByteLength,
+  type MirrorChunkEncoding,
 } from '../lib/mirrorChunks.js';
 
 const WIRE_HARD_LIMIT = 4_200_000;
@@ -92,11 +93,16 @@ async function handleMirror(req: VercelRequest, res: VercelResponse) {
       payload: slimmedPayload,
     };
     const envelopeRaw = Buffer.from(JSON.stringify(envelope), 'utf8');
+    const useGzipChunks = envelopeRaw.length > MIRROR_WIRE_SOFT_LIMIT;
+    const wireBody = useGzipChunks ? gzipSync(envelopeRaw, { level: 6 }) : envelopeRaw;
+    const pullEncoding: MirrorChunkEncoding = useGzipChunks
+      ? 'gzip-base64utf8'
+      : 'base64utf8';
     const chunkParam = String(req.query.chunk ?? '').trim();
 
     if (chunkParam !== '') {
       const chunkIndex = Number(chunkParam);
-      const chunks = splitBufferToBase64Chunks(envelopeRaw);
+      const chunks = splitBufferToBase64Chunks(wireBody);
       if (!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex >= chunks.length) {
         return res.status(400).json({ ok: false, error: 'Άκυρο chunk' });
       }
@@ -108,7 +114,7 @@ async function handleMirror(req: VercelRequest, res: VercelResponse) {
         chunked: true,
         chunk: chunkIndex,
         chunkCount: chunks.length,
-        encoding: 'base64utf8',
+        encoding: pullEncoding,
         data: chunks[chunkIndex],
       });
     }
@@ -127,7 +133,7 @@ async function handleMirror(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const chunks = splitBufferToBase64Chunks(envelopeRaw);
+    const chunks = splitBufferToBase64Chunks(wireBody);
     return res.status(200).json({
       ok: true,
       durable: isDurableStoreEnabled(),
@@ -135,7 +141,7 @@ async function handleMirror(req: VercelRequest, res: VercelResponse) {
       updatedAt: mirror.updatedAt,
       chunked: true,
       chunkCount: chunks.length,
-      encoding: 'base64utf8',
+      encoding: pullEncoding,
       slimmed: originalBytes > slimBytes,
       bytesBefore: originalBytes,
       bytesAfter: slimBytes,
@@ -153,6 +159,7 @@ async function handleMirror(req: VercelRequest, res: VercelResponse) {
       chunk?: number;
       data?: string;
       commitChunked?: boolean;
+      encoding?: MirrorChunkEncoding;
     };
     const clubId = String(body.clubId ?? '').trim();
     if (!clubId) return res.status(400).json({ ok: false, error: 'clubId required' });
@@ -173,12 +180,15 @@ async function handleMirror(req: VercelRequest, res: VercelResponse) {
       if (!Number.isInteger(chunkCount) || chunkCount < 1 || chunkCount > 64) {
         return res.status(400).json({ ok: false, error: 'Άκυρο chunkCount' });
       }
+      const encoding: MirrorChunkEncoding =
+        body.encoding === 'gzip-base64utf8' ? 'gzip-base64utf8' : 'base64utf8';
       const uploadId = await initMirrorStaging(
         clubId,
         chunkCount,
         body.baseUpdatedAt === undefined ? null : body.baseUpdatedAt,
+        encoding,
       );
-      return res.status(200).json({ ok: true, uploadId, chunkCount });
+      return res.status(200).json({ ok: true, uploadId, chunkCount, encoding });
     }
 
     if (typeof body.uploadId === 'string' && typeof body.chunk === 'number' && typeof body.data === 'string') {

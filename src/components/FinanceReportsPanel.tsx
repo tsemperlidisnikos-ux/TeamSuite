@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { FilePenLine, Trash2 } from 'lucide-react';
-import { ATHLETE_INCOME_SUBCATEGORY } from '../api/services/athletePaymentRevenueBridge';
+import {
+  ATHLETE_INCOME_SUBCATEGORY,
+  dedupeLinkedFinanceRevenues,
+  ensureAthletePaymentRevenuesSynced,
+} from '../api/services/athletePaymentRevenueBridge';
 import * as feeChargesService from '../api/services/feeChargesService';
 import * as financeService from '../api/services/financeService';
 import { Button } from './ui/Button';
@@ -158,6 +162,10 @@ export function FinanceReportsPanel() {
   const seasonPresets = buildSeasonPresets();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    ensureAthletePaymentRevenuesSynced();
+  }, [data.transactions?.length, data.revenues?.length]);
   const [openChargeBaseRows, setOpenChargeBaseRows] = useState<
     feeChargesService.ClubOpenChargeRow[]
   >([]);
@@ -180,7 +188,9 @@ export function FinanceReportsPanel() {
   );
 
   const allRows = useMemo<ReportRow[]>(() => {
-    const incomeRows: ReportRow[] = filterOwnFinanceEntries(data.revenues).map((rev) => ({
+    const incomeRows: ReportRow[] = dedupeLinkedFinanceRevenues(
+      filterOwnFinanceEntries(data.revenues),
+    ).map((rev) => ({
       id: rev.id,
       date: rev.date,
       type: 'income',

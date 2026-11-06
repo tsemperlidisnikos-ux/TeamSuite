@@ -67,3 +67,59 @@ export function mergeByIdPreferringUpdatedAt<T extends { id: string; updatedAt?:
   }
   return out;
 }
+
+type StudentLike = {
+  id: string;
+  updatedAt?: number;
+  status?: string | null;
+};
+
+/**
+ * Student merge: νεότερο updatedAt κερδίζει, αλλά δεν «κατεβάζει» ενεργό σε ανενεργό
+ * αν το cloud δεν είναι σαφώς νεότερο (συχνό μετά από restore + παλιό mirror).
+ */
+export function mergeStudentsPreferringUpdatedAt<T extends StudentLike>(
+  localRows: T[] | undefined,
+  cloudRows: T[] | undefined,
+  deleted: Set<string>,
+  preferLocalIfTie: boolean,
+): T[] {
+  const localMap = new Map<string, T>();
+  const cloudMap = new Map<string, T>();
+  for (const row of localRows ?? []) {
+    if (!deleted.has(row.id)) localMap.set(row.id, row);
+  }
+  for (const row of cloudRows ?? []) {
+    if (!deleted.has(row.id)) cloudMap.set(row.id, row);
+  }
+  const ids = new Set([...localMap.keys(), ...cloudMap.keys()]);
+  const out: T[] = [];
+  for (const id of ids) {
+    const local = localMap.get(id);
+    const cloud = cloudMap.get(id);
+    if (local && cloud) {
+      const merged = mergeTwoRecords(local, cloud, preferLocalIfTie);
+      const localStatus = (local.status ?? 'active') as string;
+      const cloudStatus = (cloud.status ?? 'active') as string;
+      const localAt = recordUpdatedAt(local);
+      const cloudAt = recordUpdatedAt(cloud);
+      // Never demote active↔inactive on a stale/tied row from either side.
+      if (localStatus === 'active' && cloudStatus !== 'active' && !(cloudAt > localAt)) {
+        merged.status = 'active' as T['status'];
+      } else if (cloudStatus === 'active' && localStatus !== 'active' && !(localAt > cloudAt)) {
+        merged.status = 'active' as T['status'];
+      } else if (!merged.status) {
+        merged.status = 'active' as T['status'];
+      }
+      out.push(merged);
+    } else {
+      const alone = (local ?? cloud)!;
+      if (!alone.status) {
+        out.push({ ...alone, status: 'active' as T['status'] });
+      } else {
+        out.push(alone);
+      }
+    }
+  }
+  return out;
+}

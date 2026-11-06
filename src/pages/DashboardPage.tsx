@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, HeartPulse, Layers, Banknote, AlertTriangle } from 'lucide-react';
+import { ClipboardList, HeartPulse, Layers, Banknote, AlertTriangle, CalendarClock } from 'lucide-react';
 import { getSession } from '../auth/auth';
 import { AthletesIcon } from '../components/icons/AthletesIcon';
 import { Button } from '../components/ui/Button';
@@ -11,7 +11,7 @@ import { clubOutstandingOwed } from '../api/services/feeChargesService';
 import { getClubById } from '../auth/clubs';
 import { getPreviewClubId } from '../platform/platformConfig';
 import { useAppData } from '../hooks/useAppData';
-import type { Student } from '../types';
+import type { RentalBooking, Revenue, Student } from '../types';
 import { formatAmkaForViewer } from '../utils/amkaAccess';
 import { guardianDisplayName } from '../utils/greekSurname';
 import { localDateIso } from '../utils/dates';
@@ -34,6 +34,19 @@ import {
 } from '../utils/financeOwnEntries';
 
 type SportBucket = { key: string; label: string };
+
+/** Πληρωμένα έσοδα που μετράνε ως είσπραξη — όχι ανοιχτές/μη εισπραχθείσες ενοικιάσεις. */
+function isCountableCollectionRevenue(
+  revenue: Revenue,
+  rentals: RentalBooking[] | undefined,
+): boolean {
+  if (revenue.paymentStatus !== 'paid') return false;
+  if (revenue.linkedTransactionId) return false;
+  const rentalId = String(revenue.linkedRentalBookingId ?? '').trim();
+  if (!rentalId) return true;
+  const booking = (rentals ?? []).find((row) => row.id === rentalId);
+  return Boolean(booking && isRentalBookingCollected(booking));
+}
 
 function createdOnLocalDay(iso: string, day: string): boolean {
   const parsed = new Date(iso);
@@ -193,7 +206,7 @@ function DoctorDashboard() {
 }
 
 export function DashboardPage() {
-  const { data } = useAppData();
+  const { data, ready: dataReady } = useAppData();
   const session = getSession();
   const isDoctor = session?.role === 'doctor';
   const today = localDateIso();
@@ -224,40 +237,28 @@ export function DashboardPage() {
   );
 
   const moneyStrip = useMemo(() => {
-    const ownRevenues = filterOwnFinanceEntries(data.revenues).filter(
-      (r) => r.paymentStatus === 'paid',
+    const ownRevenues = filterOwnFinanceEntries(data.revenues).filter((r) =>
+      isCountableCollectionRevenue(r, data.rentalBookings),
     );
-    const todayRevenues = ownRevenues
-      .filter((r) => r.date === today)
-      .reduce((sum, r) => sum + r.amount, 0);
     const ownOnly = sessionSeesOnlyOwnFinance();
     if (ownOnly) {
-      const monthPrefix = today.slice(0, 7);
-      const monthCollections = ownRevenues
-        .filter((r) => r.date.slice(0, 7) === monthPrefix)
+      const todayRevenues = ownRevenues
+        .filter((r) => r.date === today)
         .reduce((sum, r) => sum + r.amount, 0);
       return {
-        monthCollections,
         dailyIncome: todayRevenues,
         outstanding: 0,
         cashBalance: 0,
       };
     }
-    const monthPrefix = today.slice(0, 7);
     const payments = (data.transactions ?? []).filter((t) => t.type === 'payment');
-    const monthFromAthletes = payments
-      .filter((t) => String(t.createdAt || '').slice(0, 7) === monthPrefix)
-      .reduce((sum, t) => sum + t.amount, 0);
-    const monthFromRevenues = ownRevenues
-      .filter((r) => r.date.slice(0, 7) === monthPrefix && !r.linkedTransactionId)
-      .reduce((sum, r) => sum + r.amount, 0);
     const outstanding = clubOutstandingOwed(data.students ?? [], data.transactions ?? []);
     const cashBalance = getAccountBalances().reduce((sum, account) => sum + account.balance, 0);
     const todayAthleteTx = payments
       .filter((t) => createdOnLocalDay(t.createdAt, today))
       .reduce((sum, t) => sum + t.amount, 0);
     const todayFromRevenues = ownRevenues
-      .filter((r) => r.date === today && !r.linkedTransactionId)
+      .filter((r) => r.date === today)
       .reduce((sum, r) => sum + r.amount, 0);
     const countedRentalIds = new Set(
       ownRevenues
@@ -274,7 +275,7 @@ export function DashboardPage() {
       )
       .reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
     return {
-      monthCollections: monthFromAthletes + monthFromRevenues,
+      // Εισπράξεις μήνα = άθροισμα πίνακα ανά άθλημα (sportSummaryTotals), όχι ξεχωριστός υπολογισμός.
       dailyIncome: todayAthleteTx + todayFromRevenues + todayFromCollectedRentals,
       outstanding,
       cashBalance,
@@ -282,7 +283,9 @@ export function DashboardPage() {
   }, [data.transactions, data.revenues, data.expenses, data.cashAccounts, data.rentalBookings, today]);
 
   const adminKpis = useMemo(() => {
-    const activeAthletes = data.students.filter((s) => s.status === 'active').length;
+    const activeAthletes = data.students.filter(
+      (s) => (s.status ?? 'active') === 'active',
+    ).length;
     const monthPrefix = today.slice(0, 7);
     const monthAttendance = (data.attendance ?? []).filter((a) => a.date.startsWith(monthPrefix));
     const attendancePct =
@@ -355,8 +358,7 @@ export function DashboardPage() {
       const revenueCollections = filterOwnFinanceEntries(data.revenues)
         .filter((revenue) => {
           if (
-            revenue.paymentStatus !== 'paid' ||
-            revenue.linkedTransactionId ||
+            !isCountableCollectionRevenue(revenue, data.rentalBookings) ||
             revenue.date.slice(0, 7) !== monthPrefix
           ) {
             return false;
@@ -370,7 +372,9 @@ export function DashboardPage() {
 
       return {
         ...row,
-        activeAthletes: row.students.filter((student) => student.status === 'active').length,
+        activeAthletes: row.students.filter(
+          (student) => (student.status ?? 'active') === 'active',
+        ).length,
         monthCollections: transactionCollections + revenueCollections,
         outstanding: ownOnly
           ? 0
@@ -383,6 +387,7 @@ export function DashboardPage() {
     data.coaches,
     data.transactions,
     data.revenues,
+    data.rentalBookings,
     dashboardClasses,
     classSportById,
     today,
@@ -426,7 +431,14 @@ export function DashboardPage() {
     [sportSummaryRows],
   );
   const licenseLimit = dashboardClub?.athleteLicenseLimit ?? 0;
-  const parentAutoApprove = Boolean(dashboardClub?.publicRegistration?.autoApprove);
+  const todayCourtBookings = useMemo(
+    () =>
+      (data.rentalBookings ?? []).filter(
+        (booking) => booking.date === today && booking.status !== 'cancelled',
+      ),
+    [data.rentalBookings, today],
+  );
+  const hasCourtBookingToday = todayCourtBookings.length > 0;
 
   const lowStock = useMemo(() => listLowStockProducts(data.products), [data.products]);
   const showLowStock =
@@ -488,32 +500,46 @@ export function DashboardPage() {
       <div className="stats-grid cols-4 dashboard-kpi-row">
         <StatCard
           label="Ενεργοί αθλητές"
-          value={String(adminKpis.activeAthletes)}
-          hint="Στον σύλλογο"
+          value={dataReady ? String(adminKpis.activeAthletes) : '…'}
+          hint={dataReady ? 'Στον σύλλογο' : 'Φόρτωση μητρώου…'}
           icon={AthletesIcon}
         />
         <StatCard
           label="Άδειες πακέτου"
           value={
-            licenseLimit
-              ? `${adminKpis.activeAthletes} / ${licenseLimit}`
-              : String(adminKpis.activeAthletes)
+            !dataReady
+              ? '…'
+              : licenseLimit
+                ? `${adminKpis.activeAthletes} / ${licenseLimit}`
+                : String(adminKpis.activeAthletes)
           }
-          hint={licenseLimit ? 'Ενεργοί / όριο πακέτου' : 'Δεν έχει οριστεί όριο'}
+          hint={
+            !dataReady
+              ? 'Φόρτωση μητρώου…'
+              : licenseLimit
+                ? 'Ενεργοί / όριο πακέτου'
+                : 'Δεν έχει οριστεί όριο'
+          }
           icon={Layers}
           tone={
-            licenseLimit > 0 && adminKpis.activeAthletes >= licenseLimit ? 'warn' : 'default'
+            dataReady && licenseLimit > 0 && adminKpis.activeAthletes >= licenseLimit
+              ? 'warn'
+              : 'default'
           }
         />
         <StatCard
-          label="Έγκριση γονέα"
-          value={parentAutoApprove ? 'Ναι' : 'Όχι'}
+          label="Κράτηση γηπέδου"
+          value={hasCourtBookingToday ? 'Ναι' : 'Όχι'}
           hint={
-            parentAutoApprove
-              ? 'Αυτόματη έγκριση ενεργή'
-              : 'Καμία αίτηση σε αναμονή'
+            hasCourtBookingToday
+              ? todayCourtBookings.length === 1
+                ? '1 κράτηση σήμερα'
+                : `${todayCourtBookings.length} κρατήσεις σήμερα`
+              : 'Καμία κράτηση σήμερα'
           }
-          icon={ClipboardList}
+          icon={CalendarClock}
+          tone={hasCourtBookingToday ? 'positive' : 'default'}
+          to="/rental?tab=bookings"
         />
         <StatCard
           label="Αιτήσεις εγγραφής"
@@ -596,7 +622,7 @@ export function DashboardPage() {
         </Link>
         <div className="money-strip-item is-accent">
           <span>Εισπράξεις μήνα</span>
-          <strong>{formatCurrency(moneyStrip.monthCollections)}</strong>
+          <strong>{formatCurrency(sportSummaryTotals.monthCollections)}</strong>
         </div>
       </div>
 

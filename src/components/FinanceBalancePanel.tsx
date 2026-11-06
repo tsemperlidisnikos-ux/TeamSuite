@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Filter,
   Printer,
@@ -10,6 +10,8 @@ import {
 import {
   ATHLETE_INCOME_DESCRIPTIONS,
   ATHLETE_INCOME_SUBCATEGORY,
+  dedupeLinkedFinanceRevenues,
+  ensureAthletePaymentRevenuesSynced,
 } from '../api/services/athletePaymentRevenueBridge';
 import { Button } from './ui/Button';
 import { AppPopupLayer } from './ui/AppPopupLayer';
@@ -419,6 +421,11 @@ export function FinanceBalancePanel() {
     String(currentSeasonStartYear()),
   );
 
+  // Align payment→revenue mirrors before totals (same numbers on every PC after sync).
+  useEffect(() => {
+    ensureAthletePaymentRevenuesSynced();
+  }, [data.transactions?.length, data.revenues?.length]);
+
   const clubs = useMemo(
     () => (data.associations ?? []).filter((a) => a.active !== false),
     [data.associations],
@@ -464,28 +471,30 @@ export function FinanceBalancePanel() {
   const seasons = useMemo(() => seasonOptions(), []);
 
   const filteredIncome = useMemo(() => {
-    return filterOwnFinanceEntries(data.revenues).filter((rev: Revenue) => {
-      if (!matchesDate(rev.date, applied.dateFrom, applied.dateTo)) return false;
-      if (applied.clubName && (rev.clubName || '') !== applied.clubName) return false;
-      if (applied.sport && (rev.sport || '') !== applied.sport) return false;
-      if (
-        applied.paymentMethod &&
-        normalizePaymentMethod(rev.paymentMethod) !== applied.paymentMethod
-      ) {
-        return false;
-      }
-      const sub = rev.subcategory || '';
-      if (applied.incomeCategory && sub !== applied.incomeCategory) return false;
-      if (applied.subscriptionLabel) {
-        if (!isSubscriptionSubcategory(sub)) return false;
-        if ((rev.description || '') !== applied.subscriptionLabel) return false;
-      }
-      if (applied.incomeLabel) {
-        if (isSubscriptionSubcategory(sub)) return false;
-        if ((rev.description || '') !== applied.incomeLabel) return false;
-      }
-      return true;
-    });
+    return dedupeLinkedFinanceRevenues(filterOwnFinanceEntries(data.revenues)).filter(
+      (rev: Revenue) => {
+        if (!matchesDate(rev.date, applied.dateFrom, applied.dateTo)) return false;
+        if (applied.clubName && (rev.clubName || '') !== applied.clubName) return false;
+        if (applied.sport && (rev.sport || '') !== applied.sport) return false;
+        if (
+          applied.paymentMethod &&
+          normalizePaymentMethod(rev.paymentMethod) !== applied.paymentMethod
+        ) {
+          return false;
+        }
+        const sub = rev.subcategory || '';
+        if (applied.incomeCategory && sub !== applied.incomeCategory) return false;
+        if (applied.subscriptionLabel) {
+          if (!isSubscriptionSubcategory(sub)) return false;
+          if ((rev.description || '') !== applied.subscriptionLabel) return false;
+        }
+        if (applied.incomeLabel) {
+          if (isSubscriptionSubcategory(sub)) return false;
+          if ((rev.description || '') !== applied.incomeLabel) return false;
+        }
+        return true;
+      },
+    );
   }, [data.revenues, applied]);
 
   const filteredExpenses = useMemo(() => {

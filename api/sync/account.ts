@@ -611,9 +611,14 @@ function parseClubAuditEvent(body: unknown): ClubAuditEvent | null {
 
 async function handleClubAudit(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
-    if (!(await assertLoginActivityAdmin(req, res))) return;
     const clubId = clip(req.query.clubId, 80);
     if (!clubId) return res.status(400).json({ ok: false, error: 'clubId required' });
+    // Platform Admin: οποιοσδήποτε σύλλογος. Club admin: μόνο ο δικός του.
+    if (clubId === '_platform') {
+      if (!(await assertLoginActivityAdmin(req, res))) return;
+    } else if (!(await assertClubTenantAccess(req, res, clubId))) {
+      return;
+    }
     const limitRaw = typeof req.query.limit === 'string' ? Number(req.query.limit) : 400;
     const events = await listClubAudit(clubId, Number.isFinite(limitRaw) ? limitRaw : 400);
     return res.status(200).json({
@@ -630,12 +635,13 @@ async function handleClubAudit(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ ok: false, error: 'Invalid club audit payload' });
     }
     const auth = getSyncAuthContext(req);
-    if (event.action === 'undo' && auth.claims?.role !== 'platform_admin') {
-      return res.status(403).json({ ok: false, error: 'Forbidden: Platform Admin required' });
-    }
     if (auth.claims && auth.claims.role !== 'platform_admin') {
       if (!auth.claims.clubId || auth.claims.clubId !== event.clubId) {
         return res.status(403).json({ ok: false, error: 'Forbidden: club mismatch' });
+      }
+      // Club users may log changes/undos for their club; platform log is PA-only.
+      if (event.clubId === '_platform') {
+        return res.status(403).json({ ok: false, error: 'Forbidden: Platform Admin required' });
       }
     }
     const events = await appendClubAudit(event);
@@ -692,7 +698,6 @@ async function handleClubAuditSnapshot(req: VercelRequest, res: VercelResponse) 
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
-  if (!(await assertLoginActivityAdmin(req, res))) return;
   const body = (req.body ?? {}) as {
     clubId?: string;
     reason?: string;
@@ -711,6 +716,7 @@ async function handleClubAuditSnapshot(req: VercelRequest, res: VercelResponse) 
   if (!clubId || !reason || !eventIds.length) {
     return res.status(400).json({ ok: false, error: 'clubId, reason and eventIds required' });
   }
+  if (!(await assertClubTenantAccess(req, res, clubId))) return;
   const auth = getSyncAuthContext(req);
   try {
     const snapshot = await snapshotClubMirrorForUndo({

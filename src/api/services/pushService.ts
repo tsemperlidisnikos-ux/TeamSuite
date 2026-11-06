@@ -157,6 +157,8 @@ export function announcementParentUserIds(input: {
   status?: AnnouncementInput['status'];
   sportCategories?: string;
   teamsLabel?: string;
+  customChargeFilter?: AnnouncementInput['customChargeFilter'];
+  clothingPackageId?: string;
 }): string[] {
   const data = getData();
   return parentUserIdsForAnnouncement({
@@ -167,6 +169,8 @@ export function announcementParentUserIds(input: {
       recipientIds: input.recipientIds ?? [],
       sportCategories: input.sportCategories ?? '',
       teamsLabel: input.teamsLabel ?? '',
+      customChargeFilter: input.customChargeFilter ?? '',
+      clothingPackageId: input.clothingPackageId ?? '',
     },
     students: data.students ?? [],
     classes: data.classes ?? [],

@@ -10,7 +10,6 @@ import {
 } from './demoShowcase';
 import { seedData } from './seed';
 import {
-  clearStoreMemory,
   createId,
   loadAllClubStores,
   loadStore,
@@ -399,11 +398,14 @@ function maybeApplyDemoShowcase(clubId: string): AppData | null {
   return showcase;
 }
 
-/** Drop in-memory cache so the next getData() loads the active club bucket. */
+/**
+ * Drop the active-club repository cache so the next getData() reloads from the
+ * club map. Does **not** wipe the by-club memory map — large restores often
+ * live only in memory when localStorage quota rejects a 15–20MB JSON write.
+ */
 export function clearDataCache(): void {
   cache = null;
   cacheClubId = null;
-  clearStoreMemory();
 }
 
 export function getData(): AppData {
@@ -435,10 +437,7 @@ export function getData(): AppData {
   return cache;
 }
 
-export function mutateData(updater: (data: AppData) => void): AppData {
-  const before = getData();
-  const data = structuredClone(before);
-  updater(data);
+function commitMutatedData(before: AppData, data: AppData): AppData {
   stampMissingUpdatedAt(data);
   cache = data;
   cacheClubId = resolveActiveClubId();
@@ -460,6 +459,43 @@ export function mutateData(updater: (data: AppData) => void): AppData {
     });
   }
   return data;
+}
+
+function cloneAppDataKey(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      item && typeof item === 'object' ? { ...(item as object) } : item,
+    );
+  }
+  if (value && typeof value === 'object') {
+    return { ...(value as object) };
+  }
+  return value;
+}
+
+export function mutateData(updater: (data: AppData) => void): AppData {
+  const before = getData();
+  const data = structuredClone(before);
+  updater(data);
+  return commitMutatedData(before, data);
+}
+
+/**
+ * Γρήγορο mutate για μικρές αλλαγές (π.χ. αποδείξεις): κάνει shallow copy του root
+ * και deep-ish clone μόνο των δηλωμένων κλειδιών. Τα υπόλοιπα μένουν by reference —
+ * κρίσιμο σε συλλόγους με μεγάλο AppData (structuredClone ολόκληρου του blob αργεί πολύ).
+ */
+export function mutateDataKeys(
+  keys: ReadonlyArray<keyof AppData>,
+  updater: (data: AppData) => void,
+): AppData {
+  const before = getData();
+  const data = { ...before } as AppData;
+  for (const key of keys) {
+    (data as Record<string, unknown>)[key as string] = cloneAppDataKey(before[key]);
+  }
+  updater(data);
+  return commitMutatedData(before, data);
 }
 
 /** Read AppData for a specific club (public join / cross-club). */
@@ -531,21 +567,26 @@ export function replaceClubData(
 ): AppData {
   const data = structuredClone(next);
   ensureCollections(data);
+  if (!data.localWrittenAt || data.localWrittenAt < Date.now()) {
+    data.localWrittenAt = Date.now();
+  }
   writeClubStoreExclusive(clubId, data);
+  // Always keep repository cache aligned when this is the active club; otherwise
+  // only drop the active cache (never the by-club memory map — see clearDataCache).
   if (resolveActiveClubId() === clubId) {
     cache = structuredClone(data);
-    // re-read in case storage stripped media
     const stored = loadStore();
     if (stored) cache = stored;
     cacheClubId = clubId;
   } else {
-    clearDataCache();
+    cache = null;
+    cacheClubId = null;
   }
   notifyAppDataChanged();
   if (!opts?.skipCloudPush) {
     scheduleClubMirrorPush(clubId);
   }
-  return cache ?? data;
+  return data;
 }
 
 /** Restore multi-club map from backup (optional). */

@@ -41,12 +41,33 @@ function isBlankSecret(value: string | null | undefined): boolean {
   return isMaskedOrBlankSecret(value);
 }
 
-/** Strip credentials so downloadable archives are not secret-bearing. */
-export function redactUserForBackup(user: AppUser): AppUser {
+/**
+ * Club backups keep credentials needed for full restore (π.χ. TeamSuite ver.3):
+ * - PBKDF2 password hashes (login)
+ * - SMTP / SMS / Viva / Stripe / Eurobank secrets
+ * Platform full dumps still strip all of the above.
+ */
+export function redactUserForBackup(
+  user: AppUser,
+  opts?: { keepSecrets?: boolean },
+): AppUser {
+  if (opts?.keepSecrets) {
+    return { ...user };
+  }
   return { ...user, password: '' };
 }
 
-export function redactClubForBackup(club: Club): Club {
+export function redactClubForBackup(
+  club: Club,
+  opts?: { keepSecrets?: boolean },
+): Club {
+  if (opts?.keepSecrets) {
+    return {
+      ...club,
+      // Send log can contain recipient emails — omit from file backups.
+      smtpSendLog: undefined,
+    };
+  }
   return {
     ...club,
     smtp: club.smtp
@@ -85,10 +106,15 @@ export function redactClubForBackup(club: Club): Club {
 }
 
 export function redactBackupPayload(payload: BackupPayload): BackupPayload {
+  const keepSecrets = payload.scope === 'club';
   return {
     ...payload,
-    users: payload.users?.map(redactUserForBackup),
-    clubs: payload.clubs?.map(redactClubForBackup),
+    users: payload.users?.map((user) =>
+      redactUserForBackup(user, { keepSecrets }),
+    ),
+    clubs: payload.clubs?.map((club) =>
+      redactClubForBackup(club, { keepSecrets }),
+    ),
   };
 }
 

@@ -6,7 +6,7 @@ import { slotConflictsWithClubOccupancy } from '../../shared/facilityRentalAvail
 import type { AppData, Training } from '../../types';
 import { getActiveSeason } from '../../utils/clubSeasons';
 import { localDateIso } from '../../utils/dates';
-import { publishClubOpsSlice } from './clubOpsSyncService';
+import { scheduleClubOpsSlice } from './clubOpsSyncService';
 import { syncRemoteRentalBookings } from './rentalBookingsService';
 
 function assertNoFacilityConflict(
@@ -42,7 +42,7 @@ export async function createTraining(input: TrainingInput) {
       if (!data.trainings) data.trainings = [];
       data.trainings.push(training);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return training;
   });
 }
@@ -144,7 +144,7 @@ export async function createRecurringTrainings(input: {
       if (!data.trainings) data.trainings = [];
       data.trainings.push(...created);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return { count: created.length, items: created, skipped };
   });
 }
@@ -261,7 +261,7 @@ export async function generateTrainingsFromSchedule(input?: {
       if (!store.trainings) store.trainings = [];
       store.trainings.push(...created);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return { count: created.length, skipped, startDate, endDate };
   });
 }
@@ -291,7 +291,7 @@ export async function updateTraining(id: string, input: TrainingInput) {
       updated.updatedAt = Date.now();
       data.trainings[index] = updated;
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return updated!;
   });
 }
@@ -302,7 +302,7 @@ export async function deleteTraining(id: string) {
       data.trainings = (data.trainings ?? []).filter((t) => t.id !== id);
       data.deletedTrainingIds = rememberDeletedId(data.deletedTrainingIds, id);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return { id };
   });
 }
@@ -314,7 +314,7 @@ export async function bulkDeleteTrainings(ids: string[]) {
       data.trainings = (data.trainings ?? []).filter((t) => !idSet.has(t.id));
       data.deletedTrainingIds = rememberDeletedIds(data.deletedTrainingIds, ids);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return { deleted: ids.length };
   });
 }
@@ -373,7 +373,7 @@ export async function bulkUpdateTrainings(
     mutateData((data) => {
       data.trainings = (data.trainings ?? []).map((row) => byId.get(row.id) ?? row);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return { updated: updated.length, skipped };
   });
 }

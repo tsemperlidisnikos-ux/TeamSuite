@@ -3,7 +3,9 @@ import { getSession, getUserById, isPlatformAdmin } from '../../auth/auth';
 import { getClubById, getClubPublicRegistration, getClubSmtp } from '../../auth/clubs';
 import { createId, getData, mutateData } from '../../data/repository';
 import { rememberDeletedId, rememberDeletedIds } from '../../data/financeSyncMerge';
-import { publishClubOpsSlice } from './clubOpsSyncService';
+import { resolveActiveClubId } from '../../data/store';
+import { flushClubOpsSlice, scheduleClubOpsSlice } from './clubOpsSyncService';
+import { dismissRemoteRegistrationApplications } from './publicClubCloudService';
 import { buildStudentFromRegistrationApplication } from '../../shared/publicJoinPayload';
 import { stripJoinFormSnapshotForApplication } from '../../utils/publicJoinFormSnapshots';
 import type {
@@ -28,6 +30,40 @@ function clubNameForSession(): string {
   const session = getSession();
   const club = getClubById(session?.clubId);
   return club?.name ?? '';
+}
+
+function resolveClubIdForApps(): string | null {
+  const id = resolveActiveClubId();
+  return id && id !== '_default' ? id : null;
+}
+
+async function dismissFromCloud(ids: string[]): Promise<{ ok: boolean; error?: string }> {
+  const clubId = resolveClubIdForApps();
+  if (!clubId || ids.length === 0) return { ok: true };
+  const result = await dismissRemoteRegistrationApplications(clubId, ids);
+  if (!result.success) {
+    return { ok: false, error: result.error ?? 'Αποτυχία διαγραφής από cloud' };
+  }
+  await flushClubOpsSlice(clubId);
+  // Άμεσο πλήρες mirror push ώστε tombstones να μην χαθούν από παλιό in-flight push.
+  try {
+    const clubSync = await import('../../data/clubSync');
+    clubSync.markClubMirrorDirty(clubId);
+    await clubSync.flushClubMirrorPush(clubId);
+  } catch {
+    /* club-ops + pending dismiss καλύπτουν το κρίσιμο path */
+  }
+  return { ok: true };
+}
+
+function canManagePendingApplications(): boolean {
+  const role = getSession()?.role;
+  return (
+    role === 'admin' ||
+    role === 'secretariat' ||
+    role === 'platform_admin' ||
+    isPlatformAdmin()
+  );
 }
 
 export function normalizePhone(value: string): string {
@@ -108,7 +144,7 @@ export async function updateRegistrationApplication(
       }
       data.registrationApplications = apps.map((a, i) => (i === index ? application! : a));
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return application!;
   });
 }
@@ -188,12 +224,15 @@ export async function approveRegistrationApplication(
       data.registrationApplications = apps.map((a, i) => (i === index ? application! : a));
     });
 
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return {
       application: application!,
       athleteId,
       duplicates,
     };
+  }).then(async (result) => {
+    if (result.success) await dismissFromCloud([id]);
+    return result;
   });
 }
 
@@ -211,28 +250,40 @@ export async function rejectRegistrationApplication(id: string) {
       application = { ...app, status: 'rejected' };
       data.registrationApplications = apps.map((a, i) => (i === index ? application! : a));
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return application!;
+  }).then(async (result) => {
+    // Βγαίνει από το cloud pending· αλλιώς το pull την ξαναφέρνει ως εκκρεμή.
+    if (result.success) await dismissFromCloud([id]);
+    return result;
   });
 }
 
 export async function deleteRegistrationApplication(id: string) {
-  return apiClient(() => {
-    if (!isPlatformAdmin()) {
-      throw new Error('Μόνο Platform Admin μπορεί να διαγράψει αιτήσεις εγγραφής.');
+  return apiClient(async () => {
+    if (!canManagePendingApplications()) {
+      throw new Error('Δεν έχετε δικαίωμα διαγραφής αιτήσεων εγγραφής.');
     }
     mutateData((data) => {
       const apps = data.registrationApplications ?? [];
       if (!apps.some((a) => a.id === id)) {
         throw new Error('Η αίτηση δεν βρέθηκε.');
       }
+      stripJoinFormSnapshotForApplication(data, id);
       data.registrationApplications = apps.filter((a) => a.id !== id);
       data.deletedRegistrationApplicationIds = rememberDeletedId(
         data.deletedRegistrationApplicationIds,
         id,
       );
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
+    const cloud = await dismissFromCloud([id]);
+    if (!cloud.ok) {
+      throw new Error(
+        cloud.error ??
+          'Η αίτηση διαγράφηκε τοπικά, αλλά όχι από το cloud. Ξαναδοκιμάστε ή κάντε hard refresh.',
+      );
+    }
     return { id };
   });
 }
@@ -251,10 +302,15 @@ export async function deleteJoinFormSnapshotForApplication(id: string) {
   });
 }
 
+/** Διαγραφή εκκρεμούς αίτησης (τοπικά + cloud) — για κουμπί στη λίστα Αθλητών. */
+export async function dismissPendingRegistrationApplication(id: string) {
+  return deleteRegistrationApplication(id);
+}
+
 export async function deleteRegistrationApplications(ids: string[]) {
-  return apiClient(() => {
-    if (!isPlatformAdmin()) {
-      throw new Error('Μόνο Platform Admin μπορεί να διαγράψει αιτήσεις εγγραφής.');
+  return apiClient(async () => {
+    if (!canManagePendingApplications()) {
+      throw new Error('Δεν έχετε δικαίωμα διαγραφής αιτήσεων εγγραφής.');
     }
     const unique = Array.from(new Set(ids.filter(Boolean)));
     if (unique.length === 0) return { deleted: 0 };
@@ -262,6 +318,9 @@ export async function deleteRegistrationApplications(ids: string[]) {
     mutateData((data) => {
       const before = data.registrationApplications ?? [];
       const remove = new Set(unique);
+      for (const appId of unique) {
+        stripJoinFormSnapshotForApplication(data, appId);
+      }
       data.registrationApplications = before.filter((a) => {
         if (!remove.has(a.id)) return true;
         deleted += 1;
@@ -272,7 +331,14 @@ export async function deleteRegistrationApplications(ids: string[]) {
         unique,
       );
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
+    const cloud = await dismissFromCloud(unique);
+    if (!cloud.ok) {
+      throw new Error(
+        cloud.error ??
+          'Οι αιτήσεις διαγράφηκαν τοπικά, αλλά όχι από το cloud. Ξαναδοκιμάστε.',
+      );
+    }
     return { deleted };
   });
 }

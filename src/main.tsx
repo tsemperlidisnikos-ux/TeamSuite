@@ -39,6 +39,8 @@ import { startDocumentBranding } from './utils/documentBranding'
 startAppearanceTheme()
 startDocumentBranding()
 startBackupScheduleRunner()
+// Kick IndexedDB club map hydrate ASAP (large clubs don't fit in localStorage).
+void import('./data/store').then((m) => m.ensureClubMapIdbReady())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,6 +1,7 @@
 import { apiClient } from '../apiClient';
 import { getClubSms, smsHasStoredSecret } from '../../auth/clubs';
 import { getData } from '../../data/repository';
+import { preferredNotifyPhones } from '../../utils/parentNotifyEmails';
 import { syncAuthHeaders } from '../syncAuth';
 
 export type SendSmsInput = {
@@ -34,8 +35,14 @@ export function studentContactPhones(student: {
   phone?: string;
   guardianPhone?: string;
   motherPhone?: string;
+  preferredParentEmail?: string | null;
 }): string[] {
   const set = new Set<string>();
+  for (const raw of preferredNotifyPhones(student)) {
+    const phone = normalizeSmsPhone(raw);
+    if (phone.length >= 10) set.add(phone);
+  }
+  if (set.size > 0) return [...set];
   for (const raw of [student.guardianPhone, student.motherPhone, student.phone]) {
     const phone = normalizeSmsPhone(raw ?? '');
     if (phone.length >= 10) set.add(phone);

@@ -17,6 +17,7 @@ import { formatCurrency, formatDate, parseMoneyInput } from '../utils/labels';
 import { listActiveClubSportNames } from '../utils/clubSports';
 import { normalizeSportKey } from '../utils/sport';
 import { canAccessAmka, formatAmkaForViewer } from '../utils/amkaAccess';
+import { primaryParentNotifyEmail } from '../utils/parentNotifyEmails';
 import { studentClassIds } from '../utils/studentClasses';
 import { studentHasSport } from '../utils/studentSports';
 
@@ -502,7 +503,7 @@ export function FeesPage() {
                           athlete.id,
                           balance,
                           `${athlete.lastName} ${athlete.firstName}`,
-                          athlete.motherEmail || athlete.email || '',
+                          primaryParentNotifyEmail(athlete),
                         )
                       }
                     >

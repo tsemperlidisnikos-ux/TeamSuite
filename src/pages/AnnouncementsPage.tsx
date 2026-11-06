@@ -22,10 +22,12 @@ import { Link } from 'react-router-dom';
 import * as announcementsService from '../api/services/announcementsService';
 import * as notificationService from '../api/services/notificationService';
 import { getSession } from '../auth/auth';
+import { getClubById } from '../auth/clubs';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { resolveActiveClubId } from '../data/store';
 import { useAppData } from '../hooks/useAppData';
+import { getPreviewClubId } from '../platform/platformConfig';
 import type { AnnouncementInput } from '../schemas';
 import type {
   Announcement,
@@ -37,7 +39,10 @@ import {
   announcementVisibleToAthlete,
   announcementVisibleToCoach,
   listParentRecipients,
+  matchesClothingPackageFilter,
+  matchesCustomChargeFilter,
 } from '../utils/announcementAudience';
+import { CLOTHING_PACKAGE_NONE } from '../utils/athleteRegistryFilter';
 import {
   classIdsOf,
   resolveCoachForSession,
@@ -45,6 +50,11 @@ import {
   visibleClassesForSession,
   visibleStudentsForSession,
 } from '../utils/coachScope';
+import {
+  defaultClothingPackages,
+  normalizeClothingPackages,
+  studentClothingPackageIds,
+} from '../utils/clothingPackages';
 import { normalizeSportKey } from '../utils/sport';
 import { listActiveClubSportNames } from '../utils/clubSports';
 import { studentClassIds, studentInClass } from '../utils/studentClasses';
@@ -81,6 +91,8 @@ const emptyForm: AnnouncementInput = {
   showTo: '',
   sportCategories: '',
   teamsLabel: '',
+  customChargeFilter: '',
+  clothingPackageId: '',
   audienceRoles: [],
   classIds: [],
   recipientIds: [],
@@ -150,6 +162,15 @@ export function AnnouncementsPage() {
     return () => window.clearInterval(id);
   }, [clubId, refresh]);
 
+  const clubIdForAudience = getPreviewClubId() ?? session?.clubId ?? clubId;
+  const audienceClub = clubIdForAudience ? getClubById(clubIdForAudience) : null;
+  const customChargeYesLabel =
+    (audienceClub?.customChargeLabel ?? '').trim() || 'Προσαρμοσμένη χρέωση';
+  const clothingPackages = useMemo(() => {
+    const list = normalizeClothingPackages(data.clothingPackages);
+    return list.length > 0 ? list : defaultClothingPackages();
+  }, [data.clothingPackages]);
+
   const visibleClasses = useMemo(() => {
     const active = visibleClassesForSession(data.classes, data.coaches, session, {
       seasons: data.clubSeasons,
@@ -184,11 +205,17 @@ export function AnnouncementsPage() {
       .filter((s) => s.status !== 'inactive')
       .filter((s) => {
         if (clubKey && normalizeSportKey(s.clubName) !== clubKey) return false;
-        if (!sport) return true;
-        if (studentHasSport(s, sport)) return true;
-        return studentClassIds(s).some((id) =>
-          sportsMatch(data.classes.find((c) => c.id === id)?.sport, sport),
-        );
+        if (sport) {
+          const sportOk =
+            studentHasSport(s, sport) ||
+            studentClassIds(s).some((id) =>
+              sportsMatch(data.classes.find((c) => c.id === id)?.sport, sport),
+            );
+          if (!sportOk) return false;
+        }
+        if (!matchesCustomChargeFilter(form, s.customCharge)) return false;
+        if (!matchesClothingPackageFilter(form, studentClothingPackageIds(s))) return false;
+        return true;
       });
   }, [
     data.students,
@@ -197,6 +224,8 @@ export function AnnouncementsPage() {
     session,
     form.sportCategories,
     form.teamsLabel,
+    form.customChargeFilter,
+    form.clothingPackageId,
   ]);
 
   const athleteOptions = useMemo(() => {
@@ -231,14 +260,23 @@ export function AnnouncementsPage() {
     const all = listParentRecipients();
     const sport = (form.sportCategories ?? '').trim();
     const club = (form.teamsLabel ?? '').trim();
-    if (!sport && !club) return all;
+    const custom = form.customChargeFilter ?? '';
+    const clothing = (form.clothingPackageId ?? '').trim();
+    if (!sport && !club && !custom && !clothing) return all;
     const athleteIds = new Set(scopedStudents.map((s) => s.id));
     return all.filter((p) =>
       (data.parentLinks ?? []).some(
         (link) => link.parentUserId === p.id && athleteIds.has(link.athleteId),
       ),
     );
-  }, [data.parentLinks, scopedStudents, form.sportCategories, form.teamsLabel]);
+  }, [
+    data.parentLinks,
+    scopedStudents,
+    form.sportCategories,
+    form.teamsLabel,
+    form.customChargeFilter,
+    form.clothingPackageId,
+  ]);
 
   const staffOptions = useMemo(
     () =>
@@ -252,6 +290,60 @@ export function AnnouncementsPage() {
         .sort((a, b) => a.label.localeCompare(b.label, 'el')),
     [data.staff],
   );
+
+  const emailAudiencePreview = useMemo(() => {
+    const classIds = classesEnabled ? (form.classIds ?? []) : [];
+    const roles = form.audienceRoles ?? [];
+    const recipientIds = form.recipientIds ?? [];
+    return notificationService.summarizeAnnouncementEmailAudience({
+      audienceRoles: roles,
+      classIds,
+      recipientIds,
+      sportCategories: form.sportCategories ?? '',
+      teamsLabel: form.teamsLabel ?? '',
+      customChargeFilter: form.customChargeFilter ?? '',
+      clothingPackageId: form.clothingPackageId ?? '',
+      targetType: classIds.length === 1 ? 'team' : 'club',
+      targetId: classIds.length === 1 ? classIds[0] : null,
+    });
+  }, [
+    classesEnabled,
+    form.audienceRoles,
+    form.classIds,
+    form.recipientIds,
+    form.sportCategories,
+    form.teamsLabel,
+    form.customChargeFilter,
+    form.clothingPackageId,
+    data.students,
+    data.parentLinks,
+    data.coaches,
+    data.staff,
+  ]);
+
+  const audienceFilterHints = useMemo(() => {
+    const bits: string[] = [];
+    if (form.sportCategories?.trim()) bits.push(`Άθλημα: ${form.sportCategories.trim()}`);
+    if (form.teamsLabel?.trim()) bits.push(`Σωματείο: ${form.teamsLabel.trim()}`);
+    if (form.customChargeFilter === 'yes') bits.push(customChargeYesLabel);
+    else if (form.customChargeFilter === 'no') bits.push(`Χωρίς ${customChargeYesLabel}`);
+    if (form.clothingPackageId?.trim()) {
+      bits.push(
+        form.clothingPackageId === CLOTHING_PACKAGE_NONE
+          ? 'Χωρίς πακέτο ρουχισμού'
+          : clothingPackages.find((p) => p.id === form.clothingPackageId)?.name ||
+              'Πακέτο ρουχισμού',
+      );
+    }
+    return bits;
+  }, [
+    form.sportCategories,
+    form.teamsLabel,
+    form.customChargeFilter,
+    form.clothingPackageId,
+    customChargeYesLabel,
+    clothingPackages,
+  ]);
 
   const classOptions = useMemo(() => {
     const sport = (form.sportCategories ?? '').trim();
@@ -324,6 +416,8 @@ export function AnnouncementsPage() {
             sport: athlete.sport,
             clubName: athlete.clubName,
             classSport: athleteClassSport,
+            customCharge: athlete.customCharge,
+            clothingPackageIds: studentClothingPackageIds(athlete),
           })
         ) {
           return false;
@@ -397,6 +491,8 @@ export function AnnouncementsPage() {
       showTo: item.showTo ?? '',
       sportCategories: item.sportCategories ?? '',
       teamsLabel: item.teamsLabel ?? '',
+      customChargeFilter: item.customChargeFilter ?? '',
+      clothingPackageId: item.clothingPackageId ?? '',
       audienceRoles: item.audienceRoles ?? [],
       classIds: item.classIds ?? [],
       recipientIds: item.recipientIds ?? [],
@@ -415,11 +511,25 @@ export function AnnouncementsPage() {
     return (form.recipientIds ?? []).filter((r) => r.kind === kind).length;
   }
 
-  function applyAudienceScope(next: { sport?: string; club?: string }) {
+  function applyAudienceScope(next: {
+    sport?: string;
+    club?: string;
+    customChargeFilter?: AnnouncementInput['customChargeFilter'];
+    clothingPackageId?: string;
+  }) {
     const sport = next.sport !== undefined ? next.sport : (form.sportCategories ?? '');
     const club = next.club !== undefined ? next.club : (form.teamsLabel ?? '');
+    const customChargeFilter =
+      next.customChargeFilter !== undefined
+        ? next.customChargeFilter
+        : (form.customChargeFilter ?? '');
+    const clothingPackageId =
+      next.clothingPackageId !== undefined
+        ? next.clothingPackageId
+        : (form.clothingPackageId ?? '');
     const sportKey = sport.trim();
     const clubKey = normalizeSportKey(club);
+    const scopeForm = { customChargeFilter, clothingPackageId };
 
     const nextClassIds = (form.classIds ?? []).filter((id) => {
       const cls = data.classes.find((c) => c.id === id);
@@ -442,11 +552,17 @@ export function AnnouncementsPage() {
         .filter((s) => s.status !== 'inactive')
         .filter((s) => {
           if (clubKey && normalizeSportKey(s.clubName) !== clubKey) return false;
-          if (!sportKey) return true;
-          if (studentHasSport(s, sportKey)) return true;
-          return studentClassIds(s).some((cid) =>
-            sportsMatch(data.classes.find((c) => c.id === cid)?.sport, sportKey),
-          );
+          if (sportKey) {
+            const sportOk =
+              studentHasSport(s, sportKey) ||
+              studentClassIds(s).some((cid) =>
+                sportsMatch(data.classes.find((c) => c.id === cid)?.sport, sportKey),
+              );
+            if (!sportOk) return false;
+          }
+          if (!matchesCustomChargeFilter(scopeForm, s.customCharge)) return false;
+          if (!matchesClothingPackageFilter(scopeForm, studentClothingPackageIds(s))) return false;
+          return true;
         })
         .map((s) => s.id),
     );
@@ -458,10 +574,13 @@ export function AnnouncementsPage() {
         .map((c) => c.id),
     );
 
+    const hasAthleteAttrFilter = Boolean(
+      sportKey || clubKey || customChargeFilter || clothingPackageId.trim(),
+    );
     const allowedParentIds = new Set(
       listParentRecipients()
         .filter((p) =>
-          !sportKey && !clubKey
+          !hasAthleteAttrFilter
             ? true
             : (data.parentLinks ?? []).some(
                 (link) => link.parentUserId === p.id && allowedAthleteIds.has(link.athleteId),
@@ -474,6 +593,8 @@ export function AnnouncementsPage() {
       ...prev,
       sportCategories: sport,
       teamsLabel: club,
+      customChargeFilter,
+      clothingPackageId,
       classIds: nextClassIds,
       recipientIds: (prev.recipientIds ?? []).filter((r) => {
         if (r.kind === 'athlete') return allowedAthleteIds.has(r.id);
@@ -614,6 +735,19 @@ export function AnnouncementsPage() {
     if (form.sportCategories?.trim()) {
       audienceLabels.unshift(`Άθλημα: ${form.sportCategories.trim()}`);
     }
+    if (form.customChargeFilter === 'yes') {
+      audienceLabels.unshift(customChargeYesLabel);
+    } else if (form.customChargeFilter === 'no') {
+      audienceLabels.unshift(`Χωρίς ${customChargeYesLabel}`);
+    }
+    if (form.clothingPackageId?.trim()) {
+      const pkgLabel =
+        form.clothingPackageId === CLOTHING_PACKAGE_NONE
+          ? 'Χωρίς πακέτο ρουχισμού'
+          : clothingPackages.find((p) => p.id === form.clothingPackageId)?.name ||
+            'Πακέτο ρουχισμού';
+      audienceLabels.unshift(pkgLabel);
+    }
 
     const payload: AnnouncementInput = {
       ...form,
@@ -628,6 +762,8 @@ export function AnnouncementsPage() {
       recipientIds,
       sportCategories: form.sportCategories ?? '',
       teamsLabel: form.teamsLabel ?? '',
+      customChargeFilter: form.customChargeFilter ?? '',
+      clothingPackageId: form.clothingPackageId ?? '',
       targetType: classIds.length === 1 ? 'team' : 'club',
       targetId: classIds.length === 1 ? classIds[0] : null,
       showTo: audienceLabels.length > 0 ? audienceLabels.join(', ') : 'Ολόκληρος σύλλογος',
@@ -635,9 +771,10 @@ export function AnnouncementsPage() {
     };
 
     const wantEmail = status === 'published' && sendEmail;
-    const emailsForSend = wantEmail
-      ? [...new Set(notificationService.resolveAnnouncementEmails(payload))]
-      : [];
+    const emailSummary = wantEmail
+      ? notificationService.summarizeAnnouncementEmailAudience(payload)
+      : null;
+    const emailsForSend = emailSummary?.emails ?? [];
 
     if (wantEmail && emailsForSend.length === 0) {
       setSaving(false);
@@ -655,8 +792,26 @@ export function AnnouncementsPage() {
       return;
     }
 
-    if (wantEmail && emailsForSend.length > 0) {
-      if (!confirm(`Θα σταλεί email σε ${emailsForSend.length} παραλήπτη/ες. Συνέχεια;`)) {
+    if (wantEmail && emailSummary && emailsForSend.length > 0) {
+      const roleBits = audienceLabels.filter((label) =>
+        AUDIENCE_OPTIONS.some((o) => label === o.label || label.startsWith(`${o.label} (`)),
+      );
+      const fromBits = [
+        ...audienceFilterHints,
+        ...(roleBits.length > 0 ? roleBits : []),
+      ];
+      const fromLine =
+        fromBits.length > 0
+          ? `από ${emailSummary.athleteCount} αθλητές · ${fromBits.join(' · ')}`
+          : `από ${emailSummary.athleteCount} αθλητές`;
+      const confirmMsg =
+        `Θα σταλεί email για ${emailSummary.primaryEmailCount} αθλητές` +
+        ` (κύριο: πατέρας / μητέρα / αθλητής` +
+        (emailSummary.emailCount !== emailSummary.primaryEmailCount
+          ? ` · ${emailSummary.emailCount} μοναδικές διευθύνσεις`
+          : '') +
+        `)\n(${fromLine}).\nΣυνέχεια;`;
+      if (!confirm(confirmMsg)) {
         setSaving(false);
         return;
       }
@@ -730,6 +885,8 @@ export function AnnouncementsPage() {
             recipientIds: payload.recipientIds,
             sportCategories: payload.sportCategories,
             teamsLabel: payload.teamsLabel,
+            customChargeFilter: payload.customChargeFilter,
+            clothingPackageId: payload.clothingPackageId,
           });
         } catch {
           /* push optional */
@@ -924,6 +1081,36 @@ export function AnnouncementsPage() {
                     ))}
                   </select>
                 </label>
+                <label className="ann-scope-field">
+                  <span>Τίτλος προσαρμοσμένης χρέωσης</span>
+                  <select
+                    value={form.customChargeFilter ?? ''}
+                    onChange={(e) =>
+                      applyAudienceScope({
+                        customChargeFilter: e.target.value as AnnouncementInput['customChargeFilter'],
+                      })
+                    }
+                  >
+                    <option value="">Όλα</option>
+                    <option value="yes">{customChargeYesLabel}</option>
+                    <option value="no">Όχι</option>
+                  </select>
+                </label>
+                <label className="ann-scope-field">
+                  <span>Πακέτο ρουχισμού</span>
+                  <select
+                    value={form.clothingPackageId ?? ''}
+                    onChange={(e) => applyAudienceScope({ clothingPackageId: e.target.value })}
+                  >
+                    <option value="">Όλα</option>
+                    <option value={CLOTHING_PACKAGE_NONE}>Χωρίς πακέτο</option>
+                    {clothingPackages.map((pkg) => (
+                      <option key={pkg.id} value={pkg.id}>
+                        {pkg.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
               <div className="ann-audience-toggles">
                 {AUDIENCE_OPTIONS.filter((option) => option.id !== 'staff').map((option) => {
@@ -992,6 +1179,43 @@ export function AnnouncementsPage() {
                     </button>
                   );
                 })()}
+              </div>
+
+              <div className="ann-audience-summary" aria-live="polite">
+                <p>
+                  <strong>{emailAudiencePreview.athleteCount}</strong> αθλητές στο φίλτρο
+                  {audienceFilterHints.length > 0
+                    ? ` (${audienceFilterHints.join(' · ')})`
+                    : ''}
+                  {' · '}
+                  {emailAudiencePreview.primaryEmailCount > 0 ? (
+                    <>
+                      <strong>{emailAudiencePreview.primaryEmailCount}</strong> κύρια emails
+                      (πατέρας / μητέρα / αθλητής)
+                      {emailAudiencePreview.emailCount !==
+                      emailAudiencePreview.primaryEmailCount
+                        ? ` · ${emailAudiencePreview.emailCount} μοναδικές διευθύνσεις`
+                        : ''}
+                    </>
+                  ) : (
+                    <>
+                      <strong>{emailAudiencePreview.emailCount}</strong> emails
+                    </>
+                  )}
+                </p>
+                {emailAudiencePreview.missingPrimaryAthletes.length > 0 ? (
+                  <details className="ann-audience-both-list">
+                    <summary>
+                      <strong>{emailAudiencePreview.missingPrimaryAthletes.length}</strong> χωρίς
+                      κύριο email
+                    </summary>
+                    <ol>
+                      {emailAudiencePreview.missingPrimaryAthletes.map((a) => (
+                        <li key={a.id}>{a.name}</li>
+                      ))}
+                    </ol>
+                  </details>
+                ) : null}
               </div>
 
               {pickerOpen ? (
@@ -1104,7 +1328,8 @@ export function AnnouncementsPage() {
                 </div>
               ) : (
                 <p className="ann-hint">
-                  Χωρίς επιλογή → ολόκληρος σύλλογος. Κλικ σε κατηγορία για συγκεκριμένους παραλήπτες.
+                  Χωρίς επιλογή → μόνο κύριο email ενημερώσεων ανά αθλητή στο φίλτρο. Πρόσθεσε ρόλο
+                  (Γονείς / Αθλητές / Προπονητές / Προσωπικό) για επιπλέον παραλήπτες.
                 </p>
               )}
             </div>

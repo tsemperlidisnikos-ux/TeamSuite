@@ -17,6 +17,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { SpreadsheetImportHelpModal } from '../components/SpreadsheetImportHelpModal';
 import { useAppData } from '../hooks/useAppData';
 import { useT } from '../i18n/LocaleContext';
+import { resolveActiveClubId } from '../data/store';
 import { getPreviewClubId } from '../platform/platformConfig';
 import type { StudentInput } from '../schemas';
 import type { Gender, RegistrationApplication, RegistrationApplicationKind, Student, StudentStatus } from '../types';
@@ -72,6 +73,7 @@ const draftAthlete: StudentInput = {
   motherFirstName: '',
   fatherEmail: '',
   motherEmail: '',
+  preferredParentEmail: 'both',
   motherPhone: '',
   address: '',
   postalCode: '',
@@ -195,8 +197,8 @@ export function StudentsPage() {
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const clubId = getSession()?.clubId ?? getPreviewClubId();
-    if (!clubId) return;
+    const clubId = resolveActiveClubId();
+    if (!clubId || clubId === '_default') return;
     void publicClubCloudService.pullRemoteRegistrationApplications(clubId).then((result) => {
       if (result.success && (result.data?.merged ?? 0) > 0) {
         refresh();
@@ -478,23 +480,23 @@ export function StudentsPage() {
     setJoinFormImage(app.formSnapshotUrl || null);
   }
 
-  async function handleDeleteJoinForm(app: RegistrationApplication) {
+  async function handleDeletePendingApplication(app: RegistrationApplication) {
     if (!canDeleteJoinForm) return;
     if (
       !window.confirm(
-        'Διαγραφή της φόρμας δημόσιας εγγραφής (JPEG και επιλογές αίτησης); Η αίτηση μένει εκκρεμής.',
+        'Διαγραφή της εκκρεμούς αίτησης; Θα αφαιρεθεί και από το cloud ώστε να μην επανέλθει.',
       )
     ) {
       return;
     }
     setBusyAppId(app.id);
     setAppError('');
-    const result = await registrationApplicationsService.deleteJoinFormSnapshotForApplication(
+    const result = await registrationApplicationsService.dismissPendingRegistrationApplication(
       app.id,
     );
     setBusyAppId(null);
     if (!result.success) {
-      setAppError(result.error ?? 'Αποτυχία διαγραφής φόρμας');
+      setAppError(result.error ?? 'Αποτυχία διαγραφής αίτησης');
       return;
     }
     if (joinFormApp?.id === app.id) {
@@ -502,7 +504,7 @@ export function StudentsPage() {
       setJoinFormImage(null);
     }
     refresh();
-    setAppMessage('Διαγράφηκε το JPEG της φόρμας εγγραφής.');
+    setAppMessage('Η αίτηση διαγράφηκε και δεν θα επανέλθει από το cloud.');
   }
 
   async function handleSaveEdit(appId: string) {
@@ -833,9 +835,9 @@ export function StudentsPage() {
                             type="button"
                             variant="danger"
                             disabled={busy || Boolean(busyAppId)}
-                            onClick={() => void handleDeleteJoinForm(app)}
+                            onClick={() => void handleDeletePendingApplication(app)}
                           >
-                            Διαγραφή φόρμας
+                            Διαγραφή αίτησης
                           </Button>
                         ) : null}
                         <Button
@@ -1181,9 +1183,9 @@ export function StudentsPage() {
                 type="button"
                 variant="danger"
                 disabled={Boolean(busyAppId)}
-                onClick={() => void handleDeleteJoinForm(joinFormApp)}
+                onClick={() => void handleDeletePendingApplication(joinFormApp)}
               >
-                Διαγραφή
+                Διαγραφή αίτησης
               </Button>
             ) : null}
           </>

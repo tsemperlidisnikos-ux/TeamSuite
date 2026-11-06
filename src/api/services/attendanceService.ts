@@ -1,6 +1,6 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
-import { publishClubOpsSlice } from './clubOpsSyncService';
+import { scheduleClubOpsSlice } from './clubOpsSyncService';
 import type { AbsenceReason, AttendanceRecord } from '../../types';
 
 export function absenceReasonLabel(reason?: AbsenceReason | null): string {
@@ -54,7 +54,7 @@ export async function upsertAttendance(input: {
         data.attendance.push(record);
       }
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return record!;
   });
 }

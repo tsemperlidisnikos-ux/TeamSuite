@@ -10,6 +10,7 @@ import { useAppData } from '../hooks/useAppData';
 import { absenceReasonLabel } from '../api/services/attendanceService';
 import type { AcademyClass, Student } from '../types';
 import {
+  CLOTHING_PACKAGE_NONE,
   REGISTRY_COLUMNS,
   defaultRegistryFilters,
   filterAthleteRegistry,
@@ -20,6 +21,10 @@ import {
   type RegistryFilters,
   type TriState,
 } from '../utils/athleteRegistryFilter';
+import {
+  defaultClothingPackages,
+  normalizeClothingPackages,
+} from '../utils/clothingPackages';
 import { PAYMENT_METHODS, paymentMethodLabel } from '../shared/paymentMethods';
 import { sizeChartOptGroups } from '../utils/sizeChartOptions';
 import { localDateIso } from '../utils/dates';
@@ -35,6 +40,11 @@ import {
 } from '../utils/studentClasses';
 import { studentHasSport } from '../utils/studentSports';
 import { downloadXlsx } from '../utils/xlsxDownload';
+import {
+  athleteMonthSubscription,
+  periodLabel,
+  type MonthSubscriptionPayStatus,
+} from '../api/services/feeChargesService';
 
 const COMPARE_OPS = ['=', '<', '>', '<=', '>='] as const;
 
@@ -47,6 +57,7 @@ type MenuId =
   | 'medical-expiry'
   | 'payments-collections'
   | 'debtors'
+  | 'month-subscription'
   | 'legal-forms'
   | 'development-report'
   | 'teams'
@@ -64,6 +75,7 @@ const MENU_ITEMS: Array<{ id: MenuId; title: string }> = [
   { id: 'medical-expiry', title: 'Λήξεις ιατρικών πιστοποιητικών' },
   { id: 'payments-collections', title: 'Εισπράξεις περιόδου' },
   { id: 'debtors', title: 'Οφειλέτες' },
+  { id: 'month-subscription', title: 'Συνδρομή μήνα' },
   { id: 'legal-forms', title: 'Νομικά έντυπα' },
   { id: 'development-report', title: 'Αναφορά προόδου' },
   { id: 'teams', title: 'Κατάλογος τμημάτων' },
@@ -72,6 +84,21 @@ const MENU_ITEMS: Array<{ id: MenuId; title: string }> = [
   { id: 'fees', title: 'Χρεώσεις / πληρωμές' },
   { id: 'trainings', title: 'Πρόγραμμα προπονήσεων' },
 ];
+
+const MONTH_SELECT_OPTIONS = [
+  { month: 1, label: 'Ιανουάριος' },
+  { month: 2, label: 'Φεβρουάριος' },
+  { month: 3, label: 'Μάρτιος' },
+  { month: 4, label: 'Απρίλιος' },
+  { month: 5, label: 'Μάιος' },
+  { month: 6, label: 'Ιούνιος' },
+  { month: 7, label: 'Ιούλιος' },
+  { month: 8, label: 'Αύγουστος' },
+  { month: 9, label: 'Σεπτέμβριος' },
+  { month: 10, label: 'Οκτώβριος' },
+  { month: 11, label: 'Νοέμβριος' },
+  { month: 12, label: 'Δεκέμβριος' },
+] as const;
 
 function transactionLocalDay(createdAt: string): string {
   const parsed = new Date(createdAt);
@@ -149,10 +176,13 @@ function TriStateSelect({
   id,
   value,
   onChange,
+  yesLabel = 'Ναι',
 }: {
   id: string;
   value: TriState;
   onChange: (v: TriState) => void;
+  /** Ετικέτα για την επιλογή «ναι» (π.χ. όνομα προσαρμοσμένης χρέωσης συλλόγου). */
+  yesLabel?: string;
 }) {
   return (
     <select
@@ -162,7 +192,7 @@ function TriStateSelect({
       onChange={(e) => onChange(e.target.value as TriState)}
     >
       <option value="">Όλα</option>
-      <option value="yes">Ναι</option>
+      <option value="yes">{yesLabel}</option>
       <option value="no">Όχι</option>
     </select>
   );
@@ -394,6 +424,7 @@ function exportPrintRowsXlsx(
 
 function moneyColumnKey(columns: Array<{ key: string }>): string | null {
   if (columns.some((c) => c.key === 'amount')) return 'amount';
+  if (columns.some((c) => c.key === 'remaining')) return 'remaining';
   if (columns.some((c) => c.key === 'balance')) return 'balance';
   return null;
 }
@@ -556,23 +587,12 @@ function SectionShell({
   );
 }
 
-function customChargeFilterLabel(rawLabel: string | undefined): string {
-  const trimmed = (rawLabel ?? '').trim();
-  if (!trimmed) return '';
-  const lower = trimmed.toLowerCase();
-  if (lower.startsWith('πρόγραμμα') || lower.startsWith('προγραμμα')) return trimmed;
-  return `Πρόγραμμα ${trimmed}`;
-}
-
 function AthleteRegistrySection() {
   const { data } = useAppData();
   const session = getSession();
   const clubId = getPreviewClubId() ?? session?.clubId ?? null;
   const club = clubId ? getClubById(clubId) : null;
-  const customChargeLabel = useMemo(
-    () => customChargeFilterLabel(club?.customChargeLabel),
-    [club?.customChargeLabel],
-  );
+  const customChargeYesLabel = (club?.customChargeLabel ?? '').trim() || 'Ναι';
   const [filters, setFilters] = useState<RegistryFilters>(() => defaultRegistryFilters());
   const [showResults, setShowResults] = useState(false);
   const [filtered, setFiltered] = useState<Student[]>([]);
@@ -581,6 +601,10 @@ function AthleteRegistrySection() {
     () => sizeChartOptGroups(data.sizeChart).flatMap((g) => g.sizes),
     [data.sizeChart],
   );
+  const clothingPackages = useMemo(() => {
+    const list = normalizeClothingPackages(data.clothingPackages);
+    return list.length > 0 ? list : defaultClothingPackages();
+  }, [data.clothingPackages]);
 
   function setFilter<K extends keyof RegistryFilters>(key: K, value: RegistryFilters[K]) {
     setFilters((prev) => {
@@ -715,15 +739,30 @@ function AthleteRegistrySection() {
           onChange={(v) => setFilter('seasonTicket', v)}
         />
       </FilterRow>
-      {customChargeLabel ? (
-        <FilterRow label={customChargeLabel} htmlFor="reg-custom-charge">
-          <TriStateSelect
-            id="reg-custom-charge"
-            value={filters.customCharge}
-            onChange={(v) => setFilter('customCharge', v)}
-          />
-        </FilterRow>
-      ) : null}
+      <FilterRow label="Τίτλος προσαρμοσμένης χρέωσης" htmlFor="reg-custom-charge">
+        <TriStateSelect
+          id="reg-custom-charge"
+          value={filters.customCharge}
+          onChange={(v) => setFilter('customCharge', v)}
+          yesLabel={customChargeYesLabel}
+        />
+      </FilterRow>
+      <FilterRow label="Πακέτο ρουχισμού" htmlFor="reg-clothing-pkg">
+        <select
+          id="reg-clothing-pkg"
+          className="prints-filter-input"
+          value={filters.clothingPackageId}
+          onChange={(e) => setFilter('clothingPackageId', e.target.value)}
+        >
+          <option value="">Όλα</option>
+          <option value={CLOTHING_PACKAGE_NONE}>Χωρίς πακέτο</option>
+          {clothingPackages.map((pkg) => (
+            <option key={pkg.id} value={pkg.id}>
+              {pkg.name}
+            </option>
+          ))}
+        </select>
+      </FilterRow>
       <FilterRow label="Αρ. Δελτίου" htmlFor="reg-card">
         <TriStateSelect
           id="reg-card"
@@ -1758,6 +1797,172 @@ function PaymentsCollectionsSection() {
   );
 }
 
+function MonthSubscriptionSection() {
+  const { data } = useAppData();
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear] = useState(now.getFullYear());
+  const [sport, setSport] = useState('');
+  const [teamId, setTeamId] = useState('');
+  const [active, setActive] = useState<TriState>('yes');
+  const [payStatus, setPayStatus] = useState<'' | MonthSubscriptionPayStatus>('');
+  const [showResults, setShowResults] = useState(false);
+  const [rows, setRows] = useState<Array<Record<string, string>>>([]);
+  const [summary, setSummary] = useState('');
+
+  const yearOptions = useMemo(() => {
+    const y = new Date().getFullYear();
+    return [y - 1, y, y + 1];
+  }, []);
+
+  function runSearch() {
+    const txs = data.transactions ?? [];
+    let paidCount = 0;
+    let unpaidCount = 0;
+    let noChargeCount = 0;
+    let owedTotal = 0;
+
+    const next = data.students
+      .map((s) => {
+        const sub = athleteMonthSubscription(s.id, month, year, txs);
+        const expected =
+          s.status !== 'inactive' && s.monthlyCharge !== false;
+        return { student: s, sub, expected };
+      })
+      .filter(({ student: s, sub, expected }) => {
+        if (!studentMatchesSportFilter(s, sport, data.classes)) return false;
+        if (!studentMatchesTeamFilter(s, teamId)) return false;
+        if (active === 'yes' && s.status !== 'active') return false;
+        if (active === 'no' && s.status === 'active') return false;
+        // Εμφάνιση: όσοι έχουν χρέωση μήνα ή αναμένονται (ενεργοί με χρέωση μήνα).
+        if (sub.status === 'no_charge' && !expected) return false;
+        if (payStatus && sub.status !== payStatus) return false;
+        return true;
+      })
+      .sort((a, b) =>
+        `${a.student.lastName} ${a.student.firstName}`.localeCompare(
+          `${b.student.lastName} ${b.student.firstName}`,
+          'el',
+        ),
+      )
+      .map(({ student: s, sub }, index) => {
+        if (sub.status === 'paid') paidCount += 1;
+        else if (sub.status === 'unpaid') {
+          unpaidCount += 1;
+          owedTotal += sub.remaining;
+        } else noChargeCount += 1;
+        return {
+          id: s.id,
+          index: String(index + 1),
+          last_name: s.lastName,
+          first_name: s.firstName,
+          team: studentClassNames(s, data.classes) || '—',
+          status: sub.statusLabel,
+          charged: `${sub.charged.toFixed(2)} €`,
+          paid: `${sub.paid.toFixed(2)} €`,
+          remaining: `${sub.remaining.toFixed(2)} €`,
+          parent_phone: s.guardianPhone || s.phone || '',
+        };
+      });
+
+    setSummary(
+      `${periodLabel(month, year)} · Πληρωμένες: ${paidCount} · Ανεξόφλητες: ${unpaidCount} · Χωρίς χρέωση: ${noChargeCount}` +
+        (unpaidCount > 0 ? ` · Οφειλή μήνα: ${owedTotal.toFixed(2)} €` : ''),
+    );
+    setRows(next);
+    setShowResults(true);
+  }
+
+  return (
+    <SectionShell
+      title="Συνδρομή μήνα"
+      desc="Ποιοι έχουν πληρώσει τη μηνιαία συνδρομή συγκεκριμένου μήνα και ποιοι όχι. Επιλέξτε μήνα/έτος και φίλτρα, μετά Αναζήτηση."
+    >
+      <FilterRow label="Μήνας" htmlFor="msub-month">
+        <select
+          id="msub-month"
+          className="prints-filter-input"
+          value={month}
+          onChange={(e) => setMonth(Number(e.target.value))}
+        >
+          {MONTH_SELECT_OPTIONS.map((item) => (
+            <option key={item.month} value={item.month}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </FilterRow>
+      <FilterRow label="Έτος" htmlFor="msub-year">
+        <select
+          id="msub-year"
+          className="prints-filter-input"
+          value={year}
+          onChange={(e) => setYear(Number(e.target.value))}
+        >
+          {yearOptions.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+      </FilterRow>
+      <FilterRow label="Άθλημα" htmlFor="msub-sport">
+        <SportSelect
+          id="msub-sport"
+          value={sport}
+          onChange={(v) => {
+            setSport(v);
+            setTeamId('');
+          }}
+        />
+      </FilterRow>
+      <FilterRow label="Τμήματα" htmlFor="msub-team">
+        <TeamSelect id="msub-team" value={teamId} sport={sport} onChange={setTeamId} />
+      </FilterRow>
+      <FilterRow label="Ενεργοί" htmlFor="msub-active">
+        <TriStateSelect id="msub-active" value={active} onChange={setActive} />
+      </FilterRow>
+      <FilterRow label="Κατάσταση πληρωμής" htmlFor="msub-pay">
+        <select
+          id="msub-pay"
+          className="prints-filter-input"
+          value={payStatus}
+          onChange={(e) => setPayStatus(e.target.value as '' | MonthSubscriptionPayStatus)}
+        >
+          <option value="">Όλοι</option>
+          <option value="paid">Πληρωμένες</option>
+          <option value="unpaid">Ανεξόφλητες</option>
+          <option value="no_charge">Χωρίς χρέωση</option>
+        </select>
+      </FilterRow>
+      <div className="prints-filter-actions">
+        <Button type="button" onClick={runSearch}>
+          Αναζήτηση
+        </Button>
+      </div>
+      <ResultsModal
+        open={showResults}
+        title={`Συνδρομή μήνα — ${periodLabel(month, year)}`}
+        count={rows.length}
+        summary={summary}
+        columns={[
+          { key: 'index', label: '#' },
+          { key: 'last_name', label: 'Επώνυμο' },
+          { key: 'first_name', label: 'Όνομα' },
+          { key: 'team', label: 'Τμήμα' },
+          { key: 'status', label: 'Κατάσταση' },
+          { key: 'charged', label: 'Χρέωση' },
+          { key: 'paid', label: 'Πληρωμή' },
+          { key: 'remaining', label: 'Υπόλοιπο μήνα' },
+          { key: 'parent_phone', label: 'Τηλ. γονέα' },
+        ]}
+        rows={rows}
+        onClose={() => setShowResults(false)}
+      />
+    </SectionShell>
+  );
+}
+
 function DebtorsSection() {
   const { data } = useAppData();
   const [untilDate, setUntilDate] = useState(todayIso);
@@ -2288,6 +2493,8 @@ function SelectedSection({ id }: { id: MenuId }) {
       return <PaymentsCollectionsSection />;
     case 'debtors':
       return <DebtorsSection />;
+    case 'month-subscription':
+      return <MonthSubscriptionSection />;
     case 'legal-forms':
       return <LegalFormsSection />;
     case 'development-report':

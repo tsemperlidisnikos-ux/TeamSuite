@@ -380,7 +380,9 @@ export function BackupPanel() {
 
       const expectedStudents = clubData.students?.length ?? 0;
       const expectedMembers = clubData.clubMembers?.length ?? 0;
-      replaceClubData(activeClubId, clubData);
+      replaceClubData(activeClubId, clubData, { skipCloudPush: true });
+      const { settleClubMapAfterRestore } = await import('../data/store');
+      await settleClubMapAfterRestore();
       syncClubAthleteLicenseUsed(clubData.students ?? [], activeClubId);
       const incomingUsers = (parsed.users ?? [])
         .filter((u) => u.role !== 'platform_admin')
@@ -395,9 +397,20 @@ export function BackupPanel() {
         markDemoShowcaseApplied(activeClubId);
       }
 
-      const verify = getClubData(activeClubId);
-      const gotStudents = verify.students?.length ?? 0;
-      const gotMembers = verify.clubMembers?.length ?? 0;
+      let verify = getClubData(activeClubId);
+      let gotStudents = verify.students?.length ?? 0;
+      let gotMembers = verify.clubMembers?.length ?? 0;
+
+      if (
+        (expectedStudents > 0 && gotStudents === 0) ||
+        (expectedMembers > 0 && gotMembers !== expectedMembers)
+      ) {
+        replaceClubData(activeClubId, clubData, { skipCloudPush: true });
+        await settleClubMapAfterRestore();
+        verify = getClubData(activeClubId);
+        gotStudents = verify.students?.length ?? 0;
+        gotMembers = verify.clubMembers?.length ?? 0;
+      }
 
       if (expectedStudents > 0 && gotStudents === 0) {
         throw new Error(
@@ -405,8 +418,8 @@ export function BackupPanel() {
         );
       }
       if (expectedMembers > 0 && gotMembers !== expectedMembers) {
-        throw new Error(
-          `Η επαναφορά των μελών δεν ολοκληρώθηκε (${gotMembers}/${expectedMembers}). Δοκιμάστε ξανά χωρίς να κάνετε logout.`,
+        setError(
+          `Προειδοποίηση: μέλη μητρώου ${gotMembers}/${expectedMembers}. Συνέχεια με ${gotStudents} αθλητές…`,
         );
       }
 

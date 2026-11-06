@@ -2,10 +2,11 @@ import { getClubById, getClubs, saveClubs } from '../auth/clubs';
 import { resolveActiveClubId } from '../data/store';
 import type { Student, StudentStatus } from '../types';
 
+/** Ενεργοί για άδειες / KPI: κενό status = ενεργός (παλιά αρχεία / sync). */
 export function countActiveAthleteLicenses(
   students: Array<Pick<Student, 'status'>>,
 ): number {
-  return students.filter((s) => s.status === 'active').length;
+  return students.filter((s) => (s.status ?? 'active') === 'active').length;
 }
 
 export function clubAthleteLicenseLimit(clubId?: string | null): number {

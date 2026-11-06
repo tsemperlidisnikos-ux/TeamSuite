@@ -307,47 +307,64 @@ export function LoginPage({
       (result.data?.clubId || result.data?.role === 'platform_admin') &&
       !isPresentationDemoEmail(result.data?.email)
     ) {
-      setInfo('Συγχρονισμός δεδομένων…');
-      const { syncClubOnLogin } = await import('../data/clubSync');
+      const role = result.data?.role;
+      const isCoachLogin = role === 'coach';
+      const { syncClubOnLogin, beginLoginSyncGrace } = await import('../data/clubSync');
       const { whenClubMapPersisted } = await import('../data/store');
-      const syncWork = syncClubOnLogin(result.data?.clubId ?? null).then(async (outcome) => {
-        await whenClubMapPersisted();
-        return outcome;
-      });
-      await Promise.race([
-        syncWork,
-        new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 20_000);
-        }),
-      ]);
-      window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
-      void syncWork
-        .then(() => {
-          window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
-        })
-        .catch(() => undefined);
-      try {
-        const { migrateUsersToPlatformRoleDefaults } = await import(
-          '../api/services/clubUsersService'
-        );
-        migrateUsersToPlatformRoleDefaults();
-      } catch {
-        /* best-effort role defaults */
-      }
-      if (result.data?.clubId) {
-        const role = result.data?.role;
-        if (role === 'admin' || role === 'secretariat' || role === 'platform_admin') {
-          void import('../api/services/warehouseNoticeService')
-            .then(({ runLowStockSecretariatNotice }) =>
-              runLowStockSecretariatNotice(result.data!.clubId!),
-            )
-            .catch(() => undefined);
-          void import('../api/services/healthCardNoticeService')
-            .then(({ notifyHealthCardExpiries }) =>
-              notifyHealthCardExpiries(result.data!.clubId!),
-            )
-            .catch(() => undefined);
+
+      const finishSyncSideEffects = () => {
+        window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
+        try {
+          void import('../api/services/clubUsersService').then((m) => {
+            m.migrateUsersToPlatformRoleDefaults();
+          });
+        } catch {
+          /* best-effort role defaults */
         }
+        if (result.data?.clubId) {
+          if (role === 'admin' || role === 'secretariat' || role === 'platform_admin') {
+            void import('../api/services/warehouseNoticeService')
+              .then(({ runLowStockSecretariatNotice }) =>
+                runLowStockSecretariatNotice(result.data!.clubId!),
+              )
+              .catch(() => undefined);
+            void import('../api/services/healthCardNoticeService')
+              .then(({ notifyHealthCardExpiries }) =>
+                notifyHealthCardExpiries(result.data!.clubId!),
+              )
+              .catch(() => undefined);
+          }
+        }
+      };
+
+      if (isCoachLogin) {
+        // Προπονητές: είσοδος αμέσως· sync στο παρασκήνιο (χωρίς αναμονή full mirror).
+        beginLoginSyncGrace(20_000);
+        void syncClubOnLogin(result.data?.clubId ?? null, { deferHeavyPush: true })
+          .then(async (outcome) => {
+            await whenClubMapPersisted();
+            finishSyncSideEffects();
+            return outcome;
+          })
+          .catch(() => undefined);
+      } else {
+        setInfo('Συγχρονισμός δεδομένων…');
+        const syncWork = syncClubOnLogin(result.data?.clubId ?? null).then(async (outcome) => {
+          await whenClubMapPersisted();
+          return outcome;
+        });
+        await Promise.race([
+          syncWork,
+          new Promise<void>((resolve) => {
+            window.setTimeout(resolve, 20_000);
+          }),
+        ]);
+        finishSyncSideEffects();
+        void syncWork
+          .then(() => {
+            window.dispatchEvent(new CustomEvent('academyhub-clubs-updated'));
+          })
+          .catch(() => undefined);
       }
     }
 

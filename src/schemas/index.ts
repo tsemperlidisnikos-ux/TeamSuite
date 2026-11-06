@@ -19,6 +19,7 @@ export const studentSchema = z.object({
   motherFirstName: z.string().optional(),
   fatherEmail: z.string().optional(),
   motherEmail: z.string().optional(),
+  preferredParentEmail: z.enum(['father', 'mother', 'both', 'athlete']).optional(),
   motherPhone: z.string().optional(),
   address: z.string().optional(),
   postalCode: z.string().optional(),
@@ -354,7 +355,7 @@ export const rentalBookingInputSchema = z.object({
   amount: z.coerce.number().min(0).optional().default(0),
   specialDiscount: z.coerce.number().min(0).optional().default(0),
   paidNow: z.boolean().optional().default(false),
-  paymentMethod: z.enum(['cash', 'card']).optional(),
+  paymentMethod: z.enum(['cash', 'card', 'transfer']).optional(),
 });
 
 export type RentalBookingInput = z.infer<typeof rentalBookingInputSchema>;
@@ -417,6 +418,8 @@ export const announcementSchema = z.object({
   showTo: z.string().optional().default(''),
   sportCategories: z.string().optional().default(''),
   teamsLabel: z.string().optional().default(''),
+  customChargeFilter: z.enum(['', 'yes', 'no']).optional().default(''),
+  clothingPackageId: z.string().optional().default(''),
   audienceRoles: z
     .array(z.enum(['athletes', 'coaches', 'staff', 'parents']))
     .optional()

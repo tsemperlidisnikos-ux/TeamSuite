@@ -28,6 +28,7 @@ import { settleVivaReturn } from '../utils/vivaSettle';
 import { formatCurrency, formatDate } from '../utils/labels';
 import { localDateIso } from '../utils/dates';
 import { announcementVisibleToParent } from '../utils/announcementAudience';
+import { studentClothingPackageIds } from '../utils/clothingPackages';
 import { studentClassIds } from '../utils/studentClasses';
 import { athleteHealthCardValid } from '../utils/classHelpers';
 import { downloadIcsFile } from '../utils/icsCalendar';
@@ -243,6 +244,8 @@ export function ParentPortalPage() {
         studentClassIds(a)
           .map((id) => data.classes.find((c) => c.id === id)?.sport)
           .find(Boolean) || null,
+      customCharge: a.customCharge,
+      clothingPackageIds: studentClothingPackageIds(a),
     }));
     return (data.announcements ?? [])
       .filter((a) =>

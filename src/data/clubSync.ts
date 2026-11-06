@@ -28,7 +28,7 @@ import {
   localContentNeedsPush,
 } from './clubContentSyncMerge';
 import { stampMissingUpdatedAt } from './stampUpdatedAt';
-import { mergeByIdPreferringUpdatedAt } from './entityFieldMerge';
+import { mergeStudentsPreferringUpdatedAt } from './entityFieldMerge';
 
 const AUTO_SYNC_KEY = 'academyhub-auto-sync-v1';
 const LAST_SYNC_KEY = 'academyhub-last-sync-v1';
@@ -323,22 +323,21 @@ function clearClubMirrorDirty(clubId: string): void {
 }
 
 /**
- * Ισορροπία: γρήγορο sync χωρίς υπερβολικά Vercel writes.
- * - ops slice: άμεσα (ελαφρύ)
- * - πλήρες mirror: κάθε ~4s μετά την τελευταία αλλαγή
+ * Ισορροπία: sync χωρίς υπερβολικά Vercel writes/transfer.
+ * - ops slice: debounce ~3s (όχι σε κάθε κλικ)
+ * - πλήρες mirror: ~20s μετά την τελευταία αλλαγή (άμεσα στο logout/pagehide / force)
  */
-const LIVE_PUSH_MS = 4_000;
+const LIVE_PUSH_MS = 20_000;
 
 /**
- * Τοπικό cache για UI· ανθεκτική αποθήκευση στον server με σύντομο coalesce.
+ * Τοπικό cache για UI· ανθεκτική αποθήκευση στον server με coalesce.
  */
 export function scheduleClubMirrorPush(clubId?: string | null): void {
   const id = clubId ?? resolveActiveClubId();
   if (!id || id === '_default') return;
   if (!isAutoSyncEnabled(id)) setAutoSyncEnabled(id, true);
   markClubMirrorDirty(id);
-  // Ελαφρύ live patch αμέσως (οικονομικά / πρόγραμμα / αποδείξεις κ.λπ.).
-  void import('../api/services/clubOpsSyncService').then((m) => m.publishClubOpsSlice(id));
+  void import('../api/services/clubOpsSyncService').then((m) => m.scheduleClubOpsSlice(id));
 
   if (pushTimers[id]) clearTimeout(pushTimers[id]);
   pushTimers[id] = setTimeout(() => {
@@ -742,7 +741,7 @@ function mergeClubSnapshots(
     !cloudHasMissingLocalStudents(local, cloud) &&
     activeStudentCount(local) >= activeStudentCount(cloud) &&
     (opts.preferLocal || localWrittenAt >= cloudWrittenAt);
-  next.students = mergeByIdPreferringUpdatedAt(
+  next.students = mergeStudentsPreferringUpdatedAt(
     local.students,
     cloud.students,
     deletedStudents,
@@ -795,6 +794,41 @@ function mergeClubSnapshots(
  * Sync athletes by id (not by replacing the whole club file):
  * pull cloud-only rows into this browser, then POST local-only rows to the server.
  */
+function clubDataLooksEmpty(data: AppData): boolean {
+  return (
+    (data.students?.length ?? 0) === 0 &&
+    (data.clubMembers?.length ?? 0) === 0 &&
+    (data.classes?.length ?? 0) === 0 &&
+    (data.revenues?.length ?? 0) === 0 &&
+    (data.transactions?.length ?? 0) === 0 &&
+    (data.coaches?.length ?? 0) === 0
+  );
+}
+
+/**
+ * Preview / sparse browser: always fetch full mirror body.
+ * A 304 "notModified" with empty local left dashboards at zeros forever.
+ */
+export async function ensurePreviewClubHydrated(clubId: string | null | undefined) {
+  const id = (clubId ?? '').trim();
+  if (!id || id === '_default') return { success: true as const, pulled: false, error: null };
+
+  const { getSessionToken } = await import('../api/services/sessionService');
+  const { isDemoSessionActive } = await import('../auth/auth');
+  if (!getSessionToken() || isDemoSessionActive()) {
+    return { success: true as const, pulled: false, error: null };
+  }
+
+  const { clubHasStoredData, getClubData } = await import('./repository');
+  const local = getClubData(id);
+  if (clubHasStoredData(id) && !clubDataLooksEmpty(local)) {
+    return reconcileClubRoster(id);
+  }
+
+  clearLastSyncAt(id);
+  return reconcileClubRoster(id);
+}
+
 export async function reconcileClubRoster(clubId?: string | null) {
   const id = clubId ?? resolveActiveClubId();
   if (!id || id === '_default') {
@@ -807,12 +841,20 @@ export async function reconcileClubRoster(clubId?: string | null) {
     return { success: true as const, pulled: false, uploaded: 0, error: null };
   }
 
+  const { getClubData, replaceClubData, clubHasStoredData } = await import('./repository');
+  const localProbe = getClubData(id);
+  const localSparse = !clubHasStoredData(id) || clubDataLooksEmpty(localProbe);
+
   const dirty = isClubMirrorDirty(id);
-  const result = await backendSyncService.pullClubMirror(id, {
-    since: dirty ? null : getLastSyncAt(id),
+  let result = await backendSyncService.pullClubMirror(id, {
+    since: dirty || localSparse ? null : getLastSyncAt(id),
   });
   if (result.success && result.data?.notModified) {
-    return { success: true as const, pulled: false, uploaded: 0, error: null };
+    if (!localSparse) {
+      return { success: true as const, pulled: false, uploaded: 0, error: null };
+    }
+    // Empty local + 304: force a full body so Preview is not stuck at zeros.
+    result = await backendSyncService.pullClubMirror(id, { since: null });
   }
   if (!result.success || !result.data?.payload) {
     const msg = result.error ?? '';
@@ -830,7 +872,6 @@ export async function reconcileClubRoster(clubId?: string | null) {
     return { success: true as const, pulled: false, uploaded: 0, error: null };
   }
 
-  const { getClubData, replaceClubData } = await import('./repository');
   const local = getClubData(id);
   const cloud = result.data.payload;
   const cloudRicher =
@@ -1066,7 +1107,7 @@ export async function ensureFreshCloudRoster(clubId?: string | null) {
 
 export async function resolveClubWriteConflict(
   clubId: string,
-  choice: 'keep-local' | 'take-cloud',
+  choice: 'keep-local' | 'take-cloud' | 'merge-both',
 ) {
   const id = clubId;
   clearClubWriteConflict(id);
@@ -1084,6 +1125,30 @@ export async function resolveClubWriteConflict(
     }
     replaceClubData(id, applyCloudClubData(local, cloud), { skipCloudPush: true });
     setLastSyncAt(id, pull.data?.updatedAt ?? new Date().toISOString());
+    clearClubMirrorDirty(id);
+    setLastSyncError(id, null);
+    return { success: true as const, error: null };
+  }
+
+  if (choice === 'merge-both') {
+    if (!cloud) {
+      return { success: false as const, error: 'Δεν φορτώθηκε το cloud αντίγραφο.' };
+    }
+    // Συνδυασμός: ανά εγγραφή κερδίζει το νεότερο updatedAt· κρατάει γραμμές και από τις δύο πλευρές.
+    const merged = mergeClubSnapshots(local, stripHeavyMedia(cloud), {
+      preferLocal: false,
+      treatCloudOnlyTxAsDeleted: false,
+    });
+    const { syncRentalRevenuesInData } = await import('../api/services/rentalRevenueBridge');
+    syncRentalRevenuesInData(merged);
+    replaceClubData(id, merged, { skipCloudPush: true });
+    markClubMirrorDirty(id);
+    const pushed = await backendSyncService.pushClubMirror(id, { baseUpdatedAt: null });
+    if (!pushed.success) {
+      setLastSyncError(id, pushed.error ?? 'Αποτυχία αποστολής');
+      return { success: false as const, error: pushed.error ?? 'Αποτυχία αποστολής' };
+    }
+    setLastSyncAt(id, pushed.data?.updatedAt ?? new Date().toISOString());
     clearClubMirrorDirty(id);
     setLastSyncError(id, null);
     return { success: true as const, error: null };
@@ -1135,11 +1200,21 @@ export async function persistLocalStateToCloud(opts?: {
   return { success: true as const, error: null };
 }
 
-/** Best-effort cloud flush so logout is never blocked by a hung push. */
+/** Best-effort cloud flush so logout is never blocked by a hung push.
+ *  Πρώτα club-ops (παρουσίες κ.λπ.) όσο υπάρχει ακόμα session token, μετά full mirror.
+ */
 export async function persistLocalStateToCloudBeforeLogout(timeoutMs = 12_000) {
   try {
+    const work = (async () => {
+      const clubId = resolveActiveClubId();
+      if (clubId && clubId !== '_default') {
+        const { flushClubOpsSlice } = await import('../api/services/clubOpsSyncService');
+        await flushClubOpsSlice(clubId, { keepalive: true });
+      }
+      await persistLocalStateToCloud({ keepalive: true });
+    })();
     await Promise.race([
-      persistLocalStateToCloud({ keepalive: true }),
+      work,
       new Promise<void>((resolve) => {
         window.setTimeout(resolve, timeoutMs);
       }),
@@ -1149,13 +1224,38 @@ export async function persistLocalStateToCloudBeforeLogout(timeoutMs = 12_000) {
   }
 }
 
+const LOGIN_SYNC_GRACE_KEY = 'teamsuite-login-sync-grace-until';
+
+/** Αποτρέπει διπλό auto-pull αμέσως μετά το login sync. */
+export function beginLoginSyncGrace(ms = 20_000): void {
+  try {
+    sessionStorage.setItem(LOGIN_SYNC_GRACE_KEY, String(Date.now() + Math.max(0, ms)));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isLoginSyncGraceActive(): boolean {
+  try {
+    const until = Number(sessionStorage.getItem(LOGIN_SYNC_GRACE_KEY) || 0);
+    return Number.isFinite(until) && until > Date.now();
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Login sync: keep richer local data, upload if cloud is empty/missing,
  * never replace a restored club with an empty mirror.
+ * `deferHeavyPush`: μη περίμενε full mirror push (προπονητές / γρήγορο login).
  */
-export async function syncClubOnLogin(clubId: string | null | undefined) {
+export async function syncClubOnLogin(
+  clubId: string | null | undefined,
+  opts?: { deferHeavyPush?: boolean },
+) {
   let pulledAccount = false;
   let pulledClub = false;
+  const deferHeavyPush = Boolean(opts?.deferHeavyPush);
 
   const account = await accountSyncService.pullAccountBundle();
   if (account.success && account.data && account.data.durable !== false) {
@@ -1174,7 +1274,11 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
     if (!recon.success && clubId === id) {
       const msg = recon.error ?? '';
       if (isMissingMirrorError(msg)) {
-        await flushClubMirrorPush(id, { force: true });
+        if (deferHeavyPush) {
+          void flushClubMirrorPush(id, { force: true });
+        } else {
+          await flushClubMirrorPush(id, { force: true });
+        }
         if (id === clubId) pulledClub = true;
         continue;
       }
@@ -1185,7 +1289,14 @@ export async function syncClubOnLogin(clubId: string | null | undefined) {
       };
     }
     if (isClubMirrorDirty(id)) {
-      await flushClubMirrorPush(id, { force: true });
+      if (deferHeavyPush) {
+        // Τοπικές αλλαγές που δεν πρόλαβαν sync: άμεσο ανεβάσμα στο παρασκήνιο
+        // (χωρίς να μπλοκάρει το login UI).
+        void import('../api/services/clubOpsSyncService').then((m) => m.flushClubOpsSlice(id));
+        void flushClubMirrorPush(id, { force: true });
+      } else {
+        await flushClubMirrorPush(id, { force: true });
+      }
     }
     if (id === clubId) pulledClub = true;
   }

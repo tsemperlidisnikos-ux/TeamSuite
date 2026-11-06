@@ -1,9 +1,14 @@
 import type { AcademyClass, AttendanceRecord, Student } from '../types';
 import { maskAmka } from './amkaAccess';
+import { studentClothingPackageIds } from './clothingPackages';
 import { normalizeSportKey } from './sport';
 import { studentClassIds, studentMatchesTeamFilter } from './studentClasses';
 import { studentHasSport } from './studentSports';
 import { athleteHealthCardValid } from './classHelpers';
+import { studentStatusLabels } from './labels';
+
+/** Ειδική τιμή φίλτρου: αθλητές χωρίς πακέτο ρουχισμού. */
+export const CLOTHING_PACKAGE_NONE = '__none__';
 
 /** Ίδιο με το προφίλ: κενό = Ναι (χρεώνεται μήνα). */
 export function studentHasMonthlyCharge(
@@ -53,6 +58,8 @@ export interface RegistryFilters {
   association: string;
   seasonTicket: TriState;
   customCharge: TriState;
+  /** Id πακέτου, κενό = όλα, ή `CLOTHING_PACKAGE_NONE` = χωρίς πακέτο. */
+  clothingPackageId: string;
   hasRegistrationCard: TriState;
   trainingPresence: string;
   trainingPresenceOp: '=' | '<' | '>' | '>=';
@@ -81,6 +88,7 @@ export function defaultRegistryFilters(): RegistryFilters {
     association: '',
     seasonTicket: '',
     customCharge: '',
+    clothingPackageId: '',
     hasRegistrationCard: '',
     trainingPresence: '',
     trainingPresenceOp: '>=',
@@ -224,6 +232,15 @@ export function filterAthleteRegistry(
 
     if (!triStateMatch(filters.customCharge, Boolean(athlete.customCharge))) return false;
 
+    if (filters.clothingPackageId) {
+      const ids = studentClothingPackageIds(athlete);
+      if (filters.clothingPackageId === CLOTHING_PACKAGE_NONE) {
+        if (ids.length > 0) return false;
+      } else if (!ids.includes(filters.clothingPackageId)) {
+        return false;
+      }
+    }
+
     if (!triStateMatch(filters.uniformReceipt, Boolean(athlete.uniformReceived))) {
       return false;
     }
@@ -267,6 +284,7 @@ export function genderLabel(gender: Student['gender']): string {
 }
 
 export const REGISTRY_COLUMNS: Array<{ key: string; label: string }> = [
+  { key: 'status', label: 'Κατάσταση' },
   { key: 'index', label: '#' },
   { key: 'amka', label: 'ΑΜΚΑ' },
   { key: 'gender', label: 'Φύλο' },
@@ -276,7 +294,12 @@ export const REGISTRY_COLUMNS: Array<{ key: string; label: string }> = [
   { key: 'phone', label: 'Τηλέφωνο αθλητή / τριας' },
   { key: 'date_of_birth', label: 'Ημερομηνία γέννησης' },
   { key: 'patronymic', label: 'Πατρώνυμο' },
+  { key: 'father_email', label: 'Email πατέρα' },
+  { key: 'father_phone', label: 'Τηλέφωνο πατέρα' },
   { key: 'metronymic', label: 'Μητρώνυμο' },
+  { key: 'mother_email', label: 'Email μητέρας' },
+  { key: 'mother_phone', label: 'Τηλέφωνο μητέρας' },
+  { key: 'preferred_parent_email', label: 'Κύριο email ενημερώσεων' },
   { key: 'association', label: 'Σωματείο' },
   { key: 'teams', label: 'Τμήμα' },
   { key: 'registration_card_no', label: 'Αρ. Δελτίου' },
@@ -298,6 +321,9 @@ export function mapAthleteRegistryRow(
   const yesNo = (v: boolean) => (v ? 'Ναι' : 'Όχι');
   const revealAmka = options?.revealAmka ?? false;
   return {
+    status:
+      studentStatusLabels[athlete.status] ??
+      (athlete.status === 'inactive' ? 'Ανενεργός' : 'Ενεργός'),
     index: String(index + 1),
     amka: revealAmka ? athlete.amka || '' : maskAmka(athlete.amka),
     gender: genderLabel(athlete.gender),
@@ -307,7 +333,19 @@ export function mapAthleteRegistryRow(
     phone: athlete.phone || '',
     date_of_birth: formatRegistryDate(athlete.birthDate),
     patronymic: athlete.fatherFirstName || '',
+    father_email: athlete.fatherEmail || '',
+    father_phone: athlete.guardianPhone || '',
     metronymic: athlete.motherFirstName || '',
+    mother_email: athlete.motherEmail || '',
+    mother_phone: athlete.motherPhone || '',
+    preferred_parent_email:
+      athlete.preferredParentEmail === 'father'
+        ? 'Email πατρός'
+        : athlete.preferredParentEmail === 'mother'
+          ? 'Email μητρός'
+          : athlete.preferredParentEmail === 'athlete'
+            ? 'Email αθλητή'
+            : 'Και τα δύο',
     association: athlete.clubName || '',
     teams: className || '',
     registration_card_no: athlete.registrationNumber || '',

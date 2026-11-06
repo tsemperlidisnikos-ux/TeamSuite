@@ -292,6 +292,35 @@ export async function submitPublicJoinRemote(input: RemotePublicJoinInput) {
   });
 }
 
+/** Αφαίρεση αιτήσεων από το cloud pending queue ώστε να μην επανέρχονται στο pull. */
+export async function dismissRemoteRegistrationApplications(clubId: string, ids: string[]) {
+  return apiClient(async () => {
+    const unique = Array.from(new Set(ids.map((id) => String(id ?? '').trim()).filter(Boolean)));
+    if (!clubId || unique.length === 0) return { removed: 0, remaining: 0 };
+    const response = await fetch('/api/public-join?op=dismiss', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...syncAuthHeaders(false),
+      },
+      body: JSON.stringify({ clubId, ids: unique }),
+    });
+    const json = (await response.json()) as {
+      ok?: boolean;
+      error?: string;
+      removed?: number;
+      remaining?: number;
+    };
+    if (!response.ok || !json.ok) {
+      throw new Error(json.error || `Dismiss apps HTTP ${response.status}`);
+    }
+    return {
+      removed: json.removed ?? 0,
+      remaining: json.remaining ?? 0,
+    };
+  });
+}
+
 /** Pull remote pending applications into the active club local store. */
 export async function pullRemoteRegistrationApplications(clubId: string) {
   return apiClient(async () => {
@@ -312,12 +341,39 @@ export async function pullRemoteRegistrationApplications(clubId: string) {
     const remote = json.applications ?? [];
     if (remote.length === 0) return { merged: 0 };
 
+    const localSnapshot = getClubData(clubId);
+    const deleted = new Set(localSnapshot.deletedRegistrationApplicationIds ?? []);
+    const existingById = new Map(
+      (localSnapshot.registrationApplications ?? []).map((a) => [a.id, a] as const),
+    );
+
+    // Αιτήσεις που έχουν ήδη εγκριθεί/απορριφθεί/διαγραφεί τοπικά → καθάρισμα cloud.
+    const staleRemoteIds = remote
+      .map((a) => a?.id)
+      .filter((id): id is string => Boolean(id))
+      .filter((id) => {
+        if (deleted.has(id)) return true;
+        const local = existingById.get(id);
+        return Boolean(local && local.status !== 'pending');
+      });
+    const staleSet = new Set(staleRemoteIds);
+    if (staleRemoteIds.length > 0) {
+      await dismissRemoteRegistrationApplications(clubId, staleRemoteIds);
+    }
+
     let merged = 0;
     mutateClubData(clubId, (data) => {
       const existing = data.registrationApplications ?? [];
       const byId = new Set(existing.map((a) => a.id));
+      const deletedNow = new Set(data.deletedRegistrationApplicationIds ?? []);
       const incoming: RegistrationApplication[] = remote
-        .filter((a) => a?.id && !byId.has(a.id))
+        .filter(
+          (a) =>
+            a?.id &&
+            !byId.has(a.id) &&
+            !deletedNow.has(a.id) &&
+            !staleSet.has(a.id),
+        )
         .map((a) => ({
           id: a.id,
           firstName: a.firstName,

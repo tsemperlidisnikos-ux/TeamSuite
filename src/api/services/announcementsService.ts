@@ -4,7 +4,7 @@ import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { announcementSchema, type AnnouncementInput } from '../../schemas';
 import type { Announcement } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
-import { publishClubOpsSlice } from './clubOpsSyncService';
+import { scheduleClubOpsSlice } from './clubOpsSyncService';
 
 function toAnnouncement(
   parsed: AnnouncementInput,
@@ -32,6 +32,8 @@ function toAnnouncement(
     showTo: parsed.showTo ?? '',
     sportCategories: parsed.sportCategories ?? '',
     teamsLabel: parsed.teamsLabel ?? '',
+    customChargeFilter: parsed.customChargeFilter ?? '',
+    clothingPackageId: parsed.clothingPackageId ?? '',
     audienceRoles: parsed.audienceRoles ?? [],
     classIds,
     recipientIds: parsed.recipientIds ?? [],
@@ -50,7 +52,7 @@ export async function createAnnouncement(input: AnnouncementInput) {
     mutateData((data) => {
       data.announcements.unshift(announcement);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return announcement;
   });
 }
@@ -69,7 +71,7 @@ export async function updateAnnouncement(id: string, input: AnnouncementInput) {
       };
       data.announcements[index] = updated;
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return updated!;
   });
 }
@@ -94,7 +96,7 @@ export async function saveAnnouncementEmailStats(
       };
       data.announcements[index] = updated;
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return updated!;
   });
 }
@@ -105,7 +107,7 @@ export async function deleteAnnouncement(id: string) {
       data.announcements = data.announcements.filter((a) => a.id !== id);
       data.deletedAnnouncementIds = rememberDeletedId(data.deletedAnnouncementIds, id);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return { id };
   });
 }

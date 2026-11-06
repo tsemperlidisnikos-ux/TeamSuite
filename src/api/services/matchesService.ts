@@ -3,7 +3,7 @@ import { createId, getData, mutateData } from '../../data/repository';
 import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { matchSchema, type MatchInput } from '../../schemas';
 import type { Match } from '../../types';
-import { publishClubOpsSlice } from './clubOpsSyncService';
+import { scheduleClubOpsSlice } from './clubOpsSyncService';
 import { localDateTimeIso } from '../../utils/dates';
 
 export async function listMatches() {
@@ -37,7 +37,7 @@ export async function createMatch(input: MatchInput) {
       if (!data.matches) data.matches = [];
       data.matches.unshift(match);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return match;
   });
 }
@@ -60,7 +60,7 @@ export async function updateMatch(id: string, input: MatchInput) {
       };
       data.matches[index] = updated;
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return updated!;
   });
 }
@@ -71,7 +71,7 @@ export async function deleteMatch(id: string) {
       data.matches = (data.matches ?? []).filter((m) => m.id !== id);
       data.deletedMatchIds = rememberDeletedId(data.deletedMatchIds, id);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return { id };
   });
 }

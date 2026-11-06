@@ -183,6 +183,12 @@ export function CoachPortalPage() {
         present,
       });
     }
+    try {
+      const { flushClubOpsSlice } = await import('../api/services/clubOpsSyncService');
+      await flushClubOpsSlice(session?.clubId ?? null);
+    } catch {
+      /* τοπικά αποθηκεύτηκαν· cloud στο επόμενο sync / logout */
+    }
     setNotice('Οι παρουσίες αποθηκεύτηκαν.');
     refresh();
   }

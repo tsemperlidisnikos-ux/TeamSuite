@@ -78,6 +78,8 @@ export interface Student {
   motherFirstName?: string;
   fatherEmail?: string;
   motherEmail?: string;
+  /** Ποιο email γονέα λαμβάνει ενημερώσεις (προεπιλογή: και τα δύο). */
+  preferredParentEmail?: 'father' | 'mother' | 'both' | 'athlete';
   motherPhone?: string;
   address?: string;
   postalCode?: string;
@@ -529,6 +531,10 @@ export interface Announcement {
   showTo?: string;
   sportCategories?: string;
   teamsLabel?: string;
+  /** '' = όλα, yes = με προσαρμοσμένη χρέωση, no = χωρίς. */
+  customChargeFilter?: '' | 'yes' | 'no';
+  /** Κενό = όλα, αλλιώς id πακέτου ρουχισμού (ή `__none__` χωρίς πακέτο). */
+  clothingPackageId?: string;
   audienceRoles?: AnnouncementAudienceRole[];
   classIds?: string[];
   recipientIds?: AnnouncementRecipient[];
@@ -827,6 +833,8 @@ export interface RegistrationApplication {
   motherFirstName?: string;
   fatherEmail?: string;
   motherEmail?: string;
+  /** Ποιο email γονέα λαμβάνει ενημερώσεις (προεπιλογή: και τα δύο). */
+  preferredParentEmail?: 'father' | 'mother' | 'both' | 'athlete';
   motherPhone?: string;
   address?: string;
   postalCode?: string;

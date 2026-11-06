@@ -246,31 +246,54 @@ export async function uploadClubPhotoBlob(input: {
   fileName: string;
   contentType: string;
   dataBase64: string;
+  onProgress?: (percent: number) => void;
 }) {
   return apiClient(async () => {
-    const response = await fetch('/api/sync/account?kind=media', {
-      method: 'POST',
-      headers: syncAuthHeaders(),
-      body: JSON.stringify(input),
-    });
-    let json: { ok?: boolean; error?: string; url?: string } = {};
-    const text = await response.text();
-    if (text.trim()) {
-      try {
-        json = JSON.parse(text) as typeof json;
-      } catch {
-        throw new Error(`Media upload: μη έγκυρη απάντηση (HTTP ${response.status}).`);
-      }
-    }
-    if (!response.ok || !json.ok || !json.url) {
+    const { onProgress, ...payload } = input;
+    const headers = syncAuthHeaders() as Record<string, string>;
+    const body = JSON.stringify(payload);
+
+    const result = await new Promise<{ ok?: boolean; error?: string; url?: string; status: number; text: string }>(
+      (resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/sync/account?kind=media');
+        for (const [key, value] of Object.entries(headers)) {
+          if (value) xhr.setRequestHeader(key, value);
+        }
+        xhr.upload.onprogress = (event) => {
+          if (!onProgress || !event.lengthComputable || event.total <= 0) return;
+          const pct = Math.max(0, Math.min(99, Math.round((event.loaded / event.total) * 100)));
+          onProgress(pct);
+        };
+        xhr.onload = () => {
+          const text = xhr.responseText ?? '';
+          let json: { ok?: boolean; error?: string; url?: string } = {};
+          if (text.trim()) {
+            try {
+              json = JSON.parse(text) as typeof json;
+            } catch {
+              resolve({ status: xhr.status, text, error: `Media upload: μη έγκυρη απάντηση (HTTP ${xhr.status}).` });
+              return;
+            }
+          }
+          resolve({ ...json, status: xhr.status, text });
+        };
+        xhr.onerror = () => reject(new Error('Αποτυχία δικτύου στο ανέβασμα φωτογραφίας.'));
+        xhr.onabort = () => reject(new Error('Το ανέβασμα φωτογραφίας ακυρώθηκε.'));
+        xhr.send(body);
+      },
+    );
+
+    if (!result.ok || result.status < 200 || result.status >= 300 || !result.url) {
       throw new Error(
-        json.error ||
-          (text.trim()
-            ? `Media upload HTTP ${response.status}`
-            : `Κενή απάντηση στο ανέβασμα φωτογραφίας (HTTP ${response.status}).`),
+        result.error ||
+          (result.text?.trim()
+            ? `Media upload HTTP ${result.status}`
+            : `Κενή απάντηση στο ανέβασμα φωτογραφίας (HTTP ${result.status}).`),
       );
     }
-    return { url: json.url };
+    onProgress?.(100);
+    return { url: result.url };
   });
 }
 

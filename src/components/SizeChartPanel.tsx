@@ -12,6 +12,7 @@ function toDraft(chart: SizeChart | undefined | null): SizeChart {
 export function SizeChartPanel() {
   const { data, refresh } = useAppData();
   const [draft, setDraft] = useState<SizeChart>(() => toDraft(data.sizeChart));
+  const [newSize, setNewSize] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -22,13 +23,34 @@ export function SizeChartPanel() {
 
   const sizes = flattenSizeChart(draft);
 
-  function removeSize(size: string) {
-    setDraft((prev) => ({
-      ...prev,
-      kids: flattenSizeChart(prev).filter((item) => item !== size),
+  function addSize() {
+    const value = newSize.trim();
+    if (!value) {
+      setError('Γράψτε ένα μέγεθος για προσθήκη.');
+      return;
+    }
+    const key = value.toUpperCase();
+    if (sizes.some((item) => item.toUpperCase() === key)) {
+      setError('Το μέγεθος υπάρχει ήδη.');
+      return;
+    }
+    setDraft({
+      kids: [...sizes, value],
       men: [],
       women: [],
-    }));
+    });
+    setNewSize('');
+    setError('');
+    setMessage('');
+  }
+
+  function removeSize(size: string) {
+    setDraft({
+      kids: sizes.filter((item) => item !== size),
+      men: [],
+      women: [],
+    });
+    setError('');
     setMessage('');
   }
 
@@ -55,11 +77,31 @@ export function SizeChartPanel() {
       <div className="size-chart-header">
         <div>
           <h3>Μεγεθολόγιο</h3>
-          <p className="lede">Ρουχισμός / μεγέθη συλλόγου.</p>
+          <p className="lede">
+            Ρουχισμός / μεγέθη του συλλόγου. Προσθέστε ή αφαιρέστε μεγέθη και πατήστε Αποθήκευση.
+          </p>
         </div>
       </div>
 
       <div className="settings-form">
+        <div className="clothing-pkg-add">
+          <input
+            className="field-input"
+            value={newSize}
+            placeholder="Νέο μέγεθος (π.χ. 14 y.o, XXXL…)"
+            onChange={(e) => setNewSize(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addSize();
+              }
+            }}
+          />
+          <Button type="button" variant="secondary" onClick={addSize}>
+            Προσθήκη
+          </Button>
+        </div>
+
         <ul className="size-chart-inline-list">
           {sizes.length === 0 ? (
             <li className="size-chart-empty">Δεν υπάρχουν μεγέθη</li>

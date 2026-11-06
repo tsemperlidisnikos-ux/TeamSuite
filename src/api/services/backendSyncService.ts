@@ -14,6 +14,10 @@ ensureAmkaFieldKeyFetcherWired();
 /** Keep under Vercel ~4.5MB (base64 expands ~4/3). */
 const CLIENT_CHUNK_BYTES = 2_000_000;
 const CLIENT_WIRE_SOFT = 3_000_000;
+/** Parallel chunk HTTP requests (Greece → iad1 RTT dominates large club sync). */
+const CHUNK_CONCURRENCY = 4;
+
+type ChunkEncoding = 'base64utf8' | 'gzip-base64utf8';
 
 function isAppDataPayload(value: unknown): value is AppData {
   if (!value || typeof value !== 'object') return false;
@@ -108,14 +112,65 @@ function joinBase64Chunks(chunks: string[]): Uint8Array {
   return merged;
 }
 
+async function mapPool<T>(
+  count: number,
+  concurrency: number,
+  worker: (index: number) => Promise<T>,
+): Promise<T[]> {
+  const results = new Array<T>(count);
+  let next = 0;
+  async function run() {
+    while (next < count) {
+      const i = next;
+      next += 1;
+      results[i] = await worker(i);
+    }
+  }
+  const n = Math.max(1, Math.min(concurrency, count));
+  await Promise.all(Array.from({ length: n }, () => run()));
+  return results;
+}
+
+function toArrayBuffer(raw: Uint8Array): ArrayBuffer {
+  return raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength) as ArrayBuffer;
+}
+
+async function gzipBytes(raw: Uint8Array): Promise<Uint8Array | null> {
+  if (typeof CompressionStream === 'undefined') return null;
+  try {
+    const stream = new Blob([toArrayBuffer(raw)])
+      .stream()
+      .pipeThrough(new CompressionStream('gzip'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+async function gunzipBytes(raw: Uint8Array): Promise<Uint8Array> {
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('Ο browser δεν υποστηρίζει gzip decompress για mirror sync.');
+  }
+  const stream = new Blob([toArrayBuffer(raw)])
+    .stream()
+    .pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
 async function pushChunkedMirror(
   clubId: string,
   payload: unknown,
   baseUpdatedAt: string | null,
   keepalive?: boolean,
 ) {
-  const raw = new TextEncoder().encode(JSON.stringify(payload));
-  const chunks = splitToBase64Chunks(raw);
+  const jsonBytes = new TextEncoder().encode(JSON.stringify(payload));
+  const gzipped = await gzipBytes(jsonBytes);
+  const encoding: ChunkEncoding =
+    gzipped && gzipped.byteLength < jsonBytes.byteLength * 0.9
+      ? 'gzip-base64utf8'
+      : 'base64utf8';
+  const wire = encoding === 'gzip-base64utf8' && gzipped ? gzipped : jsonBytes;
+  const chunks = splitToBase64Chunks(wire);
   const initRes = await fetch('/api/sync/mirror', {
     method: 'POST',
     headers: syncAuthHeaders(),
@@ -125,6 +180,7 @@ async function pushChunkedMirror(
       initChunked: true,
       chunkCount: chunks.length,
       baseUpdatedAt,
+      encoding,
     }),
   });
   const initJson = await parseMirrorJson(initRes);
@@ -132,7 +188,7 @@ async function pushChunkedMirror(
     throw new Error(initJson.error || httpSyncHint(initRes.status));
   }
   const uploadId = initJson.uploadId;
-  for (let i = 0; i < chunks.length; i++) {
+  await mapPool(chunks.length, CHUNK_CONCURRENCY, async (i) => {
     const partRes = await fetch('/api/sync/mirror', {
       method: 'POST',
       headers: syncAuthHeaders(),
@@ -147,7 +203,7 @@ async function pushChunkedMirror(
     if (!partRes.ok || !partJson.ok) {
       throw new Error(partJson.error || `Αποτυχία chunk ${i + 1}/${chunks.length}`);
     }
-  }
+  });
   const commitRes = await fetch('/api/sync/mirror', {
     method: 'POST',
     headers: syncAuthHeaders(),
@@ -248,9 +304,12 @@ type UnchangedClubMirror = {
   notModified: true;
 };
 
-async function pullChunkedEnvelope(clubId: string, chunkCount: number) {
-  const parts: string[] = [];
-  for (let i = 0; i < chunkCount; i++) {
+async function pullChunkedEnvelope(
+  clubId: string,
+  chunkCount: number,
+  encoding?: string | null,
+) {
+  const parts = await mapPool(chunkCount, CHUNK_CONCURRENCY, async (i) => {
     const params = new URLSearchParams({ clubId, chunk: String(i) });
     const response = await fetch(`/api/sync/mirror?${params.toString()}`, {
       headers: syncAuthHeaders(false),
@@ -259,9 +318,12 @@ async function pullChunkedEnvelope(clubId: string, chunkCount: number) {
     if (!response.ok || !json.ok || typeof json.data !== 'string') {
       throw new Error(json.error || `Αποτυχία φόρτωσης chunk ${i + 1}/${chunkCount}`);
     }
-    parts.push(json.data);
+    return json.data;
+  });
+  let raw = joinBase64Chunks(parts);
+  if (encoding === 'gzip-base64utf8') {
+    raw = await gunzipBytes(raw);
   }
-  const raw = joinBase64Chunks(parts);
   const text = new TextDecoder().decode(raw);
   const envelope = JSON.parse(text) as { updatedAt?: string; payload?: unknown };
   return envelope;
@@ -307,7 +369,7 @@ export function pullClubMirror(clubId: string, opts?: { since?: string | null })
     let updatedAt = json.updatedAt ?? null;
 
     if (json.chunked && typeof json.chunkCount === 'number' && json.chunkCount > 0) {
-      const envelope = await pullChunkedEnvelope(clubId, json.chunkCount);
+      const envelope = await pullChunkedEnvelope(clubId, json.chunkCount, json.encoding);
       payloadUnknown = envelope.payload;
       updatedAt = envelope.updatedAt ?? updatedAt;
     }

@@ -1,5 +1,5 @@
 import { rememberDeletedIds } from '../../data/financeSyncMerge';
-import { createId, getData, mutateData } from '../../data/repository';
+import { getData, mutateData } from '../../data/repository';
 import type { AppData, AthleteTransaction, Revenue, RevenueCategory, Student } from '../../types';
 
 /** Σύστημα υποκατηγορίας — εμφανίζεται στα Έσοδα, όχι στο χειροκίνητο catalog ρυθμίσεων. */
@@ -17,6 +17,11 @@ type RevenuePart = {
   description: (typeof ATHLETE_INCOME_DESCRIPTIONS)[number];
   amount: number;
 };
+
+/** Deterministic id so every PC creates/merges the same revenue row for a payment part. */
+export function athletePaymentRevenueId(paymentId: string, partIndex: number): string {
+  return `rev_pay_${paymentId}_${partIndex}`;
+}
 
 function padMonth(month: number): string {
   return String(month).padStart(2, '0');
@@ -100,7 +105,11 @@ function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-function buildRevenuesForPayment(
+function revenuePartKey(row: Pick<Revenue, 'description' | 'amount' | 'paymentMethod'>): string {
+  return `${row.description ?? ''}|${Number(row.amount) || 0}|${row.paymentMethod ?? ''}`;
+}
+
+export function buildRevenuesForPayment(
   payment: AthleteTransaction,
   data: AppData,
 ): Revenue[] {
@@ -116,9 +125,10 @@ function buildRevenuesForPayment(
     payment.comments?.trim(),
     payment.receiptNumber ? `Απόδειξη ${payment.receiptNumber}` : '',
   ].filter(Boolean);
+  const now = Date.now();
 
   return parts.map((part, index) => ({
-    id: createId('rev'),
+    id: athletePaymentRevenueId(payment.id, index),
     date,
     amount: part.amount,
     category: part.category,
@@ -136,22 +146,62 @@ function buildRevenuesForPayment(
     accountId: '',
     vatRate: 0,
     linkedTransactionId: payment.id,
+    updatedAt: now,
   }));
 }
 
-/** Αφαιρεί / ξαναδημιουργεί έσοδα συνδεδεμένα με πληρωμή αθλητή. */
+function linkedRevenuesForPayment(data: AppData, paymentId: string): Revenue[] {
+  return (data.revenues ?? []).filter((r) => r.linkedTransactionId === paymentId);
+}
+
+/** Missing, duplicate, or non-stable ids → repair so all devices converge. */
+export function paymentRevenuesNeedRepair(data: AppData, payment: AthleteTransaction): boolean {
+  if (payment.type !== 'payment') return false;
+  const linked = linkedRevenuesForPayment(data, payment.id);
+  if (linked.length === 0) return true;
+  const keys = linked.map((r) => revenuePartKey(r));
+  if (keys.length !== new Set(keys).size) return true;
+  const expected = buildRevenuesForPayment(payment, data);
+  if (linked.length !== expected.length) return true;
+  for (const want of expected) {
+    const got = linked.find((r) => r.id === want.id);
+    if (!got) return true;
+    if (Math.abs((Number(got.amount) || 0) - want.amount) > 0.009) return true;
+    if ((got.description || '') !== want.description) return true;
+  }
+  return false;
+}
+
+/** Αφαιρεί / ξαναδημιουργεί έσοδα συνδεδεμένα με πληρωμή αθλητή (stable ids + tombstones). */
 export function syncRevenuesForPaymentInData(data: AppData, paymentId: string): void {
+  if (!data.revenues) data.revenues = [];
+  const removedIds = linkedRevenuesForPayment(data, paymentId).map((r) => r.id);
   data.revenues = data.revenues.filter((r) => r.linkedTransactionId !== paymentId);
+
   const payment = (data.transactions ?? []).find((t) => t.id === paymentId);
-  if (!payment || payment.type !== 'payment') return;
-  data.revenues.push(...buildRevenuesForPayment(payment, data));
+  if (!payment || payment.type !== 'payment') {
+    if (removedIds.length) {
+      data.deletedRevenueIds = rememberDeletedIds(data.deletedRevenueIds, removedIds);
+    }
+    return;
+  }
+
+  const created = buildRevenuesForPayment(payment, data);
+  const keepIds = new Set(created.map((r) => r.id));
+  const toTombstone = removedIds.filter((id) => !keepIds.has(id));
+  if (toTombstone.length) {
+    data.deletedRevenueIds = rememberDeletedIds(data.deletedRevenueIds, toTombstone);
+  }
+  // Resurrecting stable ids after a prior tombstone (e.g. partial sync).
+  if (data.deletedRevenueIds?.length) {
+    data.deletedRevenueIds = data.deletedRevenueIds.filter((id) => !keepIds.has(id));
+  }
+  data.revenues.push(...created);
 }
 
 export function removeRevenuesForPaymentInData(data: AppData, paymentId: string): void {
-  const removedIds = data.revenues
-    .filter((r) => r.linkedTransactionId === paymentId)
-    .map((r) => r.id);
-  data.revenues = data.revenues.filter((r) => r.linkedTransactionId !== paymentId);
+  const removedIds = linkedRevenuesForPayment(data, paymentId).map((r) => r.id);
+  data.revenues = (data.revenues ?? []).filter((r) => r.linkedTransactionId !== paymentId);
   data.deletedRevenueIds = rememberDeletedIds(data.deletedRevenueIds, removedIds);
 }
 
@@ -168,41 +218,51 @@ export async function removeRevenuesForPayment(paymentId: string) {
 }
 
 /**
- * Συμπληρώνει έσοδα για υπάρχουσες πληρωμές που δεν έχουν ακόμα mirror.
+ * Συμπληρώνει / επισκευάζει έσοδα για πληρωμές (λείπουν, διπλά, ή τυχαία ids).
  * Επιστρέφει true αν άλλαξε κάτι.
  */
 export function backfillAthletePaymentRevenues(data: AppData): boolean {
   if (!data.transactions) data.transactions = [];
   if (!data.revenues) data.revenues = [];
 
-  const linked = new Set(
-    data.revenues.map((r) => r.linkedTransactionId).filter((id): id is string => Boolean(id)),
-  );
-  const payments = data.transactions.filter((t) => t.type === 'payment');
   let changed = false;
-
-  for (const payment of payments) {
-    if (linked.has(payment.id)) continue;
-    const created = buildRevenuesForPayment(payment, data);
-    data.revenues.push(...created);
-    linked.add(payment.id);
+  for (const payment of data.transactions) {
+    if (payment.type !== 'payment') continue;
+    if (!paymentRevenuesNeedRepair(data, payment)) continue;
+    syncRevenuesForPaymentInData(data, payment.id);
     changed = true;
   }
-
   return changed;
 }
 
-/** Καλείται από Finance/Έσοδα ώστε παλιές πληρωμές να εμφανιστούν στα έσοδα. */
+/** Καλείται από Finance/Έσοδα/Ισοζύγιο ώστε όλα τα PC να συγκλίνουν στα ίδια έσοδα. */
 export function ensureAthletePaymentRevenuesSynced(): void {
   const data = getData();
   const payments = data.transactions ?? [];
   const needs = payments.some(
-    (t) =>
-      t.type === 'payment' &&
-      !data.revenues.some((r) => r.linkedTransactionId === t.id),
+    (t) => t.type === 'payment' && paymentRevenuesNeedRepair(data, t),
   );
   if (!needs) return;
   mutateData((draft) => {
     backfillAthletePaymentRevenues(draft);
   });
+}
+
+/**
+ * Display/report dedupe: ίδια πληρωμή δεν μετράει δύο φορές στο ισοζύγιο
+ * ακόμα κι αν τοπικά υπάρχουν παλιά διπλότυπα πριν το sync καθαρίσει.
+ */
+export function dedupeLinkedFinanceRevenues<T extends Revenue>(revenues: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const revenue of revenues) {
+    const sourceId = revenue.linkedTransactionId || revenue.linkedRentalBookingId;
+    if (sourceId) {
+      const partKey = `${sourceId}|${revenuePartKey(revenue)}`;
+      if (seen.has(partKey)) continue;
+      seen.add(partKey);
+    }
+    out.push(revenue);
+  }
+  return out;
 }

@@ -1,0 +1,540 @@
+[
+  {
+    "id": "00-join",
+    "path": "/join/demo",
+    "title": "Δημόσια εγγραφή",
+    "desc": "Public join",
+    "role": "public",
+    "file": "00-join.png"
+  },
+  {
+    "id": "00-legal",
+    "path": "/legal",
+    "title": "Νομικά",
+    "desc": "Νομικά έγγραφα.",
+    "role": "public",
+    "file": "00-legal.png"
+  },
+  {
+    "id": "00-login",
+    "path": "/login",
+    "title": "Σύνδεση",
+    "desc": "Οθόνη εισόδου.",
+    "role": "public",
+    "file": "00-login.png"
+  },
+  {
+    "id": "00-login-coach",
+    "path": "/login?app=coach",
+    "title": "Σύνδεση προπονητή",
+    "desc": "Login mode προπονητή.",
+    "role": "public",
+    "file": "00-login-coach.png"
+  },
+  {
+    "id": "00-login-parent",
+    "path": "/login?app=parent",
+    "title": "Σύνδεση γονέα",
+    "desc": "Login mode γονέα.",
+    "role": "public",
+    "file": "00-login-parent.png"
+  },
+  {
+    "id": "00-register",
+    "path": "/register",
+    "title": "Εγγραφή συλλόγου",
+    "desc": "Waitlist νέου συλλόγου.",
+    "role": "public",
+    "file": "00-register.png"
+  },
+  {
+    "id": "00-rent",
+    "path": "/rent/demo",
+    "title": "Δημόσια ενοικίαση",
+    "desc": "Public rent",
+    "role": "public",
+    "file": "00-rent.png"
+  },
+  {
+    "id": "01-dashboard",
+    "path": "/",
+    "title": "Προεπισκόπηση",
+    "desc": "Dashboard KPIs.",
+    "role": "admin",
+    "file": "01-dashboard.png"
+  },
+  {
+    "id": "02-calendar",
+    "path": "/calendar",
+    "title": "Ημερολόγιο",
+    "desc": "Μήνας/εβδομάδα/ημέρα.",
+    "role": "admin",
+    "file": "02-calendar.png"
+  },
+  {
+    "id": "03-athletes",
+    "path": "/athletes",
+    "title": "Αθλητές",
+    "desc": "Μητρώο + αιτήσεις.",
+    "role": "admin",
+    "file": "03-athletes.png"
+  },
+  {
+    "id": "03b-athlete-personal",
+    "label": "Προσωπικά Στοιχεία",
+    "title": "Προφίλ — Προσωπικά",
+    "path": "/athletes/demo_ath_f1",
+    "desc": "Προφίλ — Προσωπικά",
+    "role": "admin",
+    "file": "03b-athlete-personal.png"
+  },
+  {
+    "id": "03b-athlete-profile",
+    "path": "/athletes/demo_ath_f1",
+    "title": "Προφίλ αθλητή",
+    "desc": "Καρτέλες προφίλ.",
+    "role": "admin",
+    "file": "03b-athlete-profile.png"
+  },
+  {
+    "id": "03c-athlete-amka",
+    "label": "AMKA & Ταυτοποίηση",
+    "title": "Προφίλ — ΑΜΚΑ",
+    "path": "/athletes/demo_ath_f1",
+    "desc": "Προφίλ — ΑΜΚΑ",
+    "role": "admin",
+    "file": "03c-athlete-amka.png"
+  },
+  {
+    "id": "03d-athlete-health",
+    "label": "Κάρτα Υγείας",
+    "title": "Προφίλ — Κάρτα υγείας",
+    "path": "/athletes/demo_ath_f1",
+    "desc": "Προφίλ — Κάρτα υγείας",
+    "role": "admin",
+    "file": "03d-athlete-health.png"
+  },
+  {
+    "id": "03e-athlete-fees",
+    "label": "Συνδρομές / Οφειλές",
+    "title": "Προφίλ — Συνδρομές",
+    "path": "/athletes/demo_ath_f1",
+    "desc": "Προφίλ — Συνδρομές",
+    "role": "admin",
+    "file": "03e-athlete-fees.png"
+  },
+  {
+    "id": "03f-athlete-gdpr",
+    "label": "Συγκαταθέσεις",
+    "title": "Προφίλ — GDPR",
+    "path": "/athletes/demo_ath_f1",
+    "desc": "Προφίλ — GDPR",
+    "role": "admin",
+    "file": "03f-athlete-gdpr.png"
+  },
+  {
+    "id": "03g-athlete-progress",
+    "label": "Πρόοδος",
+    "title": "Προφίλ — Πρόοδος",
+    "path": "/athletes/demo_ath_f1",
+    "desc": "Προφίλ — Πρόοδος",
+    "role": "admin",
+    "file": "03g-athlete-progress.png"
+  },
+  {
+    "id": "03h-athlete-history",
+    "label": "Ιστορικό",
+    "title": "Προφίλ — Ιστορικό",
+    "path": "/athletes/demo_ath_f1",
+    "desc": "Προφίλ — Ιστορικό",
+    "role": "admin",
+    "file": "03h-athlete-history.png"
+  },
+  {
+    "id": "04-staff",
+    "path": "/staff",
+    "title": "Προσωπικό",
+    "desc": "Στελέχη συλλόγου.",
+    "role": "admin",
+    "file": "04-staff.png"
+  },
+  {
+    "id": "05-coaches",
+    "path": "/coaches",
+    "title": "Προπονητές",
+    "desc": "Κατάλογος προπονητών.",
+    "role": "admin",
+    "file": "05-coaches.png"
+  },
+  {
+    "id": "06-classes",
+    "path": "/classes",
+    "title": "Τμήματα",
+    "desc": "Τμήματα / ομάδες.",
+    "role": "admin",
+    "file": "06-classes.png"
+  },
+  {
+    "id": "06b-class-profile",
+    "path": "/classes/demo_class_bask_u12",
+    "title": "Προφίλ τμήματος",
+    "desc": "Tabs τμήματος.",
+    "role": "admin",
+    "file": "06b-class-profile.png"
+  },
+  {
+    "id": "07-parents",
+    "path": "/parents",
+    "title": "Γονείς",
+    "desc": "Συνδέσεις γονέων.",
+    "role": "admin",
+    "file": "07-parents.png"
+  },
+  {
+    "id": "07b-members",
+    "path": "/members",
+    "title": "Μέλη",
+    "desc": "Μητρώο μελών.",
+    "role": "admin",
+    "file": "07b-members.png"
+  },
+  {
+    "id": "08-trainings",
+    "path": "/trainings",
+    "title": "Προπονήσεις",
+    "desc": "Καταχώρηση προπονήσεων.",
+    "role": "admin",
+    "file": "08-trainings.png"
+  },
+  {
+    "id": "09-matches",
+    "path": "/matches",
+    "title": "Αγώνες",
+    "desc": "Αγώνες και σκορ.",
+    "role": "admin",
+    "file": "09-matches.png"
+  },
+  {
+    "id": "10-schedule",
+    "path": "/schedule",
+    "title": "Πρόγραμμα",
+    "desc": "Εβδομαδιαίο πρόγραμμα.",
+    "role": "admin",
+    "file": "10-schedule.png"
+  },
+  {
+    "id": "11-attendance",
+    "path": "/attendance",
+    "title": "Παρουσίες",
+    "desc": "Παρουσιολόγιο.",
+    "role": "admin",
+    "file": "11-attendance.png"
+  },
+  {
+    "id": "12-associations",
+    "path": "/associations",
+    "title": "Σωματείο",
+    "desc": "Σωματεία / ενώσεις.",
+    "role": "admin",
+    "file": "12-associations.png"
+  },
+  {
+    "id": "13-sports",
+    "path": "/sports",
+    "title": "Άθλημα",
+    "desc": "Αθλήματα συλλόγου.",
+    "role": "admin",
+    "file": "13-sports.png"
+  },
+  {
+    "id": "14-announcements",
+    "path": "/announcements",
+    "title": "Ανακοινώσεις",
+    "desc": "Compose + λίστα.",
+    "role": "admin",
+    "file": "14-announcements.png"
+  },
+  {
+    "id": "15-prints",
+    "path": "/prints",
+    "title": "Εκτυπώσεις",
+    "desc": "Εκτυπώσιμα.",
+    "role": "admin",
+    "file": "15-prints.png"
+  },
+  {
+    "id": "16-photos",
+    "path": "/photos",
+    "title": "Φωτογραφίες",
+    "desc": "Γκαλερί.",
+    "role": "admin",
+    "file": "16-photos.png"
+  },
+  {
+    "id": "16b-rental",
+    "path": "/rental",
+    "title": "Ενοικίαση",
+    "desc": "Κρατήσεις γηπέδου.",
+    "role": "admin",
+    "file": "16b-rental.png"
+  },
+  {
+    "id": "17-warehouse",
+    "path": "/warehouse",
+    "title": "Αποθήκη",
+    "desc": "Προϊόντα / κινήσεις.",
+    "role": "admin",
+    "file": "17-warehouse.png"
+  },
+  {
+    "id": "18-fees",
+    "path": "/fees",
+    "title": "Συνδρομές / Πληρωμές",
+    "desc": "Χρεώσεις.",
+    "role": "admin",
+    "file": "18-fees.png"
+  },
+  {
+    "id": "19-transactions",
+    "path": "/transactions",
+    "title": "Συναλλαγές",
+    "desc": "Χρεώσεις/πληρωμές.",
+    "role": "admin",
+    "file": "19-transactions.png"
+  },
+  {
+    "id": "20-partners",
+    "path": "/partner-businesses",
+    "title": "Συμβεβλημένες επιχειρήσεις",
+    "desc": "Partners.",
+    "role": "admin",
+    "file": "20-partners.png"
+  },
+  {
+    "id": "20b-document-protocol",
+    "path": "/document-protocol",
+    "title": "Πρωτόκολλο Εγγράφων",
+    "desc": "Πρωτόκολλο.",
+    "role": "admin",
+    "file": "20b-document-protocol.png"
+  },
+  {
+    "id": "21-finance",
+    "path": "/finance",
+    "title": "Οικονομικά",
+    "desc": "Finance hub.",
+    "role": "admin",
+    "file": "21-finance.png"
+  },
+  {
+    "id": "21e-finance-budget",
+    "label": "Προϋπολογισμός",
+    "title": "Οικονομικά — Προϋπολογισμός",
+    "path": "/finance",
+    "desc": "Οικονομικά — Προϋπολογισμός",
+    "role": "admin",
+    "file": "21e-finance-budget.png"
+  },
+  {
+    "id": "21f-finance-reports",
+    "label": "Αναφορές",
+    "title": "Οικονομικά — Αναφορές",
+    "path": "/finance",
+    "desc": "Οικονομικά — Αναφορές",
+    "role": "admin",
+    "file": "21f-finance-reports.png"
+  },
+  {
+    "id": "21g-finance-balance",
+    "label": "Ισοζύγιο",
+    "title": "Οικονομικά — Ισοζύγιο",
+    "path": "/finance",
+    "desc": "Οικονομικά — Ισοζύγιο",
+    "role": "admin",
+    "file": "21g-finance-balance.png"
+  },
+  {
+    "id": "22-settings",
+    "path": "/settings",
+    "title": "Ρυθμίσεις",
+    "desc": "Ρυθμίσεις συλλόγου.",
+    "role": "admin",
+    "file": "22-settings.png"
+  },
+  {
+    "id": "22a-settings-club",
+    "path": "/settings?tab=club",
+    "title": "Ρυθμίσεις — Σύλλογος",
+    "desc": "Ρυθμίσεις — Σύλλογος",
+    "role": "admin",
+    "file": "22a-settings-club.png"
+  },
+  {
+    "id": "22b-settings-users",
+    "path": "/settings?tab=users",
+    "title": "Ρυθμίσεις — Χρήστες",
+    "desc": "Ρυθμίσεις — Χρήστες",
+    "role": "admin",
+    "file": "22b-settings-users.png"
+  },
+  {
+    "id": "22c-settings-email",
+    "path": "/settings?tab=email",
+    "title": "Ρυθμίσεις — Email",
+    "desc": "Ρυθμίσεις — Email",
+    "role": "admin",
+    "file": "22c-settings-email.png"
+  },
+  {
+    "id": "22d2-settings-payments",
+    "path": "/settings?tab=payments",
+    "title": "Ρυθμίσεις — Πληρωμές",
+    "desc": "Ρυθμίσεις — Πληρωμές",
+    "role": "admin",
+    "file": "22d2-settings-payments.png"
+  },
+  {
+    "id": "22e2-settings-public-reg",
+    "path": "/settings?tab=publicRegistration",
+    "title": "Ρυθμίσεις — Δημόσια εγγραφή",
+    "desc": "Ρυθμίσεις — Δημόσια εγγραφή",
+    "role": "admin",
+    "file": "22e2-settings-public-reg.png"
+  },
+  {
+    "id": "22f-settings-gdpr",
+    "path": "/settings?tab=amka",
+    "title": "Ρυθμίσεις — GDPR",
+    "desc": "Ρυθμίσεις — GDPR",
+    "role": "admin",
+    "file": "22f-settings-gdpr.png"
+  },
+  {
+    "id": "22g-settings-backup",
+    "path": "/settings?tab=backup",
+    "title": "Ρυθμίσεις — Backup",
+    "desc": "Ρυθμίσεις — Backup",
+    "role": "admin",
+    "file": "22g-settings-backup.png"
+  },
+  {
+    "id": "22h-settings-facility",
+    "path": "/settings?tab=facilities",
+    "title": "Ρυθμίσεις — Γήπεδο",
+    "desc": "Ρυθμίσεις — Γήπεδο",
+    "role": "admin",
+    "file": "22h-settings-facility.png"
+  },
+  {
+    "id": "22i-settings-sms",
+    "path": "/settings?tab=sms",
+    "title": "Ρυθμίσεις — SMS",
+    "desc": "Ρυθμίσεις — SMS",
+    "role": "admin",
+    "file": "22i-settings-sms.png"
+  },
+  {
+    "id": "22j-settings-season",
+    "path": "/settings?tab=seasons",
+    "title": "Ρυθμίσεις — Σεζόν",
+    "desc": "Ρυθμίσεις — Σεζόν",
+    "role": "admin",
+    "file": "22j-settings-season.png"
+  },
+  {
+    "id": "22k-settings-receipts",
+    "path": "/settings?tab=receipts",
+    "title": "Ρυθμίσεις — Αποδείξεις",
+    "desc": "Ρυθμίσεις — Αποδείξεις",
+    "role": "admin",
+    "file": "22k-settings-receipts.png"
+  },
+  {
+    "id": "22l-settings-terms",
+    "path": "/settings?tab=terms",
+    "title": "Ρυθμίσεις — Όροι",
+    "desc": "Ρυθμίσεις — Όροι",
+    "role": "admin",
+    "file": "22l-settings-terms.png"
+  },
+  {
+    "id": "22m-settings-clothing",
+    "path": "/settings?tab=clothing",
+    "title": "Ρυθμίσεις — Πακέτο ρουχισμού",
+    "desc": "Ρυθμίσεις — Πακέτο ρουχισμού",
+    "role": "admin",
+    "file": "22m-settings-clothing.png"
+  },
+  {
+    "id": "22n-settings-discounts",
+    "path": "/settings?tab=discounts",
+    "title": "Ρυθμίσεις — Λόγοι έκπτωσης",
+    "desc": "Ρυθμίσεις — Λόγοι έκπτωσης",
+    "role": "admin",
+    "file": "22n-settings-discounts.png"
+  },
+  {
+    "id": "22o-settings-sizes",
+    "path": "/settings?tab=sizes",
+    "title": "Ρυθμίσεις — Μεγεθολόγιο",
+    "desc": "Ρυθμίσεις — Μεγεθολόγιο",
+    "role": "admin",
+    "file": "22o-settings-sizes.png"
+  },
+  {
+    "id": "30-parent-overview",
+    "path": "/?tab=overview",
+    "title": "Περιοχή γονέα — Αρχική",
+    "desc": "Περιοχή γονέα — Αρχική",
+    "role": "parent",
+    "file": "30-parent-overview.png"
+  },
+  {
+    "id": "31-parent-schedule",
+    "path": "/?tab=schedule",
+    "title": "Περιοχή γονέα — Πρόγραμμα",
+    "desc": "Περιοχή γονέα — Πρόγραμμα",
+    "role": "parent",
+    "file": "31-parent-schedule.png"
+  },
+  {
+    "id": "32-parent-payments",
+    "path": "/?tab=payments",
+    "title": "Περιοχή γονέα — Πληρωμές",
+    "desc": "Περιοχή γονέα — Πληρωμές",
+    "role": "parent",
+    "file": "32-parent-payments.png"
+  },
+  {
+    "id": "33-parent-documents",
+    "path": "/?tab=documents",
+    "title": "Περιοχή γονέα — Έγγραφα",
+    "desc": "Περιοχή γονέα — Έγγραφα",
+    "role": "parent",
+    "file": "33-parent-documents.png"
+  },
+  {
+    "id": "40-coach-portal",
+    "path": "/",
+    "title": "Περιοχή προπονητή",
+    "desc": "Coach portal",
+    "role": "coach",
+    "file": "40-coach-portal.png"
+  },
+  {
+    "id": "50-app-coach",
+    "path": "/app/coach",
+    "title": "App προπονητή",
+    "desc": "Coach app shell.",
+    "role": "public",
+    "file": "50-app-coach.png"
+  },
+  {
+    "id": "50-app-parent",
+    "path": "/app/parent",
+    "title": "App γονέα",
+    "desc": "Parent app shell.",
+    "role": "public",
+    "file": "50-app-parent.png"
+  }
+]

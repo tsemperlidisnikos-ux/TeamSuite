@@ -1,7 +1,7 @@
 import { apiClient } from '../apiClient';
 import { createId, getData, mutateData } from '../../data/repository';
 import { rememberDeletedId } from '../../data/financeSyncMerge';
-import { publishClubOpsSlice } from './clubOpsSyncService';
+import { scheduleClubOpsSlice } from './clubOpsSyncService';
 import { coachSchema, type CoachInput } from '../../schemas';
 import type { Coach } from '../../types';
 import { localDateIso } from '../../utils/dates';
@@ -22,7 +22,7 @@ export async function createCoach(input: CoachInput) {
     mutateData((data) => {
       data.coaches.push(coach);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return coach;
   });
 }
@@ -38,7 +38,7 @@ export async function updateCoach(id: string, input: CoachInput) {
       updated = { ...data.coaches[index], ...parsed, hireDate, updatedAt: Date.now() };
       data.coaches[index] = updated;
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return updated!;
   });
 }
@@ -52,7 +52,7 @@ export async function deleteCoach(id: string) {
         c.coachId === id ? { ...c, coachId: null } : c,
       );
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return { id };
   });
 }

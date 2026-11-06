@@ -4,6 +4,7 @@ import type {
   AnnouncementAudienceRole,
   AnnouncementRecipient,
 } from '../types';
+import { CLOTHING_PACKAGE_NONE } from './athleteRegistryFilter';
 import { sportsMatch } from './coachScope';
 import { normalizeSportKey } from './sport';
 
@@ -15,6 +16,8 @@ type AudienceAnnouncement = Pick<
   | 'status'
   | 'sportCategories'
   | 'teamsLabel'
+  | 'customChargeFilter'
+  | 'clothingPackageId'
 >;
 
 export type AthleteAudienceContext = {
@@ -24,6 +27,8 @@ export type AthleteAudienceContext = {
   sport?: string | null;
   clubName?: string | null;
   classSport?: string | null;
+  customCharge?: boolean | null;
+  clothingPackageIds?: string[] | null;
 };
 
 function recipientsOf(
@@ -51,6 +56,29 @@ function matchesClubFilter(item: AudienceAnnouncement, clubName?: string | null)
   const filter = (item.teamsLabel ?? '').trim();
   if (!filter) return true;
   return normalizeSportKey(clubName) === normalizeSportKey(filter);
+}
+
+export function matchesCustomChargeFilter(
+  item: Pick<Announcement, 'customChargeFilter'>,
+  customCharge?: boolean | null,
+): boolean {
+  const filter = item.customChargeFilter ?? '';
+  if (!filter) return true;
+  const has = Boolean(customCharge);
+  if (filter === 'yes') return has;
+  if (filter === 'no') return !has;
+  return true;
+}
+
+export function matchesClothingPackageFilter(
+  item: Pick<Announcement, 'clothingPackageId'>,
+  clothingPackageIds?: string[] | null,
+): boolean {
+  const wanted = (item.clothingPackageId ?? '').trim();
+  if (!wanted) return true;
+  const ids = (clothingPackageIds ?? []).map((id) => String(id).trim()).filter(Boolean);
+  if (wanted === CLOTHING_PACKAGE_NONE) return ids.length === 0;
+  return ids.includes(wanted);
 }
 
 /** Whether announcement is visible to a given athlete (portal / filtering). */
@@ -87,6 +115,8 @@ export function announcementVisibleToAthlete(
 
   if (!matchesSportFilter(item, ctx.sport, ctx.classSport)) return false;
   if (!matchesClubFilter(item, ctx.clubName)) return false;
+  if (!matchesCustomChargeFilter(item, ctx.customCharge)) return false;
+  if (!matchesClothingPackageFilter(item, ctx.clothingPackageIds)) return false;
   return true;
 }
 
@@ -137,6 +167,8 @@ export function announcementVisibleToParent(
     sport?: string | null;
     clubName?: string | null;
     classSport?: string | null;
+    customCharge?: boolean | null;
+    clothingPackageIds?: string[] | null;
   }>,
 ): boolean {
   if (item.status === 'draft') return false;
@@ -160,10 +192,13 @@ export function announcementVisibleToParent(
 
   const sportFilter = (item.sportCategories ?? '').trim();
   const clubFilter = (item.teamsLabel ?? '').trim();
-  if (!sportFilter && !clubFilter) return true;
+  const customFilter = item.customChargeFilter ?? '';
+  const clothingFilter = (item.clothingPackageId ?? '').trim();
+  const hasAthleteAttrFilter = Boolean(sportFilter || clubFilter || customFilter || clothingFilter);
+  if (!hasAthleteAttrFilter) return true;
   if (!linkedAthleteMeta || linkedAthleteMeta.length === 0) {
-    // χωρίς meta: αν υπάρχει φίλτρο αθλήματος/σωματείου, μην δείχνουμε σε όλους
-    return !sportFilter && !clubFilter;
+    // χωρίς meta: αν υπάρχει φίλτρο αθλητή, μην δείχνουμε σε όλους
+    return false;
   }
 
   return linkedAthleteMeta.some((a) => {
@@ -173,6 +208,8 @@ export function announcementVisibleToParent(
     }
     if (!matchesSportFilter(item, a.sport, a.classSport)) return false;
     if (!matchesClubFilter(item, a.clubName)) return false;
+    if (!matchesCustomChargeFilter(item, a.customCharge)) return false;
+    if (!matchesClothingPackageFilter(item, a.clothingPackageIds)) return false;
     return true;
   });
 }

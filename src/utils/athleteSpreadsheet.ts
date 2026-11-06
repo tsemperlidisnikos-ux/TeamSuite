@@ -44,6 +44,7 @@ type ColumnKey =
   | 'fatherEmail'
   | 'motherFirstName'
   | 'motherEmail'
+  | 'preferredParentEmail'
   | 'motherPhone'
   | 'address'
   | 'postalCode'
@@ -106,6 +107,7 @@ type ColumnKey =
 
 const COLUMNS: Array<{ key: ColumnKey; header: string; aliases?: string[] }> = [
   { key: 'id', header: 'Κωδικός' },
+  { key: 'amka', header: 'ΑΜΚΑ' },
   { key: 'lastName', header: 'Επώνυμο' },
   { key: 'firstName', header: 'Όνομα' },
   { key: 'status', header: 'Κατάσταση', aliases: ['Status', 'Κατάσταση αθλητή', 'Ενεργός'] },
@@ -113,7 +115,6 @@ const COLUMNS: Array<{ key: ColumnKey; header: string; aliases?: string[] }> = [
   { key: 'phone', header: 'Τηλέφωνο αθλητή' },
   { key: 'birthDate', header: 'Ημ. γέννησης', aliases: ['Ημερομηνία γέννησης'] },
   { key: 'gender', header: 'Φύλο' },
-  { key: 'amka', header: 'ΑΜΚΑ' },
   { key: 'adt', header: 'ΑΔΤ' },
   { key: 'sports', header: 'Αθλήματα', aliases: ['Άθλημα'] },
   { key: 'classes', header: 'Τμήματα', aliases: ['Τμήμα'] },
@@ -123,6 +124,11 @@ const COLUMNS: Array<{ key: ColumnKey; header: string; aliases?: string[] }> = [
   { key: 'fatherEmail', header: 'Email πατέρα' },
   { key: 'motherFirstName', header: 'Όνομα μητέρας' },
   { key: 'motherEmail', header: 'Email μητέρας' },
+  {
+    key: 'preferredParentEmail',
+    header: 'Κύριο email ενημερώσεων',
+    aliases: ['Κύριο για ενημερώσεις'],
+  },
   { key: 'motherPhone', header: 'Τηλ. μητέρας' },
   { key: 'address', header: 'Διεύθυνση' },
   { key: 'postalCode', header: 'Τ.Κ.' },
@@ -143,7 +149,11 @@ const COLUMNS: Array<{ key: ColumnKey; header: string; aliases?: string[] }> = [
   { key: 'registrationFee', header: 'Πάγιο εγγραφής' },
   { key: 'registrationCharge', header: 'Χρέωση εγγραφής' },
   { key: 'monthlyCharge', header: 'Μηνιαία χρέωση' },
-  { key: 'customCharge', header: 'Ειδική χρέωση' },
+  {
+    key: 'customCharge',
+    header: 'Ειδική χρέωση',
+    aliases: ['Πρόγραμμα ΙΣΤΟΣ', 'Τίτλος προσαρμοσμένης χρέωσης'],
+  },
   { key: 'seasonTicket', header: 'Εισιτήριο σεζόν' },
   { key: 'subscriptionDiscount', header: 'Έκπτωση συνδρομής' },
   { key: 'discountAmount', header: 'Ποσό έκπτωσης' },
@@ -176,7 +186,11 @@ const COLUMNS: Array<{ key: ColumnKey; header: string; aliases?: string[] }> = [
   { key: 'registrationExpires', header: 'Λήξη εγγραφής' },
   { key: 'autoRenewal', header: 'Αυτόματη ανανέωση' },
   { key: 'clothingPackage', header: 'Πακέτο ρουχισμού' },
-  { key: 'istosProgram', header: 'Πρόγραμμα ΙΣΤΟΣ' },
+  {
+    key: 'istosProgram',
+    header: 'Πρόγραμμα ΙΣΤΟΣ',
+    aliases: ['Τίτλος προσαρμοσμένης χρέωσης', 'Ειδική χρέωση'],
+  },
   { key: 'preferredPayment', header: 'Προτιμώμενη πληρωμή' },
   { key: 'healthDeclaration', header: 'Δήλωση υγείας' },
   { key: 'liabilityAcceptance', header: 'Δήλωση ευθύνης' },
@@ -370,6 +384,14 @@ export function studentToSheetRow(student: Student, classes: AthleteSheetClass[]
     fatherEmail: student.fatherEmail ?? '',
     motherFirstName: student.motherFirstName ?? '',
     motherEmail: student.motherEmail ?? '',
+    preferredParentEmail:
+      student.preferredParentEmail === 'father'
+        ? 'Πατέρας'
+        : student.preferredParentEmail === 'mother'
+          ? 'Μητέρα'
+          : student.preferredParentEmail === 'athlete'
+            ? 'Αθλητής'
+            : 'Και τα δύο',
     motherPhone: student.motherPhone ?? '',
     address: student.address ?? '',
     postalCode: student.postalCode ?? '',
@@ -429,7 +451,12 @@ export function studentToSheetRow(student: Student, classes: AthleteSheetClass[]
             CLOTHING_PACKAGE_OPTIONS.find((o) => o.value === id)?.label ?? id,
         )
         .join('; ') || optionLabel(CLOTHING_PACKAGE_OPTIONS, extras?.clothingPackage),
-    istosProgram: optionLabel(ISTOS_OPTIONS, extras?.istosProgram),
+    istosProgram:
+      student.customCharge === true
+        ? optionLabel(ISTOS_OPTIONS, 'yes')
+        : student.customCharge === false
+          ? optionLabel(ISTOS_OPTIONS, 'no')
+          : optionLabel(ISTOS_OPTIONS, extras?.istosProgram),
     preferredPayment: optionLabel(PAYMENT_OPTIONS, extras?.preferredPayment),
     healthDeclaration: optionLabel(HEALTH_OPTIONS, extras?.healthDeclaration),
     liabilityAcceptance: optionLabel(LIABILITY_OPTIONS, extras?.liabilityAcceptance),
@@ -475,6 +502,7 @@ function emptyInput(): StudentInput {
     healthCardExpires: '',
     consentExpires: '',
     clothingPackageIds: [] as string[],
+    preferredParentEmail: 'both',
     discountReasonIds: [] as string[],
   };
 }
@@ -568,6 +596,37 @@ function applyCell(
     case 'motherEmail':
       draft.motherEmail = value;
       return;
+    case 'preferredParentEmail': {
+      const key = value.trim().toLocaleLowerCase('el');
+      if (
+        key === 'father' ||
+        key === 'πατέρας' ||
+        key === 'πατηρ' ||
+        key === 'πατήρ' ||
+        key.includes('πατρ')
+      ) {
+        draft.preferredParentEmail = 'father';
+      } else if (
+        key === 'mother' ||
+        key === 'μητέρα' ||
+        key === 'μητηρ' ||
+        key === 'μήτηρ' ||
+        key.includes('μητρ')
+      ) {
+        draft.preferredParentEmail = 'mother';
+      } else if (
+        key === 'athlete' ||
+        key === 'αθλητής' ||
+        key === 'αθλητρια' ||
+        key === 'αθλήτρια' ||
+        key.includes('αθλητ')
+      ) {
+        draft.preferredParentEmail = 'athlete';
+      } else {
+        draft.preferredParentEmail = 'both';
+      }
+      return;
+    }
     case 'motherPhone':
       draft.motherPhone = value;
       return;
@@ -634,9 +693,19 @@ function applyCell(
     case 'monthlyCharge':
       draft.monthlyCharge = parseBool(value) ?? draft.monthlyCharge;
       return;
-    case 'customCharge':
-      draft.customCharge = parseBool(value) ?? draft.customCharge;
+    case 'customCharge': {
+      const parsed = parseBool(value);
+      if (parsed !== undefined) {
+        draft.customCharge = parsed;
+        const extras: Partial<PublicJoinExtras> = {
+          ...(draft.joinExtras ?? {}),
+          istosProgram: parsed ? 'yes' : 'no',
+        };
+        const joined = parsePublicJoinExtras(extras);
+        if (joined) draft.joinExtras = joined;
+      }
       return;
+    }
     case 'seasonTicket':
       draft.seasonTicket = parseBool(value) ?? draft.seasonTicket;
       return;
@@ -763,7 +832,12 @@ function applyCell(
           });
         if (ids.length) draft.clothingPackageIds = ids;
       }
-      if (key === 'istosProgram') extras.istosProgram = parseOption(value, ISTOS_OPTIONS);
+      if (key === 'istosProgram') {
+        const istos = parseOption(value, ISTOS_OPTIONS);
+        extras.istosProgram = istos;
+        if (istos === 'yes') draft.customCharge = true;
+        else if (istos === 'no') draft.customCharge = false;
+      }
       if (key === 'preferredPayment') extras.preferredPayment = parseOption(value, PAYMENT_OPTIONS);
       if (key === 'healthDeclaration') extras.healthDeclaration = parseOption(value, HEALTH_OPTIONS);
       if (key === 'liabilityAcceptance') extras.liabilityAcceptance = parseOption(value, LIABILITY_OPTIONS);

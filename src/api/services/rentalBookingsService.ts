@@ -24,7 +24,7 @@ import {
   isRentalBookingCollected,
   upsertRentalBookingRevenueInData,
 } from './rentalRevenueBridge';
-import { publishClubOpsSlice } from './clubOpsSyncService';
+import { scheduleClubOpsSlice, flushClubOpsSlice } from './clubOpsSyncService';
 import { assertFinanceMonthOpen } from './financePeriodService';
 
 export async function publishRentalOccupancy(
@@ -170,7 +170,10 @@ function addBookingToStore(
   const paidNow = Boolean(parsed.paidNow);
   const paidOn = paidNow ? localDateIso() : undefined;
   if (paidNow) assertFinanceMonthOpen(paidOn!);
-  const collectMethod = parsed.paymentMethod === 'card' ? 'card' : 'cash';
+  const collectMethod =
+    parsed.paymentMethod === 'card' || parsed.paymentMethod === 'transfer'
+      ? parsed.paymentMethod
+      : 'cash';
   const booking: RentalBooking = {
     id: createId('rent'),
     facilityId: facility.id,
@@ -215,7 +218,7 @@ export async function createRentalBooking(
     mutateData((store) => {
       booking = addBookingToStore(store, parsed, facility, source);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
     if (clubId) {
       try {
@@ -260,7 +263,7 @@ export async function createRecurringRentalBookings(
           : 'Καμία ημερομηνία δεν ήταν ελεύθερη.',
       );
     }
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
     if (clubId) {
       try {
@@ -359,7 +362,7 @@ export async function updateRentalBooking(id: string, input: RentalBookingInput)
       upsertRentalBookingRevenueInData(data, updated);
     });
 
-    await publishClubOpsSlice();
+    await flushClubOpsSlice();
     const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
     if (clubId) {
       try {
@@ -390,7 +393,7 @@ export async function cancelRentalBooking(id: string) {
       data.rentalBookings = list;
       upsertRentalBookingRevenueInData(data, updated);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
     if (clubId) {
       try {
@@ -405,7 +408,7 @@ export async function cancelRentalBooking(id: string) {
 
 export async function collectRentalBooking(
   id: string,
-  input: { paymentMethod: 'cash' | 'card'; paidOn?: string },
+  input: { paymentMethod: 'cash' | 'card' | 'transfer'; paidOn?: string },
 ) {
   return apiClient(async () => {
     const paidOn = (input.paidOn || localDateIso()).slice(0, 10);
@@ -444,12 +447,8 @@ export async function collectRentalBooking(
       data.rentalBookings = list;
       upsertRentalBookingRevenueInData(data, updated);
     });
-    await publishClubOpsSlice();
-    const clubId = getPreviewClubId() ?? getSession()?.clubId ?? null;
-    if (clubId) {
-      const { flushClubMirrorPush } = await import('../../data/clubSync');
-      await flushClubMirrorPush(clubId, { force: true });
-    }
+    // Είσπραξη τοπικά άμεσα· club-ops στο παρασκήνιο (χωρίς αναμονή full mirror).
+    scheduleClubOpsSlice();
     return updated!;
   });
 }

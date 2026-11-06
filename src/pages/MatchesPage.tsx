@@ -91,6 +91,14 @@ export function MatchesPage() {
     return visibleClasses.filter((c) => sportsMatch(c.sport, form.sport));
   }, [visibleClasses, form.sport]);
 
+  const classNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of data.classes ?? []) {
+      if (c.id) map.set(c.id, c.name || c.id);
+    }
+    return map;
+  }, [data.classes]);
+
   const matches = useMemo(
     () =>
       [...(data.matches ?? [])]
@@ -348,6 +356,7 @@ export function MatchesPage() {
           <thead>
             <tr>
               <th>Ημερομηνία</th>
+              <th>Τμήμα</th>
               <th>Αντίπαλος</th>
               <th>Έδρα</th>
               <th>Κατάσταση</th>
@@ -358,7 +367,7 @@ export function MatchesPage() {
           <tbody>
             {matches.length === 0 ? (
               <tr>
-                <td colSpan={6} className="muted">
+                <td colSpan={7} className="muted">
                   Δεν υπάρχουν αγώνες ακόμη.
                 </td>
               </tr>
@@ -368,6 +377,11 @@ export function MatchesPage() {
                   <td>
                     {formatDate(match.date)}
                     {match.time ? ` · ${match.time}` : ''}
+                  </td>
+                  <td>
+                    {match.classId
+                      ? classNameById.get(match.classId) ?? '—'
+                      : '—'}
                   </td>
                   <td>
                     <strong>{match.opponent}</strong>

@@ -256,14 +256,27 @@ export async function ensureClubMapIdbReady(): Promise<void> {
     idbHydratePromise = (async () => {
       const fromIdb = await idbReadClubMap();
       if (!fromIdb) return;
-      const disk = memoryMap ?? readClubMapFromDisk();
-      const merged = mergeClubMapsPreferRicher(disk, fromIdb);
-      memoryMap = merged;
-      saveClubMapSafe(merged);
-      notifyAppDataChanged();
+      const live = memoryMap ?? readClubMapFromDisk();
+      // Richer roster wins (student count / localWrittenAt). Restores stamp localWrittenAt=now.
+      memoryMap = mergeClubMapsPreferRicher(fromIdb, live);
+      saveClubMapSafe(memoryMap);
+      // Drop repository seed cache — otherwise Dashboard keeps showing 0 athletes
+      // until a later unrelated clearDataCache (looks like a delayed "load").
+      void import('./repository').then((m) => {
+        m.clearDataCache();
+        notifyAppDataChanged();
+      });
     })();
   }
   await idbHydratePromise;
+}
+
+/** After restore: flush persist chain, then re-merge IDB so a stale hydrate cannot wipe members. */
+export async function settleClubMapAfterRestore(): Promise<void> {
+  await whenClubMapPersisted();
+  idbHydratePromise = null;
+  await ensureClubMapIdbReady();
+  await whenClubMapPersisted();
 }
 
 function loadClubMap(): ClubDataMap {

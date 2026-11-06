@@ -17,6 +17,7 @@ import {
 } from '../../utils/feeChargeKeys';
 import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { normalizeSportKey } from '../../utils/sport';
+import { primaryParentNotifyEmail } from '../../utils/parentNotifyEmails';
 import { studentHasNoClass, studentInClass } from '../../utils/studentClasses';
 import { studentHasSport } from '../../utils/studentSports';
 export const FEE_SEASON_MONTHS = [
@@ -377,8 +378,8 @@ export async function deleteInactiveTemplateCharges(templateId: string) {
     });
     const { flushClubMirrorPush } = await import('../../data/clubSync');
     await flushClubMirrorPush(undefined, { force: true });
-    const { publishClubOpsSlice } = await import('./clubOpsSyncService');
-    await publishClubOpsSlice();
+    const { flushClubOpsSlice } = await import('./clubOpsSyncService');
+    await flushClubOpsSlice();
     return preview;
   });
 }
@@ -636,6 +637,93 @@ export function listOpenCharges(athleteId: string): OpenChargeRow[] {
   return listOpenChargesFromTransactions(athleteId, txns);
 }
 
+export type MonthSubscriptionPayStatus = 'paid' | 'unpaid' | 'no_charge';
+
+export type AthleteMonthSubscription = {
+  charged: number;
+  paid: number;
+  remaining: number;
+  status: MonthSubscriptionPayStatus;
+  statusLabel: string;
+};
+
+/**
+ * Κατάσταση μηνιαίας συνδρομής αθλητή για συγκεκριμένο μήνα/έτος.
+ * Προτιμά χρεώσεις με tag :sub]· αλλιώς άλλες χρεώσεις της περιόδου (όχι ticket/custom).
+ *
+ * Πληρωμή: ίδια λογική με πίνακα Συναλλαγών (άθροισμα πληρωμών μήνα/έτους),
+ * συν πληρωμές που αντιστοιχούν στη χρέωση του μήνα ακόμα κι αν έχουν άλλη ετικέτα περιόδου.
+ * Έτσι δεν εμφανίζεται «ανεξόφλητη» όταν ο μήνας φαίνεται εξοφλημένος στις Συναλλαγές.
+ */
+export function athleteMonthSubscription(
+  athleteId: string,
+  month: number,
+  year: number,
+  transactions: AthleteTransaction[],
+): AthleteMonthSubscription {
+  const txns = transactions.filter((t) => t.athleteId === athleteId);
+  const tagged = txns.filter(
+    (t) =>
+      t.type === 'charge' &&
+      Number(t.month) === month &&
+      Number(t.year) === year &&
+      isMonthlySubscriptionCharge(t.comments),
+  );
+  const charges =
+    tagged.length > 0
+      ? tagged
+      : txns.filter(
+          (t) =>
+            t.type === 'charge' &&
+            Number(t.month) === month &&
+            Number(t.year) === year &&
+            !String(t.comments ?? '').includes(':ticket]') &&
+            !isCustomProgramCharge(t.comments ?? ''),
+        );
+
+  const charged = charges.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  if (charged < 0.01) {
+    return {
+      charged: 0,
+      paid: 0,
+      remaining: 0,
+      status: 'no_charge',
+      statusLabel: 'Χωρίς χρέωση',
+    };
+  }
+
+  const chargeIds = new Set(charges.map((c) => c.id));
+  const remainingByAllocation = listOpenChargesFromTransactions(athleteId, txns)
+    .filter((row) => chargeIds.has(row.chargeId))
+    .reduce((sum, row) => sum + row.remaining, 0);
+  const paidByAllocation = Math.max(0, charged - remainingByAllocation);
+
+  // Όπως Συναλλαγές → Οικονομικά στοιχεία μήνα: πληρωμές με month/year της περιόδου.
+  const paidByPeriod = txns
+    .filter(
+      (t) =>
+        t.type === 'payment' &&
+        Number(t.month) === month &&
+        Number(t.year) === year,
+    )
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+  const paid = Math.min(
+    charged,
+    Math.max(paidByPeriod, paidByAllocation),
+  );
+  const remainingRounded = Math.round(Math.max(0, charged - paid) * 100) / 100;
+  const paidRounded = Math.round(paid * 100) / 100;
+  const unpaid = remainingRounded >= 0.01;
+  return {
+    charged: Math.round(charged * 100) / 100,
+    paid: paidRounded,
+    remaining: remainingRounded,
+    status: unpaid ? 'unpaid' : 'paid',
+    statusLabel: unpaid ? 'Ανεξόφλητη' : 'Πληρωμένη',
+  };
+}
+
 export type ClubOpenChargeRow = OpenChargeRow & {
   athleteName: string;
   clubName: string;
@@ -721,11 +809,7 @@ export function listDebtReminders(): DebtReminderRow[] {
       oldestChargeDate: chargeDay,
       daysOverdue,
       reminderDays: defaultReminder,
-      email:
-        student.motherEmail?.trim() ||
-        student.fatherEmail?.trim() ||
-        student.email?.trim() ||
-        '',
+      email: primaryParentNotifyEmail(student),
       phone:
         student.guardianPhone?.trim() ||
         student.motherPhone?.trim() ||
@@ -767,11 +851,7 @@ export function debtReminderRowForAthlete(athleteId: string): DebtReminderRow | 
         oldestChargeDate: chargeDay,
         daysOverdue,
         reminderDays: 0,
-        email:
-          student.motherEmail?.trim() ||
-          student.fatherEmail?.trim() ||
-          student.email?.trim() ||
-          '',
+        email: primaryParentNotifyEmail(student),
         phone:
           student.guardianPhone?.trim() ||
           student.motherPhone?.trim() ||

@@ -63,6 +63,7 @@ import {
   resolveClubWriteConflict,
 } from '../../data/clubSync';
 import * as publicClubCloudService from '../../api/services/publicClubCloudService';
+import { resolveActiveClubId } from '../../data/store';
 type NavIcon = LucideIcon | ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;
 
 const academyItems: Array<{
@@ -138,6 +139,11 @@ export function AppLayout() {
   const [usersTick, setUsersTick] = useState(0);
   const { data: appData } = useAppData();
   useCloudMirrorAutoPull(clubId);
+
+  useEffect(() => {
+    if (!previewClubId || !isPlatformAdmin()) return;
+    void import('../../data/clubSync').then((m) => m.ensurePreviewClubHydrated(previewClubId));
+  }, [previewClubId]);
   const pendingRegistrationCount = useMemo(
     () =>
       (appData.registrationApplications ?? []).filter((app) => app.status === 'pending')
@@ -181,8 +187,9 @@ export function AppLayout() {
   }, [clubId, platformTick]);
 
   useEffect(() => {
-    if (!clubId) return;
-    void publicClubCloudService.pullRemoteRegistrationApplications(clubId);
+    const activeClubId = resolveActiveClubId();
+    if (!activeClubId || activeClubId === '_default') return;
+    void publicClubCloudService.pullRemoteRegistrationApplications(activeClubId);
   }, [clubId]);
 
   const enabledModules = useMemo(() => {
@@ -290,7 +297,9 @@ export function AppLayout() {
     session?.role !== 'athlete' &&
     session?.role !== 'doctor';
 
-  async function handleResolveConflict(choice: 'keep-local' | 'take-cloud') {
+  async function handleResolveConflict(
+    choice: 'keep-local' | 'take-cloud' | 'merge-both',
+  ) {
     if (!clubId || conflictBusy) return;
     setConflictBusy(true);
     const result = await resolveClubWriteConflict(clubId, choice);
@@ -464,12 +473,26 @@ export function AppLayout() {
           <main className="page page--flush-top">
             {writeConflict ? (
               <div className="ops-alert-banner is-warn" role="status" data-write-conflict>
-                <p>
-                  Ο/Η <strong>{writeConflict.cloudByName}</strong> αποθήκευσε στο cloud στις{' '}
-                  {new Date(writeConflict.cloudAt).toLocaleString('el-GR')}. Οι αλλαγές σε αυτόν
-                  τον υπολογιστή δεν αντικατέστησαν σιωπηλά τις δικές του.
-                </p>
+                <div className="ops-alert-copy">
+                  <p>
+                    Ο/Η <strong>{writeConflict.cloudByName}</strong> αποθήκευσε στο cloud στις{' '}
+                    {new Date(writeConflict.cloudAt).toLocaleString('el-GR')}. Οι αλλαγές σε αυτόν
+                    τον υπολογιστή δεν αντικατέστησαν σιωπηλά τις δικές του.
+                  </p>
+                  <p className="ops-alert-hint">
+                    Προτεινόμενο: «Συνδύασε» — κρατά εγγραφές και από τους δύο (ανά γραμμή το
+                    νεότερο).
+                  </p>
+                </div>
                 <div className="ops-alert-actions">
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={conflictBusy}
+                    onClick={() => void handleResolveConflict('merge-both')}
+                  >
+                    Συνδύασε και τα δύο
+                  </button>
                   <button
                     type="button"
                     className="btn btn-secondary"
@@ -480,7 +503,7 @@ export function AppLayout() {
                   </button>
                   <button
                     type="button"
-                    className="btn"
+                    className="btn btn-secondary"
                     disabled={conflictBusy}
                     onClick={() => void handleResolveConflict('take-cloud')}
                   >

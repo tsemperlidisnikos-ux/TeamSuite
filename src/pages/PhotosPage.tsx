@@ -59,6 +59,7 @@ export function PhotosPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const photos = data.photos ?? [];
   const consentAthletes = useMemo(
@@ -162,16 +163,21 @@ export function PhotosPage() {
       return;
     }
     setSaving(true);
+    setUploadProgress(0);
     setError('');
     setMessage('');
-    const result = await photosService.createPhoto({
-      imageUrl,
-      caption,
-      fileName,
-      album,
-      athleteIds: selectedAthleteIds,
-    });
+    const result = await photosService.createPhoto(
+      {
+        imageUrl,
+        caption,
+        fileName,
+        album,
+        athleteIds: selectedAthleteIds,
+      },
+      { onProgress: setUploadProgress },
+    );
     setSaving(false);
+    setUploadProgress(null);
     if (!result.success) {
       setError(result.error ?? 'Σφάλμα ανεβάσματος');
       return;
@@ -459,11 +465,33 @@ export function PhotosPage() {
               </fieldset>
               {error ? <p className="form-error">{error}</p> : null}
               <div className="photos-modal-actions">
-                <button type="button" className="photos-btn-secondary" onClick={() => setUploadOpen(false)}>
+                {saving || uploadProgress !== null ? (
+                  <div
+                    className="photos-upload-progress"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={uploadProgress ?? 0}
+                    aria-label="Πρόοδος αποθήκευσης φωτογραφίας"
+                  >
+                    <div className="photos-upload-progress-track">
+                      <i style={{ width: `${Math.max(0, Math.min(100, uploadProgress ?? 0))}%` }} />
+                    </div>
+                    <span>{Math.max(0, Math.min(100, uploadProgress ?? 0))}%</span>
+                  </div>
+                ) : (
+                  <span className="photos-upload-progress-spacer" aria-hidden />
+                )}
+                <button
+                  type="button"
+                  className="photos-btn-secondary"
+                  onClick={() => setUploadOpen(false)}
+                  disabled={saving}
+                >
                   Ακύρωση
                 </button>
                 <button type="submit" className="photos-upload-btn" disabled={saving}>
-                  {saving ? 'Ανέβασμα…' : 'Ανέβασμα'}
+                  {saving ? 'Αποθήκευση…' : 'Αποθήκευση'}
                 </button>
               </div>
             </form>

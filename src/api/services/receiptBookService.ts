@@ -1,5 +1,5 @@
 import { apiClient } from '../apiClient';
-import { createId, getData, mutateData } from '../../data/repository';
+import { createId, getData, mutateData, mutateDataKeys } from '../../data/repository';
 import type { ReceiptIssueKind, ReceiptIssueRecord, ReceiptNumberRange } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import {
@@ -10,10 +10,18 @@ import {
   normalizeReceiptIssues,
   normalizeReceiptRanges,
   previewNextReceipt,
+  receiptIssueKey,
   validateReceiptNumberForIssue,
   validateReceiptRanges,
 } from '../../utils/receiptBook';
 import { upsertRentalBookingRevenueInData } from './rentalRevenueBridge';
+
+/** Μόνο οι συλλογές που αγγίζει η έκδοση/ενημέρωση απόδειξης — όχι structuredClone όλου του συλλόγου. */
+const RECEIPT_MUTATE_KEYS = [
+  'receiptIssues',
+  'receiptNextBySeries',
+  'transactions',
+] as const satisfies ReadonlyArray<keyof import('../../types').AppData>;
 
 export async function saveReceiptRanges(ranges: ReceiptNumberRange[]) {
   return apiClient(async () => {
@@ -92,9 +100,11 @@ export async function allocateReceiptIssue(input: {
 }) {
   return apiClient(async () => {
     const holder: { value: ReceiptIssueRecord | null } = { value: null };
-    mutateData((data) => {
+    mutateDataKeys(RECEIPT_MUTATE_KEYS, (data) => {
       const ranges = normalizeReceiptRanges(data.receiptNumberRanges);
+      // Already-normalized list once — avoid re-sort inside nested helpers.
       const issues = normalizeReceiptIssues(data.receiptIssues);
+      const taken = new Set(issues.map((row) => receiptIssueKey(row.series, row.number)));
       const existing =
         issueForTransaction(issues, input.transactionId) ??
         issues.find((row) => row.id === input.transactionId) ??
@@ -128,7 +138,7 @@ export async function allocateReceiptIssue(input: {
         if (!next.ok) throw new Error(next.error);
         const key = next.series;
         let number = next.number;
-        while (issues.some((row) => row.series === key && row.number === number)) {
+        while (taken.has(receiptIssueKey(key, number))) {
           number += 1;
         }
         const inRange = validateReceiptNumberForIssue(key, number, ranges, issues, {
@@ -156,19 +166,23 @@ export async function allocateReceiptIssue(input: {
       }
       const allocated = holder.value;
       if (allocated && input.transactionId) {
-        const tx = (data.transactions ?? []).find((row) => row.id === input.transactionId);
-        if (tx) {
-          tx.receiptSeries = allocated.series;
-          tx.receiptSeq = allocated.number;
-          tx.receiptNumber = formatReceiptLabel(allocated.series, allocated.number);
+        const txId = input.transactionId;
+        const txs = data.transactions ?? [];
+        const idx = txs.findIndex((row) => row.id === txId);
+        if (idx >= 0) {
+          txs[idx] = {
+            ...txs[idx],
+            receiptSeries: allocated.series,
+            receiptSeq: allocated.number,
+            receiptNumber: formatReceiptLabel(allocated.series, allocated.number),
+          };
+          data.transactions = txs;
         }
       }
     });
     if (!holder.value) throw new Error('Αποτυχία έκδοσης αριθμού απόδειξης.');
-    const { flushClubMirrorPush } = await import('../../data/clubSync');
-    await flushClubMirrorPush(undefined, { force: true });
-    const { publishClubOpsSlice } = await import('./clubOpsSyncService');
-    await publishClubOpsSlice();
+    // Τοπική έκδοση άμεσα· club-ops + debounced mirror από mutateData (χωρίς αναμονή full mirror).
+    void import('./clubOpsSyncService').then((m) => m.scheduleClubOpsSlice());
     return holder.value;
   });
 }
@@ -192,26 +206,38 @@ export async function voidReceiptIssue(issueId: string) {
       const removed = await deleteTransaction(txId);
       if (!removed.success) throw new Error(removed.error ?? 'Αποτυχία διαγραφής πληρωμής.');
     } else {
-      mutateData((data) => {
+      const keys = txId.startsWith('rent_')
+        ? ([
+            'receiptIssues',
+            'rentalBookings',
+            'revenues',
+            'deletedRevenueIds',
+          ] as const)
+        : (['receiptIssues'] as const);
+      mutateDataKeys(keys, (data) => {
         markReceiptIssueVoidedInData(data, id);
         if (txId.startsWith('rent_')) {
           const bookingId = txId.slice(5);
-          const booking = (data.rentalBookings ?? []).find((row) => row.id === bookingId);
-          if (booking) {
-            booking.paymentCollected = false;
-            booking.paidOn = undefined;
-            booking.paidAt = undefined;
-            booking.updatedAt = Date.now();
+          const bookings = data.rentalBookings ?? [];
+          const idx = bookings.findIndex((row) => row.id === bookingId);
+          if (idx >= 0) {
+            const booking = {
+              ...bookings[idx],
+              paymentCollected: false,
+              paidOn: undefined,
+              paidAt: undefined,
+              updatedAt: Date.now(),
+            };
+            bookings[idx] = booking;
+            data.rentalBookings = bookings;
             upsertRentalBookingRevenueInData(data, booking);
           }
         }
       });
     }
 
-    const { flushClubMirrorPush } = await import('../../data/clubSync');
-    await flushClubMirrorPush(undefined, { force: true });
-    const { publishClubOpsSlice } = await import('./clubOpsSyncService');
-    await publishClubOpsSlice();
+    // Τοπική ακύρωση άμεσα· sync στο παρασκήνιο (όπως έκδοση).
+    void import('./clubOpsSyncService').then((m) => m.scheduleClubOpsSlice());
     const issued = normalizeReceiptIssues(getData().receiptIssues).find((row) => row.id === id);
     if (!issued) throw new Error('Αποτυχία ακύρωσης απόδειξης.');
     return issued;

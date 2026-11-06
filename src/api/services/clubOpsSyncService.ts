@@ -5,6 +5,14 @@ import { getPreviewClubId } from '../../platform/platformConfig';
 import type { AppData } from '../../types';
 import { syncAuthHeaders } from '../syncAuth';
 
+/** Συγχώνευση πολλαπλών αποθηκεύσεων → 1 club-ops (μείωση Vercel invocations). */
+const OPS_DEBOUNCE_MS = 3_000;
+const opsTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+
+function resolveOpsClubId(clubId?: string | null): string {
+  return (clubId ?? getPreviewClubId() ?? getSession()?.clubId ?? resolveActiveClubId()).trim();
+}
+
 /** Γρήγορο live patch: οικονομικά / πρόγραμμα / αποδείξεις — όχι roster/AMKA/φωτογραφίες. */
 export function clubOpsSliceFromData(data: AppData): Record<string, unknown> {
   return {
@@ -55,8 +63,36 @@ export function clubOpsSliceFromData(data: AppData): Record<string, unknown> {
   };
 }
 
-export async function publishClubOpsSlice(clubId?: string | null) {
-  const id = (clubId ?? getPreviewClubId() ?? getSession()?.clubId ?? resolveActiveClubId()).trim();
+/** Προγραμματίζει club-ops μετά από σύντομη παύση (όχι σε κάθε κλικ). */
+export function scheduleClubOpsSlice(clubId?: string | null): void {
+  const id = resolveOpsClubId(clubId);
+  if (!id || id === '_default') return;
+  if (opsTimers[id]) clearTimeout(opsTimers[id]);
+  opsTimers[id] = setTimeout(() => {
+    delete opsTimers[id];
+    void publishClubOpsSlice(id);
+  }, OPS_DEBOUNCE_MS);
+}
+
+/** Άμεσο club-ops (logout / pagehide / κρίσιμη αποθήκευση). Ακυρώνει pending debounce. */
+export async function flushClubOpsSlice(
+  clubId?: string | null,
+  opts?: { keepalive?: boolean },
+) {
+  const id = resolveOpsClubId(clubId);
+  if (!id || id === '_default') return;
+  if (opsTimers[id]) {
+    clearTimeout(opsTimers[id]);
+    delete opsTimers[id];
+  }
+  await publishClubOpsSlice(id, opts);
+}
+
+export async function publishClubOpsSlice(
+  clubId?: string | null,
+  opts?: { keepalive?: boolean },
+) {
+  const id = resolveOpsClubId(clubId);
   if (!id || id === '_default') return;
   const data = resolveActiveClubId() === id ? getData() : getClubData(id);
   try {
@@ -64,6 +100,7 @@ export async function publishClubOpsSlice(clubId?: string | null) {
       method: 'PUT',
       headers: syncAuthHeaders(),
       body: JSON.stringify({ clubId: id, slice: clubOpsSliceFromData(data) }),
+      keepalive: Boolean(opts?.keepalive),
     });
     if (response.status === 503) return;
     if (!response.ok) return;

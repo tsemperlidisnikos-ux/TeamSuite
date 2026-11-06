@@ -11,6 +11,7 @@ import { CoachPortalPage } from './CoachPortalPage';
 
 export function CoachAppPage() {
   const [tick, setTick] = useState(0);
+  const [loggingOut, setLoggingOut] = useState(false);
   const session = getSession();
   const club = session?.clubId ? getClubById(session.clubId) : null;
   useCloudMirrorAutoPull(session?.clubId ?? null);
@@ -34,6 +35,19 @@ export function CoachAppPage() {
     };
   }, []);
 
+  async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      const { persistLocalStateToCloudBeforeLogout } = await import('../data/clubSync');
+      await persistLocalStateToCloudBeforeLogout();
+    } catch {
+      /* still log out */
+    }
+    logout();
+    window.location.assign(coachAppPath());
+  }
+
   if (!session) {
     return <LoginPage portalApp="coach" />;
   }
@@ -49,12 +63,10 @@ export function CoachAppPage() {
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => {
-            logout();
-            window.location.assign(coachAppPath());
-          }}
+          disabled={loggingOut}
+          onClick={() => void handleLogout()}
         >
-          Έξοδος
+          {loggingOut ? 'Αποθήκευση…' : 'Έξοδος'}
         </button>
       </div>
     );
@@ -73,13 +85,11 @@ export function CoachAppPage() {
         <button
           type="button"
           className="parent-app-logout"
-          onClick={() => {
-            logout();
-            window.location.assign(coachAppPath());
-          }}
+          disabled={loggingOut}
+          onClick={() => void handleLogout()}
         >
           <LogOut size={16} />
-          Έξοδος
+          {loggingOut ? 'Αποθήκευση…' : 'Έξοδος'}
         </button>
       </header>
       <ParentPushOptIn kind="coach" />

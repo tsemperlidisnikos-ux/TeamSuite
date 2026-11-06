@@ -6,6 +6,7 @@ import {
   assertClubTenantAccess,
   assertPlatformAdminOrSecret,
   assertSyncAuthorized,
+  dismissPendingApplications,
   getSyncAuthContext,
   isDurableStoreEnabled,
   listPendingApplications,
@@ -111,6 +112,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       durable: isDurableStoreEnabled(),
       clubId,
       ...stripped,
+    });
+  }
+
+  if (req.method === 'POST' && String(req.query.op ?? '').trim() === 'dismiss') {
+    if (!(await assertSyncAuthorized(req, res))) return;
+    const body = (req.body ?? {}) as { clubId?: string; ids?: string[] };
+    const clubId = String(body.clubId ?? req.query.clubId ?? '').trim();
+    if (!clubId) return res.status(400).json({ ok: false, error: 'clubId required' });
+    const auth = getSyncAuthContext(req);
+    if (
+      !auth.viaSecret &&
+      auth.claims?.role !== 'platform_admin' &&
+      auth.claims?.clubId !== clubId
+    ) {
+      return res.status(403).json({ ok: false, error: 'Forbidden: club mismatch' });
+    }
+    const ids = Array.isArray(body.ids) ? body.ids.map((id) => String(id ?? '').trim()) : [];
+    const result = await dismissPendingApplications(clubId, ids);
+    return res.status(200).json({
+      ok: true,
+      durable: isDurableStoreEnabled(),
+      clubId,
+      ...result,
     });
   }
 

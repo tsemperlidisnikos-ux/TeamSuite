@@ -18,6 +18,7 @@ import { settleVivaReturn } from '../utils/vivaSettle';
 import { localDateIso } from '../utils/dates';
 import { formatCurrency, formatDate, dayNames } from '../utils/labels';
 import { announcementVisibleToAthlete } from '../utils/announcementAudience';
+import { studentClothingPackageIds } from '../utils/clothingPackages';
 import { studentClassIds } from '../utils/studentClasses';
 
 function athleteBalance(
@@ -149,6 +150,8 @@ export function AthletePortalPage() {
           sport: athlete.sport,
           clubName: athlete.clubName,
           classSport,
+          customCharge: athlete.customCharge,
+          clothingPackageIds: studentClothingPackageIds(athlete),
         }),
       )
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))

@@ -430,6 +430,108 @@ function idListFromPayload(value: unknown): string[] {
   return value.map((item) => String(item).trim()).filter(Boolean);
 }
 
+function rowUpdatedAt(row: Record<string, unknown> | undefined): number {
+  if (!row) return 0;
+  return Number(row.updatedAt) || 0;
+}
+
+function isEmptyMergeValue(value: unknown): boolean {
+  if (value === undefined || value === null) return true;
+  if (typeof value === 'string' && value.trim() === '') return true;
+  if (Array.isArray(value) && value.length === 0) return true;
+  return false;
+}
+
+/** Newer updatedAt wins field conflicts; empty does not wipe a filled value. */
+function mergeTwoStudentRows(
+  existing: Record<string, unknown> & { id: string },
+  incoming: Record<string, unknown> & { id: string },
+): Record<string, unknown> & { id: string } {
+  const existingAt = rowUpdatedAt(existing);
+  const incomingAt = rowUpdatedAt(incoming);
+  const preferIncoming = incomingAt >= existingAt;
+  const newer = preferIncoming ? incoming : existing;
+  const older = preferIncoming ? existing : incoming;
+  const out = { ...older, ...newer, id: existing.id } as Record<string, unknown> & { id: string };
+  const newerIsStrictlyNewer = rowUpdatedAt(newer) > rowUpdatedAt(older);
+  for (const key of Object.keys(older)) {
+    if (isEmptyMergeValue(out[key]) && !isEmptyMergeValue(older[key])) {
+      if (newerIsStrictlyNewer) continue;
+      out[key] = older[key];
+    }
+  }
+  const existingStatus = String(existing.status ?? 'active');
+  const incomingStatus = String(incoming.status ?? 'active');
+  // Stale browser must not demote active→inactive unless its row is strictly newer.
+  if (existingStatus === 'active' && incomingStatus !== 'active' && !(incomingAt > existingAt)) {
+    out.status = 'active';
+  } else if (incomingStatus === 'active' && existingStatus !== 'active' && !(existingAt > incomingAt)) {
+    out.status = 'active';
+  } else if (!out.status) {
+    out.status = 'active';
+  }
+  out.updatedAt = Math.max(existingAt, incomingAt);
+  return out;
+}
+
+/**
+ * Same id: merge by updatedAt, but do not let a stale push demote active athletes.
+ * Cloud-only / incoming-only rows are kept unless deleted.
+ */
+function mergeStudentRowsPreservingActive(
+  existingValue: unknown,
+  incomingValue: unknown,
+  deleted: Set<string>,
+): Array<Record<string, unknown> & { id: string }> {
+  const existing = studentRowsFromPayload(existingValue);
+  const incoming = studentRowsFromPayload(incomingValue);
+  const byId = new Map<string, Record<string, unknown> & { id: string }>();
+  for (const row of existing) {
+    if (deleted.has(row.id)) continue;
+    byId.set(row.id, !row.status ? { ...row, status: 'active' } : row);
+  }
+  for (const row of incoming) {
+    if (deleted.has(row.id)) continue;
+    const normalized = !row.status ? { ...row, status: 'active' } : row;
+    const prev = byId.get(row.id);
+    byId.set(row.id, prev ? mergeTwoStudentRows(prev, normalized) : normalized);
+  }
+  return [...byId.values()];
+}
+
+function studentIsActive(row: Record<string, unknown> | undefined): boolean {
+  if (!row) return false;
+  return String(row.status ?? 'active') === 'active';
+}
+
+/**
+ * Hard floor: refuse mass demotion from a stale/partial client.
+ * If active count drops by >5% (min 3), restore active for any existing-active row
+ * whose merged copy is inactive without a strictly newer inactive stamp.
+ */
+function enforceActiveCountFloor(
+  existing: Array<Record<string, unknown> & { id: string }>,
+  merged: Array<Record<string, unknown> & { id: string }>,
+  deleted: Set<string>,
+): Array<Record<string, unknown> & { id: string }> {
+  const existingActive = existing.filter((row) => !deleted.has(row.id) && studentIsActive(row));
+  const mergedActiveCount = merged.filter((row) => studentIsActive(row)).length;
+  const floorDrop = Math.max(3, Math.ceil(existingActive.length * 0.05));
+  if (existingActive.length - mergedActiveCount < floorDrop) return merged;
+
+  const byId = new Map(merged.map((row) => [row.id, { ...row }]));
+  for (const row of existingActive) {
+    const cur = byId.get(row.id);
+    if (!cur || studentIsActive(cur)) continue;
+    const existingAt = rowUpdatedAt(row);
+    const curAt = rowUpdatedAt(cur);
+    if (curAt > existingAt) continue; // intentional newer demotion
+    cur.status = 'active';
+    byId.set(row.id, cur);
+  }
+  return [...byId.values()];
+}
+
 function mergeIdRowsPreservingCloudOnly(
   existingValue: unknown,
   incomingValue: unknown,
@@ -688,13 +790,15 @@ export function mergeMirrorPayloadPreservingRoster(existing: unknown, incoming: 
     ...idListFromPayload(prev.deletedStudentIds),
     ...idListFromPayload(incomingDeletedStudents),
   ]);
-  const byId = new Map<string, Record<string, unknown>>();
-  for (const row of existingStudents) {
-    if (!deleted.has(row.id)) byId.set(row.id, row);
-  }
-  for (const row of incomingRoster) {
-    if (!deleted.has(row.id)) byId.set(row.id, row);
-  }
+  // Prefer field-level merge + protect active status (stale browser must not demote).
+  let mergedStudents = mergeStudentRowsPreservingActive(
+    existingStudents,
+    incomingRoster,
+    deleted,
+  );
+  // Circuit breaker: if actives would drop sharply without matching deletions,
+  // re-apply active from existing for any row that is not strictly newer inactive.
+  mergedStudents = enforceActiveCountFloor(existingStudents, mergedStudents, deleted);
 
   const tx = mergeIdRowsPreservingCloudOnly(
     prev.transactions,
@@ -762,7 +866,7 @@ export function mergeMirrorPayloadPreservingRoster(existing: unknown, incoming: 
   return {
     ...next,
     ...collections,
-    students: [...byId.values()],
+    students: mergedStudents,
     deletedStudentIds: [...deleted].slice(-5000),
     transactions: tx.rows,
     deletedTransactionIds: tx.deleted,
@@ -1205,6 +1309,51 @@ export async function savePendingApplications(
     return;
   }
   await kvSet(`${PENDING_APPS_PREFIX}${clubId}`, next);
+}
+
+/** Αφαίρεση αιτήσεων από cloud pending queue + mirror (έγκριση / απόρριψη / διαγραφή). */
+export async function dismissPendingApplications(
+  clubId: string,
+  ids: string[],
+): Promise<{ removed: number; remaining: number; mirrorRemoved: number }> {
+  const remove = new Set(ids.map((id) => String(id ?? '').trim()).filter(Boolean));
+  if (remove.size === 0) {
+    const current = await listPendingApplications(clubId);
+    return { removed: 0, remaining: current.length, mirrorRemoved: 0 };
+  }
+  const prev = await listPendingApplications(clubId);
+  const next = prev.filter((app) => !remove.has(String(app?.id ?? '').trim()));
+  const removed = prev.length - next.length;
+  // Πάντα γράφουμε το pending queue όταν ζητήθηκε dismiss (ακόμα και removed=0),
+  // ώστε να μην μείνουν «φαντάσματα» από race / cold instance.
+  await savePendingApplications(clubId, next);
+
+  let mirrorRemoved = 0;
+  const mirror = await loadMirror(clubId);
+  const payload =
+    mirror?.payload && typeof mirror.payload === 'object'
+      ? { ...(mirror.payload as Record<string, unknown>) }
+      : null;
+  if (payload) {
+    const apps = Array.isArray(payload.registrationApplications)
+      ? (payload.registrationApplications as RemoteRegistrationApplication[])
+      : [];
+    const kept = apps.filter((app) => !remove.has(String(app?.id ?? '').trim()));
+    mirrorRemoved = apps.length - kept.length;
+    const deletedPrev = Array.isArray(payload.deletedRegistrationApplicationIds)
+      ? (payload.deletedRegistrationApplicationIds as string[])
+      : [];
+    const deletedNext = [
+      ...new Set([...deletedPrev, ...remove].map((id) => String(id).trim()).filter(Boolean)),
+    ].slice(-5000);
+    payload.registrationApplications = kept;
+    payload.deletedRegistrationApplicationIds = deletedNext;
+    if (mirrorRemoved > 0 || deletedNext.length !== deletedPrev.length || removed > 0) {
+      await saveMirror(clubId, payload);
+    }
+  }
+
+  return { removed, remaining: next.length, mirrorRemoved };
 }
 
 function stripRemoteJoinFormFields(app: RemoteRegistrationApplication): RemoteRegistrationApplication {

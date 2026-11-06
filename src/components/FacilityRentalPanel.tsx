@@ -187,12 +187,12 @@ export function FacilityRentalPanel() {
   const [notes, setNotes] = useState('');
   const [specialDiscount, setSpecialDiscount] = useState('');
   const [paidNow, setPaidNow] = useState(false);
-  const [paidNowMethod, setPaidNowMethod] = useState<'cash' | 'card'>('cash');
+  const [paidNowMethod, setPaidNowMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
   const [recurring, setRecurring] = useState(false);
   const [untilDate, setUntilDate] = useState('');
   const [recWeekdays, setRecWeekdays] = useState<number[]>([]);
   const [collectBooking, setCollectBooking] = useState<RentalBooking | null>(null);
-  const [collectMethod, setCollectMethod] = useState<'cash' | 'card'>('cash');
+  const [collectMethod, setCollectMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
   const [collecting, setCollecting] = useState(false);
   const [editingBooking, setEditingBooking] = useState<RentalBooking | null>(null);
   const [editForm, setEditForm] = useState<RentalBookingInput | null>(null);
@@ -639,7 +639,11 @@ export function FacilityRentalPanel() {
     }
     setMessage(
       `Εισπράχθηκαν ${formatCurrency(collectBooking.amount)} (${
-        collectMethod === 'card' ? 'POS' : 'μετρητά'
+        collectMethod === 'card'
+          ? 'POS'
+          : collectMethod === 'transfer'
+            ? 'τραπεζική κατάθεση'
+            : 'μετρητά'
       }). Το ποσό μπήκε στα ημερήσια έσοδα.`,
     );
     if (result.data) setReceiptBooking(result.data);
@@ -1234,27 +1238,37 @@ export function FacilityRentalPanel() {
         <span className="field-label">{t('Σημείωση κράτησης')}</span>
         <input className="field-input" value={notes} onChange={(e) => setNotes(e.target.value)} />
       </label>
-      <label className="checkbox-row">
-        <input
-          type="checkbox"
-          checked={paidNow}
-          onChange={(e) => setPaidNow(e.target.checked)}
-        />
-        {t('Πληρώθηκε τώρα (μετρητά / POS) — εμφάνιση στα ημερήσια έσοδα')}
-      </label>
-      {paidNow ? (
-        <label className="field">
-          <span className="field-label">{t('Τρόπος πληρωμής')}</span>
-          <select
-            className="field-input"
-            value={paidNowMethod}
-            onChange={(e) => setPaidNowMethod(e.target.value === 'card' ? 'card' : 'cash')}
-          >
-            <option value="cash">{t('Μετρητά')}</option>
-            <option value="card">{t('POS')}</option>
-          </select>
-        </label>
-      ) : null}
+      <fieldset className="field rental-pay-with">
+        <legend className="field-label">{t('Πληρωμή με')}</legend>
+        <div className="rental-pay-with-options">
+          {(
+            [
+              ['cash', 'Μετρητά'],
+              ['card', 'POS'],
+              ['transfer', 'Τραπεζική κατάθεση'],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={value} className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={paidNow && paidNowMethod === value}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setPaidNow(true);
+                    setPaidNowMethod(value);
+                  } else if (paidNowMethod === value) {
+                    setPaidNow(false);
+                  }
+                }}
+              />
+              {t(label)}
+            </label>
+          ))}
+        </div>
+        <p className="muted" style={{ margin: '0.35rem 0 0' }}>
+          {t('Εμφάνιση στα ημερήσια έσοδα όταν επιλεγεί τρόπος πληρωμής.')}
+        </p>
+      </fieldset>
       <label className="checkbox-row">
         <input
           type="checkbox"
@@ -1601,17 +1615,29 @@ export function FacilityRentalPanel() {
               {collectBooking.customerName} ·{' '}
               <strong>{formatCurrency(collectBooking.amount)}</strong>
             </p>
-            <label className="field">
-              <span className="field-label">Τρόπος πληρωμής</span>
-              <select
-                className="field-input"
-                value={collectMethod}
-                onChange={(e) => setCollectMethod(e.target.value === 'card' ? 'card' : 'cash')}
-              >
-                <option value="cash">Μετρητά</option>
-                <option value="card">POS</option>
-              </select>
-            </label>
+            <fieldset className="field rental-pay-with">
+              <legend className="field-label">Πληρωμή με</legend>
+              <div className="rental-pay-with-options">
+                {(
+                  [
+                    ['cash', 'Μετρητά'],
+                    ['card', 'POS'],
+                    ['transfer', 'Τραπεζική κατάθεση'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label key={value} className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={collectMethod === value}
+                      onChange={(e) => {
+                        if (e.target.checked) setCollectMethod(value);
+                      }}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <p className="muted">
               Το ποσό θα εμφανιστεί στα ημερήσια έσοδα (κατηγορία Ενοικίαση γηπέδου) με σημερινή
               ημερομηνία.

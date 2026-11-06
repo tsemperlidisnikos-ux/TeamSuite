@@ -63,7 +63,7 @@ import {
 } from '../shared/termsDefaults';
 import { canAccessAmka, canAccessMedical, formatAmkaForViewer } from '../utils/amkaAccess';
 import { isAmkaEncrypted } from '../utils/amkaCrypto';
-import { collapseDuplicateSurname, composeGivenAndSurname } from '../utils/greekSurname';
+import { collapseDuplicateSurname, fatherFullName } from '../utils/greekSurname';
 import { toUpperEl } from '../utils/upperText';
 import { announcementVisibleToAthlete } from '../utils/announcementAudience';
 import {
@@ -215,6 +215,7 @@ function toForm(
     motherFirstName: toUpperEl(student.motherFirstName ?? ''),
     fatherEmail: student.fatherEmail ?? '',
     motherEmail: student.motherEmail ?? '',
+    preferredParentEmail: student.preferredParentEmail ?? 'both',
     motherPhone: student.motherPhone ?? '',
     address: toUpperEl(student.address ?? ''),
     postalCode: student.postalCode ?? '',
@@ -708,6 +709,8 @@ export function AthleteProfilePage() {
           sport: student.sport,
           clubName: student.clubName,
           classSport,
+          customCharge: student.customCharge,
+          clothingPackageIds: studentClothingPackageIds(student),
         }),
       )
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
@@ -854,7 +857,7 @@ export function AthleteProfilePage() {
         amkaHealthCard: amkaValue ? Boolean(form.gdprItems?.amkaHealthCard) : false,
       },
       guardianName:
-        composeGivenAndSurname(form.fatherFirstName, form.lastName) ||
+        fatherFullName(form.fatherFirstName, form.lastName) ||
         collapseDuplicateSurname(form.guardianName || ''),
       guardianPhone: form.guardianPhone || form.emergencyPhone || form.phone || '',
     };
@@ -1609,6 +1612,24 @@ export function AthleteProfilePage() {
                     {textInput(form.motherEmail, (v) => setField('motherEmail', v), {
                       type: 'email',
                     })}
+                  </ApField>
+                  <ApField label="Κύριο για ενημερώσεις" className="ap-span-2">
+                    <select
+                      className={inputClass}
+                      value={form.preferredParentEmail ?? 'both'}
+                      disabled={disabled}
+                      onChange={(e) =>
+                        setField(
+                          'preferredParentEmail',
+                          e.target.value as 'father' | 'mother' | 'both' | 'athlete',
+                        )
+                      }
+                    >
+                      <option value="both">Και τα δύο emails γονέων</option>
+                      <option value="father">Email πατρός</option>
+                      <option value="mother">Email μητρός</option>
+                      <option value="athlete">Email αθλητή</option>
+                    </select>
                   </ApField>
                   <ApField label="Τηλέφωνο πατρός">
                     {textInput(form.guardianPhone, (v) => setField('guardianPhone', v), {

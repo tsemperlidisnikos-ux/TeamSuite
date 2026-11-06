@@ -80,20 +80,37 @@ async function decryptField(value: string, clubId: string): Promise<string> {
   return trimmed;
 }
 
+async function mapStudentsPool(
+  students: SensitiveStudent[],
+  concurrency: number,
+  fn: (student: SensitiveStudent) => Promise<void>,
+): Promise<void> {
+  let next = 0;
+  async function worker() {
+    while (next < students.length) {
+      const i = next;
+      next += 1;
+      await fn(students[i]!);
+    }
+  }
+  const n = Math.max(1, Math.min(concurrency, students.length || 1));
+  await Promise.all(Array.from({ length: n }, () => worker()));
+}
+
 /** Deep-clone AppData-like payload and encrypt AMKA for cloud. */
 export async function encryptSensitivePayloadForCloud<T extends { students?: SensitiveStudent[] }>(
   payload: T,
   clubId: string,
 ): Promise<T> {
   const clone = structuredClone(payload);
-  if (!Array.isArray(clone.students)) return clone;
-  for (const student of clone.students) {
+  if (!Array.isArray(clone.students) || clone.students.length === 0) return clone;
+  await mapStudentsPool(clone.students, 32, async (student) => {
     for (const field of ENCRYPT_FIELDS) {
       const value = student[field];
       if (!value?.trim() || isPiiEncrypted(value)) continue;
       student[field] = await encryptField(value, clubId);
     }
-  }
+  });
   return clone;
 }
 
@@ -102,8 +119,8 @@ export async function decryptSensitivePayloadFromCloud<T extends { students?: Se
   clubId: string,
 ): Promise<T> {
   const clone = structuredClone(payload);
-  if (!Array.isArray(clone.students)) return clone;
-  for (const student of clone.students) {
+  if (!Array.isArray(clone.students) || clone.students.length === 0) return clone;
+  await mapStudentsPool(clone.students, 32, async (student) => {
     for (const field of LEGACY_DECRYPT_FIELDS) {
       const value = student[field];
       if (!value?.trim() || !isPiiEncrypted(value)) continue;
@@ -113,6 +130,6 @@ export async function decryptSensitivePayloadFromCloud<T extends { students?: Se
         /* keep ciphertext if decrypt fails */
       }
     }
-  }
+  });
   return clone;
 }

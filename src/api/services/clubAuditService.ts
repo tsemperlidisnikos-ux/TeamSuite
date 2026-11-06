@@ -73,7 +73,7 @@ export function recordClubAudit(input: {
     fullName: session.fullName,
     role: session.role,
     action: input.action,
-    summary: input.summary.slice(0, 500),
+    summary: input.summary.slice(0, 900),
     undo: input.undo ?? null,
     undoReason: input.undoReason ?? null,
     revertedEventIds: input.revertedEventIds ?? [],

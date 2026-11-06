@@ -690,12 +690,22 @@ export function PlatformAdminPage() {
     setTick((n) => n + 1);
   }
 
-  function handlePreview() {
+  async function handlePreview() {
     if (!catalogClubId) {
       flash('Επιλέξτε λογαριασμό');
       return;
     }
     startPreview(catalogClubId);
+    flash('Φόρτωση δεδομένων συλλόγου από cloud…');
+    try {
+      const { ensurePreviewClubHydrated } = await import('../data/clubSync');
+      const hydrated = await ensurePreviewClubHydrated(catalogClubId);
+      if (!hydrated.success && hydrated.error) {
+        flash(`Preview άνοιξε, αλλά το cloud δεν φόρτωσε: ${hydrated.error}`);
+      }
+    } catch {
+      /* open preview anyway */
+    }
     navigate('/');
   }
 
@@ -804,11 +814,27 @@ export function PlatformAdminPage() {
 
       const expectedStudents = clubData.students?.length ?? 0;
       const expectedMembers = clubData.clubMembers?.length ?? 0;
-      replaceClubData(targetId, clubData);
-      const restoredMembers = getClubData(targetId).clubMembers?.length ?? 0;
+      replaceClubData(targetId, clubData, { skipCloudPush: true });
+      const { settleClubMapAfterRestore } = await import('../data/store');
+      await settleClubMapAfterRestore();
+      let verify = getClubData(targetId);
+      let restoredMembers = verify.clubMembers?.length ?? 0;
       if (expectedMembers > 0 && restoredMembers !== expectedMembers) {
+        // Re-apply once — Platform Admin often has activeClub=_default and large
+        // backups only fit in memory/IDB; a stale disk read used to report 0/5.
+        replaceClubData(targetId, clubData, { skipCloudPush: true });
+        await settleClubMapAfterRestore();
+        verify = getClubData(targetId);
+        restoredMembers = verify.clubMembers?.length ?? 0;
+      }
+      if (expectedStudents > 0 && (verify.students?.length ?? 0) === 0) {
         throw new Error(
-          `Η επαναφορά των μελών δεν ολοκληρώθηκε (${restoredMembers}/${expectedMembers}).`,
+          'Η επαναφορά απέτυχε: δεν διαβάστηκαν αθλητές μετά την εγγραφή. Καθαρίστε δεδομένα ιστότοπου και δοκιμάστε ξανά.',
+        );
+      }
+      if (expectedMembers > 0 && restoredMembers !== expectedMembers) {
+        flash(
+          `Προειδοποίηση: μέλη μητρώου ${restoredMembers}/${expectedMembers}. Συνέχεια με ${verify.students?.length ?? 0} αθλητές…`,
         );
       }
 

@@ -6,8 +6,18 @@ import type {
   Student,
 } from '../../types';
 import type { AnnouncementInput } from '../../schemas';
+import {
+  matchesClothingPackageFilter,
+  matchesCustomChargeFilter,
+} from '../../utils/announcementAudience';
 import { sportsMatch } from '../../utils/coachScope';
+import { studentClothingPackageIds } from '../../utils/clothingPackages';
 import { normalizeSportKey } from '../../utils/sport';
+import {
+  normalizePreferredParentEmail,
+  preferredNotifyEmails,
+  primaryParentNotifyEmail,
+} from '../../utils/parentNotifyEmails';
 import { studentClassIds, studentInClass } from '../../utils/studentClasses';
 import { studentHasSport } from '../../utils/studentSports';
 import { getClubSms } from '../../auth/clubs';
@@ -31,7 +41,7 @@ export function parseEmailList(raw: string): string[] {
 }
 
 function studentContactEmails(student: Student): string[] {
-  return uniqueEmails([student.motherEmail, student.fatherEmail, student.email]);
+  return uniqueEmails(preferredNotifyEmails(student));
 }
 
 async function sendSmsToStudent(clubId: string, student: Student, text: string) {
@@ -56,23 +66,39 @@ function idsOf(recipients: AnnouncementRecipient[], kind: AnnouncementRecipient[
 
 function studentMatchesScope(
   student: Student,
-  input: Pick<AnnouncementInput, 'sportCategories' | 'teamsLabel'>,
+  input: Pick<
+    AnnouncementInput,
+    'sportCategories' | 'teamsLabel' | 'customChargeFilter' | 'clothingPackageId'
+  >,
   data: ReturnType<typeof getData>,
 ): boolean {
   const sport = (input.sportCategories ?? '').trim();
   const club = (input.teamsLabel ?? '').trim();
   if (club && normalizeSportKey(student.clubName) !== normalizeSportKey(club)) return false;
-  if (!sport) return true;
-  if (studentHasSport(student, sport)) return true;
-  return studentClassIds(student).some((id) =>
-    sportsMatch(data.classes.find((c) => c.id === id)?.sport, sport),
-  );
+  if (sport) {
+    const sportOk =
+      studentHasSport(student, sport) ||
+      studentClassIds(student).some((id) =>
+        sportsMatch(data.classes.find((c) => c.id === id)?.sport, sport),
+      );
+    if (!sportOk) return false;
+  }
+  if (!matchesCustomChargeFilter(input, student.customCharge)) return false;
+  if (!matchesClothingPackageFilter(input, studentClothingPackageIds(student))) return false;
+  return true;
 }
 
 function athleteIdsForAnnouncement(
   input: Pick<
     AnnouncementInput,
-    'classIds' | 'recipientIds' | 'targetType' | 'targetId' | 'sportCategories' | 'teamsLabel'
+    | 'classIds'
+    | 'recipientIds'
+    | 'targetType'
+    | 'targetId'
+    | 'sportCategories'
+    | 'teamsLabel'
+    | 'customChargeFilter'
+    | 'clothingPackageId'
   >,
   data: ReturnType<typeof getData>,
 ): string[] {
@@ -116,6 +142,8 @@ export function resolveAnnouncementEmails(
     | 'targetId'
     | 'sportCategories'
     | 'teamsLabel'
+    | 'customChargeFilter'
+    | 'clothingPackageId'
   >,
 ): string[] {
   const data = getData();
@@ -125,31 +153,41 @@ export function resolveAnnouncementEmails(
   const sport = (input.sportCategories ?? '').trim();
 
   const hasClassScope = (input.classIds ?? []).length > 0;
-  // Επιλογή τμήματος = παραλήπτες τα μέλη του τμήματος (αθλητές + emails γονέων),
-  // ακόμα κι αν δεν τσεκαρίστηκαν οι ρόλοι «Αθλητές» / «Γονείς».
-  const wholeClub = roles.size === 0 && recipients.length === 0 && !hasClassScope;
+  // Χωρίς ρόλο / με τμήμα: μόνο κύριο email ενημερώσεων ανά αθλητή στο φίλτρο.
+  // Προπονητές / προσωπικό / αθλητές μπαίνουν στο email μόνο με ρητή επιλογή.
+  const defaultParentEmails =
+    roles.size === 0 &&
+    idsOf(recipients, 'athlete').length === 0 &&
+    idsOf(recipients, 'parent').length === 0 &&
+    idsOf(recipients, 'coach').length === 0 &&
+    idsOf(recipients, 'staff').length === 0;
   const wantAthletes =
-    wholeClub || hasClassScope || roles.has('athletes') || idsOf(recipients, 'athlete').length > 0;
+    roles.has('athletes') || idsOf(recipients, 'athlete').length > 0;
   const wantParents =
-    wholeClub || hasClassScope || roles.has('parents') || idsOf(recipients, 'parent').length > 0;
-  const wantCoaches = wholeClub || roles.has('coaches') || idsOf(recipients, 'coach').length > 0;
-  const wantStaff = wholeClub || roles.has('staff') || idsOf(recipients, 'staff').length > 0;
+    defaultParentEmails ||
+    hasClassScope ||
+    roles.has('parents') ||
+    idsOf(recipients, 'parent').length > 0;
+  const wantCoaches = roles.has('coaches') || idsOf(recipients, 'coach').length > 0;
+  const wantStaff = roles.has('staff') || idsOf(recipients, 'staff').length > 0;
 
   const athleteIds = athleteIdsForAnnouncement(input, data);
   const athleteSet = new Set(athleteIds);
 
-  if (wantAthletes || (wantParents && idsOf(recipients, 'parent').length === 0)) {
+  // Ένα κύριο email ανά αθλητή (πατέρας / μητέρα / αθλητής κατά την προτίμηση).
+  if (wantParents && idsOf(recipients, 'parent').length === 0) {
     for (const student of data.students) {
       if (!athleteSet.has(student.id)) continue;
-      if (wantAthletes) emails.push(student.email);
-      if (wantParents && idsOf(recipients, 'parent').length === 0) {
-        emails.push(student.motherEmail, student.fatherEmail);
-        for (const link of data.parentLinks ?? []) {
-          if (link.athleteId !== student.id) continue;
-          const parent = getUsers().find((u) => u.id === link.parentUserId && u.active);
-          if (parent?.email) emails.push(parent.email);
-        }
-      }
+      const primary = primaryParentNotifyEmail(student);
+      if (primary) emails.push(primary);
+    }
+  }
+
+  // Email αθλητή μόνο με ρητή επιλογή «Αθλητές» (και αν δεν καλύπτεται ήδη ως γονέας).
+  if (wantAthletes) {
+    for (const student of data.students) {
+      if (!athleteSet.has(student.id)) continue;
+      emails.push(student.email);
     }
   }
 
@@ -181,6 +219,67 @@ export function resolveAnnouncementEmails(
   }
 
   return uniqueEmails(emails);
+}
+
+/** Σύνοψη ακροατηρίου για email: αθλητές στο φίλτρο + κύρια emails. */
+export function summarizeAnnouncementEmailAudience(
+  input: Parameters<typeof resolveAnnouncementEmails>[0],
+): {
+  athleteCount: number;
+  /** Ένα κύριο (πατέρας/μητέρα/αθλητής) ανά αθλητή — πριν το unique. */
+  primaryEmailCount: number;
+  /** Μοναδικές διευθύνσεις που θα σταλούν (SMTP). */
+  emailCount: number;
+  emails: string[];
+  missingPrimaryAthletes: Array<{ id: string; name: string }>;
+  bothPreferenceAthletes: Array<{ id: string; name: string }>;
+} {
+  const data = getData();
+  const athleteIds = athleteIdsForAnnouncement(input, data);
+  const roles = new Set<AnnouncementAudienceRole>(input.audienceRoles ?? []);
+  const recipients = input.recipientIds ?? [];
+  const hasClassScope = (input.classIds ?? []).length > 0;
+  const defaultParentEmails =
+    roles.size === 0 &&
+    idsOf(recipients, 'athlete').length === 0 &&
+    idsOf(recipients, 'parent').length === 0 &&
+    idsOf(recipients, 'coach').length === 0 &&
+    idsOf(recipients, 'staff').length === 0;
+  const wantParents =
+    defaultParentEmails ||
+    hasClassScope ||
+    roles.has('parents') ||
+    idsOf(recipients, 'parent').length > 0;
+
+  const missingPrimaryAthletes: Array<{ id: string; name: string }> = [];
+  const bothPreferenceAthletes: Array<{ id: string; name: string }> = [];
+  let primaryEmailCount = 0;
+
+  if (wantParents && idsOf(recipients, 'parent').length === 0) {
+    for (const id of athleteIds) {
+      const student = data.students.find((s) => s.id === id);
+      if (!student) continue;
+      const name = `${student.lastName} ${student.firstName}`.trim();
+      if (normalizePreferredParentEmail(student.preferredParentEmail) === 'both') {
+        bothPreferenceAthletes.push({ id, name });
+      }
+      const primary = primaryParentNotifyEmail(student);
+      if (primary) primaryEmailCount += 1;
+      else missingPrimaryAthletes.push({ id, name });
+    }
+    bothPreferenceAthletes.sort((a, b) => a.name.localeCompare(b.name, 'el'));
+    missingPrimaryAthletes.sort((a, b) => a.name.localeCompare(b.name, 'el'));
+  }
+
+  const emails = resolveAnnouncementEmails(input);
+  return {
+    athleteCount: athleteIds.length,
+    primaryEmailCount,
+    emailCount: emails.length,
+    emails,
+    missingPrimaryAthletes,
+    bothPreferenceAthletes,
+  };
 }
 
 function sleep(ms: number) {
@@ -524,6 +623,8 @@ export async function sendAnnouncementParentPush(input: {
   recipientIds?: AnnouncementInput['recipientIds'];
   sportCategories?: string;
   teamsLabel?: string;
+  customChargeFilter?: AnnouncementInput['customChargeFilter'];
+  clothingPackageId?: string;
 }) {
   const audience = {
     audienceRoles: input.audienceRoles,
@@ -531,6 +632,8 @@ export async function sendAnnouncementParentPush(input: {
     recipientIds: input.recipientIds,
     sportCategories: input.sportCategories,
     teamsLabel: input.teamsLabel,
+    customChargeFilter: input.customChargeFilter,
+    clothingPackageId: input.clothingPackageId,
     status: 'published' as const,
   };
   const parentIds = pushService.announcementParentUserIds(audience);

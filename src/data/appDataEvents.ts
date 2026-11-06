@@ -11,8 +11,9 @@ function getAppDataChannel(): BroadcastChannel | null {
   }
   channel = new BroadcastChannel(APP_DATA_CHANNEL);
   channel.onmessage = () => {
-    void import('./repository').then((mod) => {
-      mod.clearDataCache();
+    void Promise.all([import('./repository'), import('./store')]).then(([repo, store]) => {
+      store.clearStoreMemory();
+      repo.clearDataCache();
       listeners.forEach((listener) => listener());
     });
   };

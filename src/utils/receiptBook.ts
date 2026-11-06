@@ -32,7 +32,12 @@ export function normalizeReceiptRanges(
   });
 }
 
-export function normalizeReceiptIssues(
+export function receiptIssueKey(series: string, number: number): string {
+  return `${normalizeReceiptSeries(series)}:${Math.floor(Number(number))}`;
+}
+
+/** Validate/dedupe χωρίς sort — για hot path έκδοσης (μεγάλα μητρώα). */
+export function coerceReceiptIssues(
   list: ReceiptIssueRecord[] | undefined | null,
 ): ReceiptIssueRecord[] {
   if (!Array.isArray(list)) return [];
@@ -66,7 +71,13 @@ export function normalizeReceiptIssues(
       kind,
     });
   }
-  return next.sort((a, b) => {
+  return next;
+}
+
+export function normalizeReceiptIssues(
+  list: ReceiptIssueRecord[] | undefined | null,
+): ReceiptIssueRecord[] {
+  return coerceReceiptIssues(list).sort((a, b) => {
     const bySeries = a.series.localeCompare(b.series, 'el');
     if (bySeries !== 0) return bySeries;
     return a.number - b.number;
@@ -107,7 +118,7 @@ export function hasReceiptRangeStarted(
   nextBySeries?: Record<string, number> | null,
 ): boolean {
   const series = normalizeReceiptSeries(range.series);
-  const issuedInsideRange = normalizeReceiptIssues(issues).some(
+  const issuedInsideRange = coerceReceiptIssues(issues).some(
     (row) => row.series === series && row.number >= range.from && row.number <= range.to,
   );
   if (issuedInsideRange) return true;
@@ -212,7 +223,7 @@ export function previewNextReceipt(
 ): { ok: true; series: string; number: number } | { ok: false; error: string; series?: string; number?: number } {
   const key = normalizeReceiptSeries(series);
   const normalizedRanges = normalizeReceiptRanges(ranges);
-  const normalizedIssues = normalizeReceiptIssues(issues);
+  const normalizedIssues = coerceReceiptIssues(issues);
   if (!key) return { ok: false, error: 'Επιλέξτε σειρά αποδείξεων.' };
   const span = numbersCovered(key, normalizedRanges);
   if (!span) {
@@ -264,7 +275,7 @@ export function validateReceiptNumberForIssue(
   if (!isNumberInRanges(key, n, normalizedRanges)) {
     return { ok: false, error: receiptRangeExhaustedMessage(key, n) };
   }
-  const taken = normalizeReceiptIssues(issues).find(
+  const taken = coerceReceiptIssues(issues).find(
     (row) => row.series === key && row.number === n,
   );
   if (taken && taken.transactionId !== (opts?.transactionId || null)) {
@@ -284,7 +295,7 @@ export function remainingInRange(
 ): number {
   const preview = previewNextReceipt(range.series, ranges, issues, nextBySeries);
   if (!preview.ok) {
-    const maxIssued = maxIssuedNumber(range.series, normalizeReceiptIssues(issues));
+    const maxIssued = maxIssuedNumber(range.series, coerceReceiptIssues(issues));
     if (maxIssued >= range.to) return 0;
     return 0;
   }
@@ -299,9 +310,17 @@ export function remainingCount(
   issues: ReceiptIssueRecord[] | undefined | null,
   nextBySeries?: Record<string, number> | null,
 ): number {
-  return normalizeReceiptRanges(ranges)
-    .filter((row) => row.series === normalizeReceiptSeries(series))
-    .reduce((sum, row) => sum + remainingInRange(row, ranges, issues, nextBySeries), 0);
+  const key = normalizeReceiptSeries(series);
+  const normalizedRanges = normalizeReceiptRanges(ranges);
+  const preview = previewNextReceipt(key, normalizedRanges, issues, nextBySeries);
+  if (!preview.ok) return 0;
+  let sum = 0;
+  for (const row of normalizedRanges) {
+    if (row.series !== key) continue;
+    const start = Math.max(preview.number, row.from);
+    if (start <= row.to) sum += row.to - start + 1;
+  }
+  return sum;
 }
 
 export function seriesOptions(
@@ -310,6 +329,7 @@ export function seriesOptions(
   nextBySeries?: Record<string, number> | null,
 ): Array<{ series: string; remaining: number; next: number | null; blocked: boolean; error?: string }> {
   const normalized = normalizeReceiptRanges(ranges);
+  const coercedIssues = coerceReceiptIssues(issues);
   const seen = new Set<string>();
   const out: Array<{
     series: string;
@@ -321,10 +341,18 @@ export function seriesOptions(
   for (const row of normalized) {
     if (seen.has(row.series)) continue;
     seen.add(row.series);
-    const preview = previewNextReceipt(row.series, normalized, issues, nextBySeries);
+    const preview = previewNextReceipt(row.series, normalized, coercedIssues, nextBySeries);
+    let remaining = 0;
+    if (preview.ok) {
+      for (const block of normalized) {
+        if (block.series !== row.series) continue;
+        const start = Math.max(preview.number, block.from);
+        if (start <= block.to) remaining += block.to - start + 1;
+      }
+    }
     out.push({
       series: row.series,
-      remaining: remainingCount(row.series, normalized, issues, nextBySeries),
+      remaining,
       next: preview.number ?? null,
       blocked: !preview.ok,
       error: preview.ok ? undefined : preview.error,
@@ -338,9 +366,8 @@ export function issueForTransaction(
   transactionId: string | null | undefined,
 ): ReceiptIssueRecord | null {
   if (!transactionId) return null;
-  return (
-    normalizeReceiptIssues(issues).find((row) => row.transactionId === transactionId) ?? null
-  );
+  const list = Array.isArray(issues) ? issues : [];
+  return list.find((row) => row?.transactionId === transactionId) ?? null;
 }
 
 export function voidReceiptIssuesForTransactionInData(data: AppData, transactionId: string): void {

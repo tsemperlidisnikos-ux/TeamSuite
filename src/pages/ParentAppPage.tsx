@@ -5,12 +5,13 @@ import { getClubById } from '../auth/clubs';
 import { ParentPushOptIn } from '../components/ParentPushOptIn';
 import { useCloudMirrorAutoPull } from '../hooks/useCloudMirrorAutoPull';
 import { getAppLogoUrl, getAppName } from '../platform/platformConfig';
-import { applyParentChrome } from '../utils/parentApp';
+import { applyParentChrome, parentAppPath } from '../utils/parentApp';
 import { LoginPage } from './LoginPage';
 import { ParentPortalPage } from './ParentPortalPage';
 
 export function ParentAppPage() {
   const [tick, setTick] = useState(0);
+  const [loggingOut, setLoggingOut] = useState(false);
   const session = getSession();
   const club = session?.clubId ? getClubById(session.clubId) : null;
   useCloudMirrorAutoPull(session?.clubId ?? null);
@@ -34,6 +35,19 @@ export function ParentAppPage() {
     };
   }, []);
 
+  async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      const { persistLocalStateToCloudBeforeLogout } = await import('../data/clubSync');
+      await persistLocalStateToCloudBeforeLogout();
+    } catch {
+      /* still log out */
+    }
+    logout();
+    window.location.assign(parentAppPath());
+  }
+
   if (!session) {
     return <LoginPage parentApp />;
   }
@@ -49,12 +63,10 @@ export function ParentAppPage() {
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => {
-            logout();
-            window.location.assign('/app/parent');
-          }}
+          disabled={loggingOut}
+          onClick={() => void handleLogout()}
         >
-          Έξοδος
+          {loggingOut ? 'Αποθήκευση…' : 'Έξοδος'}
         </button>
       </div>
     );
@@ -73,13 +85,11 @@ export function ParentAppPage() {
         <button
           type="button"
           className="parent-app-logout"
-          onClick={() => {
-            logout();
-            window.location.assign('/app/parent');
-          }}
+          disabled={loggingOut}
+          onClick={() => void handleLogout()}
         >
           <LogOut size={16} />
-          Έξοδος
+          {loggingOut ? 'Αποθήκευση…' : 'Έξοδος'}
         </button>
       </header>
       <ParentPushOptIn />

@@ -1,4 +1,5 @@
 import type { AppData } from '../types';
+import { mergeStudentsPreferringUpdatedAt } from './entityFieldMerge';
 
 const DB_NAME = 'teamsuite-club-map-v1';
 const STORE = 'kv';
@@ -89,23 +90,45 @@ function extrasWereDeleted(smaller: AppData, larger: AppData): boolean {
   return extras.length > 0 && extras.every((s) => deleted.has(s.id));
 }
 
+function unionById<T extends { id: string }>(
+  left: T[] | undefined,
+  right: T[] | undefined,
+  preferRight: boolean,
+): T[] {
+  const first = preferRight ? left ?? [] : right ?? [];
+  const second = preferRight ? right ?? [] : left ?? [];
+  const byId = new Map<string, T>();
+  for (const row of first) byId.set(row.id, row);
+  for (const row of second) byId.set(row.id, row);
+  return [...byId.values()];
+}
+
 function unionClubStudents(left: AppData, right: AppData): AppData {
   const deleted = new Set([...(left.deletedStudentIds ?? []), ...(right.deletedStudentIds ?? [])]);
   const preferRight = (Number(right.localWrittenAt) || 0) >= (Number(left.localWrittenAt) || 0);
-  const first = preferRight ? left.students ?? [] : right.students ?? [];
-  const second = preferRight ? right.students ?? [] : left.students ?? [];
-  const byId = new Map<string, (typeof first)[number]>();
-  for (const row of first) {
-    if (!deleted.has(row.id)) byId.set(row.id, row);
-  }
-  for (const row of second) {
-    if (!deleted.has(row.id)) byId.set(row.id, row);
-  }
   const base = preferRight ? right : left;
+  const other = preferRight ? left : right;
+  // Same active-status guard as cloud merge — last-write must not demote actives.
+  const students = mergeStudentsPreferringUpdatedAt(
+    left.students,
+    right.students,
+    deleted,
+    !preferRight,
+  );
   return {
     ...base,
-    students: [...byId.values()],
+    students,
     deletedStudentIds: [...deleted].slice(-5000),
+    // Do not drop clubMembers/classes from the non-preferred side (restore vs IDB race).
+    clubMembers:
+      (base.clubMembers?.length ?? 0) >= (other.clubMembers?.length ?? 0)
+        ? base.clubMembers ?? []
+        : other.clubMembers ?? [],
+    classes:
+      (base.classes?.length ?? 0) >= (other.classes?.length ?? 0)
+        ? base.classes ?? []
+        : other.classes ?? [],
+    coaches: unionById(left.coaches, right.coaches, preferRight),
   };
 }
 

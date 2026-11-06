@@ -3,7 +3,7 @@ import { createId, getData, mutateData } from '../../data/repository';
 import { rememberDeletedId, rememberDeletedIds } from '../../data/financeSyncMerge';
 import { classSchema, type ClassInput } from '../../schemas';
 import type { AcademyClass } from '../../types';
-import { publishClubOpsSlice } from './clubOpsSyncService';
+import { scheduleClubOpsSlice } from './clubOpsSyncService';
 
 export async function getClasses() {
   return apiClient(() => getData().classes);
@@ -64,7 +64,7 @@ export async function deleteClass(id: string) {
       data.schedule = data.schedule.filter((s) => s.classId !== id);
       data.attendance = data.attendance.filter((a) => a.classId !== id);
     });
-    void publishClubOpsSlice();
+    scheduleClubOpsSlice();
     return { id };
   });
 }

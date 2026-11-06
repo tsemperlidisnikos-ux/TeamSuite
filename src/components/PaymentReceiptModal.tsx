@@ -60,7 +60,7 @@ export function PaymentReceiptModal({
   initial,
   onClose,
 }: PaymentReceiptModalProps) {
-  const { data, refresh } = useAppData();
+  const { data } = useAppData();
   const [draft, setDraft] = useState<PaymentReceiptDraft>(emptyDraft);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
@@ -162,7 +162,7 @@ export function PaymentReceiptModal({
       series: result.data!.series,
       number: String(result.data!.number),
     }));
-    refresh();
+    // mutateDataKeys ήδη κάνει notifyAppDataChanged — όχι δεύτερο refresh πριν την εκτύπωση.
     return { ok: true as const, issue: result.data };
   }
 

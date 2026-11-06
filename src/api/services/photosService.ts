@@ -20,7 +20,10 @@ function isMinorBirthDate(birthDate: string | undefined): boolean {
   return age < 18;
 }
 
-export async function createPhoto(input: GalleryPhotoInput) {
+export async function createPhoto(
+  input: GalleryPhotoInput,
+  opts?: { onProgress?: (percent: number) => void },
+) {
   return apiClient(async () => {
     const parsed = galleryPhotoSchema.parse(input);
     const athleteIds = [...new Set((parsed.athleteIds ?? []).filter(Boolean))];
@@ -31,6 +34,7 @@ export async function createPhoto(input: GalleryPhotoInput) {
 
     let imageUrl = parsed.imageUrl;
     const clubId = resolveActiveClubId();
+    opts?.onProgress?.(4);
 
     // Prefer cloud Blob for data-URLs so mirrors stay small.
     if (clubId && imageUrl.startsWith('data:')) {
@@ -41,11 +45,16 @@ export async function createPhoto(input: GalleryPhotoInput) {
         fileName: parsed.fileName.trim() || 'photo.jpg',
         contentType,
         dataBase64: imageUrl,
+        onProgress: (pct) => {
+          // Upload fills most of the bar; leave headroom for local save.
+          opts?.onProgress?.(Math.max(4, Math.min(92, Math.round(pct * 0.9))));
+        },
       });
       if (uploaded.success && uploaded.data?.url) {
         imageUrl = uploaded.data.url;
       }
     }
+    opts?.onProgress?.(96);
 
     const students = getData().students;
     const includesMinors = athleteIds.some((id) => {
@@ -68,6 +77,7 @@ export async function createPhoto(input: GalleryPhotoInput) {
       if (!data.photos) data.photos = [];
       data.photos.unshift(photo);
     });
+    opts?.onProgress?.(100);
     return photo;
   });
 }

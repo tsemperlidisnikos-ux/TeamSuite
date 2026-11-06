@@ -11,12 +11,31 @@ export type PushStudent = {
   clubName?: string | null;
   classId?: string | null;
   classIds?: string[];
+  customCharge?: boolean | null;
+  clothingPackageIds?: string[];
+  joinExtras?: { clothingPackage?: string };
 };
 export type PushClass = { id: string; sport?: string | null };
 
+function pushStudentClothingIds(student: PushStudent): string[] {
+  const fromList = (student.clothingPackageIds ?? [])
+    .map((id) => String(id).trim())
+    .filter(Boolean);
+  if (fromList.length > 0) return [...new Set(fromList)];
+  const fromJoin = student.joinExtras?.clothingPackage;
+  return fromJoin ? [fromJoin] : [];
+}
+
 type AudienceAnnouncement = Pick<
   Announcement,
-  'audienceRoles' | 'classIds' | 'recipientIds' | 'status' | 'sportCategories' | 'teamsLabel'
+  | 'audienceRoles'
+  | 'classIds'
+  | 'recipientIds'
+  | 'status'
+  | 'sportCategories'
+  | 'teamsLabel'
+  | 'customChargeFilter'
+  | 'clothingPackageId'
 >;
 
 export function uniqueIds(ids: Array<string | undefined | null>): string[] {
@@ -92,6 +111,8 @@ export function parentUserIdsForAnnouncement(input: {
         [athlete.classId, ...(athlete.classIds ?? [])]
           .map((id) => input.classes.find((row) => row.id === id)?.sport)
           .find(Boolean) || null,
+      customCharge: athlete.customCharge,
+      clothingPackageIds: pushStudentClothingIds(athlete),
     }));
     if (announcementVisibleToParent(input.announcement, parent.id, linkedIds, classIds, meta)) {
       ids.push(parent.id);
