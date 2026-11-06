@@ -491,8 +491,9 @@ export function mutateDataKeys(
 ): AppData {
   const before = getData();
   const data = { ...before } as AppData;
+  const patch = data as unknown as Record<string, unknown>;
   for (const key of keys) {
-    (data as Record<string, unknown>)[key as string] = cloneAppDataKey(before[key]);
+    patch[key as string] = cloneAppDataKey(before[key]);
   }
   updater(data);
   return commitMutatedData(before, data);
