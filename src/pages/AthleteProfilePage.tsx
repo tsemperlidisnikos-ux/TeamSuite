@@ -233,6 +233,7 @@ function toForm(
     uniformReceived: student.uniformReceived ?? false,
     uniformSize: student.uniformSize ?? '',
     clothingPackageIds: studentClothingPackageIds(student),
+    upgradedReceived: student.upgradedReceived ?? false,
     joinExtras: student.joinExtras,
     registrationFee: student.registrationFee ?? 0,
     registrationCharge: student.registrationCharge ?? (student.registrationFee ?? 0) > 0,
@@ -1836,7 +1837,7 @@ export function AthleteProfilePage() {
                       ))}
                     </select>
                   </ApField>
-                  <ApField label="Πακέτο ρουχισμού" className="ap-span-2">
+                  <ApField label="Πακέτο ρουχισμού">
                     <ApMultiCheckDropdown
                       summary={clothingPackageSummary(
                         form.clothingPackageIds ?? [],
@@ -1858,6 +1859,11 @@ export function AthleteProfilePage() {
                         },
                       }))}
                     />
+                  </ApField>
+                  <ApField label="Παραλαβή αναβαθμισμένου">
+                    {yesNo(Boolean(form.upgradedReceived), (v) =>
+                      setField('upgradedReceived', v),
+                    )}
                   </ApField>
                 </div>
               </ApCard>

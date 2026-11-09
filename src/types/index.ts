@@ -100,6 +100,8 @@ export interface Student {
   uniformSize?: string;
   /** Επιλεγμένα πακέτα ρουχισμού συλλόγου. */
   clothingPackageIds?: string[];
+  /** Παραλαβή αναβαθμισμένου πακέτου ρουχισμού. */
+  upgradedReceived?: boolean;
   /** Επιλογές δημόσιας φόρμας (πακέτο, ΙΣΤΟΣ, πληρωμή, δηλώσεις). */
   joinExtras?: PublicJoinExtras;
   registrationFee?: number;

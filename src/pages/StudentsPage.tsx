@@ -90,6 +90,7 @@ const draftAthlete: StudentInput = {
   uniformReceived: false,
   uniformSize: '',
   clothingPackageIds: [],
+  upgradedReceived: false,
   registrationFee: 0,
   registrationCharge: true,
   monthlyCharge: true,

@@ -35,6 +35,7 @@ export const studentSchema = z.object({
   uniformReceived: z.boolean().optional(),
   uniformSize: z.string().optional(),
   clothingPackageIds: z.array(z.string()).optional().default([]),
+  upgradedReceived: z.boolean().optional(),
   joinExtras: z
     .object({
       clothingPackage: z.enum(['basic', 'upgraded']),
