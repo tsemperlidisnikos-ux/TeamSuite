@@ -12,12 +12,14 @@ import {
 import {
   deleteUser,
   getSession,
+  getUserById,
   getUsers,
   impersonateUser,
   isPlatformAdmin,
   updateUserEmail,
   type UserRole,
 } from '../auth/auth';
+import { getClubHomePath } from '../platform/platformConfig';
 import {
   getClubById,
   getClubs,
@@ -267,7 +269,15 @@ export function PlatformUsersPage() {
       navigate('/platform', { replace: true });
       return;
     }
-    navigate('/', { replace: true });
+    const session = getSession();
+    const stored = session ? getUserById(session.id) : null;
+    navigate(
+      getClubHomePath({
+        role: result.data?.role ?? session?.role ?? '',
+        permissions: stored?.permissions ?? null,
+      }),
+      { replace: true },
+    );
   }
 
   function openEmailEdit(row: PlatformUserRow) {

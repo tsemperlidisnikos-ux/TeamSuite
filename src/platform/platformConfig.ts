@@ -1202,6 +1202,26 @@ export function userCanAccessModule(
   return false;
 }
 
+/** First allowed club screen — skips Προεπισκόπηση when the role has no dashboard permission. */
+export function getClubHomePath(user: {
+  role: string;
+  permissions?: string[] | null;
+}): string {
+  if (user.role === 'platform_admin') {
+    return '/platform';
+  }
+  if (userCanAccessModule(user, 'dashboard')) {
+    return '/';
+  }
+  for (const mod of ACADEMY_MODULES) {
+    if (mod.id === 'dashboard') continue;
+    if (userCanAccessModule(user, mod.id)) {
+      return mod.path;
+    }
+  }
+  return '/login';
+}
+
 export function startPreview(clubId: string): void {
   localStorage.setItem(PREVIEW_KEY, clubId);
   window.dispatchEvent(new CustomEvent('academyhub-platform-updated'));

@@ -14,6 +14,7 @@ import {
 } from '../api/services/sessionService';
 import {
   getSession,
+  getUserById,
   isDemoSessionActive,
   isLocalSessionActive,
   isPresentationDemoEmail,
@@ -27,6 +28,7 @@ import {
   getAppearanceTheme,
   getAppLogoUrl,
   getAppName,
+  getClubHomePath,
 } from '../platform/platformConfig';
 import {
   applyPortalChrome,
@@ -390,8 +392,16 @@ export function LoginPage({
       navigate('/platform', { replace: true });
       return;
     }
+    const session = getSession();
+    const stored = session ? getUserById(session.id) : null;
+    const home = getClubHomePath({
+      role: result.data?.role ?? session?.role ?? '',
+      permissions: stored?.permissions ?? null,
+    });
     const target =
-      from && from !== '/login' && from !== parentAppPath() && from !== coachAppPath() ? from : '/';
+      from && from !== '/login' && from !== parentAppPath() && from !== coachAppPath() && from !== '/'
+        ? from
+        : home;
     navigate(target, { replace: true });
   }
 

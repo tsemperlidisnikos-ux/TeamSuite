@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { getSession, isPlatformAdmin } from './auth/auth';
+import { getSession, getUserById, isPlatformAdmin } from './auth/auth';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireModule } from './auth/RequireModule';
 import { RequireAthletesOrOwnProfile } from './auth/RequireAthletesOrOwnProfile';
@@ -9,7 +9,11 @@ import { AppLayout } from './components/layout/AppLayout';
 import { AppUpdateBanner } from './components/AppUpdateBanner';
 import { ConsentBanner } from './components/ConsentBanner';
 import { LocaleProvider } from './i18n/LocaleContext';
-import { getPreviewClubId } from './platform/platformConfig';
+import {
+  getClubHomePath,
+  getPreviewClubId,
+  userCanAccessModule,
+} from './platform/platformConfig';
 
 const LoginPage = lazy(() =>
   import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })),
@@ -151,9 +155,23 @@ function HomeRoute() {
     return <Navigate to="/platform" replace />;
   }
   const session = getSession();
-  if (session?.role === 'parent') return <ParentPortalPage />;
-  if (session?.role === 'coach') return <CoachPortalPage />;
-  if (session?.role === 'athlete') return <AthletePortalPage />;
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
+  const stored = session.role === 'platform_admin' ? null : getUserById(session.id);
+  const accessUser = {
+    role: session.role,
+    permissions: stored?.permissions ?? null,
+  };
+  if (!userCanAccessModule(accessUser, 'dashboard')) {
+    const home = getClubHomePath(accessUser);
+    if (home !== '/') {
+      return <Navigate to={home} replace />;
+    }
+  }
+  if (session.role === 'parent') return <ParentPortalPage />;
+  if (session.role === 'coach') return <CoachPortalPage />;
+  if (session.role === 'athlete') return <AthletePortalPage />;
   return <DashboardPage />;
 }
 

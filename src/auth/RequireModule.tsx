@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { getSession, getUserById } from './auth';
 import {
   type AcademyModuleId,
+  getClubHomePath,
   userCanAccessModule,
 } from '../platform/platformConfig';
 
@@ -25,7 +26,7 @@ export function RequireModule({ moduleId, children }: Props) {
   };
 
   if (!userCanAccessModule(accessUser, moduleId)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={getClubHomePath(accessUser)} replace />;
   }
 
   return <>{children}</>;
