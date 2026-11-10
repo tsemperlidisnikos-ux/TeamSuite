@@ -180,8 +180,8 @@ export const DEFAULT_CLUB_ROLE_PERMISSIONS: Record<ClubRole, ClubPermission[]> =
   ],
   staff: ['dashboard', 'calendar'],
   athlete: ['dashboard', 'schedule', 'attendance', 'fees', 'announcements', 'settings'],
-  // Parents only view announcements in the parent portal — no send module.
-  parent: ['dashboard', 'fees', 'settings'],
+  // Parents: view fees for linked children + announcements (send blocked in UI/API).
+  parent: ['dashboard', 'fees', 'announcements', 'settings'],
 };
 
 export type BackupFrequency = 'daily' | 'weekly' | 'monthly';
@@ -1165,8 +1165,8 @@ export function getEffectiveClubPermissions(user: {
   } else if (isClubRole(user.role)) {
     permissions = getPermissionsForClubRole(user.role);
   }
-  if (user.role === 'parent') {
-    return permissions.filter((p) => p !== 'announcements');
+  if (user.role === 'parent' && !permissions.includes('announcements')) {
+    return [...permissions, 'announcements'];
   }
   return permissions;
 }

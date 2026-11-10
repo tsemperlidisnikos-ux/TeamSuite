@@ -38,6 +38,7 @@ import type {
 import {
   announcementVisibleToAthlete,
   announcementVisibleToCoach,
+  announcementVisibleToParent,
   listParentRecipients,
   matchesClothingPackageFilter,
   matchesCustomChargeFilter,
@@ -406,6 +407,28 @@ export function AnnouncementsPage() {
       ? data.classes.find((c) => c.id === athlete.classId)?.sport
       : null;
 
+    const parentLinkedAthletes =
+      session?.role === 'parent'
+        ? (data.students ?? []).filter((s) =>
+            (data.parentLinks ?? []).some(
+              (link) => link.parentUserId === session.id && link.athleteId === s.id,
+            ),
+          )
+        : [];
+    const parentLinkedIds = parentLinkedAthletes.map((a) => a.id);
+    const parentLinkedClassIds = parentLinkedAthletes.flatMap((a) => studentClassIds(a));
+    const parentLinkedMeta = parentLinkedAthletes.map((a) => {
+      const classId = studentClassIds(a)[0];
+      return {
+        id: a.id,
+        sport: a.sport,
+        clubName: a.clubName,
+        classSport: classId ? data.classes.find((c) => c.id === classId)?.sport : null,
+        customCharge: a.customCharge,
+        clothingPackageIds: studentClothingPackageIds(a),
+      };
+    });
+
     return announcements.filter((item) => {
       if (item.status === 'draft') return false;
       if (session?.role === 'athlete' && athlete) {
@@ -426,6 +449,19 @@ export function AnnouncementsPage() {
       if (session?.role === 'coach' && coach) {
         if (!announcementVisibleToCoach(item, coach.id, coach.sport)) return false;
       }
+      if (session?.role === 'parent' && session.id) {
+        if (
+          !announcementVisibleToParent(
+            item,
+            session.id,
+            parentLinkedIds,
+            parentLinkedClassIds,
+            parentLinkedMeta,
+          )
+        ) {
+          return false;
+        }
+      }
       if (audienceFilter) {
         const roles = item.audienceRoles ?? [];
         if (roles.length > 0 && !roles.includes(audienceFilter as AnnouncementAudienceRole)) {
@@ -444,6 +480,7 @@ export function AnnouncementsPage() {
     data.coaches,
     data.students,
     data.classes,
+    data.parentLinks,
   ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));

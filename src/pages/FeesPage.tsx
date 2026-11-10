@@ -178,11 +178,22 @@ export function FeesPage() {
     return [...map.values()].sort((a, b) => a.localeCompare(b, 'el'));
   }, [data.sports, data.classes]);
 
+  const parentReadOnly = session?.role === 'parent';
+  const linkedAthleteIds = useMemo(() => {
+    if (!parentReadOnly || !session) return null;
+    return new Set(
+      (data.parentLinks ?? [])
+        .filter((link) => link.parentUserId === session.id)
+        .map((link) => link.athleteId),
+    );
+  }, [data.parentLinks, parentReadOnly, session]);
+
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     const owedOnly = searchParams.get('owed') === '1';
     return data.students
       .filter((s) => s.status !== 'inactive')
+      .filter((s) => (linkedAthleteIds ? linkedAthleteIds.has(s.id) : true))
       .filter((s) => {
         if (!q) return true;
         const amkaPart = canAccessAmka(session?.role) ? (s.amka ?? '') : '';
@@ -205,7 +216,15 @@ export function FeesPage() {
       })
       .sort((a, b) => b.balance - a.balance)
       .filter((row) => !owedOnly || row.balance > 0.009);
-  }, [data.students, data.classes, transactions, query, searchParams, session?.role]);
+  }, [
+    data.students,
+    data.classes,
+    transactions,
+    query,
+    searchParams,
+    session?.role,
+    linkedAthleteIds,
+  ]);
 
   const totals = useMemo(
     () => ({
@@ -407,19 +426,25 @@ export function FeesPage() {
     <div className="stack-lg">
       <PageHeader
         title="Συνδρομές / Πληρωμές"
-        subtitle="Υπόλοιπα συνδρομών, πρότυπα χρεώσεων και υπενθυμίσεις οφειλών."
+        subtitle={
+          parentReadOnly
+            ? 'Υπόλοιπα συνδρομών μόνο για τα συνδεδεμένα παιδιά σας.'
+            : 'Υπόλοιπα συνδρομών, πρότυπα χρεώσεων και υπενθυμίσεις οφειλών.'
+        }
         actions={
-          <div className="fees-actions">
-            <Button type="button" variant="secondary" onClick={openCreateCharges}>
-              <Receipt size={16} /> {t('Προβολή / Δημιουργία χρεώσεων')}
-            </Button>
-            <Button type="button" variant="secondary" onClick={openReminders}>
-              <Bell size={16} /> {t('Υπενθύμιση οφειλών')}
-            </Button>
-            <Button type="button" onClick={openNewCharge}>
-              <Plus size={16} /> {t('Νέα χρέωση')}
-            </Button>
-          </div>
+          !parentReadOnly ? (
+            <div className="fees-actions">
+              <Button type="button" variant="secondary" onClick={openCreateCharges}>
+                <Receipt size={16} /> {t('Προβολή / Δημιουργία χρεώσεων')}
+              </Button>
+              <Button type="button" variant="secondary" onClick={openReminders}>
+                <Bell size={16} /> {t('Υπενθύμιση οφειλών')}
+              </Button>
+              <Button type="button" onClick={openNewCharge}>
+                <Plus size={16} /> {t('Νέα χρέωση')}
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 
@@ -451,9 +476,11 @@ export function FeesPage() {
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t('Αναζήτηση αθλητή...')}
         />
-        <Link className="btn btn-secondary" to="/transactions">
-          {t('Μετάβαση σε Συναλλαγές')}
-        </Link>
+        {!parentReadOnly ? (
+          <Link className="btn btn-secondary" to="/transactions">
+            {t('Μετάβαση σε Συναλλαγές')}
+          </Link>
+        ) : null}
       </div>
 
       <section className="panel table-wrap">
