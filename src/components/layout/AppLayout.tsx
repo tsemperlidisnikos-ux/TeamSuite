@@ -194,9 +194,7 @@ export function AppLayout() {
 
   const enabledModules = useMemo(() => {
     if (!clubId) return new Set(ACADEMY_MODULES.map((m) => m.id));
-    const set = new Set(getAcademyModulesForClub(clubId));
-    set.add('dashboard');
-    return set;
+    return new Set(getAcademyModulesForClub(clubId));
   }, [clubId, platformTick]);
 
   const accessUser = useMemo(() => {
@@ -245,12 +243,7 @@ export function AppLayout() {
   }, [session?.role]);
 
   const visibleAcademy = academyItems
-    .filter((item) => {
-      if (item.id === 'dashboard') {
-        return userCanAccessModule(accessUser, 'dashboard');
-      }
-      return enabledModules.has(item.id) && userCanAccessModule(accessUser, item.id);
-    })
+    .filter((item) => enabledModules.has(item.id) && userCanAccessModule(accessUser, item.id))
     .map((item) => {
       const label = roleNavLabels[item.id];
       return label ? { ...item, label } : item;
