@@ -180,8 +180,8 @@ export const DEFAULT_CLUB_ROLE_PERMISSIONS: Record<ClubRole, ClubPermission[]> =
   ],
   staff: ['dashboard', 'calendar'],
   athlete: ['dashboard', 'schedule', 'attendance', 'fees', 'announcements', 'settings'],
-  // Parents: view fees for linked children + announcements (send blocked in UI/API).
-  parent: ['dashboard', 'fees', 'announcements', 'settings'],
+  // Parents: fees for linked children + announcements (no club overview dashboard).
+  parent: ['fees', 'announcements', 'settings'],
 };
 
 export type BackupFrequency = 'daily' | 'weekly' | 'monthly';
