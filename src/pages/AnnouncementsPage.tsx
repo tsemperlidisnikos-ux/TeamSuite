@@ -986,18 +986,27 @@ export function AnnouncementsPage() {
     return ['parents', 'coaches', 'athletes', 'staff'];
   }
 
+  const parentReadOnly = session?.role === 'parent';
+
   return (
     <div className="ann-page">
       <header className="ann-page-head">
         <div>
           <h1>Ανακοινώσεις</h1>
-          <p>Δημιουργία και αποστολή ανακοινώσεων σε γονείς, προπονητές και αθλητές.</p>
+          <p>
+            {parentReadOnly
+              ? 'Προβολή ανακοινώσεων του συλλόγου. Η αποστολή γίνεται μόνο από τη γραμματεία.'
+              : 'Δημιουργία και αποστολή ανακοινώσεων σε γονείς, προπονητές και αθλητές.'}
+          </p>
         </div>
-        <Button type="button" onClick={focusCompose}>
-          <Send size={16} /> Νέα Ανακοίνωση
-        </Button>
+        {!parentReadOnly ? (
+          <Button type="button" onClick={focusCompose}>
+            <Send size={16} /> Νέα Ανακοίνωση
+          </Button>
+        ) : null}
       </header>
 
+      {!parentReadOnly ? (
       <section className="ann-compose panel" ref={composeRef}>
         <h2>{editing ? 'Επεξεργασία ανακοίνωσης' : 'Νέα ανακοίνωση'}</h2>
         <div className="ann-compose-grid">
@@ -1394,6 +1403,7 @@ export function AnnouncementsPage() {
           </Button>
         </div>
       </section>
+      ) : null}
 
       <section className="ann-list panel">
         <div className="ann-list-head">
@@ -1504,26 +1514,30 @@ export function AnnouncementsPage() {
                       <td>{formatDate(item.visibleFrom || item.createdAt)}</td>
                       <td>{item.createdBy || 'Διαχειριστής'}</td>
                       <td className="ann-row-actions">
-                        <div className="ann-row-btns">
-                          <button
-                            type="button"
-                            className="ann-icon-btn"
-                            aria-label="Επεξεργασία"
-                            title="Επεξεργασία"
-                            onClick={() => openEdit(item)}
-                          >
-                            <Pencil size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            className="ann-icon-btn is-danger"
-                            aria-label="Διαγραφή"
-                            title="Διαγραφή"
-                            onClick={() => void handleDelete(item.id)}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
+                        {!parentReadOnly ? (
+                          <div className="ann-row-btns">
+                            <button
+                              type="button"
+                              className="ann-icon-btn"
+                              aria-label="Επεξεργασία"
+                              title="Επεξεργασία"
+                              onClick={() => openEdit(item)}
+                            >
+                              <Pencil size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              className="ann-icon-btn is-danger"
+                              aria-label="Διαγραφή"
+                              title="Διαγραφή"
+                              onClick={() => void handleDelete(item.id)}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="ann-hint">Μόνο προβολή</span>
+                        )}
                       </td>
                     </tr>
                   );

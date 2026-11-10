@@ -1,10 +1,17 @@
 import { apiClient } from '../apiClient';
+import { getSession } from '../../auth/auth';
 import { createId, mutateData } from '../../data/repository';
 import { rememberDeletedId } from '../../data/financeSyncMerge';
 import { announcementSchema, type AnnouncementInput } from '../../schemas';
 import type { Announcement } from '../../types';
 import { localDateTimeIso } from '../../utils/dates';
 import { scheduleClubOpsSlice } from './clubOpsSyncService';
+
+function assertParentCannotSendAnnouncements(): void {
+  if (getSession()?.role === 'parent') {
+    throw new Error('Οι γονείς μπορούν μόνο να βλέπουν ανακοινώσεις.');
+  }
+}
 
 function toAnnouncement(
   parsed: AnnouncementInput,
@@ -43,6 +50,7 @@ function toAnnouncement(
 
 export async function createAnnouncement(input: AnnouncementInput) {
   return apiClient(() => {
+    assertParentCannotSendAnnouncements();
     const parsed = announcementSchema.parse(input);
     const announcement = toAnnouncement(
       parsed,
@@ -59,6 +67,7 @@ export async function createAnnouncement(input: AnnouncementInput) {
 
 export async function updateAnnouncement(id: string, input: AnnouncementInput) {
   return apiClient(() => {
+    assertParentCannotSendAnnouncements();
     const parsed = announcementSchema.parse(input);
     let updated: Announcement | undefined;
     mutateData((data) => {
@@ -103,6 +112,7 @@ export async function saveAnnouncementEmailStats(
 
 export async function deleteAnnouncement(id: string) {
   return apiClient(() => {
+    assertParentCannotSendAnnouncements();
     mutateData((data) => {
       data.announcements = data.announcements.filter((a) => a.id !== id);
       data.deletedAnnouncementIds = rememberDeletedId(data.deletedAnnouncementIds, id);
