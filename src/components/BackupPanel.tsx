@@ -79,6 +79,11 @@ export function BackupPanel() {
   const autoSync = clubId ? isAutoSyncEnabled(clubId) : false;
   const lastSync = clubId ? getLastSyncAt(clubId) : null;
   const canManageAccounts = isPlatformAdmin();
+  const session = getSession();
+  const canDownloadClubBackup =
+    session?.role === 'admin' ||
+    session?.role === 'secretariat' ||
+    session?.role === 'platform_admin';
   const schedule = club?.backupSchedule ?? null;
 
   useEffect(() => {
@@ -129,6 +134,12 @@ export function BackupPanel() {
   }
 
   async function handleBackupExport() {
+    if (!canDownloadClubBackup) {
+      setError(
+        'Η λήψη backup είναι διαθέσιμη μόνο σε διαχειριστή πλατφόρμας, διαχειριστή συλλόγου και γραμματεία.',
+      );
+      return;
+    }
     const activeClubId = resolveTargetClubId();
     setClubTick((n) => n + 1);
     if (!activeClubId) {
@@ -489,14 +500,21 @@ export function BackupPanel() {
             </p>
           </div>
           <div className="settings-form-row-content settings-backup-panel">
-            <Button
-              type="button"
-              className="settings-backup-action"
-              onClick={() => void handleBackupExport()}
-              disabled={syncing !== null}
-            >
-              {syncing === 'export' ? 'Λήψη…' : 'Λήψη JSON'}
-            </Button>
+            {canDownloadClubBackup ? (
+              <Button
+                type="button"
+                className="settings-backup-action"
+                onClick={() => void handleBackupExport()}
+                disabled={syncing !== null}
+              >
+                {syncing === 'export' ? 'Λήψη…' : 'Λήψη JSON'}
+              </Button>
+            ) : (
+              <p className="settings-hint">
+                Η λήψη backup είναι διαθέσιμη μόνο σε διαχειριστή πλατφόρμας, διαχειριστή συλλόγου και
+                γραμματεία.
+              </p>
+            )}
           </div>
         </div>
 

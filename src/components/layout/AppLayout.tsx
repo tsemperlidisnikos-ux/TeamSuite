@@ -391,15 +391,18 @@ export function AppLayout() {
 
           {clubLogoUrl ? (
             canQuickClubExport ? (
-              <button
-                type="button"
-                className="sidebar-club-logo"
-                onClick={handleClubLogoQuickExport}
-                title={t('Λήψη backup συλλόγου (JSON) και εξαγωγή αθλητών (Excel)')}
-                aria-label={t('Λήψη backup συλλόγου (JSON) και εξαγωγή αθλητών (Excel)')}
-              >
-                <img src={clubLogoUrl} alt="" />
-              </button>
+              <div className="sidebar-club-logo-wrap">
+                <button
+                  type="button"
+                  className="sidebar-club-logo"
+                  onClick={handleClubLogoQuickExport}
+                  title={t('Λήψη backup συλλόγου (JSON) και εξαγωγή αθλητών (Excel)')}
+                  aria-label={t('Λήψη backup συλλόγου (JSON) και εξαγωγή αθλητών (Excel)')}
+                >
+                  <img src={clubLogoUrl} alt="" />
+                </button>
+                <p className="sidebar-club-logo-hint">{t('Κλικ στο λογότυπο → backup')}</p>
+              </div>
             ) : (
               <div className="sidebar-club-logo">
                 <img src={clubLogoUrl} alt={club?.name ?? ''} />
